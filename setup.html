@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; base-uri 'none'; form-action 'none'"
+    />
+    <title>LINE 分帳 Bot 設定</title>
+    <style>
+      :root { color-scheme: dark; font: 16px system-ui, sans-serif; }
+      body { max-width: 680px; margin: 40px auto; padding: 0 20px; background: #111; color: #eee; }
+      h1 { font-size: 1.6rem; }
+      p, small { color: #aaa; }
+      form { display: grid; gap: 16px; }
+      label { display: grid; gap: 6px; font-weight: 650; }
+      input { padding: 12px; border: 1px solid #444; border-radius: 8px; background: #1b1b1b; color: #fff; }
+      input:focus { outline: 2px solid #4ade80; border-color: transparent; }
+      button { padding: 13px; border: 0; border-radius: 8px; background: #22c55e; color: #07130a; font-weight: 800; cursor: pointer; }
+      button:hover { background: #4ade80; }
+      a { color: #86efac; }
+      #status { min-height: 1.5em; color: #86efac; }
+    </style>
+  </head>
+  <body>
+    <h1>LINE 情侶分帳 Bot 設定</h1>
+    <p>資料只在這個瀏覽器頁面處理，不會上傳。填完後下載 <code>.env.local</code>。</p>
+
+    <form id="setup-form">
+      <label>
+        LINE Channel Secret
+        <input name="LINE_CHANNEL_SECRET" type="password" autocomplete="off" required />
+      </label>
+      <label>
+        LINE Channel Access Token
+        <input name="LINE_CHANNEL_ACCESS_TOKEN" type="password" autocomplete="off" required />
+      </label>
+      <label>
+        Gemini API Key
+        <input name="GEMINI_API_KEY" type="password" autocomplete="off" required />
+      </label>
+      <label>
+        Supabase URL
+        <input name="SUPABASE_URL" type="url" value="https://alzzyweydblyyvnbiwpn.supabase.co" required />
+      </label>
+      <label>
+        Supabase Secret Key
+        <input name="SUPABASE_SECRET_KEY" type="password" autocomplete="off" required />
+      </label>
+      <label>
+        情侶設定碼（兩人輸入「加入 設定碼」）
+        <input name="COUPLE_SETUP_CODE" minlength="8" autocomplete="off" required />
+      </label>
+
+      <button type="submit">下載 .env.local</button>
+      <output id="status" aria-live="polite"></output>
+    </form>
+
+    <script>
+      const form = document.querySelector('#setup-form');
+      const setupCode = form.elements.COUPLE_SETUP_CODE;
+      const status = document.querySelector('#status');
+
+      setupCode.value = Array.from(crypto.getRandomValues(new Uint8Array(12)), (n) =>
+        n.toString(16).padStart(2, '0'),
+      ).join('');
+
+      const envLine = (name, value) => `${name}=${JSON.stringify(value)}`;
+      console.assert(envLine('X', 'a"b') === 'X="a\\"b"');
+
+      form.addEventListener('submit', (event) => {
+        event.preventDefault();
+        const values = new FormData(form);
+        const env = [...values].map(([name, value]) => envLine(name, String(value).trim())).join('\n') + '\n';
+        const url = URL.createObjectURL(new Blob([env], { type: 'text/plain;charset=utf-8' }));
+        const link = Object.assign(document.createElement('a'), { href: url, download: '.env.local' });
+        link.click();
+        URL.revokeObjectURL(url);
+        status.textContent = '已下載。請把檔案放到專案根目錄，且不要上傳到 Git。';
+      });
+    </script>
+  </body>
+</html>

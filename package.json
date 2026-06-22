@@ -1,0 +1,33 @@
+{
+  "name": "line-couple-ledger-bot",
+  "version": "0.1.0",
+  "private": true,
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "lint": "eslint .",
+    "test": "tsx --test src/lib/ledger.test.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@google/genai": "2.9.0",
+    "@line/bot-sdk": "11.0.2",
+    "@supabase/supabase-js": "2.108.2",
+    "next": "16.2.9",
+    "react": "19.2.7",
+    "react-dom": "19.2.7",
+    "zod": "4.4.3"
+  },
+  "devDependencies": {
+    "@types/node": "latest",
+    "@types/react": "latest",
+    "@types/react-dom": "latest",
+    "eslint": "9.39.4",
+    "eslint-config-next": "16.2.9",
+    "tsx": "4.22.4",
+    "typescript": "6.0.3"
+  }
+}
