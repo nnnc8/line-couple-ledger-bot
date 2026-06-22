@@ -2,12 +2,19 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { parseFixedIntent, safeSecretEqual } from "./bot";
+import { expensesCsv, type AppExpense } from "./app-server";
+import { detectReceiptMime, signSession, verifySession } from "./security";
 import {
   calculateBalances,
+  crossedBudgetThresholds,
   geminiIntentJsonSchema,
   monthlySummary,
+  nextRecurringDate,
   parsedIntentSchema,
+  receiptExtractionSchema,
   splitEqual,
+  splitExact,
+  splitPercentage,
   type LedgerExpense,
 } from "./ledger";
 
@@ -28,6 +35,49 @@ test("compares setup codes without accepting different lengths", () => {
   assert.equal(safeSecretEqual("correct-code", "wrong"), false);
 });
 
+test("rejects tampered and expired application sessions", () => {
+  const secret = "x".repeat(32);
+  const token = signSession(
+    { userId: "user", lineUserId: "line", expiresAt: 2_000 },
+    secret,
+  );
+  assert.equal(verifySession(token, secret, 1_999)?.userId, "user");
+  assert.equal(verifySession(`${token}x`, secret, 1_999), null);
+  assert.equal(verifySession(token, secret, 2_001), null);
+});
+
+test("accepts receipt formats by bytes instead of browser MIME claims", () => {
+  assert.equal(detectReceiptMime(Buffer.from([0xff, 0xd8, 0xff, 0xe0])), "image/jpeg");
+  assert.equal(
+    detectReceiptMime(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])),
+    "image/png",
+  );
+  assert.equal(detectReceiptMime(Buffer.from("not an image")), null);
+});
+
+test("neutralizes spreadsheet formulas in CSV exports", () => {
+  const row: AppExpense = {
+    id: "00000000-0000-4000-8000-000000000001",
+    group_id: "00000000-0000-4000-8000-000000000002",
+    ledger: "shared",
+    description: "=HYPERLINK(\"https://evil\")",
+    merchant: null,
+    notes: null,
+    category: "other",
+    amount_twd: 1,
+    paid_by_user_id: "00000000-0000-4000-8000-000000000003",
+    created_by_user_id: "00000000-0000-4000-8000-000000000003",
+    expense_date: "2026-06-22",
+    split_method: "equal",
+    version: 1,
+    deleted_at: null,
+    created_at: "2026-06-22T00:00:00Z",
+    expense_splits: [],
+    receipts: [],
+  };
+  assert.match(expensesCsv([row], [{ id: row.paid_by_user_id, label: "你" }]), /"'=HYPERLINK/);
+});
+
 test("splits even and odd TWD amounts with the payer taking the remainder", () => {
   assert.deepEqual(splitEqual(860, OWNER, PARTNER), {
     [OWNER]: 430,
@@ -37,6 +87,59 @@ test("splits even and odd TWD amounts with the payer taking the remainder", () =
     [OWNER]: 431,
     [PARTNER]: 430,
   });
+});
+
+test("validates exact shares and percentage rounding", () => {
+  assert.deepEqual(splitExact(861, { [OWNER]: 500, [PARTNER]: 361 }), {
+    [OWNER]: 500,
+    [PARTNER]: 361,
+  });
+  assert.throws(() => splitExact(861, { [OWNER]: 500, [PARTNER]: 360 }));
+  assert.deepEqual(
+    splitPercentage(861, OWNER, { [OWNER]: 50, [PARTNER]: 50 }),
+    { [OWNER]: 431, [PARTNER]: 430 },
+  );
+  assert.deepEqual(
+    splitPercentage(100, PARTNER, { [OWNER]: 33.33, [PARTNER]: 66.67 }),
+    { [OWNER]: 33, [PARTNER]: 67 },
+  );
+  assert.throws(() =>
+    splitPercentage(100, OWNER, { [OWNER]: 60, [PARTNER]: 30 }),
+  );
+});
+
+test("reports each crossed budget threshold once", () => {
+  assert.deepEqual(crossedBudgetThresholds(790, 810, 1_000), [80]);
+  assert.deepEqual(crossedBudgetThresholds(790, 1_010, 1_000), [80, 100]);
+  assert.deepEqual(crossedBudgetThresholds(810, 900, 1_000), []);
+});
+
+test("advances recurring dates without drifting month end", () => {
+  assert.equal(nextRecurringDate("2026-01-31", "monthly", 31), "2026-02-28");
+  assert.equal(nextRecurringDate("2026-02-28", "monthly", 31), "2026-03-31");
+  assert.equal(nextRecurringDate("2026-06-22", "weekly"), "2026-06-29");
+  assert.equal(nextRecurringDate("2024-02-29", "yearly", 29), "2025-02-28");
+});
+
+test("rejects unsafe receipt extraction values", () => {
+  assert.equal(
+    receiptExtractionSchema.safeParse({
+      merchant: "小吃店",
+      expenseDate: "2026-06-22",
+      amountTwd: 860,
+      confidence: 0.92,
+    }).success,
+    true,
+  );
+  assert.equal(
+    receiptExtractionSchema.safeParse({
+      merchant: "小吃店",
+      expenseDate: "2026-99-99",
+      amountTwd: -1,
+      confidence: 2,
+    }).success,
+    false,
+  );
 });
 
 test("calculates who owes whom and applies settlements", () => {

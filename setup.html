@@ -37,6 +37,14 @@
         <input name="LINE_CHANNEL_ACCESS_TOKEN" type="password" autocomplete="off" required />
       </label>
       <label>
+        LINE Login Channel ID
+        <input name="LINE_LOGIN_CHANNEL_ID" inputmode="numeric" autocomplete="off" required />
+      </label>
+      <label>
+        LIFF ID
+        <input name="NEXT_PUBLIC_LIFF_ID" autocomplete="off" required />
+      </label>
+      <label>
         Gemini API Key
         <input name="GEMINI_API_KEY" type="password" autocomplete="off" required />
       </label>
@@ -50,7 +58,19 @@
       </label>
       <label>
         情侶設定碼（兩人輸入「加入 設定碼」）
-        <input name="COUPLE_SETUP_CODE" minlength="8" autocomplete="off" required />
+        <input name="COUPLE_SETUP_CODE" minlength="20" autocomplete="off" required />
+      </label>
+      <label>
+        App URL
+        <input name="APP_URL" type="url" value="https://line-couple-ledger-bot.vercel.app" required />
+      </label>
+      <label>
+        LIFF Session Secret（已自動產生）
+        <input name="LIFF_SESSION_SECRET" type="password" minlength="32" autocomplete="off" required />
+      </label>
+      <label>
+        Cron Secret（已自動產生）
+        <input name="CRON_SECRET" type="password" minlength="16" autocomplete="off" required />
       </label>
 
       <button type="submit">下載 .env.local</button>
@@ -60,11 +80,16 @@
     <script>
       const form = document.querySelector('#setup-form');
       const setupCode = form.elements.COUPLE_SETUP_CODE;
+      const sessionSecret = form.elements.LIFF_SESSION_SECRET;
+      const cronSecret = form.elements.CRON_SECRET;
       const status = document.querySelector('#status');
 
-      setupCode.value = Array.from(crypto.getRandomValues(new Uint8Array(12)), (n) =>
+      const randomHex = (bytes) => Array.from(crypto.getRandomValues(new Uint8Array(bytes)), (n) =>
         n.toString(16).padStart(2, '0'),
       ).join('');
+      setupCode.value = randomHex(12);
+      sessionSecret.value = randomHex(32);
+      cronSecret.value = randomHex(32);
 
       const envLine = (name, value) => `${name}=${JSON.stringify(value)}`;
       console.assert(envLine('X', 'a"b') === 'X="a\\"b"');

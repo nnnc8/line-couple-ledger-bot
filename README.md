@@ -1,10 +1,10 @@
-# LINE 情侶分帳 Bot
+# LINE 共同帳本
 
-兩人使用的 LINE 分帳 MVP：Gemini 只解析文字，Supabase/PostgreSQL 負責權限、分帳與原子寫入。
+固定兩人使用的 LINE Bot＋LIFF 帳務工具，支援多群組、共同／私人帳、三種分帳、收據辨識、預算、週期帳與 CSV。
 
 ## Setup
 
-需要 Node.js 22+、pnpm、LINE Messaging API channel、Google AI Studio API key、Supabase project。
+需要 Node.js 22+、pnpm、LINE Messaging API channel、同 Provider 的 LINE Login channel、Google AI Studio API key、Supabase project。
 
 ```bash
 rtk pnpm install
@@ -27,13 +27,22 @@ rtk pnpm dlx supabase db push
 rtk pnpm dev
 ```
 
-部署到 Vercel 後，在 Vercel 設定 `.env.example` 列出的六個環境變數，並把 LINE webhook 設成：
+部署到 Vercel 後，設定 `.env.example` 全部環境變數。`LIFF_SESSION_SECRET` 至少 32 字元，`CRON_SECRET` 至少 16 字元。把 LINE webhook 設成：
 
 ```text
 https://<deployment>/api/line/webhook
 ```
 
 在 LINE Developers Console 執行 Verify，並啟用 webhook redelivery。
+
+在 LINE Login channel 建立 LIFF app：
+
+- Endpoint URL：`https://<deployment>/`
+- Scope：`openid`、`profile`
+- 將 LIFF ID 設為 `NEXT_PUBLIC_LIFF_ID`
+- 將 LINE Login channel ID 設為 `LINE_LOGIN_CHANNEL_ID`
+
+Vercel 每日 01:15（Asia/Taipei）執行 `/api/cron/daily`，建立週期帳草稿並清除超過 30 天的已刪除收據。
 
 ## Usage
 
@@ -49,7 +58,7 @@ https://<deployment>/api/line/webhook
 結清
 ```
 
-新增、刪除與結清都必須在五分鐘內按 quick reply 確認。
+新增、修改、刪除、復原與結清都必須在五分鐘內確認。LINE 傳送收據圖片後，辨識結果會以通知連回 LIFF 編輯確認。
 
 ## Checks
 

@@ -63,6 +63,23 @@ export const geminiIntentJsonSchema = Object.fromEntries(
 
 export type ParsedIntent = z.infer<typeof parsedIntentSchema>;
 export type LedgerType = "shared" | "private";
+export type SplitMethod = "equal" | "exact" | "percentage";
+export type RecurringFrequency = "weekly" | "monthly" | "yearly";
+
+export const receiptExtractionSchema = z
+  .object({
+    merchant: z.string().trim().min(1).max(100).nullable(),
+    expenseDate: z.iso.date().nullable(),
+    amountTwd: z.number().int().positive().max(100_000_000).nullable(),
+    confidence: z.number().min(0).max(1),
+  })
+  .strict();
+
+export const geminiReceiptJsonSchema = Object.fromEntries(
+  Object.entries(z.toJSONSchema(receiptExtractionSchema)).filter(
+    ([key]) => key !== "$schema",
+  ),
+);
 
 export interface LedgerExpense {
   id: string;
@@ -96,6 +113,106 @@ export function splitEqual(
     [paidByUserId]: Math.ceil(amountTwd / 2),
     [partnerUserId]: Math.floor(amountTwd / 2),
   };
+}
+
+export function splitExact(
+  amountTwd: number,
+  shares: Record<string, number>,
+): Record<string, number> {
+  assertAmount(amountTwd);
+  const entries = Object.entries(shares);
+  if (
+    entries.length < 1 ||
+    entries.some(([, share]) => !Number.isSafeInteger(share) || share < 0) ||
+    entries.reduce((sum, [, share]) => sum + share, 0) !== amountTwd
+  ) {
+    throw new Error("exact shares must be non-negative integers summing to amountTwd");
+  }
+  return { ...shares };
+}
+
+export function splitPercentage(
+  amountTwd: number,
+  paidByUserId: string,
+  percentages: Record<string, number>,
+): Record<string, number> {
+  assertAmount(amountTwd);
+  const entries = Object.entries(percentages).map(([userId, percentage]) => ({
+    userId,
+    basisPoints: Math.round(percentage * 100),
+  }));
+  if (
+    entries.length < 1 ||
+    entries.some(({ basisPoints }) => basisPoints < 0 || basisPoints > 10_000) ||
+    entries.reduce((sum, { basisPoints }) => sum + basisPoints, 0) !== 10_000
+  ) {
+    throw new Error("percentages must have at most two decimals and sum to 100");
+  }
+
+  const shares = Object.fromEntries(
+    entries.map(({ userId, basisPoints }) => [
+      userId,
+      Math.floor((amountTwd * basisPoints) / 10_000),
+    ]),
+  );
+  let remainder = amountTwd - Object.values(shares).reduce((sum, share) => sum + share, 0);
+  const order = entries.sort((left, right) => {
+    const leftRemainder = (amountTwd * left.basisPoints) % 10_000;
+    const rightRemainder = (amountTwd * right.basisPoints) % 10_000;
+    return (
+      rightRemainder - leftRemainder ||
+      Number(right.userId === paidByUserId) - Number(left.userId === paidByUserId) ||
+      left.userId.localeCompare(right.userId)
+    );
+  });
+  for (let index = 0; remainder > 0; index = (index + 1) % order.length) {
+    shares[order[index]!.userId]! += 1;
+    remainder -= 1;
+  }
+  return shares;
+}
+
+export function crossedBudgetThresholds(
+  previousSpentTwd: number,
+  currentSpentTwd: number,
+  limitTwd: number,
+): Array<80 | 100> {
+  if (limitTwd <= 0) return [];
+  return ([80, 100] as const).filter(
+    (threshold) =>
+      previousSpentTwd * 100 < limitTwd * threshold &&
+      currentSpentTwd * 100 >= limitTwd * threshold,
+  );
+}
+
+export function nextRecurringDate(
+  currentDate: string,
+  frequency: RecurringFrequency,
+  anchorDay?: number,
+): string {
+  z.iso.date().parse(currentDate);
+  const [year, month, day] = currentDate.split("-").map(Number) as [number, number, number];
+  const desiredDay = anchorDay ?? day;
+  if (frequency === "weekly") {
+    const next = new Date(Date.UTC(year, month - 1, day + 7));
+    return formatUtcDate(next);
+  }
+  const targetYear = frequency === "yearly" ? year + 1 : year + Math.floor(month / 12);
+  const targetMonth = frequency === "yearly" ? month : (month % 12) + 1;
+  const lastDay = new Date(Date.UTC(targetYear, targetMonth, 0)).getUTCDate();
+  return formatUtcDate(
+    new Date(Date.UTC(targetYear, targetMonth - 1, Math.min(desiredDay, lastDay))),
+  );
+}
+
+function assertAmount(amountTwd: number): void {
+  if (!Number.isSafeInteger(amountTwd) || amountTwd <= 0) {
+    throw new Error("amountTwd must be a positive integer");
+  }
+}
+
+function formatUtcDate(date: Date): string {
+  return date.toISOString().slice(0, 10);
 }
 
 export function calculateBalances(

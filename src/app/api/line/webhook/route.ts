@@ -1,10 +1,11 @@
 import { GoogleGenAI } from "@google/genai";
 import { LineBotClient, validateSignature, type webhook } from "@line/bot-sdk";
 import { createClient } from "@supabase/supabase-js";
-import { NextResponse } from "next/server";
+import { after, NextResponse } from "next/server";
 import { z } from "zod";
 
 import { handleLineEvent } from "@/lib/bot";
+import { processLineReceipt } from "@/lib/app-server";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -52,10 +53,11 @@ export async function POST(request: Request): Promise<Response> {
     return NextResponse.json({ error: "Invalid webhook" }, { status: 400 });
   }
 
+  const lineClient = LineBotClient.fromChannelAccessToken({
+    channelAccessToken: environment.data.LINE_CHANNEL_ACCESS_TOKEN,
+  });
   const dependencies = {
-    lineClient: LineBotClient.fromChannelAccessToken({
-      channelAccessToken: environment.data.LINE_CHANNEL_ACCESS_TOKEN,
-    }),
+    lineClient,
     supabase: createClient(
       environment.data.SUPABASE_URL,
       environment.data.SUPABASE_SECRET_KEY,
@@ -63,6 +65,9 @@ export async function POST(request: Request): Promise<Response> {
     ),
     gemini: new GoogleGenAI({ apiKey: environment.data.GEMINI_API_KEY }),
     setupCode: environment.data.COUPLE_SETUP_CODE,
+    onImage: (input: { messageId: string; eventId: string; lineUserId: string }) => {
+      after(() => processLineReceipt(lineClient, input));
+    },
   };
 
   await Promise.allSettled(

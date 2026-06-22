@@ -67,10 +67,11 @@ const actionResultSchema = z.object({
 type UserRow = z.infer<typeof userRowSchema>;
 
 interface BotDependencies {
-  lineClient: Pick<LineBotClient, "replyMessage">;
+  lineClient: Pick<LineBotClient, "replyMessage" | "getMessageContent" | "pushMessage">;
   supabase: SupabaseClient;
   gemini: GoogleGenAI;
   setupCode: string;
+  onImage?: (input: { messageId: string; eventId: string; lineUserId: string }) => void;
 }
 
 export async function handleLineEvent(
@@ -86,7 +87,13 @@ export async function handleLineEvent(
       await handlePostback(event, userId, replyToken, dependencies);
       return;
     }
-    if (event.type !== "message" || event.message.type !== "text") return;
+    if (event.type !== "message") return;
+    if (event.message.type === "image") {
+      await replyText(dependencies.lineClient, replyToken, "已收到收據，辨識完成後會通知你到圖形化帳本確認。");
+      dependencies.onImage?.({ messageId: event.message.id, eventId: event.webhookEventId, lineUserId: userId });
+      return;
+    }
+    if (event.message.type !== "text") return;
     await handleText(
       event.message.text,
       event.webhookEventId,
@@ -272,6 +279,7 @@ async function proposeExpense(
     return;
   }
   const paidByUserId = parsed.paidBy === "self" ? user.id : partner.id;
+  const activeGroup = parsed.ledger === "shared" ? await findActiveGroup(dependencies.supabase, user) : null;
   const actionId = await createPendingAction(
     dependencies.supabase,
     user,
@@ -279,19 +287,21 @@ async function proposeExpense(
     eventId,
     {
       ledger: parsed.ledger,
+      group_id: activeGroup?.id ?? null,
       description: parsed.description,
       amount_twd: parsed.amountTwd,
       paid_by_user_id: parsed.ledger === "private" ? user.id : paidByUserId,
       expense_date: parsed.expenseDate,
       category: parsed.category,
     },
+    activeGroup?.id ?? null,
   );
   await replyConfirmation(
     dependencies.lineClient,
     replyToken,
     actionId,
     [
-      `確認記帳？${parsed.ledger === "shared" ? "共同" : "私人"}`,
+      `確認記帳？${parsed.ledger === "shared" ? activeGroup!.name : "私人帳"}`,
       `${parsed.description} NT$${parsed.amountTwd}`,
       `付款：${paidByUserId === user.id ? "你" : "另一半"}｜${parsed.expenseDate}｜${parsed.category}`,
     ].join("\n"),
@@ -304,11 +314,12 @@ async function proposeDelete(
   replyToken: string,
   dependencies: BotDependencies,
 ): Promise<void> {
+  const activeGroup = await findActiveGroup(dependencies.supabase, user);
   const { data, error } = await dependencies.supabase
     .from("expenses")
     .select("id, description, amount_twd")
     .is("deleted_at", null)
-    .or(`ledger.eq.shared,created_by_user_id.eq.${user.id}`)
+    .or(`and(ledger.eq.shared,group_id.eq.${activeGroup.id}),and(ledger.eq.private,created_by_user_id.eq.${user.id})`)
     .order("created_at", { ascending: false })
     .limit(1)
     .maybeSingle();
@@ -327,6 +338,7 @@ async function proposeDelete(
     "delete_expense",
     eventId,
     { expense_id: expense.id },
+    activeGroup.id,
   );
   await replyConfirmation(
     dependencies.lineClient,
@@ -342,7 +354,8 @@ async function proposeSettlement(
   replyToken: string,
   dependencies: BotDependencies,
 ): Promise<void> {
-  const { users, balances } = await loadBalances(dependencies.supabase);
+  const activeGroup = await findActiveGroup(dependencies.supabase, user);
+  const { users, balances } = await loadBalances(dependencies.supabase, activeGroup.id);
   const debtor = users.find((candidate) => (balances[candidate.id] ?? 0) < 0);
   const creditor = users.find((candidate) => (balances[candidate.id] ?? 0) > 0);
   if (!debtor || !creditor) {
@@ -359,13 +372,16 @@ async function proposeSettlement(
       from_user_id: debtor.id,
       to_user_id: creditor.id,
       amount_twd: amountTwd,
+      expected_balance_twd: balances[debtor.id],
+      group_id: activeGroup.id,
     },
+    activeGroup.id,
   );
   await replyConfirmation(
     dependencies.lineClient,
     replyToken,
     actionId,
-    `確認結清？${debtor.id === user.id ? "你" : "另一半"} 支付 ${creditor.id === user.id ? "你" : "另一半"} NT$${amountTwd}`,
+    `確認結清「${activeGroup.name}」？${debtor.id === user.id ? "你" : "另一半"} 支付 ${creditor.id === user.id ? "你" : "另一半"} NT$${amountTwd}`,
   );
 }
 
@@ -374,13 +390,14 @@ async function replyBalance(
   replyToken: string,
   dependencies: BotDependencies,
 ): Promise<void> {
-  const { users, balances } = await loadBalances(dependencies.supabase);
+  const activeGroup = await findActiveGroup(dependencies.supabase, user);
+  const { users, balances } = await loadBalances(dependencies.supabase, activeGroup.id);
   const debtor = users.find((candidate) => (balances[candidate.id] ?? 0) < 0);
   const creditor = users.find((candidate) => (balances[candidate.id] ?? 0) > 0);
   const message =
     debtor && creditor
-      ? `${debtor.id === user.id ? "你" : "另一半"} 欠 ${creditor.id === user.id ? "你" : "另一半"} NT$${Math.abs(balances[debtor.id]!)}`
-      : "目前已經結清。";
+      ? `${activeGroup.name}：${debtor.id === user.id ? "你" : "另一半"} 欠 ${creditor.id === user.id ? "你" : "另一半"} NT$${Math.abs(balances[debtor.id]!)}`
+      : `${activeGroup.name}：目前已經結清。`;
   await replyText(dependencies.lineClient, replyToken, message);
 }
 
@@ -391,6 +408,7 @@ async function replyMonthly(
   dependencies: BotDependencies,
 ): Promise<void> {
   const month = currentTaipeiDate().slice(0, 7);
+  const activeGroup = ledger === "shared" ? await findActiveGroup(dependencies.supabase, user) : null;
   let query = dependencies.supabase
     .from("expenses")
     .select("id, ledger, amount_twd, paid_by_user_id, created_by_user_id, expense_date, deleted_at, expense_splits(user_id, amount_twd)")
@@ -398,6 +416,7 @@ async function replyMonthly(
     .is("deleted_at", null)
     .gte("expense_date", `${month}-01`)
     .lt("expense_date", nextMonth(month));
+  if (ledger === "shared") query = query.eq("group_id", activeGroup!.id);
   if (ledger === "private") query = query.eq("created_by_user_id", user.id);
   const { data, error } = await query;
   if (error) throw new Error("monthly lookup failed");
@@ -406,7 +425,7 @@ async function replyMonthly(
   await replyText(
     dependencies.lineClient,
     replyToken,
-    `本月${ledger === "shared" ? "共同" : "私人"}支出 NT$${summary.totalTwd}（${summary.count} 筆）`,
+    `本月${ledger === "shared" ? `${activeGroup!.name}共同` : "私人"}支出 NT$${summary.totalTwd}（${summary.count} 筆）`,
   );
 }
 
@@ -474,6 +493,7 @@ async function createPendingAction(
   actionType: "create_expense" | "delete_expense" | "settle",
   sourceEventId: string,
   payload: Record<string, unknown>,
+  groupId: string | null = null,
 ): Promise<string> {
   const expiresAt = new Date(Date.now() + PENDING_ACTION_TTL_MS).toISOString();
   const { data, error } = await supabase
@@ -483,6 +503,7 @@ async function createPendingAction(
         couple_id: user.couple_id,
         requested_by_user_id: user.id,
         action_type: actionType,
+        group_id: groupId,
         payload,
         source_event_id: sourceEventId,
         expires_at: expiresAt,
@@ -505,6 +526,7 @@ async function createPendingAction(
 
 async function loadBalances(
   supabase: SupabaseClient,
+  groupId: string,
 ): Promise<{ users: UserRow[]; balances: Record<string, number> }> {
   const [users, expensesResult, settlementsResult] = await Promise.all([
     listUsers(supabase),
@@ -512,10 +534,12 @@ async function loadBalances(
       .from("expenses")
       .select("id, ledger, amount_twd, paid_by_user_id, created_by_user_id, expense_date, deleted_at, expense_splits(user_id, amount_twd)")
       .eq("ledger", "shared")
+      .eq("group_id", groupId)
       .is("deleted_at", null),
     supabase
       .from("settlements")
-      .select("from_user_id, to_user_id, amount_twd"),
+      .select("from_user_id, to_user_id, amount_twd")
+      .eq("group_id", groupId),
   ]);
   if (expensesResult.error || settlementsResult.error) {
     throw new Error("balance lookup failed");
@@ -533,6 +557,25 @@ async function loadBalances(
       amountTwd: row.amount_twd,
     }));
   return { users, balances: calculateBalances(expenses, settlements) };
+}
+
+async function findActiveGroup(
+  supabase: SupabaseClient,
+  user: UserRow,
+): Promise<{ id: string; name: string }> {
+  const preference = await supabase.from("user_preferences")
+    .select("active_group_id, groups!user_preferences_active_group_id_fkey(id, name, archived_at)")
+    .eq("user_id", user.id).single();
+  if (preference.error) throw new Error("active group lookup failed");
+  const parsed = z.object({
+    active_group_id: z.string().uuid(),
+    groups: z.union([
+      z.object({ id: z.string().uuid(), name: z.string(), archived_at: z.string().nullable() }),
+      z.array(z.object({ id: z.string().uuid(), name: z.string(), archived_at: z.string().nullable() })).transform((rows) => rows[0]),
+    ]),
+  }).parse(preference.data);
+  if (!parsed.groups || parsed.groups.archived_at) throw new Error("active group unavailable");
+  return { id: parsed.groups.id, name: parsed.groups.name };
 }
 
 function toLedgerExpense(row: z.infer<typeof expenseRowSchema>): LedgerExpense {

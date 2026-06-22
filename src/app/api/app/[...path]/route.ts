@@ -1,0 +1,145 @@
+import { NextResponse } from "next/server";
+import { z } from "zod";
+
+import {
+  HttpError,
+  assertSameOrigin,
+  changeGroup,
+  confirmAction,
+  createReceiptUpload,
+  createSession,
+  expensesCsv,
+  loadBootstrap,
+  markNotificationsRead,
+  processReceipt,
+  proposeAction,
+  receiptDetails,
+  receiptUrl,
+  requireContext,
+  saveBudget,
+  saveRecurring,
+  serverEnvironment,
+  sessionCookie,
+} from "@/lib/app-server";
+
+export const runtime = "nodejs";
+export const maxDuration = 300;
+
+interface RouteContext {
+  params: Promise<{ path: string[] }>;
+}
+
+export async function GET(request: Request, route: RouteContext) {
+  try {
+    const path = (await route.params).path;
+    const context = await requireContext(request);
+    if (path[0] === "bootstrap") return json(await loadBootstrap(context));
+    if (path[0] === "export") {
+      const data = await loadBootstrap(context);
+      return new Response(expensesCsv(data.expenses, data.users), {
+        headers: {
+          "content-type": "text/csv; charset=utf-8",
+          "content-disposition": `attachment; filename="ledger-${data.month}.csv"`,
+          "cache-control": "no-store",
+        },
+      });
+    }
+    if (path[0] === "receipts" && path[1] && path[2] === "url") {
+      return json({ url: await receiptUrl(context, path[1]) });
+    }
+    if (path[0] === "receipts" && path[1] && path.length === 2) {
+      return json(await receiptDetails(context, path[1]));
+    }
+    throw new HttpError(404, "Not found");
+  } catch (error) {
+    return errorResponse(error);
+  }
+}
+
+export async function POST(request: Request, route: RouteContext) {
+  try {
+    const path = (await route.params).path;
+    const env = serverEnvironment();
+    assertSameOrigin(request, env.APP_URL);
+    const body = await readJson(request);
+    if (path[0] === "session") {
+      const input = z
+        .object({ idToken: z.string().min(20).max(5_000) })
+        .parse(body);
+      const session = await createSession(input.idToken);
+      return json(
+        { user: { id: session.user.id, role: session.user.role } },
+        {
+          "set-cookie": sessionCookie(session.token),
+        },
+      );
+    }
+
+    const context = await requireContext(request);
+    if (path[0] === "actions" && path.length === 1) {
+      const key = request.headers.get("idempotency-key")?.slice(0, 100);
+      return json(await proposeAction(context, body, key));
+    }
+    if (path[0] === "actions" && path[1] === "confirm") {
+      const input = z
+        .object({ actionId: z.string().uuid(), confirm: z.boolean() })
+        .parse(body);
+      return json(await confirmAction(context, input.actionId, input.confirm));
+    }
+    if (path[0] === "groups") return json(await changeGroup(context, body));
+    if (path[0] === "budgets") return json(await saveBudget(context, body));
+    if (path[0] === "recurring")
+      return json(await saveRecurring(context, body));
+    if (path[0] === "receipts" && path[1] === "upload")
+      return json(await createReceiptUpload(context, body));
+    if (path[0] === "receipts" && path[1] && path[2] === "process")
+      return json({ extraction: await processReceipt(context, path[1]) });
+    if (path[0] === "notifications" && path[1] === "read")
+      return json(await markNotificationsRead(context));
+    throw new HttpError(404, "Not found");
+  } catch (error) {
+    return errorResponse(error);
+  }
+}
+
+async function readJson(request: Request): Promise<unknown> {
+  const raw = await request.text();
+  if (raw.length > 64_000) throw new HttpError(413, "Payload too large");
+  try {
+    return JSON.parse(raw);
+  } catch {
+    throw new HttpError(400, "Invalid JSON");
+  }
+}
+
+function json(
+  body: unknown,
+  headers: Record<string, string> = {},
+  status = 200,
+) {
+  return NextResponse.json(body, {
+    status,
+    headers: { "cache-control": "no-store", ...headers },
+  });
+}
+
+function errorResponse(error: unknown) {
+  if (error instanceof HttpError)
+    return json({ error: error.message }, {}, error.status);
+  if (error instanceof z.ZodError)
+    return json(
+      {
+        error: "輸入資料不正確",
+        issues: error.issues.map((issue) => ({
+          path: issue.path,
+          message: issue.message,
+        })),
+      },
+      {},
+      400,
+    );
+  console.error("App API failed", {
+    error: error instanceof Error ? error.name : "unknown",
+  });
+  return json({ error: "暫時無法處理" }, {}, 500);
+}
