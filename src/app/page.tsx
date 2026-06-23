@@ -77,6 +77,7 @@ type ExpenseForm = {
   receiptId: string | null;
 };
 
+const tabs: Tab[] = ["dashboard", "history", "add", "budgets", "settings"];
 const categoryNames: Record<string, string> = {
   food: "餐飲",
   transport: "交通",
@@ -100,6 +101,12 @@ const palette = [
   "#c7ced4",
 ];
 
+function tabFromUrl(): Tab {
+  if (typeof window === "undefined") return "dashboard";
+  const value = new URLSearchParams(window.location.search).get("tab");
+  return tabs.includes(value as Tab) ? (value as Tab) : "dashboard";
+}
+
 declare global {
   interface Window {
     liff?: {
@@ -115,7 +122,7 @@ declare global {
 
 export default function Home() {
   const [data, setData] = useState<Bootstrap | null>(null);
-  const [tab, setTab] = useState<Tab>("dashboard");
+  const [tab, setTab] = useState<Tab>(() => tabFromUrl());
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
@@ -129,6 +136,15 @@ export default function Home() {
     if (!response.ok) return false;
     setData(await response.json());
     return true;
+  }, []);
+
+  useEffect(() => {
+    // This effect synchronizes the UI with the LIFF URL that opened the app.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setTab((current) => {
+      const next = tabFromUrl();
+      return current === next ? current : next;
+    });
   }, []);
 
   useEffect(() => {
