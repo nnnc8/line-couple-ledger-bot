@@ -16,7 +16,12 @@ import {
   type RecurringFrequency,
   type SplitMethod,
 } from "./ledger";
-import { detectReceiptMime, signSession, verifySession } from "./security";
+import {
+  detectReceiptMime,
+  safeSecretEqual,
+  signSession,
+  verifySession,
+} from "./security";
 
 export const SESSION_COOKIE = "couple_ledger_session";
 const SESSION_SECONDS = 60 * 60 * 24 * 7;
@@ -30,6 +35,7 @@ const envSchema = z.object({
   GEMINI_API_KEY: z.string().min(1),
   SUPABASE_URL: z.url(),
   SUPABASE_SECRET_KEY: z.string().min(1),
+  COUPLE_SETUP_CODE: z.string().min(20),
   LIFF_SESSION_SECRET: z.string().min(32),
   APP_URL: z.url(),
   CRON_SECRET: z.string().min(16),
@@ -103,6 +109,7 @@ export function assertSameOrigin(request: Request, appUrl: string): void {
 
 export async function createSession(
   idToken: string,
+  inviteCode?: string,
 ): Promise<{ token: string; user: AppUser }> {
   const env = serverEnvironment();
   const body = new URLSearchParams({
@@ -132,7 +139,31 @@ export async function createSession(
     .eq("line_user_id", identity.sub)
     .maybeSingle();
   if (result.error) throw new Error("user lookup failed");
-  const user = userSchema.nullable().parse(result.data);
+  let user = userSchema.nullable().parse(result.data);
+  if (!user && inviteCode) {
+    if (!safeSecretEqual(inviteCode.trim(), env.COUPLE_SETUP_CODE)) {
+      throw new HttpError(403, "邀請連結無效");
+    }
+    const claim = await db.rpc("claim_user", {
+      p_line_user_id: identity.sub,
+    });
+    if (claim.error) throw new Error("claim_user failed");
+    const claimed = z
+      .object({
+        result: z.enum(["joined", "already_joined", "full"]),
+      })
+      .parse(claim.data);
+    if (claimed.result === "full") {
+      throw new HttpError(403, "帳本已綁定兩位使用者");
+    }
+    const refreshed = await db
+      .from("users")
+      .select("id, couple_id, line_user_id, role")
+      .eq("line_user_id", identity.sub)
+      .single();
+    if (refreshed.error) throw new Error("user lookup failed");
+    user = userSchema.parse(refreshed.data);
+  }
   if (!user) throw new HttpError(403, "請先在 LINE Bot 輸入加入設定碼");
   const expiresAt = Math.min(
     identity.exp,

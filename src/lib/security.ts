@@ -6,6 +6,15 @@ export interface AppSession {
   expiresAt: number;
 }
 
+export function safeSecretEqual(received: string, expected: string): boolean {
+  const receivedBuffer = Buffer.from(received);
+  const expectedBuffer = Buffer.from(expected);
+  return (
+    receivedBuffer.length === expectedBuffer.length &&
+    timingSafeEqual(receivedBuffer, expectedBuffer)
+  );
+}
+
 export function signSession(session: AppSession, secret: string): string {
   if (secret.length < 32)
     throw new Error("LIFF_SESSION_SECRET must be at least 32 characters");

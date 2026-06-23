@@ -24,6 +24,14 @@ h1 { margin-bottom: 0; font-size: 26px; letter-spacing: -.03em; }
 h2 { margin-bottom: 0; font-size: 20px; letter-spacing: -.02em; }
 .center-state { min-height: 100dvh; display: grid; place-content: center; justify-items: center; padding: 30px; text-align: center; }
 .brand-mark { width: 62px; height: 62px; display: grid; place-items: center; margin-bottom: 18px; border-radius: 20px; background: var(--navy); color: white; font-size: 28px; font-weight: 800; }
+.invite-shell { min-height: 100dvh; display: grid; place-items: center; padding: 24px; }
+.invite-card { width: min(440px, 100%); padding: 28px; border: 1px solid var(--line); border-radius: 26px; background: white; box-shadow: 0 18px 54px rgba(26, 47, 70, .12); }
+.invite-copy { margin: 14px 0 20px; color: var(--muted); line-height: 1.7; }
+.invite-steps { display: grid; gap: 12px; }
+.primary-link { border-color: var(--navy); background: var(--navy); color: white; }
+.text-link { color: var(--navy); font-weight: 700; text-align: center; text-decoration: none; }
+.invite-note { margin: 20px 0 0; color: var(--muted); line-height: 1.7; }
+.invite-note code { display: inline-block; margin-top: 6px; padding: 6px 9px; border-radius: 9px; background: #eef3f7; color: var(--ink); }
 .app-shell { max-width: 760px; min-height: 100dvh; margin: auto; padding-bottom: calc(88px + env(safe-area-inset-bottom)); background: var(--background); }
 .topbar { position: sticky; z-index: 5; top: 0; display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; padding: calc(18px + env(safe-area-inset-top)) 20px 16px; border-bottom: 1px solid rgba(215, 224, 232, .9); background: rgba(243, 246, 248, .94); backdrop-filter: blur(16px); }
 .eyebrow { display: block; margin-bottom: 4px; color: var(--muted); font-size: 11px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; }

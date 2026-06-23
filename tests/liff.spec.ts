@@ -3,8 +3,11 @@ import { expect, test } from "@playwright/test";
 const OWNER = "00000000-0000-4000-8000-000000000001";
 const PARTNER = "00000000-0000-4000-8000-000000000002";
 const GROUP = "00000000-0000-4000-8000-000000000003";
+let sessionBodies: unknown[] = [];
 
 test.beforeEach(async ({ page }) => {
+  sessionBodies = [];
+  let sessionCreated = false;
   await page.addInitScript(() => {
     window.liff = {
       init: async () => undefined,
@@ -16,11 +19,15 @@ test.beforeEach(async ({ page }) => {
     };
   });
   await page.route("**/api/app/bootstrap", (route) =>
-    route.fulfill({ json: bootstrap() }),
+    sessionCreated
+      ? route.fulfill({ json: bootstrap() })
+      : route.fulfill({ status: 401, json: { error: "Session expired" } }),
   );
-  await page.route("**/api/app/session", (route) =>
-    route.fulfill({ json: { user: { id: OWNER, role: "owner" } } }),
-  );
+  await page.route("**/api/app/session", (route) => {
+    sessionBodies.push(route.request().postDataJSON());
+    sessionCreated = true;
+    return route.fulfill({ json: { user: { id: OWNER, role: "owner" } } });
+  });
   await page.route("**/api/app/actions/confirm", (route) =>
     route.fulfill({
       json: { result: "confirmed", action_type: "create_expense" },
@@ -61,6 +68,17 @@ test("mobile dashboard, history, and confirmed expense flow", async ({
   await expect(page.getByRole("dialog")).toContainText("晚餐 NT$860");
   await page.getByRole("dialog").getByRole("button", { name: "確認" }).click();
   await expect(page.getByRole("status")).toContainText("已完成");
+});
+
+test("passes invite code from LIFF link into session creation", async ({
+  page,
+}) => {
+  await page.goto("/?invite=test-setup-code");
+  await expect(page.getByRole("heading", { name: "總覽" })).toBeVisible();
+  expect(sessionBodies).toContainEqual({
+    idToken: "test-id-token",
+    invite: "test-setup-code",
+  });
 });
 
 function bootstrap() {

@@ -102,9 +102,23 @@ const palette = [
 ];
 
 function tabFromUrl(): Tab {
-  if (typeof window === "undefined") return "dashboard";
-  const value = new URLSearchParams(window.location.search).get("tab");
+  const value = urlParam("tab");
   return tabs.includes(value as Tab) ? (value as Tab) : "dashboard";
+}
+
+function inviteFromUrl(): string | undefined {
+  return urlParam("invite")?.slice(0, 200);
+}
+
+function urlParam(name: string): string | null {
+  if (typeof window === "undefined") return null;
+  const params = new URLSearchParams(window.location.search);
+  const direct = params.get(name);
+  if (direct) return direct;
+  const state = params.get("liff.state");
+  if (!state) return null;
+  const query = state.includes("?") ? state.slice(state.indexOf("?")) : state;
+  return new URLSearchParams(query).get(name);
 }
 
 declare global {
@@ -181,7 +195,13 @@ export default function Home() {
       if (!window.liff.isLoggedIn()) return window.liff.login();
       const idToken = window.liff.getIDToken();
       if (!idToken) throw new Error("LINE 沒有提供登入憑證");
-      await api("/api/app/session", { idToken });
+      const invite = inviteFromUrl();
+      await api("/api/app/session", { idToken, ...(invite ? { invite } : {}) });
+      if (invite) {
+        const url = new URL(window.location.href);
+        url.searchParams.delete("invite");
+        history.replaceState(null, "", `${url.pathname}${url.search}`);
+      }
       if (!(await load())) throw new Error("無法讀取帳本");
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "LINE 登入失敗");

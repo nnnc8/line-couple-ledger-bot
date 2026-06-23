@@ -64,9 +64,12 @@ export async function POST(request: Request, route: RouteContext) {
     const body = await readJson(request);
     if (path[0] === "session") {
       const input = z
-        .object({ idToken: z.string().min(20).max(5_000) })
+        .object({
+          idToken: z.string().min(20).max(5_000),
+          invite: z.string().min(1).max(200).optional(),
+        })
         .parse(body);
-      const session = await createSession(input.idToken);
+      const session = await createSession(input.idToken, input.invite);
       return json(
         { user: { id: session.user.id, role: session.user.role } },
         {

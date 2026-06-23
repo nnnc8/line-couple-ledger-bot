@@ -1,5 +1,3 @@
-import { timingSafeEqual } from "node:crypto";
-
 import { GoogleGenAI } from "@google/genai";
 import type { LineBotClient, messagingApi, webhook } from "@line/bot-sdk";
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -14,6 +12,9 @@ import {
   type ParsedIntent,
   type Settlement,
 } from "./ledger";
+import { safeSecretEqual } from "./security";
+
+export { safeSecretEqual } from "./security";
 
 const MODEL = "gemini-3.1-flash-lite";
 const TIME_ZONE = "Asia/Taipei";
@@ -126,15 +127,6 @@ export function parseFixedIntent(text: string): ParsedIntent | null {
     ["help", "help"],
   ]).get(text.trim());
   return intent ? emptyIntent(intent) : null;
-}
-
-export function safeSecretEqual(received: string, expected: string): boolean {
-  const receivedBuffer = Buffer.from(received);
-  const expectedBuffer = Buffer.from(expected);
-  return (
-    receivedBuffer.length === expectedBuffer.length &&
-    timingSafeEqual(receivedBuffer, expectedBuffer)
-  );
 }
 
 async function handleText(

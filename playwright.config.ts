@@ -13,6 +13,7 @@ export default defineConfig({
   },
   webServer: {
     command: "pnpm exec next dev -p 3108",
+    env: { NEXT_PUBLIC_LIFF_ID: "test-liff-id" },
     url: "http://localhost:3108",
     reuseExistingServer: false,
     timeout: 120_000,
