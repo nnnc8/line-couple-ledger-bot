@@ -13,7 +13,7 @@ export function proxy(request: NextRequest) {
     // ponytail: React chart geometry uses style attributes; no user HTML is rendered.
     "style-src 'self' 'unsafe-inline'",
     "img-src 'self' data: blob: https://*.supabase.co",
-    "connect-src 'self' https://*.supabase.co https://api.line.me https://access.line.me",
+    "connect-src 'self' https://*.supabase.co https://api.line.me https://access.line.me https://liffsdk.line-scdn.net",
   ].join("; ");
   const headers = new Headers(request.headers);
   headers.set("x-nonce", nonce);
