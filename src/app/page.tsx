@@ -152,16 +152,27 @@ const categoryNames: Record<string, string> = {
   travel: "旅行",
   other: "其他",
 };
+const categoryEmojis: Record<string, string> = {
+  food: "🍽",
+  transport: "🚗",
+  groceries: "🥬",
+  household: "🏠",
+  entertainment: "🎮",
+  shopping: "🛍",
+  medical: "💊",
+  travel: "✈️",
+  other: "📦",
+};
 const palette = [
-  "#173b63",
-  "#2c6e8f",
-  "#4b8f8c",
-  "#d2a84a",
-  "#b65f55",
-  "#7c6da7",
-  "#59738b",
-  "#8599a8",
-  "#c7ced4",
+  "#3b82f6",
+  "#10b981",
+  "#f59e0b",
+  "#ef4444",
+  "#8b5cf6",
+  "#ec4899",
+  "#06b6d4",
+  "#84cc16",
+  "#94a3b8",
 ];
 
 function tabFromUrl(): Tab {
@@ -195,6 +206,69 @@ declare global {
       closeWindow(): void;
     };
   }
+}
+
+/* ─── SVG Icon Components ─── */
+function IconHome() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M3 9.5L12 3l9 6.5V20a1 1 0 01-1 1H4a1 1 0 01-1-1V9.5z" />
+      <path d="M9 21V12h6v9" />
+    </svg>
+  );
+}
+function IconList() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01" />
+    </svg>
+  );
+}
+function IconPlus() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 5v14M5 12h14" />
+    </svg>
+  );
+}
+function IconAI() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 16.8l-6.2 4.5 2.4-7.4L2 9.4h7.6z" />
+    </svg>
+  );
+}
+function IconBudget() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="10" />
+      <path d="M12 6v6l4 2" />
+    </svg>
+  );
+}
+function IconSettings() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="3" />
+      <path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 01-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z" />
+    </svg>
+  );
+}
+function IconSearch() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="11" cy="11" r="8" />
+      <path d="M21 21l-4.35-4.35" />
+    </svg>
+  );
+}
+function IconCamera() {
+  return (
+    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z" />
+      <circle cx="12" cy="13" r="4" />
+    </svg>
+  );
 }
 
 export default function Home() {
@@ -348,6 +422,15 @@ export default function Home() {
     (group) => group.id === data.activeGroupId,
   )!;
   const unread = data.notifications.filter((item) => !item.read_at).length;
+
+  function confirmTypeIcon(preview: string): string {
+    if (preview.includes("刪除")) return "🗑";
+    if (preview.includes("修改") || preview.includes("更新")) return "✏️";
+    if (preview.includes("結清")) return "🤝";
+    if (preview.includes("復原")) return "↩️";
+    return "✅";
+  }
+
   return (
     <main className="app-shell">
       <header className="topbar">
@@ -465,19 +548,19 @@ export default function Home() {
         <NavButton
           active={tab === "dashboard"}
           label="總覽"
-          icon="⌂"
+          icon={<IconHome />}
           onClick={() => setTab("dashboard")}
         />
         <NavButton
           active={tab === "history"}
           label="流水"
-          icon="≡"
+          icon={<IconList />}
           onClick={() => setTab("history")}
         />
         <NavButton
           active={tab === "add"}
           label="新增"
-          icon="＋"
+          icon={<IconPlus />}
           primary
           onClick={() => {
             sessionStorage.removeItem("editExpense");
@@ -487,19 +570,20 @@ export default function Home() {
         <NavButton
           active={tab === "accountant"}
           label="AI"
-          icon="◆"
+          icon={<IconAI />}
           onClick={() => setTab("accountant")}
         />
         <NavButton
           active={tab === "budgets"}
           label="預算"
-          icon="◎"
+          icon={<IconBudget />}
           onClick={() => setTab("budgets")}
         />
         <NavButton
           active={tab === "settings"}
           label="設定"
-          icon={unread ? `●${unread}` : "⚙"}
+          icon={<IconSettings />}
+          badge={unread || undefined}
           onClick={() => setTab("settings")}
         />
       </nav>
@@ -511,8 +595,13 @@ export default function Home() {
             aria-modal="true"
             aria-labelledby="confirm-title"
           >
-            <span className="eyebrow">請再次確認</span>
+            <div className="modal-handle" />
+            <div className="modal-type">
+              <span>{confirmTypeIcon(confirm.preview)}</span>
+              <span className="eyebrow">請再次確認</span>
+            </div>
             <h2 id="confirm-title">帳務變更</h2>
+            <p className="modal-desc">以下操作將會更新帳本紀錄</p>
             <p className="preview">{confirm.preview}</p>
             <div className="modal-actions">
               <button
@@ -523,7 +612,7 @@ export default function Home() {
                 取消
               </button>
               <button disabled={busy} onClick={() => void decide(true)}>
-                確認
+                確認執行
               </button>
             </div>
           </div>
@@ -574,6 +663,7 @@ export default function Home() {
   }
 }
 
+/* ─── Dashboard ─── */
 function Dashboard({
   data,
   activeGroup,
@@ -642,17 +732,17 @@ function Dashboard({
         className="balance-card"
         style={{ "--group-color": activeGroup.color } as React.CSSProperties}
       >
-        <span>{activeGroup.name} · 目前餘額</span>
+        <span>💰 {activeGroup.name} · 目前餘額</span>
         <strong>
           {mine === 0
-            ? "已結清"
+            ? "已結清 ✨"
             : mine > 0
               ? `另一半欠你 ${money(owed)}`
               : `你欠另一半 ${money(owed)}`}
         </strong>
         <div className="inline-actions">
           <button className="light" onClick={onAdd}>
-            新增支出
+            ＋ 新增支出
           </button>
           {owed > 0 && (
             <>
@@ -675,14 +765,14 @@ function Dashboard({
       </article>
       <div className="metric-grid">
         <article>
-          <span>本月共同支出</span>
+          <span>📊 本月共同支出</span>
           <strong>{money(data.dashboard.monthlyTotalTwd)}</strong>
           <small>{data.dashboard.monthlyCount} 筆交易</small>
         </article>
         <article>
-          <span>月預算</span>
+          <span>🎯 月預算</span>
           <strong>{budget ? `${budgetPercent}%` : "未設定"}</strong>
-          <div className="progress">
+          <div className={`progress ${budgetPercent >= 80 ? "progress-warn" : ""}`}>
             <i style={{ width: `${budgetPercent}%` }} />
           </div>
         </article>
@@ -735,17 +825,25 @@ function Dashboard({
               </span>
             </div>
             <div className="legend">
-              {categoryRows.slice(0, 6).map((category, index) => (
-                <div key={category.label}>
-                  <i style={{ background: palette[index] }} />
-                  <span>{category.label}</span>
-                  <strong>{money(category.totalTwd)}</strong>
-                </div>
-              ))}
+              {categoryRows.slice(0, 6).map((category, index) => {
+                const pct = categoryTotal > 0
+                  ? Math.round((category.totalTwd / categoryTotal) * 100)
+                  : 0;
+                return (
+                  <div key={category.label}>
+                    <i style={{ background: palette[index] }} />
+                    <span>{category.label}</span>
+                    <strong>
+                      {money(category.totalTwd)}
+                      <span className="pct">{pct}%</span>
+                    </strong>
+                  </div>
+                );
+              })}
             </div>
           </div>
         ) : (
-          <Empty text="這個範圍還沒有共同支出" />
+          <Empty text="這個範圍還沒有共同支出" icon="📭" />
         )}
       </article>
       <article className="panel">
@@ -766,7 +864,12 @@ function Dashboard({
                   title={money(point.totalTwd)}
                 />
               </div>
-              <small>{Number(point.month.slice(5))}月</small>
+              <div>
+                {point.totalTwd > 0 && (
+                  <span className="bar-label">{shortMoney(point.totalTwd)}</span>
+                )}
+                <small>{Number(point.month.slice(5))}月</small>
+              </div>
             </div>
           ))}
         </div>
@@ -783,13 +886,14 @@ function Dashboard({
             <ExpenseRow key={expense.id} expense={expense} users={data.users} />
           ))
         ) : (
-          <Empty text="尚無流水" />
+          <Empty text="尚無流水" icon="📝" />
         )}
       </article>
     </div>
   );
 }
 
+/* ─── History ─── */
 function History({
   data,
   onEdit,
@@ -816,15 +920,30 @@ function History({
           .includes(query.toLowerCase()),
     )
     .sort((a, b) => b.expense_date.localeCompare(a.expense_date));
+
+  // Group by date
+  const dateGroups: Array<{ date: string; items: Expense[] }> = [];
+  for (const expense of filtered) {
+    const last = dateGroups[dateGroups.length - 1];
+    if (last && last.date === expense.expense_date) {
+      last.items.push(expense);
+    } else {
+      dateGroups.push({ date: expense.expense_date, items: [expense] });
+    }
+  }
+
   return (
     <div className="stack">
       <div className="filters">
-        <input
-          type="search"
-          placeholder="搜尋說明或商家"
-          value={query}
-          onChange={(event) => setQuery(event.target.value)}
-        />
+        <div className="search-wrap">
+          <IconSearch />
+          <input
+            type="search"
+            placeholder="搜尋說明或商家"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+          />
+        </div>
         <div>
           <select
             aria-label="帳本"
@@ -858,44 +977,50 @@ function History({
         </label>
       </div>
       <article className="panel history-list">
-        {filtered.length ? (
-          filtered.map((expense) => (
-            <div className="history-item" key={expense.id}>
-              <ExpenseRow expense={expense} users={data.users} />
-              <div className="row-actions">
-                {!expense.deleted_at && (
-                  <button
-                    className="text-button"
-                    onClick={() => onEdit(expense)}
-                  >
-                    編輯
-                  </button>
-                )}
-                {expense.receipts[0] && (
-                  <button
-                    className="text-button"
-                    onClick={() => onReceipt(expense.receipts[0]!.id)}
-                  >
-                    收據
-                  </button>
-                )}
-                <button
-                  className="text-button danger"
-                  onClick={() => onDelete(expense)}
-                >
-                  {expense.deleted_at ? "復原" : "刪除"}
-                </button>
-              </div>
+        {dateGroups.length ? (
+          dateGroups.map((group) => (
+            <div key={group.date}>
+              <div className="date-header">{formatDate(group.date)}</div>
+              {group.items.map((expense) => (
+                <div className="history-item" key={expense.id}>
+                  <ExpenseRow expense={expense} users={data.users} />
+                  <div className="row-actions">
+                    {!expense.deleted_at && (
+                      <button
+                        className="text-button"
+                        onClick={() => onEdit(expense)}
+                      >
+                        編輯
+                      </button>
+                    )}
+                    {expense.receipts[0] && (
+                      <button
+                        className="text-button"
+                        onClick={() => onReceipt(expense.receipts[0]!.id)}
+                      >
+                        收據
+                      </button>
+                    )}
+                    <button
+                      className="text-button danger"
+                      onClick={() => onDelete(expense)}
+                    >
+                      {expense.deleted_at ? "復原" : "刪除"}
+                    </button>
+                  </div>
+                </div>
+              ))}
             </div>
           ))
         ) : (
-          <Empty text="找不到符合條件的流水" />
+          <Empty text="找不到符合條件的流水" icon="🔍" />
         )}
       </article>
     </div>
   );
 }
 
+/* ─── Expense Editor ─── */
 function ExpenseEditor({
   data,
   busy,
@@ -1011,6 +1136,21 @@ function ExpenseEditor({
           <h2>{editing ? editing.description : "新增支出"}</h2>
         </div>
       </div>
+
+      {/* Hero amount input */}
+      <div className="hero-amount">
+        <span className="currency">金額（TWD）</span>
+        <input
+          required
+          inputMode="numeric"
+          placeholder="0"
+          aria-label="金額（TWD）"
+          value={form.amountTwd}
+          onChange={(event) => update("amountTwd", event.target.value)}
+        />
+      </div>
+
+      {/* Receipt upload */}
       <label className="upload">
         <input
           type="file"
@@ -1018,6 +1158,9 @@ function ExpenseEditor({
           capture="environment"
           onChange={(event) => void scan(event.target.files?.[0])}
         />
+        <span className="upload-icon">
+          {ocr ? "⏳" : form.receiptId ? "✅" : <IconCamera />}
+        </span>
         <strong>
           {ocr
             ? "辨識中…"
@@ -1027,22 +1170,25 @@ function ExpenseEditor({
         </strong>
         <small>自動填入商家、日期與總額，確認前都能修改</small>
       </label>
+
+      {/* Ledger toggle */}
       <div className="segmented">
         <button
           type="button"
           className={form.ledger === "shared" ? "active" : ""}
           onClick={() => update("ledger", "shared")}
         >
-          共同帳
+          💑 共同帳
         </button>
         <button
           type="button"
           className={form.ledger === "private" ? "active" : ""}
           onClick={() => update("ledger", "private")}
         >
-          私人帳
+          👤 私人帳
         </button>
       </div>
+
       <Field label="說明">
         <input
           required
@@ -1052,15 +1198,25 @@ function ExpenseEditor({
           placeholder="例如：晚餐"
         />
       </Field>
+
+      {/* Category chips */}
+      <div className="field">
+        <span>分類</span>
+        <div className="category-chips">
+          {Object.entries(categoryNames).map(([key, label]) => (
+            <button
+              key={key}
+              type="button"
+              className={`category-chip ${form.category === key ? "active" : ""}`}
+              onClick={() => update("category", key)}
+            >
+              {categoryEmojis[key]} {label}
+            </button>
+          ))}
+        </div>
+      </div>
+
       <div className="two">
-        <Field label="金額（TWD）">
-          <input
-            required
-            inputMode="numeric"
-            value={form.amountTwd}
-            onChange={(event) => update("amountTwd", event.target.value)}
-          />
-        </Field>
         <Field label="日期">
           <input
             required
@@ -1069,26 +1225,13 @@ function ExpenseEditor({
             onChange={(event) => update("expenseDate", event.target.value)}
           />
         </Field>
-      </div>
-      <div className="two">
         <Field label="商家">
           <input
             maxLength={100}
             value={form.merchant}
             onChange={(event) => update("merchant", event.target.value)}
+            placeholder="選填"
           />
-        </Field>
-        <Field label="分類">
-          <select
-            value={form.category}
-            onChange={(event) => update("category", event.target.value)}
-          >
-            {Object.entries(categoryNames).map(([key, label]) => (
-              <option key={key} value={key}>
-                {label}
-              </option>
-            ))}
-          </select>
         </Field>
       </div>
       <div className="two">
@@ -1143,6 +1286,7 @@ function ExpenseEditor({
           maxLength={500}
           value={form.notes}
           onChange={(event) => update("notes", event.target.value)}
+          placeholder="選填備註"
         />
       </Field>
       {localError && <p className="form-error">{localError}</p>}
@@ -1153,6 +1297,7 @@ function ExpenseEditor({
   );
 }
 
+/* ─── Accountant ─── */
 function Accountant({
   onPropose,
 }: {
@@ -1164,6 +1309,13 @@ function Accountant({
   const [latestRun, setLatestRun] = useState<AgentRun | null>(null);
   const [loading, setLoading] = useState(false);
   const [localError, setLocalError] = useState("");
+
+  const promptSuggestions = [
+    "本月哪裡花太多？",
+    "這個月餐飲花了多少？",
+    "可以幫我結清嗎？",
+    "哪個分類增加最快？",
+  ];
 
   const loadReports = useCallback(async () => {
     const result = (await fetch("/api/app/accountant/reports", {
@@ -1207,6 +1359,18 @@ function Accountant({
             <span className="eyebrow">LINE 問快答 · LIFF 做整理</span>
             <h2>AI 會計師</h2>
           </div>
+        </div>
+        <div className="prompt-chips">
+          {promptSuggestions.map((prompt) => (
+            <button
+              key={prompt}
+              type="button"
+              className="prompt-chip"
+              onClick={() => setQuestion(prompt)}
+            >
+              {prompt}
+            </button>
+          ))}
         </div>
         <Field label="你想問什麼">
           <textarea
@@ -1256,7 +1420,7 @@ function Accountant({
           <div className="tool-list">
             {latestRun.toolCalls.map((call, index) => (
               <small key={`${call.tool}-${index}`}>
-                {call.tool}
+                🔧 {call.tool}
                 {typeof call.count === "number" ? ` · ${call.count}` : ""}
               </small>
             ))}
@@ -1268,7 +1432,7 @@ function Accountant({
         <AccountantReportCard report={latest} onPropose={onPropose} />
       ) : (
         <article className="panel">
-          <Empty text="還沒有 AI 會計師報告" />
+          <Empty text="還沒有 AI 會計師報告" icon="🤖" />
         </article>
       )}
 
@@ -1293,6 +1457,7 @@ function Accountant({
   );
 }
 
+/* ─── Accountant Report Card ─── */
 function AccountantReportCard({
   report,
   onPropose,
@@ -1349,6 +1514,7 @@ function AccountantReportCard({
   );
 }
 
+/* ─── Budgets ─── */
 function Budgets({
   data,
   onSave,
@@ -1375,29 +1541,30 @@ function Budgets({
             const percent = Math.round(
               (spent / Number(budget.limit_twd)) * 100,
             );
+            const pctClass = percent >= 100 ? "over" : percent >= 80 ? "warn" : "";
             return (
               <div className="budget-row" key={budget.id}>
                 <div>
                   <strong>
                     {budget.category
-                      ? categoryNames[budget.category]
-                      : "群組總預算"}
+                      ? `${categoryEmojis[budget.category] ?? "📦"} ${categoryNames[budget.category]}`
+                      : "📋 群組總預算"}
                   </strong>
                   <small>
                     {money(spent)} / {money(Number(budget.limit_twd))}
                   </small>
                 </div>
-                <strong className={percent >= 100 ? "negative" : ""}>
+                <strong className={`budget-pct ${pctClass}`}>
                   {percent}%
                 </strong>
-                <div className="progress">
+                <div className={`progress ${percent >= 80 ? "progress-warn" : ""}`}>
                   <i style={{ width: `${Math.min(100, percent)}%` }} />
                 </div>
               </div>
             );
           })
         ) : (
-          <Empty text="尚未設定本月預算" />
+          <Empty text="尚未設定本月預算" icon="🎯" />
         )}
       </article>
       <article className="panel form">
@@ -1421,6 +1588,7 @@ function Budgets({
               inputMode="numeric"
               value={limit}
               onChange={(event) => setLimit(event.target.value)}
+              placeholder="例如：30000"
             />
           </Field>
         </div>
@@ -1441,6 +1609,7 @@ function Budgets({
   );
 }
 
+/* ─── Settings ─── */
 function Settings({
   data,
   unread,
@@ -1639,23 +1808,26 @@ function Settings({
         ))}
       </article>
       <Link className="button-link" href="/api/app/export">
-        匯出目前流水 CSV
+        📥 匯出目前流水 CSV
       </Link>
     </div>
   );
 }
 
+/* ─── Shared UI Components ─── */
 function NavButton({
   active,
   label,
   icon,
   primary,
+  badge,
   onClick,
 }: {
   active: boolean;
   label: string;
-  icon: string;
+  icon: React.ReactNode;
   primary?: boolean;
+  badge?: number;
   onClick(): void;
 }) {
   return (
@@ -1663,7 +1835,9 @@ function NavButton({
       className={`${active ? "active" : ""} ${primary ? "primary" : ""}`}
       onClick={onClick}
     >
-      <span>{icon}</span>
+      <span className={`nav-icon ${badge ? "nav-badge" : ""}`} {...(badge ? { "data-count": badge } : {})}>
+        {icon}
+      </span>
       <small>{label}</small>
     </button>
   );
@@ -1682,33 +1856,40 @@ function Field({
     </label>
   );
 }
-function Empty({ text }: { text: string }) {
+function Empty({ text, icon }: { text: string; icon?: string }) {
   return (
     <div className="empty">
-      <span>—</span>
+      <span className="empty-icon">{icon ?? "—"}</span>
       <p>{text}</p>
     </div>
   );
 }
 function ExpenseRow({ expense, users }: { expense: Expense; users: User[] }) {
   const label = expense.category_label || categoryNames[expense.category] || expense.category;
+  const emoji = categoryEmojis[expense.category] ?? "📦";
   return (
     <div className={`expense-row ${expense.deleted_at ? "deleted" : ""}`}>
-      <div className="category-icon">
-        {label.slice(0, 1)}
+      <div className={`category-icon ${expense.category}`}>
+        {emoji}
       </div>
       <div>
         <strong>{expense.description}</strong>
         <small>
           {expense.expense_date} ·{" "}
           {users.find((user) => user.id === expense.paid_by_user_id)?.label}付款
-          · {expense.ledger === "private" ? `私人｜${label}` : label}
+          {expense.ledger === "private" ? (
+            <> · <span className="ledger-badge private">私人</span> {label}</>
+          ) : (
+            <> · {label}</>
+          )}
         </small>
       </div>
       <strong>{money(expense.amount_twd)}</strong>
     </div>
   );
 }
+
+/* ─── Utility Functions ─── */
 function emptyForm(today: string): ExpenseForm {
   return {
     ledger: "shared",
@@ -1773,6 +1954,18 @@ function frequencyName(value: string) {
 }
 function money(value: number) {
   return `NT$${new Intl.NumberFormat("zh-TW", { maximumFractionDigits: 0 }).format(value)}`;
+}
+function shortMoney(value: number) {
+  if (value >= 10000) return `${Math.round(value / 1000)}k`;
+  if (value >= 1000) return `${(value / 1000).toFixed(1)}k`;
+  return String(value);
+}
+function formatDate(dateStr: string) {
+  const d = new Date(dateStr + "T00:00:00");
+  const month = d.getMonth() + 1;
+  const day = d.getDate();
+  const weekdays = ["日", "一", "二", "三", "四", "五", "六"];
+  return `${month}/${day}（${weekdays[d.getDay()]}）`;
 }
 function donutGradient(items: Array<[string, number]>, total: number) {
   let position = 0;
