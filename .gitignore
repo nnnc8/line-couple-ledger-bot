@@ -5,6 +5,7 @@ node_modules/
 *.tsbuildinfo
 .vercel/
 .codegraph/
+supabase/.temp/
 output/
 .DS_Store
 .vercel

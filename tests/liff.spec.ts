@@ -44,6 +44,12 @@ test.beforeEach(async ({ page }) => {
   await page.route("**/api/app/groups", (route) =>
     route.fulfill({ json: { ok: true } }),
   );
+  await page.route("**/api/app/accountant/reports", (route) =>
+    route.fulfill({ json: [accountantReport("AI 月報")] }),
+  );
+  await page.route("**/api/app/accountant/ask", (route) =>
+    route.fulfill({ json: accountantReport("AI 會計師回覆") }),
+  );
   await page.route("https://static.line-scdn.net/**", (route) =>
     route.fulfill({ contentType: "application/javascript", body: "" }),
   );
@@ -79,6 +85,19 @@ test("passes invite code from LIFF link into session creation", async ({
     idToken: "test-id-token",
     invite: "test-setup-code",
   });
+});
+
+test("asks the accountant from the LIFF tab", async ({ page }) => {
+  await page.goto("/?tab=accountant");
+  await expect(
+    page.getByRole("heading", { level: 1, name: "AI 會計師" }),
+  ).toBeVisible();
+  await expect(page.getByRole("heading", { name: "AI 月報" })).toBeVisible();
+
+  await page.getByLabel("你想問什麼").fill("本月哪裡花太多？");
+  await page.getByRole("button", { name: "詢問會計師" }).click();
+  await expect(page.getByRole("heading", { name: "AI 會計師回覆" })).toBeVisible();
+  await expect(page.getByText("本月共 2 筆").first()).toBeVisible();
 });
 
 function bootstrap() {
@@ -162,5 +181,46 @@ function bootstrap() {
       ],
       recent: [expense],
     },
+  };
+}
+
+function accountantReport(title: string) {
+  return {
+    id: "00000000-0000-4000-8000-000000000088",
+    group_id: GROUP,
+    owner_user_id: OWNER,
+    report_type: "manual_question",
+    scope: "combined",
+    month: "2026-06-01",
+    question: "本月哪裡花太多？",
+    title,
+    summary: "本月共 2 筆，總額 NT$1,060。",
+    facts: {
+      month: "2026-06",
+      scope: "combined",
+      sharedTotalTwd: 1060,
+      privateTotalTwd: 0,
+      totalTwd: 1060,
+      transactionCount: 2,
+      balanceTwd: 430,
+      otherTotalTwd: 0,
+    },
+    findings: [
+      {
+        severity: "info",
+        title: "餐飲是主要支出",
+        body: "晚餐佔本月大部分支出。",
+        amountTwd: 860,
+      },
+    ],
+    suggestions: [
+      {
+        title: "可結清目前餘額",
+        body: "確認後會建立結清草稿。",
+        actionInput: { type: "settle", groupId: GROUP, amountTwd: 430 },
+      },
+    ],
+    source: "fallback",
+    created_at: "2026-06-22T12:00:00Z",
   };
 }

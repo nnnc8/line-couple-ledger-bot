@@ -3,6 +3,8 @@ import type { LineBotClient, messagingApi, webhook } from "@line/bot-sdk";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
 
+import { parseAccountantCommand } from "./accountant";
+import { generateAccountantReport, serverEnvironment } from "./app-server";
 import {
   calculateBalances,
   geminiIntentJsonSchema,
@@ -156,6 +158,12 @@ async function handleText(
     return;
   }
 
+  const accountant = parseAccountantCommand(text);
+  if (accountant) {
+    await replyAccountant(accountant, user, replyToken, dependencies);
+    return;
+  }
+
   const parsed =
     parseFixedIntent(text) ??
     (await parseWithGemini(text, currentTaipeiDate(), dependencies.gemini));
@@ -189,6 +197,30 @@ async function handleText(
         "看不懂這句。可試：晚餐 860 我付、誰欠誰、本月共同支出。",
       );
   }
+}
+
+async function replyAccountant(
+  input: { question: string; scope: "shared" | "private" | "combined" },
+  user: UserRow,
+  replyToken: string,
+  dependencies: BotDependencies,
+): Promise<void> {
+  const env = serverEnvironment();
+  const report = await generateAccountantReport(
+    { env, db: dependencies.supabase, user },
+    {
+      question: input.question,
+      scope: input.scope,
+      month: currentTaipeiDate().slice(0, 7),
+      reportType: "manual_question",
+    },
+    dependencies.gemini,
+  );
+  await replyText(
+    dependencies.lineClient,
+    replyToken,
+    `${report.title}\n${report.summary.slice(0, 700)}\n${env.APP_URL}/?tab=accountant`,
+  );
 }
 
 async function joinCouple(

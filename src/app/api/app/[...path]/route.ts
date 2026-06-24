@@ -4,12 +4,14 @@ import { z } from "zod";
 import {
   HttpError,
   assertSameOrigin,
+  askAccountant,
   changeGroup,
   confirmAction,
   createReceiptUpload,
   createSession,
   expensesCsv,
   loadBootstrap,
+  listAccountantReports,
   markNotificationsRead,
   processReceipt,
   proposeAction,
@@ -49,6 +51,9 @@ export async function GET(request: Request, route: RouteContext) {
     }
     if (path[0] === "receipts" && path[1] && path.length === 2) {
       return json(await receiptDetails(context, path[1]));
+    }
+    if (path[0] === "accountant" && path[1] === "reports") {
+      return json(await listAccountantReports(context));
     }
     throw new HttpError(404, "Not found");
   } catch (error) {
@@ -99,6 +104,8 @@ export async function POST(request: Request, route: RouteContext) {
       return json({ extraction: await processReceipt(context, path[1]) });
     if (path[0] === "notifications" && path[1] === "read")
       return json(await markNotificationsRead(context));
+    if (path[0] === "accountant" && path[1] === "ask")
+      return json(await askAccountant(context, body));
     throw new HttpError(404, "Not found");
   } catch (error) {
     return errorResponse(error);

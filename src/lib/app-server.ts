@@ -6,6 +6,15 @@ import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
 
 import {
+  accountantLlmReportSchema,
+  accountantReportFromLlm,
+  buildAccountantSnapshot,
+  fallbackAccountantReport,
+  geminiAccountantJsonSchema,
+  type AccountantExpense,
+  type AccountantReport,
+} from "./accountant";
+import {
   categories,
   geminiReceiptJsonSchema,
   learnCategoryFromHistory,
@@ -29,6 +38,8 @@ const SESSION_SECONDS = 60 * 60 * 24 * 7;
 const ACTION_SECONDS = 60 * 5;
 const RECEIPT_LIMIT = 10 * 1024 * 1024;
 const MODEL = "gemini-3.1-flash-lite";
+const EXPENSE_SELECT =
+  "id, group_id, ledger, description, merchant, notes, category, amount_twd, paid_by_user_id, created_by_user_id, expense_date, split_method, version, deleted_at, created_at, expense_splits(user_id, amount_twd), receipts(id, status)";
 
 const envSchema = z.object({
   LINE_CHANNEL_ACCESS_TOKEN: z.string().min(1),
@@ -82,9 +93,26 @@ const expenseSchema = z.object({
   expense_splits: z.array(splitSchema),
   receipts: z.array(receiptRowSchema).default([]),
 });
+const accountantReportRowSchema = z.object({
+  id: z.string().uuid(),
+  group_id: z.string().uuid().nullable(),
+  owner_user_id: z.string().uuid().nullable(),
+  report_type: z.enum(["manual_question", "monthly_health", "cleanup_review"]),
+  scope: z.enum(["shared", "private", "combined"]),
+  month: z.string(),
+  question: z.string().nullable(),
+  title: z.string(),
+  summary: z.string(),
+  facts: z.unknown(),
+  findings: z.unknown(),
+  suggestions: z.unknown(),
+  source: z.enum(["llm", "fallback"]),
+  created_at: z.string(),
+});
 
 export type AppUser = z.infer<typeof userSchema>;
 export type AppExpense = z.infer<typeof expenseSchema>;
+export type AppAccountantReport = z.infer<typeof accountantReportRowSchema>;
 
 export interface ServerContext {
   env: z.infer<typeof envSchema>;
@@ -249,8 +277,6 @@ export async function loadBootstrap(context: ServerContext) {
   if (!groups.some((group) => group.id === activeGroupId && !group.archived_at))
     throw new HttpError(409, "Active group unavailable");
 
-  const expenseSelect =
-    "id, group_id, ledger, description, merchant, notes, category, amount_twd, paid_by_user_id, created_by_user_id, expense_date, split_method, version, deleted_at, created_at, expense_splits(user_id, amount_twd), receipts(id, status)";
   const month = taipeiToday().slice(0, 7);
   const sixMonthsAgo = shiftMonth(month, -5);
   const [
@@ -263,14 +289,14 @@ export async function loadBootstrap(context: ServerContext) {
   ] = await Promise.all([
     db
       .from("expenses")
-      .select(expenseSelect)
+      .select(EXPENSE_SELECT)
       .eq("group_id", activeGroupId)
       .gte("expense_date", `${sixMonthsAgo}-01`)
       .order("expense_date", { ascending: false })
       .limit(300),
     db
       .from("expenses")
-      .select(expenseSelect)
+      .select(EXPENSE_SELECT)
       .eq("ledger", "private")
       .eq("created_by_user_id", user.id)
       .gte("expense_date", `${sixMonthsAgo}-01`)
@@ -374,6 +400,252 @@ function publicUser(user: AppUser, requesterId: string) {
     role: user.role,
     label: user.id === requesterId ? "你" : "另一半",
   };
+}
+
+const accountantAskInputSchema = z.object({
+  question: z.string().trim().min(1).max(500),
+  scope: z.enum(["shared", "private", "combined"]).default("combined"),
+  month: z.string().regex(/^\d{4}-\d{2}$/).optional(),
+});
+
+export async function askAccountant(context: ServerContext, input: unknown) {
+  const parsed = accountantAskInputSchema.parse(input);
+  return generateAccountantReport(context, {
+    question: parsed.question,
+    scope: parsed.scope,
+    month: parsed.month ?? taipeiToday().slice(0, 7),
+    reportType: "manual_question",
+  });
+}
+
+export async function listAccountantReports(context: ServerContext) {
+  const groupId = await activeGroupId(context);
+  const [shared, own] = await Promise.all([
+    context.db
+      .from("accountant_reports")
+      .select(accountantReportSelect())
+      .eq("couple_id", context.user.couple_id)
+      .eq("group_id", groupId)
+      .is("owner_user_id", null)
+      .order("created_at", { ascending: false })
+      .limit(20),
+    context.db
+      .from("accountant_reports")
+      .select(accountantReportSelect())
+      .eq("couple_id", context.user.couple_id)
+      .eq("owner_user_id", context.user.id)
+      .order("created_at", { ascending: false })
+      .limit(20),
+  ]);
+  if (shared.error || own.error) throw new Error("accountant reports lookup failed");
+  return z
+    .array(accountantReportRowSchema)
+    .parse([...(shared.data ?? []), ...(own.data ?? [])])
+    .sort((left, right) => right.created_at.localeCompare(left.created_at))
+    .slice(0, 30);
+}
+
+export async function generateAccountantReport(
+  context: ServerContext,
+  input: {
+    question: string;
+    scope: "shared" | "private" | "combined";
+    month: string;
+    reportType: "manual_question" | "monthly_health" | "cleanup_review";
+    groupId?: string;
+  },
+  gemini = new GoogleGenAI({ apiKey: context.env.GEMINI_API_KEY }),
+) {
+  const snapshot = await loadAccountantSnapshot(
+    context,
+    input.scope,
+    input.month,
+    input.groupId,
+  );
+  let report: AccountantReport = fallbackAccountantReport(
+    snapshot,
+    input.question,
+    input.reportType,
+  );
+  try {
+    const response = await gemini.models.generateContent({
+      model: MODEL,
+      contents: JSON.stringify(accountantPrompt(input.question, snapshot)),
+      config: {
+        systemInstruction:
+          "你是台灣情侶帳本的會計師。只能根據提供的 snapshot 分析。facts 必須逐字等於 snapshot.facts；不能自行改金額、改權限或假設不存在的帳務。可給建議，但所有改帳都只是待確認草稿。",
+        responseMimeType: "application/json",
+        responseJsonSchema: geminiAccountantJsonSchema,
+        temperature: 0.2,
+        maxOutputTokens: 1_400,
+      },
+    });
+    report = accountantReportFromLlm(
+      accountantLlmReportSchema.parse(JSON.parse(response.text ?? "{}")),
+      snapshot,
+    );
+  } catch {
+    report = fallbackAccountantReport(snapshot, input.question, input.reportType);
+  }
+
+  const ownerUserId = input.scope === "shared" ? null : context.user.id;
+  const groupId = input.scope === "private" ? null : snapshot.activeGroupId;
+  const dedupeKey =
+    input.reportType === "monthly_health"
+      ? `accountant:${context.user.couple_id}:${groupId ?? ownerUserId}:${input.scope}:${input.month}`
+      : `accountant:manual:${randomUUID()}`;
+  const saved = await context.db
+    .from("accountant_reports")
+    .upsert(
+      {
+        couple_id: context.user.couple_id,
+        group_id: groupId,
+        owner_user_id: ownerUserId,
+        report_type: report.reportType,
+        scope: report.scope,
+        month: `${input.month}-01`,
+        question: input.question,
+        title: report.title,
+        summary: report.summary,
+        facts: report.facts,
+        findings: report.findings,
+        suggestions: report.suggestions,
+        source: report.source,
+        dedupe_key: dedupeKey,
+      },
+      { onConflict: "dedupe_key" },
+    )
+    .select(accountantReportSelect())
+    .single();
+  if (saved.error) throw new Error("accountant report save failed");
+  return accountantReportRowSchema.parse(saved.data);
+}
+
+async function loadAccountantSnapshot(
+  context: ServerContext,
+  scope: "shared" | "private" | "combined",
+  month: string,
+  groupIdOverride?: string,
+) {
+  const groupId = groupIdOverride ?? (await activeGroupId(context));
+  const start = `${month}-01`;
+  const end = `${shiftMonth(month, 1)}-01`;
+  const queries = [];
+  if (scope !== "private") {
+    queries.push(
+      context.db
+        .from("expenses")
+        .select(EXPENSE_SELECT)
+        .eq("group_id", groupId)
+        .gte("expense_date", start)
+        .lt("expense_date", end)
+        .order("expense_date", { ascending: false }),
+    );
+  }
+  if (scope !== "shared") {
+    queries.push(
+      context.db
+        .from("expenses")
+        .select(EXPENSE_SELECT)
+        .eq("ledger", "private")
+        .eq("created_by_user_id", context.user.id)
+        .gte("expense_date", start)
+        .lt("expense_date", end)
+        .order("expense_date", { ascending: false }),
+    );
+  }
+  const [balances, budgets, ...expenseResults] = await Promise.all([
+    context.db.rpc("group_balances", { p_group_id: groupId }),
+    context.db
+      .from("budgets")
+      .select("category, limit_twd")
+      .eq("group_id", groupId)
+      .eq("month", start),
+    ...queries,
+  ]);
+  if (balances.error || budgets.error || expenseResults.some((result) => result.error))
+    throw new Error("accountant snapshot lookup failed");
+  const expenses = z
+    .array(expenseSchema)
+    .parse(expenseResults.flatMap((result) => result.data ?? []))
+    .map(toAccountantExpense);
+  return buildAccountantSnapshot({
+    activeGroupId: groupId,
+    balances: z
+      .array(z.object({ user_id: z.string().uuid(), balance_twd: z.coerce.number().int() }))
+      .parse(balances.data),
+    budgets: z
+      .array(z.object({ category: z.enum(categories).nullable(), limit_twd: z.coerce.number().int() }))
+      .parse(budgets.data),
+    expenses,
+    month,
+    scope,
+    userId: context.user.id,
+  });
+}
+
+function accountantPrompt(question: string, snapshot: Awaited<ReturnType<typeof loadAccountantSnapshot>>) {
+  return {
+    question,
+    facts: snapshot.facts,
+    categoryTotals: snapshot.categoryTotals,
+    budgetUsages: snapshot.budgetUsages,
+    duplicateCandidates: snapshot.duplicateCandidates.map((items) =>
+      items.map((expense) => ({
+        id: expense.id,
+        description: expense.description,
+        amountTwd: expense.amount_twd,
+        date: expense.expense_date,
+        version: expense.version,
+      })),
+    ),
+    expenses: snapshot.expenses.slice(0, 60).map((expense) => ({
+      id: expense.id,
+      ledger: expense.ledger,
+      description: expense.description,
+      merchant: expense.merchant,
+      category: expense.category,
+      amountTwd: expense.amount_twd,
+      date: expense.expense_date,
+      splitMethod: expense.split_method,
+      version: expense.version,
+    })),
+  };
+}
+
+function toAccountantExpense(expense: AppExpense): AccountantExpense {
+  return {
+    id: expense.id,
+    group_id: expense.group_id,
+    ledger: expense.ledger,
+    description: expense.description,
+    merchant: expense.merchant,
+    notes: expense.notes,
+    category: expense.category,
+    amount_twd: expense.amount_twd,
+    paid_by_user_id: expense.paid_by_user_id,
+    created_by_user_id: expense.created_by_user_id,
+    expense_date: expense.expense_date,
+    split_method: expense.split_method,
+    version: expense.version,
+    deleted_at: expense.deleted_at,
+    expense_splits: expense.expense_splits,
+  };
+}
+
+async function activeGroupId(context: ServerContext) {
+  const preference = await context.db
+    .from("user_preferences")
+    .select("active_group_id")
+    .eq("user_id", context.user.id)
+    .single();
+  if (preference.error) throw new Error("active group lookup failed");
+  return z.object({ active_group_id: z.string().uuid() }).parse(preference.data)
+    .active_group_id;
+}
+
+function accountantReportSelect() {
+  return "id, group_id, owner_user_id, report_type, scope, month, question, title, summary, facts, findings, suggestions, source, created_at";
 }
 
 const expenseInputSchema = z.object({
@@ -1401,7 +1673,90 @@ export async function runDailyJobs(request: Request) {
         expiredReceipts.data.map((row) => row.id),
       );
   }
-  return { drafts, purgedReceipts: expiredReceipts.data?.length ?? 0 };
+  const accountantReports = today.endsWith("-01")
+    ? await generateMonthlyAccountantReports(env, db, shiftMonth(today.slice(0, 7), -1))
+    : 0;
+  const users = await db
+    .from("users")
+    .select("id, couple_id, line_user_id, role")
+    .limit(1);
+  const firstUser = z.array(userSchema).parse(users.data ?? [])[0];
+  if (firstUser) await deliverNotifications({ env, db, user: firstUser });
+  return { drafts, purgedReceipts: expiredReceipts.data?.length ?? 0, accountantReports };
+}
+
+async function generateMonthlyAccountantReports(
+  env: z.infer<typeof envSchema>,
+  db: SupabaseClient,
+  month: string,
+) {
+  const [usersResult, groupsResult] = await Promise.all([
+    db.from("users").select("id, couple_id, line_user_id, role").order("role"),
+    db.from("groups").select("id, couple_id").is("archived_at", null),
+  ]);
+  if (usersResult.error || groupsResult.error) return 0;
+  const users = z.array(userSchema).parse(usersResult.data);
+  let count = 0;
+  for (const group of groupsResult.data ?? []) {
+    const user = users.find((item) => item.couple_id === group.couple_id);
+    if (!user) continue;
+    const context = { env, db, user } satisfies ServerContext;
+    try {
+      const report = await generateAccountantReport(context, {
+        question: `${month} 共同帳月報`,
+        scope: "shared",
+        month,
+        reportType: "monthly_health",
+        groupId: String(group.id),
+      });
+      count += 1;
+      for (const recipient of users.filter((item) => item.couple_id === user.couple_id)) {
+        await db.from("notifications").upsert(
+          {
+            recipient_user_id: recipient.id,
+            group_id: group.id,
+            kind: "accountant",
+            title: "AI 會計師月報",
+            body: `${report.title}\n${env.APP_URL}/?tab=accountant`,
+            entity_type: "accountant_report",
+            entity_id: report.id,
+            dedupe_key: `accountant-report:${report.id}:user:${recipient.id}`,
+          },
+          { onConflict: "dedupe_key", ignoreDuplicates: true },
+        );
+      }
+    } catch {
+      /* keep cron best-effort */
+    }
+  }
+  for (const user of users) {
+    const context = { env, db, user } satisfies ServerContext;
+    try {
+      const report = await generateAccountantReport(context, {
+        question: `${month} 私人帳月報`,
+        scope: "private",
+        month,
+        reportType: "monthly_health",
+      });
+      count += 1;
+      await db.from("notifications").upsert(
+        {
+          recipient_user_id: user.id,
+          group_id: null,
+          kind: "accountant",
+          title: "AI 私人帳月報",
+          body: `${report.title}\n${env.APP_URL}/?tab=accountant`,
+          entity_type: "accountant_report",
+          entity_id: report.id,
+          dedupe_key: `accountant-report:${report.id}:user:${user.id}`,
+        },
+        { onConflict: "dedupe_key", ignoreDuplicates: true },
+      );
+    } catch {
+      /* keep cron best-effort */
+    }
+  }
+  return count;
 }
 
 export function expensesCsv(

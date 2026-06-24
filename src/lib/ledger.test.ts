@@ -3,6 +3,13 @@ import test from "node:test";
 
 import { parseFixedIntent, safeSecretEqual } from "./bot";
 import { expensesCsv, type AppExpense } from "./app-server";
+import {
+  accountantFactsMatch,
+  buildAccountantSnapshot,
+  parseAccountantCommand,
+  safeSuggestionAction,
+  type AccountantExpense,
+} from "./accountant";
 import { detectReceiptMime, signSession, verifySession } from "./security";
 import {
   calculateBalances,
@@ -21,6 +28,7 @@ import {
 
 const OWNER = "owner";
 const PARTNER = "partner";
+const GROUP = "00000000-0000-4000-8000-000000000003";
 
 test("routes fixed commands without calling the LLM", () => {
   assert.equal(parseFixedIntent("誰欠誰")?.intent, "balance");
@@ -29,6 +37,18 @@ test("routes fixed commands without calling the LLM", () => {
   assert.equal(parseFixedIntent("刪除剛剛那筆")?.intent, "delete_last");
   assert.equal(parseFixedIntent("結清")?.intent, "settle");
   assert.equal(parseFixedIntent("晚餐 860 我付"), null);
+});
+
+test("routes accountant commands before the expense parser", () => {
+  assert.deepEqual(parseAccountantCommand("會計師 本月哪裡花太多"), {
+    question: "本月哪裡花太多",
+    scope: "combined",
+  });
+  assert.deepEqual(parseAccountantCommand("分析 私人 這月花費"), {
+    question: "私人 這月花費",
+    scope: "private",
+  });
+  assert.equal(parseAccountantCommand("晚餐 860 我付"), null);
 });
 
 test("compares setup codes without accepting different lengths", () => {
@@ -113,6 +133,69 @@ test("reports each crossed budget threshold once", () => {
   assert.deepEqual(crossedBudgetThresholds(790, 810, 1_000), [80]);
   assert.deepEqual(crossedBudgetThresholds(790, 1_010, 1_000), [80, 100]);
   assert.deepEqual(crossedBudgetThresholds(810, 900, 1_000), []);
+});
+
+test("accountant snapshot does not leak the partner private ledger", () => {
+  const snapshot = buildAccountantSnapshot({
+    activeGroupId: GROUP,
+    balances: [{ user_id: OWNER, balance_twd: 430 }],
+    budgets: [],
+    expenses: [
+      accountantExpense("shared", 860, OWNER, "2026-06-01", GROUP),
+      accountantExpense("private", 120, OWNER, "2026-06-02", null),
+      accountantExpense("private", 9999, PARTNER, "2026-06-03", null),
+    ],
+    month: "2026-06",
+    scope: "combined",
+    userId: OWNER,
+  });
+
+  assert.equal(snapshot.facts.sharedTotalTwd, 860);
+  assert.equal(snapshot.facts.privateTotalTwd, 120);
+  assert.equal(snapshot.facts.totalTwd, 980);
+  assert.equal(JSON.stringify(snapshot).includes("9999"), false);
+});
+
+test("rejects accountant reports whose facts do not match the ledger snapshot", () => {
+  const snapshot = buildAccountantSnapshot({
+    activeGroupId: GROUP,
+    balances: [{ user_id: OWNER, balance_twd: 430 }],
+    budgets: [],
+    expenses: [accountantExpense("shared", 860, OWNER, "2026-06-01", GROUP)],
+    month: "2026-06",
+    scope: "shared",
+    userId: OWNER,
+  });
+
+  assert.equal(accountantFactsMatch(snapshot.facts, snapshot.facts), true);
+  assert.equal(
+    accountantFactsMatch(
+      { ...snapshot.facts, totalTwd: snapshot.facts.totalTwd + 1 },
+      snapshot.facts,
+    ),
+    false,
+  );
+});
+
+test("only safe accountant suggestions can become pending actions", () => {
+  const snapshot = buildAccountantSnapshot({
+    activeGroupId: GROUP,
+    balances: [{ user_id: OWNER, balance_twd: -430 }],
+    budgets: [],
+    expenses: [accountantExpense("shared", 860, OWNER, "2026-06-01", GROUP)],
+    month: "2026-06",
+    scope: "shared",
+    userId: OWNER,
+  });
+
+  assert.deepEqual(
+    safeSuggestionAction({ type: "settle", amountTwd: 430 }, snapshot),
+    { type: "settle", groupId: GROUP, amountTwd: 430 },
+  );
+  assert.equal(
+    safeSuggestionAction({ type: "save_budget", amountTwd: 20_000 }, snapshot),
+    null,
+  );
 });
 
 test("learns an other category from matching historical merchants and descriptions", () => {
@@ -258,5 +341,31 @@ function expense(
     expenseDate,
     deleted: false,
     splits: { [createdByUserId]: amountTwd },
+  };
+}
+
+function accountantExpense(
+  ledger: "shared" | "private",
+  amountTwd: number,
+  createdByUserId: string,
+  expenseDate: string,
+  groupId: string | null,
+): AccountantExpense {
+  return {
+    id: `00000000-0000-4000-8000-${String(amountTwd).padStart(12, "0")}`,
+    group_id: groupId,
+    ledger,
+    description: `${ledger}-${amountTwd}`,
+    merchant: null,
+    notes: null,
+    category: ledger === "shared" ? "food" : "other",
+    amount_twd: amountTwd,
+    paid_by_user_id: createdByUserId,
+    created_by_user_id: createdByUserId,
+    expense_date: expenseDate,
+    split_method: "equal",
+    version: 1,
+    deleted_at: null,
+    expense_splits: [{ user_id: createdByUserId, amount_twd: amountTwd }],
   };
 }

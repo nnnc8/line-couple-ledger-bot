@@ -3,7 +3,13 @@
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 
-type Tab = "dashboard" | "history" | "add" | "budgets" | "settings";
+type Tab =
+  | "dashboard"
+  | "history"
+  | "add"
+  | "accountant"
+  | "budgets"
+  | "settings";
 type User = { id: string; role: "owner" | "partner"; label: string };
 type Group = {
   id: string;
@@ -62,6 +68,36 @@ type Bootstrap = {
     recent: Expense[];
   };
 };
+type AccountantReport = {
+  id: string;
+  report_type: string;
+  scope: "shared" | "private" | "combined";
+  month: string;
+  question: string | null;
+  title: string;
+  summary: string;
+  facts: {
+    totalTwd: number;
+    sharedTotalTwd: number;
+    privateTotalTwd: number;
+    transactionCount: number;
+    balanceTwd: number;
+    otherTotalTwd: number;
+  };
+  findings: Array<{
+    severity: "info" | "warning" | "danger";
+    title: string;
+    body: string;
+    amountTwd: number | null;
+  }>;
+  suggestions: Array<{
+    title: string;
+    body: string;
+    actionInput: unknown | null;
+  }>;
+  source: "llm" | "fallback";
+  created_at: string;
+};
 type ExpenseForm = {
   ledger: "shared" | "private";
   description: string;
@@ -77,7 +113,14 @@ type ExpenseForm = {
   receiptId: string | null;
 };
 
-const tabs: Tab[] = ["dashboard", "history", "add", "budgets", "settings"];
+const tabs: Tab[] = [
+  "dashboard",
+  "history",
+  "add",
+  "accountant",
+  "budgets",
+  "settings",
+];
 const categoryNames: Record<string, string> = {
   food: "餐飲",
   transport: "交通",
@@ -370,6 +413,9 @@ export default function Home() {
             onReceipt={async (file) => uploadReceipt(file, data.activeGroupId)}
           />
         )}
+        {tab === "accountant" && (
+          <Accountant data={data} onPropose={(body) => void propose(body)} />
+        )}
         {tab === "budgets" && (
           <Budgets
             data={data}
@@ -417,6 +463,12 @@ export default function Home() {
             sessionStorage.removeItem("editExpense");
             setTab("add");
           }}
+        />
+        <NavButton
+          active={tab === "accountant"}
+          label="AI"
+          icon="◆"
+          onClick={() => setTab("accountant")}
         />
         <NavButton
           active={tab === "budgets"}
@@ -1028,6 +1080,183 @@ function ExpenseEditor({
   );
 }
 
+function Accountant({
+  data,
+  onPropose,
+}: {
+  data: Bootstrap;
+  onPropose(body: unknown): void;
+}) {
+  const [reports, setReports] = useState<AccountantReport[]>([]);
+  const [question, setQuestion] = useState("本月哪裡花太多？");
+  const [scope, setScope] = useState<AccountantReport["scope"]>("combined");
+  const [loading, setLoading] = useState(false);
+  const [localError, setLocalError] = useState("");
+
+  const loadReports = useCallback(async () => {
+    const result = (await fetch("/api/app/accountant/reports", {
+      cache: "no-store",
+    }).then(parseResponse)) as AccountantReport[];
+    setReports(result);
+  }, []);
+
+  useEffect(() => {
+    // This effect synchronizes the accountant tab with saved server reports.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    void loadReports().catch((reason) =>
+      setLocalError(reason instanceof Error ? reason.message : "無法讀取報告"),
+    );
+  }, [loadReports]);
+
+  async function ask(event: React.FormEvent) {
+    event.preventDefault();
+    setLoading(true);
+    setLocalError("");
+    try {
+      const report = (await api("/api/app/accountant/ask", {
+        question,
+        scope,
+        month: data.month,
+      })) as AccountantReport;
+      setReports((current) => [report, ...current]);
+    } catch (reason) {
+      setLocalError(reason instanceof Error ? reason.message : "會計師暫時無法回覆");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  const latest = reports[0];
+  return (
+    <div className="stack">
+      <form className="panel form" onSubmit={ask}>
+        <div className="panel-title">
+          <div>
+            <span className="eyebrow">{data.month}</span>
+            <h2>AI 會計師</h2>
+          </div>
+        </div>
+        <Field label="你想問什麼">
+          <textarea
+            maxLength={500}
+            value={question}
+            onChange={(event) => setQuestion(event.target.value)}
+          />
+        </Field>
+        <div className="segmented three">
+          <button
+            type="button"
+            className={scope === "combined" ? "active" : ""}
+            onClick={() => setScope("combined")}
+          >
+            合併
+          </button>
+          <button
+            type="button"
+            className={scope === "shared" ? "active" : ""}
+            onClick={() => setScope("shared")}
+          >
+            共同
+          </button>
+          <button
+            type="button"
+            className={scope === "private" ? "active" : ""}
+            onClick={() => setScope("private")}
+          >
+            私人
+          </button>
+        </div>
+        {localError && <p className="form-error">{localError}</p>}
+        <button className="wide" disabled={loading || !question.trim()}>
+          {loading ? "分析中…" : "詢問會計師"}
+        </button>
+      </form>
+
+      {latest ? (
+        <AccountantReportCard report={latest} onPropose={onPropose} />
+      ) : (
+        <article className="panel">
+          <Empty text="還沒有 AI 會計師報告" />
+        </article>
+      )}
+
+      {reports.length > 1 && (
+        <article className="panel">
+          <div className="panel-title">
+            <div>
+              <span className="eyebrow">歷史</span>
+              <h2>近期報告</h2>
+            </div>
+          </div>
+          {reports.slice(1, 8).map((report) => (
+            <div className="notification read" key={report.id}>
+              <strong>{report.title}</strong>
+              <p>{report.summary}</p>
+              <small>{new Date(report.created_at).toLocaleString("zh-TW")}</small>
+            </div>
+          ))}
+        </article>
+      )}
+    </div>
+  );
+}
+
+function AccountantReportCard({
+  report,
+  onPropose,
+}: {
+  report: AccountantReport;
+  onPropose(body: unknown): void;
+}) {
+  return (
+    <article className="panel accountant-report">
+      <div className="panel-title">
+        <div>
+          <span className="eyebrow">
+            {scopeLabel(report.scope)} · {report.source === "fallback" ? "本地摘要" : "Gemini"}
+          </span>
+          <h2>{report.title}</h2>
+        </div>
+        <strong>{money(report.facts.totalTwd)}</strong>
+      </div>
+      <p>{report.summary}</p>
+      <div className="metric-grid compact-metrics">
+        <article>
+          <span>筆數</span>
+          <strong>{report.facts.transactionCount}</strong>
+        </article>
+        <article>
+          <span>其他分類</span>
+          <strong>{money(report.facts.otherTotalTwd)}</strong>
+        </article>
+      </div>
+      {report.findings.map((finding) => (
+        <div className={`finding ${finding.severity}`} key={`${finding.title}-${finding.body}`}>
+          <strong>{finding.title}</strong>
+          <p>{finding.body}</p>
+          {finding.amountTwd !== null && <small>{money(finding.amountTwd)}</small>}
+        </div>
+      ))}
+      {report.suggestions.map((suggestion) => (
+        <div className="suggestion" key={`${suggestion.title}-${suggestion.body}`}>
+          <div>
+            <strong>{suggestion.title}</strong>
+            <p>{suggestion.body}</p>
+          </div>
+          {suggestion.actionInput !== null && (
+            <button
+              className="text-button"
+              onClick={() => onPropose(suggestion.actionInput)}
+            >
+              建立確認
+            </button>
+          )}
+        </div>
+      ))}
+    </article>
+  );
+}
+
 function Budgets({
   data,
   onSave,
@@ -1440,10 +1669,14 @@ function titleFor(tab: Tab) {
       dashboard: "總覽",
       history: "帳務流水",
       add: "新增支出",
+      accountant: "AI 會計師",
       budgets: "預算管理",
       settings: "帳本設定",
     } as const
   )[tab];
+}
+function scopeLabel(scope: AccountantReport["scope"]) {
+  return scope === "shared" ? "共同帳" : scope === "private" ? "私人帳" : "合併帳";
 }
 function frequencyName(value: string) {
   return value === "weekly" ? "每週" : value === "yearly" ? "每年" : "每月";

@@ -97,6 +97,7 @@ button.light { padding: 9px 13px; background: white; color: var(--navy); }
 .field > span { color: #45566a; font-size: 12px; font-weight: 700; }
 .two { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .segmented { display: grid; grid-template-columns: 1fr 1fr; padding: 3px; border-radius: 13px; background: #e9eef2; }
+.segmented.three { grid-template-columns: repeat(3, 1fr); }
 .segmented button { background: transparent; color: var(--muted); }
 .segmented button.active { background: white; color: var(--navy); box-shadow: 0 2px 8px rgba(18, 44, 70, .1); }
 .upload { position: relative; display: grid; gap: 4px; padding: 17px; border: 1.5px dashed #aebdca; border-radius: 14px; background: #f7fafc; text-align: center; cursor: pointer; }
@@ -120,11 +121,18 @@ button.light { padding: 9px 13px; background: white; color: var(--navy); }
 .notification.read { opacity: .58; }
 .notification p { margin: 4px 0; font-size: 13px; }
 .notification small { color: var(--muted); }
+.accountant-report > p { line-height: 1.7; }
+.compact-metrics { margin: 14px 0; }
+.finding, .suggestion { display: grid; gap: 4px; padding: 12px 0; border-top: 1px solid var(--line); }
+.finding p, .suggestion p { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.55; }
+.finding.warning strong { color: #9b6b10; }
+.finding.danger strong { color: var(--danger); }
+.suggestion { grid-template-columns: 1fr auto; align-items: center; }
 .button-link { display: block; padding: 14px; border: 1px solid var(--navy); border-radius: 12px; color: var(--navy); font-weight: 700; text-align: center; text-decoration: none; }
 .empty { padding: 28px 10px; color: var(--muted); text-align: center; }
 .empty span { font-size: 25px; }
 .empty p { margin: 7px 0 0; font-size: 13px; }
-.bottom-nav { position: fixed; z-index: 10; left: 50%; bottom: 0; width: min(760px, 100%); display: grid; grid-template-columns: repeat(5, 1fr); padding: 8px 8px calc(8px + env(safe-area-inset-bottom)); border-top: 1px solid var(--line); background: rgba(255,255,255,.96); backdrop-filter: blur(18px); transform: translateX(-50%); }
+.bottom-nav { position: fixed; z-index: 10; left: 50%; bottom: 0; width: min(760px, 100%); display: grid; grid-template-columns: repeat(6, 1fr); padding: 8px 8px calc(8px + env(safe-area-inset-bottom)); border-top: 1px solid var(--line); background: rgba(255,255,255,.96); backdrop-filter: blur(18px); transform: translateX(-50%); }
 .bottom-nav button { display: grid; justify-items: center; gap: 3px; padding: 6px; background: transparent; color: #758396; font-weight: 600; }
 .bottom-nav button.active { color: var(--navy); }
 .bottom-nav button span { min-height: 24px; font-size: 19px; line-height: 24px; }
