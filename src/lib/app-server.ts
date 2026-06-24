@@ -41,6 +41,7 @@ import {
 } from "./ledger-agent";
 import {
   classifyExpenseCategory,
+  isLegacyCategoryLabel,
   splitBootstrapExpenses,
   type CategoryClassificationInput,
 } from "./category-agent";
@@ -412,9 +413,6 @@ export async function loadBootstrap(context: ServerContext) {
 }
 
 function buildDashboard(expenses: AppExpense[], month: string) {
-  const categoryTotals = Object.fromEntries(
-    categories.map((category) => [category, 0]),
-  ) as Record<string, number>;
   const trend = Array.from({ length: 6 }, (_, index) => ({
     month: shiftMonth(month, index - 5),
     totalTwd: 0,
@@ -423,10 +421,12 @@ function buildDashboard(expenses: AppExpense[], month: string) {
     const expenseMonth = expense.expense_date.slice(0, 7);
     const point = trend.find((item) => item.month === expenseMonth);
     if (point) point.totalTwd += expense.amount_twd;
-    if (expenseMonth === month) categoryTotals[expense.category] += expense.amount_twd;
   }
   const thisMonth = expenses.filter((expense) =>
     expense.expense_date.startsWith(month),
+  );
+  const categoryTotals = Object.fromEntries(
+    rankCategoryLabels(thisMonth).map((item) => [item.label, item.totalTwd]),
   );
   return {
     monthlyTotalTwd: thisMonth.reduce((sum, expense) => sum + expense.amount_twd, 0),
@@ -672,16 +672,23 @@ export async function suggestCategoryUpdates(context: ServerContext, input: unkn
       ? expense.expense_date >= `${shiftMonth(taipeiToday().slice(0, 7), -5)}-01`
       : true,
   );
-  const history = expenses.map((expense) => ({
-    category: expense.category,
-    categoryLabel: expense.category_label,
-    description: expense.description,
-    merchant: expense.merchant,
-  }));
+  const history = expenses
+    .filter((expense) => !isLegacyCategoryLabel(expense.category_label))
+    .map((expense) => ({
+      category: expense.category,
+      categoryLabel: expense.category_label,
+      description: expense.description,
+      merchant: expense.merchant,
+    }));
   const gemini = new GoogleGenAI({ apiKey: context.env.GEMINI_API_KEY });
   const rawUpdates = [];
   for (const expense of expenses.slice(0, 50)) {
-    if (expense.category_label !== "其他" && expense.category_label !== "other") continue;
+    if (
+      expense.category_label !== "其他" &&
+      expense.category_label !== "other" &&
+      !isLegacyCategoryLabel(expense.category_label)
+    )
+      continue;
     const classified = await classifyExpenseCategory(
       {
         description: expense.description,
@@ -1448,6 +1455,7 @@ async function classifyPreparedExpense(
           }),
         )
         .parse(historyResult.data)
+        .filter((row) => !isLegacyCategoryLabel(row.category_label))
         .map((row) => ({
           category: row.category,
           categoryLabel: row.category_label,

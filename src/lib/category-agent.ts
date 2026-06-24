@@ -58,8 +58,29 @@ export function fallbackCategoryClassification(
   if (/停車|parking/.test(normalized)) {
     return result("transport", "停車費", 0.9, "parking");
   }
+  if (/cube|卡費|信用卡|國泰卡/.test(normalized)) {
+    return result("other", "信用卡費", 0.8, "card bill");
+  }
   if (/加油|油資|fuel/.test(normalized)) {
     return result("transport", "油資", 0.9, "fuel");
+  }
+  if (/車貸/.test(normalized)) {
+    return result("transport", "車貸", 0.9, "car loan");
+  }
+  if (/etag|etc|國道|收費站|通行/.test(normalized)) {
+    return result("transport", "通行費", 0.85, "toll");
+  }
+  if (/牌照稅|燃料稅|稅金/.test(normalized)) {
+    return result("transport", "稅金", 0.85, "tax");
+  }
+  if (/保險/.test(normalized)) {
+    return result("transport", "保險費", 0.85, "insurance");
+  }
+  if (/保養|機油|維修|避震|檢查|除碳|隔熱紙|行車記錄|車牌框|鋁圈|工資|修逗號/.test(normalized)) {
+    return result("transport", "維修保養", 0.85, "maintenance");
+  }
+  if (/拼多多|鞋|百貨|購物/.test(normalized)) {
+    return result("shopping", "購物", 0.8, "shopping");
   }
   if (/高鐵|台鐵|火車|捷運|公車|客運|uber|計程車|交通|車資/.test(normalized)) {
     return result("transport", historyLabel(input, "transport") ?? "交通", 0.8, "transport");
@@ -124,7 +145,7 @@ export async function classifyExpenseCategory(
       JSON.parse(response.text ?? "{}"),
     );
     if (parsed.confidence < 0.35) return fallback;
-    return { ...parsed, categoryLabel: cleanLabel(parsed.categoryLabel) };
+    return { ...parsed, categoryLabel: canonicalLabel(input, parsed.categoryLabel) };
   } catch {
     return fallback;
   }
@@ -188,9 +209,14 @@ function historyLabel(input: CategoryClassificationInput, category: Category) {
       entry.category === category &&
       entry.categoryLabel !== "其他" &&
       entry.categoryLabel !== "other" &&
+      !isLegacyCategoryLabel(entry.categoryLabel) &&
       current &&
       normalize(`${entry.merchant ?? ""} ${entry.description}`).includes(current),
   )?.categoryLabel;
+}
+
+export function isLegacyCategoryLabel(value: string) {
+  return (categories as readonly string[]).includes(cleanLabel(value));
 }
 
 function categoryLabel(category: Category) {
@@ -211,6 +237,25 @@ function categoryLabel(category: Category) {
 
 function cleanLabel(value: string) {
   return value.normalize("NFKC").trim().replace(/\s+/g, " ").slice(0, 40);
+}
+
+function canonicalLabel(input: CategoryClassificationInput, label: string) {
+  const text = normalize(
+    `${input.groupName ?? ""} ${input.merchant ?? ""} ${input.description} ${label}`,
+  );
+  if (/停車|parking/.test(text)) return "停車費";
+  if (/cube|卡費|信用卡|國泰卡/.test(text)) return "信用卡費";
+  if (/加油|油資|fuel/.test(text)) return "油資";
+  if (/車貸/.test(text)) return "車貸";
+  if (/etag|etc|國道|收費站|通行/.test(text)) return "通行費";
+  if (/牌照稅|燃料稅|稅金/.test(text)) return "稅金";
+  if (/保險/.test(text)) return "保險費";
+  if (/保養|機油|維修|避震|檢查|除碳|隔熱紙|行車記錄|車牌框|鋁圈|工資|修逗號/.test(text))
+    return "維修保養";
+  if (/拼多多|鞋|百貨|購物/.test(text)) return "購物";
+  if (/交通雜項/.test(text)) return "交通";
+  if (/其他支出/.test(text)) return "其他";
+  return cleanLabel(label);
 }
 
 function normalize(value: string) {

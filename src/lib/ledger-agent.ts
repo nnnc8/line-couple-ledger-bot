@@ -1,5 +1,9 @@
 import { z } from "zod";
 
+import {
+  fallbackCategoryClassification,
+  isLegacyCategoryLabel,
+} from "./category-agent";
 import { type Category } from "./ledger";
 
 export const agentScopes = ["shared", "private", "combined"] as const;
@@ -104,7 +108,7 @@ export function filterAgentExpenses(input: {
 export function rankCategoryLabels(expenses: AgentExpense[]): CategoryRank[] {
   const totals = new Map<string, CategoryRank>();
   for (const expense of expenses) {
-    const label = normalizeLabel(expense.category_label || expense.category);
+    const label = rankLabel(expense);
     const current = totals.get(label) ?? { label, totalTwd: 0, count: 0 };
     current.totalTwd += expense.amount_twd;
     current.count += 1;
@@ -116,6 +120,18 @@ export function rankCategoryLabels(expenses: AgentExpense[]): CategoryRank[] {
       right.count - left.count ||
       left.label.localeCompare(right.label, "zh-Hant"),
   );
+}
+
+function rankLabel(expense: AgentExpense) {
+  const label = normalizeLabel(expense.category_label || expense.category);
+  if (label && !isLegacyCategoryLabel(label)) return label;
+  return fallbackCategoryClassification({
+    description: expense.description,
+    merchant: expense.merchant,
+    groupName: null,
+    fallbackCategory: expense.category,
+    history: [],
+  }).categoryLabel;
 }
 
 export function safeBatchCategoryUpdates(

@@ -2034,7 +2034,7 @@ function Empty({ text, icon }: { text: string; icon?: string }) {
   );
 }
 function ExpenseRow({ expense, users }: { expense: Expense; users: User[] }) {
-  const label = expense.category_label || categoryNames[expense.category] || expense.category;
+  const label = displayCategoryLabel(expense);
   const emoji = categoryEmojis[expense.category] ?? "📦";
   return (
     <div className={`expense-row ${expense.deleted_at ? "deleted" : ""}`}>
@@ -2083,9 +2083,7 @@ function emptyForm(today: string): ExpenseForm {
 }
 function buildClientDashboard(expenses: Expense[], month: string): DashboardData {
   const active = expenses.filter((expense) => !expense.deleted_at);
-  const categoryTotals = Object.fromEntries(
-    Object.keys(categoryNames).map((category) => [category, 0]),
-  ) as Record<string, number>;
+  const categoryTotals: Record<string, number> = {};
   const trend = Array.from({ length: 6 }, (_, index) => ({
     month: shiftMonth(month, index - 5),
     totalTwd: 0,
@@ -2094,8 +2092,10 @@ function buildClientDashboard(expenses: Expense[], month: string): DashboardData
     const expenseMonth = expense.expense_date.slice(0, 7);
     const point = trend.find((item) => item.month === expenseMonth);
     if (point) point.totalTwd += expense.amount_twd;
-    if (expenseMonth === month)
-      categoryTotals[expense.category] = (categoryTotals[expense.category] ?? 0) + expense.amount_twd;
+    if (expenseMonth === month) {
+      const label = displayCategoryLabel(expense);
+      categoryTotals[label] = (categoryTotals[label] ?? 0) + expense.amount_twd;
+    }
   }
   const thisMonth = active.filter((expense) => expense.expense_date.startsWith(month));
   return {
@@ -2106,6 +2106,14 @@ function buildClientDashboard(expenses: Expense[], month: string): DashboardData
     recent: active.slice(0, 8),
   };
 }
+
+function displayCategoryLabel(expense: Expense) {
+  const label = expense.category_label?.trim();
+  if (label && !Object.prototype.hasOwnProperty.call(categoryNames, label))
+    return label;
+  return categoryNames[expense.category] ?? label ?? expense.category;
+}
+
 function formFromExpense(expense: Expense, data: Bootstrap): ExpenseForm {
   const mine =
     expense.expense_splits.find((split) => split.user_id === data.user.id)

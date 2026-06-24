@@ -273,6 +273,38 @@ test("category analytics use free category labels instead of enum categories", (
   ]);
 });
 
+test("category analytics upgrades legacy enum labels from descriptions", () => {
+  const ranking = rankCategoryLabels([
+    {
+      ...agentExpense("shared", 5600, OWNER, "2026-06-01", GROUP, "transport"),
+      category: "transport",
+      category_label: "transport",
+      description: "車貸",
+    },
+    {
+      ...agentExpense("shared", 3277, OWNER, "2026-06-02", GROUP, "other"),
+      category: "other",
+      category_label: "other",
+      description: "cube卡費(已扣除加油)",
+    },
+    {
+      ...agentExpense("shared", 105, OWNER, "2026-06-03", GROUP, "transport"),
+      category: "transport",
+      category_label: "transport",
+      description: "停車費",
+    },
+  ]);
+
+  assert.deepEqual(
+    ranking.map((item) => [item.label, item.totalTwd]),
+    [
+      ["車貸", 5600],
+      ["信用卡費", 3277],
+      ["停車費", 105],
+    ],
+  );
+});
+
 test("group-aware category fallback keeps food groups coarse and parking specific", () => {
   assert.deepEqual(
     fallbackCategoryClassification({

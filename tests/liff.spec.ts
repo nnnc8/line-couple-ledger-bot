@@ -97,6 +97,28 @@ test("mobile dashboard, history, and confirmed expense flow", async ({
   await expect(page.getByRole("status")).toContainText("已完成");
 });
 
+test("dashboard fallback keeps free category labels and centered add button", async ({
+  page,
+}) => {
+  await page.route("**/api/app/analytics/categories**", (route) =>
+    route.fulfill({ status: 500, json: { error: "failed" } }),
+  );
+
+  await page.goto("/");
+  await expect(page.getByText("晚餐", { exact: true })).toHaveCount(2);
+  await expect(page.getByText("捷運", { exact: true })).toHaveCount(1);
+  await expect(page.getByText("transport", { exact: true })).toHaveCount(0);
+
+  const centerOffset = await page
+    .locator(".bottom-nav")
+    .getByRole("button", { name: "新增", exact: true })
+    .evaluate((button) => {
+      const rect = button.getBoundingClientRect();
+      return Math.abs(rect.left + rect.width / 2 - window.innerWidth / 2);
+    });
+  expect(centerOffset).toBeLessThan(3);
+});
+
 test("passes invite code from LIFF link into session creation", async ({
   page,
 }) => {
@@ -200,15 +222,8 @@ function bootstrap() {
       monthlyTotalTwd: 1060,
       monthlyCount: 2,
       categoryTotals: {
-        food: 860,
-        transport: 200,
-        groceries: 0,
-        household: 0,
-        entertainment: 0,
-        shopping: 0,
-        medical: 0,
-        travel: 0,
-        other: 0,
+        晚餐: 860,
+        捷運: 200,
       },
       trend: [
         { month: "2026-01", totalTwd: 0 },
