@@ -8,6 +8,7 @@ import {
   calculateBalances,
   crossedBudgetThresholds,
   geminiIntentJsonSchema,
+  learnCategoryFromHistory,
   monthlySummary,
   nextRecurringDate,
   parsedIntentSchema,
@@ -112,6 +113,20 @@ test("reports each crossed budget threshold once", () => {
   assert.deepEqual(crossedBudgetThresholds(790, 810, 1_000), [80]);
   assert.deepEqual(crossedBudgetThresholds(790, 1_010, 1_000), [80, 100]);
   assert.deepEqual(crossedBudgetThresholds(810, 900, 1_000), []);
+});
+
+test("learns an other category from matching historical merchants and descriptions", () => {
+  assert.equal(
+    learnCategoryFromHistory(
+      { category: "other", description: "晚餐", merchant: "高鐵便當" },
+      [
+        { category: "food", description: "晚餐", merchant: "高鐵便當" },
+        { category: "transport", description: "高鐵", merchant: "台灣高鐵" },
+        { category: "food", description: "午餐", merchant: "高鐵便當" },
+      ],
+    ),
+    "food",
+  );
 });
 
 test("advances recurring dates without drifting month end", () => {

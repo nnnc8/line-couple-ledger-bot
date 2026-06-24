@@ -62,9 +62,16 @@ export const geminiIntentJsonSchema = Object.fromEntries(
 );
 
 export type ParsedIntent = z.infer<typeof parsedIntentSchema>;
+export type Category = (typeof categories)[number];
 export type LedgerType = "shared" | "private";
 export type SplitMethod = "equal" | "exact" | "percentage";
 export type RecurringFrequency = "weekly" | "monthly" | "yearly";
+
+export interface CategoryLearningEntry {
+  category: Category;
+  description: string;
+  merchant?: string | null;
+}
 
 export const receiptExtractionSchema = z
   .object({
@@ -185,6 +192,65 @@ export function crossedBudgetThresholds(
   );
 }
 
+export function learnCategoryFromHistory(
+  current: CategoryLearningEntry,
+  history: CategoryLearningEntry[],
+): Category {
+  if (current.category !== "other") return current.category;
+  const currentMerchant = normalizeCategoryText(current.merchant);
+  const currentDescription = normalizeCategoryText(current.description);
+  if (!currentMerchant && !currentDescription) return "other";
+
+  const scores = new Map<
+    Category,
+    { score: number; matches: number; firstIndex: number }
+  >();
+  history.forEach((entry, index) => {
+    if (entry.category === "other") return;
+    const score =
+      categoryMatchScore(
+        currentMerchant,
+        normalizeCategoryText(entry.merchant),
+        4,
+        2,
+      ) +
+      categoryMatchScore(
+        currentDescription,
+        normalizeCategoryText(entry.description),
+        3,
+        1,
+      );
+    if (score <= 0) return;
+
+    const existing = scores.get(entry.category) ?? {
+      score: 0,
+      matches: 0,
+      firstIndex: index,
+    };
+    scores.set(entry.category, {
+      score: existing.score + score,
+      matches: existing.matches + 1,
+      firstIndex: Math.min(existing.firstIndex, index),
+    });
+  });
+
+  let best: [Category, { score: number; matches: number; firstIndex: number }] | null =
+    null;
+  for (const entry of scores.entries()) {
+    if (
+      !best ||
+      entry[1].score > best[1].score ||
+      (entry[1].score === best[1].score && entry[1].matches > best[1].matches) ||
+      (entry[1].score === best[1].score &&
+        entry[1].matches === best[1].matches &&
+        entry[1].firstIndex < best[1].firstIndex)
+    ) {
+      best = entry;
+    }
+  }
+  return best?.[0] ?? "other";
+}
+
 export function nextRecurringDate(
   currentDate: string,
   frequency: RecurringFrequency,
@@ -213,6 +279,31 @@ function assertAmount(amountTwd: number): void {
 
 function formatUtcDate(date: Date): string {
   return date.toISOString().slice(0, 10);
+}
+
+function categoryMatchScore(
+  current: string,
+  historical: string,
+  exactScore: number,
+  relatedScore: number,
+): number {
+  if (!current || !historical) return 0;
+  if (current === historical) return exactScore;
+  if (
+    current.length >= 3 &&
+    historical.length >= 3 &&
+    (current.includes(historical) || historical.includes(current))
+  ) {
+    return relatedScore;
+  }
+  return 0;
+}
+
+function normalizeCategoryText(value?: string | null): string {
+  return (value ?? "")
+    .normalize("NFKC")
+    .toLowerCase()
+    .replace(/[^\p{Letter}\p{Number}]+/gu, "");
 }
 
 export function calculateBalances(

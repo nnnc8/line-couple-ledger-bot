@@ -8,6 +8,7 @@ import { z } from "zod";
 import {
   categories,
   geminiReceiptJsonSchema,
+  learnCategoryFromHistory,
   nextRecurringDate,
   receiptExtractionSchema,
   splitEqual,
@@ -439,7 +440,7 @@ export async function proposeAction(
     const prepared = await prepareExpense(context, parsed.expense, partner);
     groupId = prepared.groupId;
     payload = prepared.payload;
-    preview = `${parsed.type === "create_expense" ? "新增" : "修改"} ${prepared.groupName}\n${parsed.expense.description} NT$${parsed.expense.amountTwd}\n${splitLabel(parsed.expense.splitMethod)}`;
+    preview = `${parsed.type === "create_expense" ? "新增" : "修改"} ${prepared.groupName}\n${parsed.expense.description} NT$${parsed.expense.amountTwd}\n${splitLabel(parsed.expense.splitMethod)} · ${categoryLabel(prepared.category)}`;
     if (parsed.type === "update_expense")
       Object.assign(payload, {
         expense_id: parsed.expenseId,
@@ -550,6 +551,7 @@ async function prepareExpense(
   if (expense.ledger === "private" && expense.paidBy !== "self")
     throw new HttpError(400, "私人支出只能由本人付款");
   const payerId = expense.paidBy === "self" ? context.user.id : partner.id;
+  const category = await learnExpenseCategory(context, expense, group?.id ?? null);
   let splits: Record<string, number>;
   if (expense.ledger === "private")
     splits = { [context.user.id]: expense.amountTwd };
@@ -572,13 +574,14 @@ async function prepareExpense(
   return {
     groupId: group?.id ?? null,
     groupName: expense.ledger === "private" ? "私人帳" : group!.name,
+    category,
     payload: {
       group_id: group?.id ?? null,
       ledger: expense.ledger,
       description: expense.description,
       merchant: expense.merchant,
       notes: expense.notes,
-      category: expense.category,
+      category,
       amount_twd: expense.amountTwd,
       paid_by_user_id: expense.ledger === "private" ? context.user.id : payerId,
       expense_date: expense.expenseDate,
@@ -587,6 +590,47 @@ async function prepareExpense(
       receipt_id: expense.receiptId,
     },
   };
+}
+
+async function learnExpenseCategory(
+  context: ServerContext,
+  expense: z.infer<typeof expenseInputSchema>,
+  groupId: string | null,
+) {
+  if (expense.category !== "other") return expense.category;
+  let query = context.db
+    .from("expenses")
+    .select("category, description, merchant")
+    .eq("couple_id", context.user.couple_id)
+    .eq("ledger", expense.ledger)
+    .neq("category", "other")
+    .is("deleted_at", null)
+    .order("created_at", { ascending: false })
+    .limit(80);
+  query =
+    expense.ledger === "shared"
+      ? query.eq("group_id", groupId)
+      : query.eq("created_by_user_id", context.user.id);
+
+  const result = await query;
+  if (result.error) return expense.category;
+  const history = z
+    .array(
+      z.object({
+        category: z.enum(categories),
+        description: z.string(),
+        merchant: z.string().nullable(),
+      }),
+    )
+    .parse(result.data);
+  return learnCategoryFromHistory(
+    {
+      category: expense.category,
+      description: expense.description,
+      merchant: expense.merchant,
+    },
+    history,
+  );
 }
 
 async function requireGroup(context: ServerContext, groupId: string | null) {
