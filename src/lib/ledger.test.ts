@@ -630,6 +630,15 @@ test("notification delivery attempts LINE push without quota preflight", async (
   });
 
   assert.equal(pushed.length, 1);
+  assert.deepEqual(pushed[0], {
+    to: "line-partner",
+    messages: [
+      {
+        type: "text",
+        text: "另一半更新了一筆支出 阿提斯\n停車費 NT$105｜2026-06-25｜停車費",
+      },
+    ],
+  });
   assert.equal(db.updatedStatus, "sent");
 });
 
@@ -671,6 +680,10 @@ test("LINE postback confirmation delivers partner notification", async () => {
   });
 
   assert.equal(pushed.length, 1);
+  assert.equal(
+    (pushed[0] as { messages: Array<{ text: string }> }).messages[0].text,
+    "另一半更新了一筆支出 阿提斯\n停車費 NT$105｜2026-06-25｜停車費",
+  );
   assert.equal(db.updatedStatus, "sent");
 });
 
@@ -872,14 +885,34 @@ function singleResultFor(table: string) {
       data: [
         {
           id: 123,
+          group_id: GROUP,
+          kind: "expense",
           recipient_user_id: PARTNER,
           title: "共同帳本已更新",
           body: "另一半更新了一筆支出",
+          entity_type: "expense",
+          entity_id: "00000000-0000-4000-8000-000000000105",
           users: { line_user_id: "line-partner" },
         },
       ],
       error: null,
     };
+  }
+  if (table === "expenses") {
+    return {
+      data: {
+        id: "00000000-0000-4000-8000-000000000105",
+        description: "停車費",
+        amount_twd: 105,
+        expense_date: "2026-06-25",
+        category: "transport",
+        category_label: "停車費",
+      },
+      error: null,
+    };
+  }
+  if (table === "groups") {
+    return { data: { name: "阿提斯" }, error: null };
   }
   return { data: [], error: null };
 }
@@ -890,9 +923,13 @@ function listResultFor(table: string) {
       data: [
         {
           id: 123,
+          group_id: GROUP,
+          kind: "expense",
           recipient_user_id: PARTNER,
           title: "共同帳本已更新",
           body: "另一半更新了一筆支出",
+          entity_type: "expense",
+          entity_id: "00000000-0000-4000-8000-000000000105",
           users: { line_user_id: "line-partner" },
         },
       ],

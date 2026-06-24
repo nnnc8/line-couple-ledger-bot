@@ -2134,7 +2134,7 @@ export async function deliverNotifications(context: ServerContext) {
   const pending = await context.db
     .from("notifications")
     .select(
-      "id, recipient_user_id, title, body, users!notifications_recipient_user_id_fkey(line_user_id)",
+      "id, group_id, kind, recipient_user_id, title, body, entity_type, entity_id, users!notifications_recipient_user_id_fkey(line_user_id)",
     )
     .eq("line_status", "pending")
     .order("created_at")
@@ -2152,6 +2152,7 @@ export async function deliverNotifications(context: ServerContext) {
       .parse(userRelation)?.line_user_id;
     let status = lineUserId ? "failed" : "skipped";
     if (lineUserId) {
+      const text = await lineNotificationText(context, notification);
       try {
         const response = await fetch("https://api.line.me/v2/bot/message/push", {
           method: "POST",
@@ -2164,7 +2165,7 @@ export async function deliverNotifications(context: ServerContext) {
             messages: [
               {
                 type: "text",
-                text: `${notification.title}\n${notification.body}\n${context.env.APP_URL}`,
+                text,
               },
             ],
           }),
@@ -2179,6 +2180,59 @@ export async function deliverNotifications(context: ServerContext) {
       .update({ line_status: status })
       .eq("id", notification.id);
   }
+}
+
+async function lineNotificationText(
+  context: ServerContext,
+  notification: {
+    title: string;
+    body: string;
+    kind?: string | null;
+    group_id?: string | null;
+    entity_type?: string | null;
+    entity_id?: string | null;
+  },
+) {
+  if (
+    notification.kind === "expense" &&
+    notification.entity_type === "expense" &&
+    z.string().uuid().safeParse(notification.entity_id).success
+  ) {
+    const [expenseResult, groupResult] = await Promise.all([
+      context.db
+        .from("expenses")
+        .select("description, amount_twd, expense_date, category, category_label")
+        .eq("id", notification.entity_id)
+        .single(),
+      notification.group_id
+        ? context.db
+            .from("groups")
+            .select("name")
+            .eq("id", notification.group_id)
+            .single()
+        : Promise.resolve({ data: null, error: null }),
+    ]);
+    const expense = z
+      .object({
+        description: z.string(),
+        amount_twd: z.coerce.number().int(),
+        expense_date: z.string(),
+        category: z.enum(categories),
+        category_label: z.string().nullable().optional(),
+      })
+      .safeParse(expenseResult.data);
+    const group = z.object({ name: z.string() }).nullable().safeParse(groupResult.data);
+    if (!expenseResult.error && expense.success) {
+      const groupName = group.success && group.data ? ` ${group.data.name}` : "";
+      const label = expense.data.category_label || categoryLabel(expense.data.category);
+      return `${notification.body}${groupName}\n${expense.data.description} ${notificationMoney(expense.data.amount_twd)}｜${expense.data.expense_date}｜${label}`;
+    }
+  }
+  return notification.title ? `${notification.title}\n${notification.body}` : notification.body;
+}
+
+function notificationMoney(amount: number) {
+  return `NT$${amount.toLocaleString("en-US")}`;
 }
 
 export async function runDailyJobs(request: Request) {
