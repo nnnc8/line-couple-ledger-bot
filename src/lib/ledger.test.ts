@@ -2,12 +2,18 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  handleLineEvent,
   parseFixedIntent,
   parseInlineExpenseItems,
   safeSecretEqual,
   selectMentionedGroup,
 } from "./bot";
-import { expensesCsv, type AppExpense } from "./app-server";
+import {
+  deliverNotifications,
+  expensesCsv,
+  type AppExpense,
+  type ServerContext,
+} from "./app-server";
 import {
   accountantFactsMatch,
   buildAccountantSnapshot,
@@ -580,6 +586,62 @@ test("accepts natural language parser output with multiple expenses and group hi
   assert.equal(parsed.expenses.length, 2);
 });
 
+test("notification delivery attempts LINE push without quota preflight", async () => {
+  const pushed: unknown[] = [];
+  const db = fakeNotificationDb();
+  await withMockFetch(async (url, init) => {
+    assert.equal(String(url), "https://api.line.me/v2/bot/message/push");
+    pushed.push(JSON.parse(String(init?.body)));
+    return jsonResponse({});
+  }, async () => {
+    await deliverNotifications(fakeContext(db));
+  });
+
+  assert.equal(pushed.length, 1);
+  assert.equal(db.updatedStatus, "sent");
+});
+
+test("LINE postback confirmation delivers partner notification", async () => {
+  const pushed: unknown[] = [];
+  const db = fakePostbackDb();
+  await withMockFetch(async (url, init) => {
+    assert.equal(String(url), "https://api.line.me/v2/bot/message/push");
+    pushed.push(JSON.parse(String(init?.body)));
+    return jsonResponse({});
+  }, async () => {
+    await withServerEnv(async () => {
+      await handleLineEvent(
+        {
+          type: "postback",
+          webhookEventId: "event-1",
+          replyToken: "reply-1",
+          source: { type: "user", userId: "line-owner" },
+          timestamp: 0,
+          mode: "active",
+          postback: {
+            data: "decision=confirm&id=00000000-0000-4000-8000-000000000099",
+          },
+        } as never,
+        {
+          lineClient: {
+            replyMessage: async () => ({ sentMessages: [] }),
+            getMessageContent: async () => {
+              throw new Error("unused");
+            },
+            pushMessage: async () => ({ sentMessages: [] }),
+          },
+          supabase: db as never,
+          gemini: {} as never,
+          setupCode: "x".repeat(24),
+        },
+      );
+    });
+  });
+
+  assert.equal(pushed.length, 1);
+  assert.equal(db.updatedStatus, "sent");
+});
+
 function expense(
   ledger: "shared" | "private",
   amountTwd: number,
@@ -681,4 +743,169 @@ function appExpense(
     expense_splits: [{ user_id: createdByUserId, amount_twd: amountTwd }],
     receipts: [],
   };
+}
+
+function fakeContext(db: ReturnType<typeof fakeNotificationDb>): ServerContext {
+  return {
+    env: {
+      LINE_CHANNEL_ACCESS_TOKEN: "line-token",
+      LINE_LOGIN_CHANNEL_ID: "login",
+      GEMINI_API_KEY: "gemini",
+      SUPABASE_URL: "https://example.supabase.co",
+      SUPABASE_SECRET_KEY: "secret",
+      COUPLE_SETUP_CODE: "x".repeat(24),
+      LIFF_SESSION_SECRET: "x".repeat(32),
+      APP_URL: "https://app.example.com",
+      CRON_SECRET: "x".repeat(16),
+    },
+    db: db as never,
+    user: {
+      id: OWNER,
+      couple_id: 1,
+      line_user_id: "line-owner",
+      role: "owner",
+    },
+  };
+}
+
+function fakePostbackDb() {
+  return fakeNotificationDb({
+    rpc: async () => ({
+      data: { result: "confirmed", action_type: "create_expense" },
+      error: null,
+    }),
+  });
+}
+
+function fakeNotificationDb(extra: Record<string, unknown> = {}) {
+  const db = {
+    updatedStatus: "",
+    rpc: async () => ({ data: null, error: null }),
+    from(table: string) {
+      return fakeQuery(table, db);
+    },
+    ...extra,
+  };
+  return db;
+}
+
+function fakeQuery(table: string, db: { updatedStatus: string }) {
+  let updateValue: Record<string, unknown> | null = null;
+  const query = {
+    select: () => query,
+    eq: () => query,
+    is: () => query,
+    gte: () => query,
+    lt: () => query,
+    order: () => query,
+    limit: () => query,
+    upsert: () => query,
+    update(value: Record<string, unknown>) {
+      updateValue = value;
+      return query;
+    },
+    single: async () => singleResultFor(table),
+    maybeSingle: async () => singleResultFor(table),
+    then(resolve: (value: unknown) => unknown, reject?: (reason: unknown) => unknown) {
+      if (updateValue?.line_status) db.updatedStatus = String(updateValue.line_status);
+      return Promise.resolve(listResultFor(table)).then(resolve, reject);
+    },
+  };
+  return query;
+}
+
+function singleResultFor(table: string) {
+  if (table === "users") {
+    return {
+      data: {
+        id: "00000000-0000-4000-8000-000000000001",
+        couple_id: 1,
+        role: "owner",
+        line_user_id: "line-owner",
+      },
+      error: null,
+    };
+  }
+  if (table === "pending_actions") {
+    return {
+      data: { action_type: "create_expense", payload: {} },
+      error: null,
+    };
+  }
+  if (table === "user_preferences") {
+    return { data: { active_group_id: GROUP }, error: null };
+  }
+  if (table === "notifications") {
+    return {
+      data: [
+        {
+          id: 123,
+          recipient_user_id: PARTNER,
+          title: "共同帳本已更新",
+          body: "另一半更新了一筆支出",
+          users: { line_user_id: "line-partner" },
+        },
+      ],
+      error: null,
+    };
+  }
+  return { data: [], error: null };
+}
+
+function listResultFor(table: string) {
+  if (table === "notifications") {
+    return {
+      data: [
+        {
+          id: 123,
+          recipient_user_id: PARTNER,
+          title: "共同帳本已更新",
+          body: "另一半更新了一筆支出",
+          users: { line_user_id: "line-partner" },
+        },
+      ],
+      error: null,
+    };
+  }
+  return { data: [], error: null };
+}
+
+async function withMockFetch(
+  fetchImpl: typeof fetch,
+  run: () => Promise<void>,
+) {
+  const original = globalThis.fetch;
+  globalThis.fetch = fetchImpl;
+  try {
+    await run();
+  } finally {
+    globalThis.fetch = original;
+  }
+}
+
+function jsonResponse(body: unknown, ok = true): Response {
+  return new Response(JSON.stringify(body), {
+    status: ok ? 200 : 500,
+    headers: { "content-type": "application/json" },
+  });
+}
+
+async function withServerEnv(run: () => Promise<void>) {
+  const values = fakeContext(fakeNotificationDb()).env;
+  const original = new Map<string, string | undefined>();
+  for (const [key, value] of Object.entries(values)) {
+    original.set(key, process.env[key]);
+    process.env[key] = String(value);
+  }
+  try {
+    await run();
+  } finally {
+    for (const [key, value] of original) {
+      if (value === undefined) {
+        delete process.env[key];
+      } else {
+        process.env[key] = value;
+      }
+    }
+  }
 }

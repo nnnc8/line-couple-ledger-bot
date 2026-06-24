@@ -5,7 +5,7 @@ import { z } from "zod";
 
 import { parseAccountantCommand } from "./accountant";
 import {
-  applyConfirmedActionSideEffects,
+  confirmAction,
   runAgent,
   serverEnvironment,
 } from "./app-server";
@@ -704,23 +704,15 @@ async function confirmOneAction(
   lineUserId: string,
   dependencies: BotDependencies,
 ) {
-  const { data, error } = await dependencies.supabase.rpc("confirm_pending_action", {
-    p_action_id: actionId,
-    p_line_user_id: lineUserId,
-    p_confirm: confirm,
-  });
-  if (error) throw new Error("confirm_pending_action failed");
-  const result = actionResultSchema.parse(data);
-  if (result.result === "confirmed") {
-    const user = await findUser(dependencies.supabase, lineUserId);
-    if (user) {
-      await applyConfirmedActionSideEffects(
-        { env: serverEnvironment(), db: dependencies.supabase, user },
-        actionId,
-      );
-    }
-  }
-  return result;
+  const user = await findUser(dependencies.supabase, lineUserId);
+  if (!user) return { result: "not_found", action_type: null } as const;
+  return actionResultSchema.parse(
+    await confirmAction(
+      { env: serverEnvironment(), db: dependencies.supabase, user },
+      actionId,
+      confirm,
+    ),
+  );
 }
 
 async function findUser(

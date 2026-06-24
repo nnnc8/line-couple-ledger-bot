@@ -2132,36 +2132,6 @@ export async function deliverNotifications(context: ServerContext) {
     .order("created_at")
     .limit(20);
   if (pending.error || !pending.data?.length) return;
-  let canPush = false;
-  try {
-    const headers = {
-      authorization: `Bearer ${context.env.LINE_CHANNEL_ACCESS_TOKEN}`,
-    };
-    const [quotaResponse, usageResponse] = await Promise.all([
-      fetch("https://api.line.me/v2/bot/message/quota", {
-        headers,
-        cache: "no-store",
-      }),
-      fetch("https://api.line.me/v2/bot/message/quota/consumption", {
-        headers,
-        cache: "no-store",
-      }),
-    ]);
-    const quota = z
-      .object({
-        type: z.enum(["none", "limited"]),
-        value: z.number().optional(),
-      })
-      .parse(await quotaResponse.json());
-    const usage = z
-      .object({ totalUsage: z.number() })
-      .parse(await usageResponse.json());
-    canPush =
-      quota.type === "none" ||
-      (quota.value !== undefined && usage.totalUsage / quota.value < 0.9);
-  } catch {
-    canPush = false;
-  }
   for (const notification of pending.data) {
     const userRelation = notification.users as unknown;
     const lineUserId = z
@@ -2172,25 +2142,29 @@ export async function deliverNotifications(context: ServerContext) {
           .transform((rows) => rows[0]),
       ])
       .parse(userRelation)?.line_user_id;
-    let status = "skipped";
-    if (canPush && lineUserId) {
-      const response = await fetch("https://api.line.me/v2/bot/message/push", {
-        method: "POST",
-        headers: {
-          authorization: `Bearer ${context.env.LINE_CHANNEL_ACCESS_TOKEN}`,
-          "content-type": "application/json",
-        },
-        body: JSON.stringify({
-          to: lineUserId,
-          messages: [
-            {
-              type: "text",
-              text: `${notification.title}\n${notification.body}\n${context.env.APP_URL}`,
-            },
-          ],
-        }),
-      });
-      status = response.ok ? "sent" : "failed";
+    let status = lineUserId ? "failed" : "skipped";
+    if (lineUserId) {
+      try {
+        const response = await fetch("https://api.line.me/v2/bot/message/push", {
+          method: "POST",
+          headers: {
+            authorization: `Bearer ${context.env.LINE_CHANNEL_ACCESS_TOKEN}`,
+            "content-type": "application/json",
+          },
+          body: JSON.stringify({
+            to: lineUserId,
+            messages: [
+              {
+                type: "text",
+                text: `${notification.title}\n${notification.body}\n${context.env.APP_URL}`,
+              },
+            ],
+          }),
+        });
+        status = response.ok ? "sent" : "failed";
+      } catch {
+        status = "failed";
+      }
     }
     await context.db
       .from("notifications")
