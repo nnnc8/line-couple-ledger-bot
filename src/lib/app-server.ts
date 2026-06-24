@@ -27,6 +27,20 @@ import {
   type SplitMethod,
 } from "./ledger";
 import {
+  agentRangeLabel,
+  aggregateAgentExpenses,
+  batchCategoryUpdateSchema,
+  detectDuplicateAgentExpenses,
+  filterAgentExpenses,
+  parseAgentRequest,
+  rankCategoryLabels,
+  safeBatchCategoryUpdates,
+  suggestCategoryCleanup,
+  type AgentExpense,
+  type AgentScope,
+  type AgentTimeRange,
+} from "./ledger-agent";
+import {
   detectReceiptMime,
   safeSecretEqual,
   signSession,
@@ -39,7 +53,7 @@ const ACTION_SECONDS = 60 * 5;
 const RECEIPT_LIMIT = 10 * 1024 * 1024;
 const MODEL = "gemini-3.1-flash-lite";
 const EXPENSE_SELECT =
-  "id, group_id, ledger, description, merchant, notes, category, amount_twd, paid_by_user_id, created_by_user_id, expense_date, split_method, version, deleted_at, created_at, expense_splits(user_id, amount_twd), receipts(id, status)";
+  "id, group_id, ledger, description, merchant, notes, category, category_label, amount_twd, paid_by_user_id, created_by_user_id, expense_date, split_method, version, deleted_at, created_at, expense_splits(user_id, amount_twd), receipts(id, status)";
 
 const envSchema = z.object({
   LINE_CHANNEL_ACCESS_TOKEN: z.string().min(1),
@@ -82,6 +96,7 @@ const expenseSchema = z.object({
   merchant: z.string().nullable(),
   notes: z.string().nullable(),
   category: z.enum(categories),
+  category_label: z.string(),
   amount_twd: z.coerce.number().int(),
   paid_by_user_id: z.string().uuid(),
   created_by_user_id: z.string().uuid(),
@@ -407,15 +422,248 @@ const accountantAskInputSchema = z.object({
   scope: z.enum(["shared", "private", "combined"]).default("combined"),
   month: z.string().regex(/^\d{4}-\d{2}$/).optional(),
 });
+const agentRunInputSchema = z.object({
+  message: z.string().trim().min(1).max(500),
+  scope: z.enum(["shared", "private", "combined"]).optional(),
+});
+const categoryAnalyticsInputSchema = z.object({
+  range: z
+    .enum(["this_month", "six_months", "all"])
+    .catch("this_month"),
+  scope: z.enum(["shared", "private", "combined"]).catch("shared"),
+});
+const categoryCleanupInputSchema = z.object({
+  updates: z.array(batchCategoryUpdateSchema).min(1).max(50),
+});
 
 export async function askAccountant(context: ServerContext, input: unknown) {
   const parsed = accountantAskInputSchema.parse(input);
-  return generateAccountantReport(context, {
-    question: parsed.question,
+  const run = await runAgent(context, {
+    message: parsed.question,
     scope: parsed.scope,
-    month: parsed.month ?? taipeiToday().slice(0, 7),
-    reportType: "manual_question",
   });
+  return run.report;
+}
+
+export async function runAgent(context: ServerContext, input: unknown) {
+  const parsed = agentRunInputSchema.parse(input);
+  const request = parseAgentRequest(`會計師 ${parsed.message}`)!;
+  const scope = parsed.scope ?? request.scope;
+  const groupId = await activeGroupId(context);
+  const allExpenses = await loadAgentExpenses(context, groupId);
+  const expenses = filterAgentExpenses({
+    activeGroupId: groupId,
+    expenses: allExpenses,
+    now: taipeiToday(),
+    scope,
+    timeRange: request.timeRange,
+    userId: context.user.id,
+  });
+  const aggregate = aggregateAgentExpenses(expenses);
+  const categories = rankCategoryLabels(expenses);
+  const duplicates = detectDuplicateAgentExpenses(expenses);
+  const cleanupUpdates = safeBatchCategoryUpdates(
+    suggestCategoryCleanup(expenses),
+    allExpenses,
+    { activeGroupId: groupId, userId: context.user.id },
+  ).slice(0, 20);
+  const toolCalls: Array<Record<string, unknown>> = [
+    {
+      tool: "search_expenses",
+      args: { scope, timeRange: request.timeRange },
+      count: expenses.length,
+    },
+    { tool: "aggregate_expenses", result: aggregate },
+    { tool: "rank_categories", result: categories.slice(0, 8) },
+    {
+      tool: "detect_duplicates",
+      count: duplicates.length,
+      result: duplicates.slice(0, 5).map((items) =>
+        items.map((expense) => ({
+          id: expense.id,
+          description: expense.description,
+          amountTwd: expense.amount_twd,
+          date: expense.expense_date,
+          version: expense.version,
+        })),
+      ),
+    },
+  ];
+  if (cleanupUpdates.length) {
+    toolCalls.push({
+      tool: "suggest_category_cleanup",
+      count: cleanupUpdates.length,
+      result: cleanupUpdates,
+    });
+  }
+  const answer = buildAgentAnswer({
+    message: request.message,
+    scope,
+    timeRange: request.timeRange,
+    aggregate,
+    categories,
+    duplicateCount: duplicates.length,
+    cleanupCount: cleanupUpdates.length,
+  });
+  const suggestions = cleanupUpdates.length
+    ? [
+        {
+          title: "整理其他分類",
+          body: `找到 ${cleanupUpdates.length} 筆可以整理的分類，確認後才會批次更新。`,
+          actionInput: {
+            type: "batch_update_expenses",
+            updates: cleanupUpdates,
+          },
+        },
+      ]
+    : [];
+  const ownerUserId = scope === "shared" ? null : context.user.id;
+  const reportGroupId = scope === "private" ? null : groupId;
+  const savedReport = await context.db
+    .from("accountant_reports")
+    .insert({
+      couple_id: context.user.couple_id,
+      group_id: reportGroupId,
+      owner_user_id: ownerUserId,
+      report_type: "manual_question",
+      scope,
+      month: `${taipeiToday().slice(0, 7)}-01`,
+      question: request.message,
+      title: `AI 會計師 · ${agentRangeLabel(request.timeRange)}`,
+      summary: answer,
+      facts: {
+        ...aggregate,
+        scope,
+        timeRange: request.timeRange,
+        topCategoryLabel: categories[0]?.label ?? null,
+        otherLabelTotalTwd:
+          categories.find((item) => item.label === "其他" || item.label === "other")
+            ?.totalTwd ?? 0,
+      },
+      findings: buildAgentFindings(categories, duplicates.length),
+      suggestions,
+      source: "fallback",
+      dedupe_key: `agent:${randomUUID()}`,
+    })
+    .select(accountantReportSelect())
+    .single();
+  if (savedReport.error) throw new Error("agent report save failed");
+  const report = accountantReportRowSchema.parse(savedReport.data);
+  const run = await context.db
+    .from("agent_runs")
+    .insert({
+      couple_id: context.user.couple_id,
+      user_id: context.user.id,
+      group_id: reportGroupId,
+      report_id: report.id,
+      scope,
+      time_range: request.timeRange,
+      message: request.message,
+      answer,
+      tool_calls: toolCalls,
+      suggestions,
+    })
+    .select("id")
+    .single();
+  if (run.error) throw new Error("agent run save failed");
+  return {
+    answer,
+    reportId: report.id,
+    toolCalls,
+    suggestions,
+    report,
+  };
+}
+
+export async function categoryAnalytics(
+  context: ServerContext,
+  params: URLSearchParams,
+) {
+  const parsed = categoryAnalyticsInputSchema.parse({
+    range: params.get("range") ?? undefined,
+    scope: params.get("scope") ?? undefined,
+  });
+  const groupId = await activeGroupId(context);
+  const allExpenses = await loadAgentExpenses(context, groupId);
+  const timeRange: AgentTimeRange =
+    parsed.range === "six_months" ? "last_3_months" : parsed.range;
+  const expenses = filterAgentExpenses({
+    activeGroupId: groupId,
+    expenses: allExpenses,
+    now: taipeiToday(),
+    scope: parsed.scope,
+    timeRange: parsed.range === "six_months" ? "all" : timeRange,
+    userId: context.user.id,
+  }).filter((expense) =>
+    parsed.range === "six_months"
+      ? expense.expense_date >= `${shiftMonth(taipeiToday().slice(0, 7), -5)}-01`
+      : true,
+  );
+  const categories = rankCategoryLabels(expenses);
+  const totalTwd = categories.reduce((total, item) => total + item.totalTwd, 0);
+  return {
+    range: parsed.range,
+    scope: parsed.scope,
+    totalTwd,
+    count: expenses.length,
+    categories: categories.map((item) => ({
+      ...item,
+      percent: totalTwd ? Math.round((item.totalTwd / totalTwd) * 100) : 0,
+    })),
+  };
+}
+
+export async function createCategoryCleanup(
+  context: ServerContext,
+  input: unknown,
+  idempotencyKey?: string,
+) {
+  const parsed = categoryCleanupInputSchema.parse(input);
+  const groupId = await activeGroupId(context);
+  const expenses = await loadAgentExpenses(context, groupId);
+  const updates = safeBatchCategoryUpdates(parsed.updates, expenses, {
+    activeGroupId: groupId,
+    userId: context.user.id,
+  });
+  if (!updates.length) throw new HttpError(400, "沒有可套用的分類整理");
+  const payloadUpdates = updates.map((update) => ({
+    expense_id: update.expenseId,
+    expected_version: update.expectedVersion,
+    category_label: update.categoryLabel,
+  }));
+  const insert = await context.db
+    .from("pending_actions")
+    .insert({
+      couple_id: context.user.couple_id,
+      group_id: groupId,
+      requested_by_user_id: context.user.id,
+      action_type: "batch_update_expenses",
+      payload: { updates: payloadUpdates },
+      source_event_id: `liff:category:${randomUUID()}`,
+      idempotency_key: idempotencyKey || null,
+      expires_at: new Date(Date.now() + ACTION_SECONDS * 1_000).toISOString(),
+    })
+    .select("id")
+    .single();
+  if (insert.error) {
+    if (idempotencyKey) {
+      const existing = await context.db
+        .from("pending_actions")
+        .select("id")
+        .eq("idempotency_key", idempotencyKey)
+        .single();
+      if (!existing.error)
+        return {
+          actionId: existing.data.id,
+          preview: `套用 ${updates.length} 筆分類整理`,
+        };
+    }
+    throw new Error("category cleanup insert failed");
+  }
+  return {
+    actionId: z.object({ id: z.string().uuid() }).parse(insert.data).id,
+    preview: `套用 ${updates.length} 筆分類整理`,
+  };
 }
 
 export async function listAccountantReports(context: ServerContext) {
@@ -622,6 +870,7 @@ function toAccountantExpense(expense: AppExpense): AccountantExpense {
     merchant: expense.merchant,
     notes: expense.notes,
     category: expense.category,
+    category_label: expense.category_label,
     amount_twd: expense.amount_twd,
     paid_by_user_id: expense.paid_by_user_id,
     created_by_user_id: expense.created_by_user_id,
@@ -631,6 +880,120 @@ function toAccountantExpense(expense: AppExpense): AccountantExpense {
     deleted_at: expense.deleted_at,
     expense_splits: expense.expense_splits,
   };
+}
+
+async function loadAgentExpenses(
+  context: ServerContext,
+  groupId: string,
+): Promise<AgentExpense[]> {
+  const [sharedResult, privateResult] = await Promise.all([
+    context.db
+      .from("expenses")
+      .select(EXPENSE_SELECT)
+      .eq("group_id", groupId)
+      .order("expense_date", { ascending: false })
+      .limit(2_000),
+    context.db
+      .from("expenses")
+      .select(EXPENSE_SELECT)
+      .eq("ledger", "private")
+      .eq("created_by_user_id", context.user.id)
+      .order("expense_date", { ascending: false })
+      .limit(2_000),
+  ]);
+  if (sharedResult.error || privateResult.error)
+    throw new Error("agent expense lookup failed");
+  return z
+    .array(expenseSchema)
+    .parse([...(sharedResult.data ?? []), ...(privateResult.data ?? [])])
+    .map(toAgentExpense);
+}
+
+function toAgentExpense(expense: AppExpense): AgentExpense {
+  return {
+    id: expense.id,
+    group_id: expense.group_id,
+    ledger: expense.ledger,
+    description: expense.description,
+    merchant: expense.merchant,
+    category: expense.category,
+    category_label: expense.category_label,
+    amount_twd: expense.amount_twd,
+    paid_by_user_id: expense.paid_by_user_id,
+    created_by_user_id: expense.created_by_user_id,
+    expense_date: expense.expense_date,
+    version: expense.version,
+    deleted_at: expense.deleted_at,
+  };
+}
+
+function buildAgentAnswer(input: {
+  message: string;
+  scope: AgentScope;
+  timeRange: AgentTimeRange;
+  aggregate: ReturnType<typeof aggregateAgentExpenses>;
+  categories: ReturnType<typeof rankCategoryLabels>;
+  duplicateCount: number;
+  cleanupCount: number;
+}) {
+  const range = agentRangeLabel(input.timeRange);
+  const scope =
+    input.scope === "shared"
+      ? "共同帳"
+      : input.scope === "private"
+        ? "私人帳"
+        : "合併帳";
+  const top = input.categories[0];
+  const ranking = input.categories
+    .slice(0, 5)
+    .map((item, index) => `${index + 1}. ${item.label} NT$${item.totalTwd}（${item.count}筆）`)
+    .join("\n");
+  const parts = [
+    `${range}${scope}共 ${input.aggregate.transactionCount} 筆，總額 NT$${input.aggregate.totalTwd}。`,
+  ];
+  if (top) parts.push(`花最多的是「${top.label}」NT$${top.totalTwd}。`);
+  if (ranking) parts.push(`分類排行：\n${ranking}`);
+  if (input.duplicateCount)
+    parts.push(`另外找到 ${input.duplicateCount} 組疑似重複支出，可到 LIFF 檢查。`);
+  if (input.cleanupCount)
+    parts.push(`有 ${input.cleanupCount} 筆「其他」可以整理成更細分類，LIFF 可批次確認。`);
+  return parts.join("\n");
+}
+
+function buildAgentFindings(
+  categories: ReturnType<typeof rankCategoryLabels>,
+  duplicateCount: number,
+) {
+  const findings = [];
+  const top = categories[0];
+  if (top) {
+    findings.push({
+      severity: "info",
+      title: "最大支出分類",
+      body: `${top.label} 是目前最高分類，共 ${top.count} 筆。`,
+      amountTwd: top.totalTwd,
+    });
+  }
+  const other = categories.find(
+    (item) => item.label === "其他" || item.label === "other",
+  );
+  if (other) {
+    findings.push({
+      severity: "warning",
+      title: "其他分類仍需整理",
+      body: "建議使用分類整理，把其他拆成高鐵、外食、咖啡、日用品等實際分類。",
+      amountTwd: other.totalTwd,
+    });
+  }
+  if (duplicateCount) {
+    findings.push({
+      severity: "warning",
+      title: "疑似重複支出",
+      body: `找到 ${duplicateCount} 組同日同額同描述的支出。`,
+      amountTwd: null,
+    });
+  }
+  return findings.slice(0, 8);
 }
 
 async function activeGroupId(context: ServerContext) {
@@ -655,6 +1018,7 @@ const expenseInputSchema = z.object({
   merchant: z.string().trim().max(100).nullable().default(null),
   notes: z.string().trim().max(500).nullable().default(null),
   category: z.enum(categories),
+  categoryLabel: z.string().trim().min(1).max(40).nullable().default(null),
   amountTwd: z.number().int().positive().max(100_000_000),
   paidBy: z.enum(["self", "partner"]),
   expenseDate: z.iso.date(),
@@ -687,6 +1051,10 @@ export const actionInputSchema = z.discriminatedUnion("type", [
     groupId: z.string().uuid(),
     amountTwd: z.number().int().positive().max(100_000_000),
   }),
+  z.object({
+    type: z.literal("batch_update_expenses"),
+    updates: z.array(batchCategoryUpdateSchema).min(1).max(50),
+  }),
 ]);
 
 export async function proposeAction(
@@ -695,6 +1063,8 @@ export async function proposeAction(
   idempotencyKey?: string,
 ) {
   const parsed = actionInputSchema.parse(input);
+  if (parsed.type === "batch_update_expenses")
+    return createCategoryCleanup(context, { updates: parsed.updates }, idempotencyKey);
   const usersResult = await context.db
     .from("users")
     .select("id, couple_id, line_user_id, role")
@@ -843,6 +1213,12 @@ async function prepareExpense(
       [context.user.id]: expense.selfValue ?? -1,
       [partner.id]: expense.partnerValue ?? -1,
     });
+  const categoryLabelValue = await learnExpenseCategoryLabel(
+    context,
+    expense,
+    group?.id ?? null,
+    category,
+  );
   return {
     groupId: group?.id ?? null,
     groupName: expense.ledger === "private" ? "私人帳" : group!.name,
@@ -854,6 +1230,7 @@ async function prepareExpense(
       merchant: expense.merchant,
       notes: expense.notes,
       category,
+      category_label: categoryLabelValue,
       amount_twd: expense.amountTwd,
       paid_by_user_id: expense.ledger === "private" ? context.user.id : payerId,
       expense_date: expense.expenseDate,
@@ -905,6 +1282,56 @@ async function learnExpenseCategory(
   );
 }
 
+async function learnExpenseCategoryLabel(
+  context: ServerContext,
+  expense: z.infer<typeof expenseInputSchema>,
+  groupId: string | null,
+  category: (typeof categories)[number],
+) {
+  if (expense.categoryLabel) return expense.categoryLabel;
+  let query = context.db
+    .from("expenses")
+    .select("category_label, description, merchant")
+    .eq("couple_id", context.user.couple_id)
+    .eq("ledger", expense.ledger)
+    .is("deleted_at", null)
+    .order("created_at", { ascending: false })
+    .limit(120);
+  query =
+    expense.ledger === "shared"
+      ? query.eq("group_id", groupId)
+      : query.eq("created_by_user_id", context.user.id);
+  const result = await query;
+  if (!result.error) {
+    const currentMerchant = normalizeCategoryText(expense.merchant);
+    const currentDescription = normalizeCategoryText(expense.description);
+    const history = z
+      .array(
+        z.object({
+          category_label: z.string(),
+          description: z.string(),
+          merchant: z.string().nullable(),
+        }),
+      )
+      .parse(result.data);
+    const match = history.find((entry) => {
+      const merchant = normalizeCategoryText(entry.merchant);
+      const description = normalizeCategoryText(entry.description);
+      return (
+        (currentMerchant && currentMerchant === merchant) ||
+        (currentDescription &&
+          description &&
+          (currentDescription.includes(description) ||
+            description.includes(currentDescription)))
+      );
+    });
+    if (match?.category_label) return cleanCategoryLabel(match.category_label);
+  }
+  const specific = cleanCategoryLabel(expense.merchant || expense.description);
+  if (specific) return specific;
+  return categoryLabel(category);
+}
+
 async function requireGroup(context: ServerContext, groupId: string | null) {
   if (!groupId) throw new HttpError(400, "請選擇群組");
   const result = await context.db
@@ -934,11 +1361,25 @@ export async function confirmAction(
   confirm: boolean,
 ) {
   const id = z.string().uuid().parse(actionId);
-  const result = await context.db.rpc("confirm_pending_action", {
-    p_action_id: id,
-    p_line_user_id: context.user.line_user_id,
-    p_confirm: confirm,
-  });
+  const action = await context.db
+    .from("pending_actions")
+    .select("action_type")
+    .eq("id", id)
+    .eq("requested_by_user_id", context.user.id)
+    .maybeSingle();
+  if (action.error) throw new Error("pending action lookup failed");
+  const result =
+    action.data?.action_type === "batch_update_expenses"
+      ? await context.db.rpc("confirm_batch_update_expenses", {
+          p_action_id: id,
+          p_line_user_id: context.user.line_user_id,
+          p_confirm: confirm,
+        })
+      : await context.db.rpc("confirm_pending_action", {
+          p_action_id: id,
+          p_line_user_id: context.user.line_user_id,
+          p_confirm: confirm,
+        });
   if (result.error) throw new Error("confirm action failed");
   const value = z
     .object({
@@ -954,10 +1395,48 @@ export async function confirmAction(
     })
     .parse(result.data);
   if (value.result === "confirmed") {
+    await applyConfirmedActionSideEffects(context, id);
     await createBudgetAlerts(context);
     await deliverNotifications(context);
   }
   return value;
+}
+
+export async function applyConfirmedActionSideEffects(
+  context: ServerContext,
+  actionId: string,
+) {
+  const result = await context.db
+    .from("pending_actions")
+    .select("action_type, payload")
+    .eq("id", actionId)
+    .eq("couple_id", context.user.couple_id)
+    .single();
+  if (result.error) return;
+  const row = z
+    .object({
+      action_type: z.string(),
+      payload: z.record(z.string(), z.unknown()),
+    })
+    .parse(result.data);
+  if (
+    !["create_expense", "update_expense"].includes(row.action_type) ||
+    typeof row.payload.category_label !== "string"
+  ) {
+    return;
+  }
+  const label = cleanCategoryLabel(row.payload.category_label);
+  if (!label) return;
+  const base = context.db
+    .from("expenses")
+    .update({ category_label: label })
+    .eq("couple_id", context.user.couple_id);
+  const expenseId =
+    typeof row.payload.expense_id === "string" ? row.payload.expense_id : null;
+  const update = expenseId
+    ? await base.eq("id", expenseId)
+    : await base.eq("source_action_id", actionId);
+  if (update.error) throw new Error("category label side effect failed");
 }
 
 const groupInputSchema = z.discriminatedUnion("operation", [
@@ -1859,6 +2338,24 @@ function categoryLabel(category: (typeof categories)[number]) {
     food: "餐飲", transport: "交通", groceries: "生鮮", household: "居家",
     entertainment: "娛樂", shopping: "購物", medical: "醫療", travel: "旅行", other: "其他",
   } as const)[category];
+}
+
+function cleanCategoryLabel(value: string) {
+  return value
+    .normalize("NFKC")
+    .replace(/nt\$?/gi, "")
+    .replace(/[0-9,]+/g, "")
+    .replace(/我付|你付|他付|她付|付款|付|元|塊/g, "")
+    .trim()
+    .replace(/\s+/g, " ")
+    .slice(0, 40);
+}
+
+function normalizeCategoryText(value?: string | null): string {
+  return (value ?? "")
+    .normalize("NFKC")
+    .toLowerCase()
+    .replace(/[^\p{Letter}\p{Number}]+/gu, "");
 }
 
 function taipeiToday(): string {

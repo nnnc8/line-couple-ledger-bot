@@ -20,6 +20,7 @@ export interface AccountantExpense {
   merchant: string | null;
   notes: string | null;
   category: Category;
+  category_label: string;
   amount_twd: number;
   paid_by_user_id: string;
   created_by_user_id: string;

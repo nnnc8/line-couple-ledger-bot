@@ -10,6 +10,13 @@ import {
   safeSuggestionAction,
   type AccountantExpense,
 } from "./accountant";
+import {
+  filterAgentExpenses,
+  parseAgentRequest,
+  rankCategoryLabels,
+  safeBatchCategoryUpdates,
+  type AgentExpense,
+} from "./ledger-agent";
 import { detectReceiptMime, signSession, verifySession } from "./security";
 import {
   calculateBalances,
@@ -51,6 +58,15 @@ test("routes accountant commands before the expense parser", () => {
   assert.equal(parseAccountantCommand("晚餐 860 我付"), null);
 });
 
+test("ledger agent treats historical maximum questions as all-history queries", () => {
+  assert.deepEqual(parseAgentRequest("會計師 歷史以來哪裡花最多"), {
+    message: "歷史以來哪裡花最多",
+    scope: "combined",
+    timeRange: "all",
+  });
+  assert.equal(parseAgentRequest("分析 本月外食多少")?.timeRange, "this_month");
+});
+
 test("compares setup codes without accepting different lengths", () => {
   assert.equal(safeSecretEqual("correct-code", "correct-code"), true);
   assert.equal(safeSecretEqual("correct-code", "wrong"), false);
@@ -85,6 +101,7 @@ test("neutralizes spreadsheet formulas in CSV exports", () => {
     merchant: null,
     notes: null,
     category: "other",
+    category_label: "其他",
     amount_twd: 1,
     paid_by_user_id: "00000000-0000-4000-8000-000000000003",
     created_by_user_id: "00000000-0000-4000-8000-000000000003",
@@ -154,6 +171,77 @@ test("accountant snapshot does not leak the partner private ledger", () => {
   assert.equal(snapshot.facts.privateTotalTwd, 120);
   assert.equal(snapshot.facts.totalTwd, 980);
   assert.equal(JSON.stringify(snapshot).includes("9999"), false);
+});
+
+test("ledger agent filters time ranges without leaking partner private expenses", () => {
+  const expenses: AgentExpense[] = [
+    agentExpense("shared", 860, OWNER, "2026-06-01", GROUP, "外食"),
+    agentExpense("shared", 300, OWNER, "2026-05-01", GROUP, "高鐵"),
+    agentExpense("private", 120, OWNER, "2026-06-02", null, "咖啡"),
+    agentExpense("private", 9999, PARTNER, "2026-06-03", null, "秘密"),
+  ];
+
+  assert.deepEqual(
+    filterAgentExpenses({
+      activeGroupId: GROUP,
+      expenses,
+      now: "2026-06-24",
+      scope: "combined",
+      timeRange: "this_month",
+      userId: OWNER,
+    }).map((expense) => expense.amount_twd),
+    [860, 120],
+  );
+  assert.deepEqual(
+    filterAgentExpenses({
+      activeGroupId: GROUP,
+      expenses,
+      now: "2026-06-24",
+      scope: "combined",
+      timeRange: "all",
+      userId: OWNER,
+    }).map((expense) => expense.amount_twd),
+    [860, 300, 120],
+  );
+});
+
+test("category analytics use free category labels instead of enum categories", () => {
+  const ranking = rankCategoryLabels([
+    agentExpense("shared", 5600, OWNER, "2026-06-01", GROUP, "高鐵"),
+    agentExpense("shared", 1200, OWNER, "2026-06-02", GROUP, "捷運"),
+    agentExpense("shared", 4301, OWNER, "2026-06-03", GROUP, "外食"),
+  ]);
+
+  assert.deepEqual(ranking.map((item) => [item.label, item.totalTwd]), [
+    ["高鐵", 5600],
+    ["外食", 4301],
+    ["捷運", 1200],
+  ]);
+});
+
+test("batch category cleanup only updates accessible current expenses", () => {
+  const expenses = [
+    agentExpense("shared", 5600, OWNER, "2026-06-01", GROUP, "其他", 1),
+    agentExpense("private", 120, OWNER, "2026-06-02", null, "其他", 2),
+    agentExpense("private", 9999, PARTNER, "2026-06-03", null, "其他", 1),
+  ];
+
+  assert.deepEqual(
+    safeBatchCategoryUpdates(
+      [
+        { expenseId: expenses[0]!.id, expectedVersion: 1, categoryLabel: "高鐵" },
+        { expenseId: expenses[1]!.id, expectedVersion: 2, categoryLabel: "咖啡" },
+        { expenseId: expenses[2]!.id, expectedVersion: 1, categoryLabel: "秘密" },
+        { expenseId: expenses[0]!.id, expectedVersion: 9, categoryLabel: "錯版" },
+      ],
+      expenses,
+      { activeGroupId: GROUP, userId: OWNER },
+    ),
+    [
+      { expenseId: expenses[0]!.id, expectedVersion: 1, categoryLabel: "高鐵" },
+      { expenseId: expenses[1]!.id, expectedVersion: 2, categoryLabel: "咖啡" },
+    ],
+  );
 });
 
 test("rejects accountant reports whose facts do not match the ledger snapshot", () => {
@@ -359,6 +447,7 @@ function accountantExpense(
     merchant: null,
     notes: null,
     category: ledger === "shared" ? "food" : "other",
+    category_label: ledger === "shared" ? "餐飲" : "其他",
     amount_twd: amountTwd,
     paid_by_user_id: createdByUserId,
     created_by_user_id: createdByUserId,
@@ -367,5 +456,31 @@ function accountantExpense(
     version: 1,
     deleted_at: null,
     expense_splits: [{ user_id: createdByUserId, amount_twd: amountTwd }],
+  };
+}
+
+function agentExpense(
+  ledger: "shared" | "private",
+  amountTwd: number,
+  createdByUserId: string,
+  expenseDate: string,
+  groupId: string | null,
+  categoryLabel: string,
+  version = 1,
+): AgentExpense {
+  return {
+    id: `00000000-0000-4000-8000-${String(amountTwd + version).padStart(12, "0")}`,
+    group_id: groupId,
+    ledger,
+    description: `${categoryLabel}-${amountTwd}`,
+    merchant: null,
+    category: "other",
+    category_label: categoryLabel,
+    amount_twd: amountTwd,
+    paid_by_user_id: createdByUserId,
+    created_by_user_id: createdByUserId,
+    expense_date: expenseDate,
+    version,
+    deleted_at: null,
   };
 }

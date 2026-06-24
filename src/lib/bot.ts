@@ -4,7 +4,11 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
 
 import { parseAccountantCommand } from "./accountant";
-import { generateAccountantReport, serverEnvironment } from "./app-server";
+import {
+  applyConfirmedActionSideEffects,
+  runAgent,
+  serverEnvironment,
+} from "./app-server";
 import {
   calculateBalances,
   geminiIntentJsonSchema,
@@ -62,7 +66,14 @@ const actionResultSchema = z.object({
     "already_done",
   ]),
   action_type: z
-    .enum(["create_expense", "delete_expense", "settle"])
+    .enum([
+      "create_expense",
+      "update_expense",
+      "delete_expense",
+      "restore_expense",
+      "settle",
+      "batch_update_expenses",
+    ])
     .nullable()
     .optional(),
 });
@@ -206,20 +217,21 @@ async function replyAccountant(
   dependencies: BotDependencies,
 ): Promise<void> {
   const env = serverEnvironment();
-  const report = await generateAccountantReport(
+  const result = await runAgent(
     { env, db: dependencies.supabase, user },
     {
-      question: input.question,
+      message: input.question,
       scope: input.scope,
-      month: currentTaipeiDate().slice(0, 7),
-      reportType: "manual_question",
     },
-    dependencies.gemini,
   );
+  const liffLine =
+    result.answer.length > 650
+      ? `\n詳情：${env.APP_URL}/?tab=accountant`
+      : `\n${env.APP_URL}/?tab=accountant`;
   await replyText(
     dependencies.lineClient,
     replyToken,
-    `${report.title}\n${report.summary.slice(0, 700)}\n${env.APP_URL}/?tab=accountant`,
+    `${result.answer.slice(0, 900)}${liffLine}`,
   );
 }
 
@@ -317,6 +329,7 @@ async function proposeExpense(
       paid_by_user_id: parsed.ledger === "private" ? user.id : paidByUserId,
       expense_date: parsed.expenseDate,
       category: parsed.category,
+      category_label: lineCategoryLabel(parsed.description, parsed.category),
     },
     activeGroup?.id ?? null,
   );
@@ -330,6 +343,19 @@ async function proposeExpense(
       `付款：${paidByUserId === user.id ? "你" : "另一半"}｜${parsed.expenseDate}｜${parsed.category}`,
     ].join("\n"),
   );
+}
+
+function lineCategoryLabel(description: string, category: string) {
+  const cleaned = description
+    .normalize("NFKC")
+    .replace(/nt\$?/gi, "")
+    .replace(/[0-9,]+/g, "")
+    .replace(/我付|你付|他付|她付|付款|付|元|塊/g, "")
+    .trim()
+    .replace(/\s+/g, " ")
+    .slice(0, 40);
+  if (cleaned) return cleaned;
+  return category;
 }
 
 async function proposeDelete(
@@ -473,10 +499,21 @@ async function handlePostback(
   });
   if (error) throw new Error("confirm_pending_action failed");
   const result = actionResultSchema.parse(data);
+  if (result.result === "confirmed") {
+    const user = await findUser(dependencies.supabase, lineUserId);
+    if (user) {
+      await applyConfirmedActionSideEffects(
+        { env: serverEnvironment(), db: dependencies.supabase, user },
+        actionId,
+      );
+    }
+  }
   const messages: Record<typeof result.result, string> = {
     confirmed:
       result.action_type === "create_expense"
         ? "已記帳。"
+        : result.action_type === "batch_update_expenses"
+          ? "分類整理已套用。"
         : result.action_type === "delete_expense"
           ? "已刪除。"
           : "已結清。",

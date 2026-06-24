@@ -7,6 +7,8 @@ import {
   askAccountant,
   changeGroup,
   confirmAction,
+  categoryAnalytics,
+  createCategoryCleanup,
   createReceiptUpload,
   createSession,
   expensesCsv,
@@ -18,6 +20,7 @@ import {
   receiptDetails,
   receiptUrl,
   requireContext,
+  runAgent,
   saveBudget,
   saveRecurring,
   serverEnvironment,
@@ -54,6 +57,9 @@ export async function GET(request: Request, route: RouteContext) {
     }
     if (path[0] === "accountant" && path[1] === "reports") {
       return json(await listAccountantReports(context));
+    }
+    if (path[0] === "analytics" && path[1] === "categories") {
+      return json(await categoryAnalytics(context, new URL(request.url).searchParams));
     }
     throw new HttpError(404, "Not found");
   } catch (error) {
@@ -106,6 +112,12 @@ export async function POST(request: Request, route: RouteContext) {
       return json(await markNotificationsRead(context));
     if (path[0] === "accountant" && path[1] === "ask")
       return json(await askAccountant(context, body));
+    if (path[0] === "agent" && path[1] === "runs")
+      return json(await runAgent(context, body));
+    if (path[0] === "categories" && path[1] === "cleanup") {
+      const key = request.headers.get("idempotency-key")?.slice(0, 100);
+      return json(await createCategoryCleanup(context, body, key));
+    }
     throw new HttpError(404, "Not found");
   } catch (error) {
     return errorResponse(error);

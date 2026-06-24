@@ -25,6 +25,7 @@ type Expense = {
   merchant: string | null;
   notes: string | null;
   category: string;
+  category_label: string;
   amount_twd: number;
   paid_by_user_id: string;
   expense_date: string;
@@ -97,6 +98,25 @@ type AccountantReport = {
   }>;
   source: "llm" | "fallback";
   created_at: string;
+};
+type CategoryAnalytics = {
+  range: "this_month" | "six_months" | "all";
+  scope: "shared" | "private" | "combined";
+  totalTwd: number;
+  count: number;
+  categories: Array<{
+    label: string;
+    totalTwd: number;
+    count: number;
+    percent: number;
+  }>;
+};
+type AgentRun = {
+  answer: string;
+  reportId: string;
+  toolCalls: Array<{ tool: string; count?: number; result?: unknown }>;
+  suggestions: AccountantReport["suggestions"];
+  report: AccountantReport;
 };
 type ExpenseForm = {
   ledger: "shared" | "private";
@@ -414,7 +434,7 @@ export default function Home() {
           />
         )}
         {tab === "accountant" && (
-          <Accountant data={data} onPropose={(body) => void propose(body)} />
+          <Accountant onPropose={(body) => void propose(body)} />
         )}
         {tab === "budgets" && (
           <Budgets
@@ -566,13 +586,43 @@ function Dashboard({
   onAdd(): void;
 }) {
   const [settleAmount, setSettleAmount] = useState("");
+  const [categoryRange, setCategoryRange] =
+    useState<CategoryAnalytics["range"]>("this_month");
+  const [analytics, setAnalytics] = useState<CategoryAnalytics | null>(null);
   const mine =
     data.balances.find((item) => item.user_id === data.user.id)?.balance_twd ??
     0;
   const owed = Math.abs(mine);
-  const categories = Object.entries(data.dashboard.categoryTotals)
+  useEffect(() => {
+    let cancelled = false;
+    void fetch(
+      `/api/app/analytics/categories?range=${categoryRange}&scope=shared`,
+      { cache: "no-store" },
+    )
+      .then(parseResponse)
+      .then((result) => {
+        if (!cancelled) setAnalytics(result as CategoryAnalytics);
+      })
+      .catch(() => {
+        if (!cancelled) setAnalytics(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [categoryRange, data.activeGroupId]);
+  const fallbackCategories = Object.entries(data.dashboard.categoryTotals)
     .filter(([, value]) => value > 0)
-    .sort((a, b) => b[1] - a[1]);
+    .sort((a, b) => b[1] - a[1])
+    .map(([category, value]) => ({
+      label: categoryNames[category] ?? category,
+      totalTwd: value,
+      count: 0,
+      percent: 0,
+    }));
+  const categoryRows = analytics?.categories.length
+    ? analytics.categories
+    : fallbackCategories;
+  const categoryTotal = analytics?.totalTwd ?? data.dashboard.monthlyTotalTwd;
   const budget = data.budgets.find((item) => item.category === null);
   const budgetPercent = budget
     ? Math.min(
@@ -643,36 +693,59 @@ function Dashboard({
             <span className="eyebrow">支出分析</span>
             <h2>分類占比</h2>
           </div>
-          <strong>{money(data.dashboard.monthlyTotalTwd)}</strong>
+          <strong>{money(categoryTotal)}</strong>
         </div>
-        {categories.length ? (
+        <div className="segmented three">
+          <button
+            type="button"
+            className={categoryRange === "this_month" ? "active" : ""}
+            onClick={() => setCategoryRange("this_month")}
+          >
+            本月
+          </button>
+          <button
+            type="button"
+            className={categoryRange === "six_months" ? "active" : ""}
+            onClick={() => setCategoryRange("six_months")}
+          >
+            近六月
+          </button>
+          <button
+            type="button"
+            className={categoryRange === "all" ? "active" : ""}
+            onClick={() => setCategoryRange("all")}
+          >
+            全部
+          </button>
+        </div>
+        {categoryRows.length ? (
           <div className="category-chart">
             <div
               className="donut"
               style={{
                 background: donutGradient(
-                  categories,
-                  data.dashboard.monthlyTotalTwd,
+                  categoryRows.map((item) => [item.label, item.totalTwd]),
+                  categoryTotal,
                 ),
               }}
             >
               <span>
-                {categories.length}
+                {categoryRows.length}
                 <small>分類</small>
               </span>
             </div>
             <div className="legend">
-              {categories.slice(0, 5).map(([category, value], index) => (
-                <div key={category}>
+              {categoryRows.slice(0, 6).map((category, index) => (
+                <div key={category.label}>
                   <i style={{ background: palette[index] }} />
-                  <span>{categoryNames[category]}</span>
-                  <strong>{money(value)}</strong>
+                  <span>{category.label}</span>
+                  <strong>{money(category.totalTwd)}</strong>
                 </div>
               ))}
             </div>
           </div>
         ) : (
-          <Empty text="本月還沒有共同支出" />
+          <Empty text="這個範圍還沒有共同支出" />
         )}
       </article>
       <article className="panel">
@@ -1081,15 +1154,14 @@ function ExpenseEditor({
 }
 
 function Accountant({
-  data,
   onPropose,
 }: {
-  data: Bootstrap;
   onPropose(body: unknown): void;
 }) {
   const [reports, setReports] = useState<AccountantReport[]>([]);
-  const [question, setQuestion] = useState("本月哪裡花太多？");
+  const [question, setQuestion] = useState("歷史以來哪裡花最多？");
   const [scope, setScope] = useState<AccountantReport["scope"]>("combined");
+  const [latestRun, setLatestRun] = useState<AgentRun | null>(null);
   const [loading, setLoading] = useState(false);
   const [localError, setLocalError] = useState("");
 
@@ -1113,12 +1185,12 @@ function Accountant({
     setLoading(true);
     setLocalError("");
     try {
-      const report = (await api("/api/app/accountant/ask", {
-        question,
+      const run = (await api("/api/app/agent/runs", {
+        message: question,
         scope,
-        month: data.month,
-      })) as AccountantReport;
-      setReports((current) => [report, ...current]);
+      })) as AgentRun;
+      setLatestRun(run);
+      setReports((current) => [run.report, ...current]);
     } catch (reason) {
       setLocalError(reason instanceof Error ? reason.message : "會計師暫時無法回覆");
     } finally {
@@ -1132,7 +1204,7 @@ function Accountant({
       <form className="panel form" onSubmit={ask}>
         <div className="panel-title">
           <div>
-            <span className="eyebrow">{data.month}</span>
+            <span className="eyebrow">LINE 問快答 · LIFF 做整理</span>
             <h2>AI 會計師</h2>
           </div>
         </div>
@@ -1171,6 +1243,26 @@ function Accountant({
           {loading ? "分析中…" : "詢問會計師"}
         </button>
       </form>
+
+      {latestRun && (
+        <article className="panel">
+          <div className="panel-title">
+            <div>
+              <span className="eyebrow">本次回覆</span>
+              <h2>Agent 工具執行</h2>
+            </div>
+          </div>
+          <p className="preline">{latestRun.answer}</p>
+          <div className="tool-list">
+            {latestRun.toolCalls.map((call, index) => (
+              <small key={`${call.tool}-${index}`}>
+                {call.tool}
+                {typeof call.count === "number" ? ` · ${call.count}` : ""}
+              </small>
+            ))}
+          </div>
+        </article>
+      )}
 
       {latest ? (
         <AccountantReportCard report={latest} onPropose={onPropose} />
@@ -1599,20 +1691,18 @@ function Empty({ text }: { text: string }) {
   );
 }
 function ExpenseRow({ expense, users }: { expense: Expense; users: User[] }) {
+  const label = expense.category_label || categoryNames[expense.category] || expense.category;
   return (
     <div className={`expense-row ${expense.deleted_at ? "deleted" : ""}`}>
       <div className="category-icon">
-        {categoryNames[expense.category]?.slice(0, 1)}
+        {label.slice(0, 1)}
       </div>
       <div>
         <strong>{expense.description}</strong>
         <small>
           {expense.expense_date} ·{" "}
           {users.find((user) => user.id === expense.paid_by_user_id)?.label}付款
-          ·{" "}
-          {expense.ledger === "private"
-            ? "私人"
-            : categoryNames[expense.category]}
+          · {expense.ledger === "private" ? `私人｜${label}` : label}
         </small>
       </div>
       <strong>{money(expense.amount_twd)}</strong>

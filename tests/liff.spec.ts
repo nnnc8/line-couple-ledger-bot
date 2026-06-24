@@ -50,6 +50,23 @@ test.beforeEach(async ({ page }) => {
   await page.route("**/api/app/accountant/ask", (route) =>
     route.fulfill({ json: accountantReport("AI 會計師回覆") }),
   );
+  await page.route("**/api/app/agent/runs", (route) =>
+    route.fulfill({ json: agentRun() }),
+  );
+  await page.route("**/api/app/analytics/categories**", (route) =>
+    route.fulfill({
+      json: {
+        range: "this_month",
+        scope: "shared",
+        totalTwd: 1060,
+        count: 2,
+        categories: [
+          { label: "晚餐", totalTwd: 860, count: 1, percent: 81 },
+          { label: "捷運", totalTwd: 200, count: 1, percent: 19 },
+        ],
+      },
+    }),
+  );
   await page.route("https://static.line-scdn.net/**", (route) =>
     route.fulfill({ contentType: "application/javascript", body: "" }),
   );
@@ -109,6 +126,7 @@ function bootstrap() {
     merchant: "小吃店",
     notes: null,
     category: "food",
+    category_label: "晚餐",
     amount_twd: 860,
     paid_by_user_id: OWNER,
     created_by_user_id: OWNER,
@@ -222,5 +240,19 @@ function accountantReport(title: string) {
     ],
     source: "fallback",
     created_at: "2026-06-22T12:00:00Z",
+  };
+}
+
+function agentRun() {
+  const report = accountantReport("AI 會計師回覆");
+  return {
+    answer: "本月共 2 筆，總額 NT$1,060。\n分類排行：\n1. 晚餐 NT$860（1筆）",
+    reportId: report.id,
+    toolCalls: [
+      { tool: "search_expenses", count: 2 },
+      { tool: "rank_categories", count: 2 },
+    ],
+    suggestions: report.suggestions,
+    report,
   };
 }

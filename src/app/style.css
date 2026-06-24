@@ -122,6 +122,9 @@ button.light { padding: 9px 13px; background: white; color: var(--navy); }
 .notification p { margin: 4px 0; font-size: 13px; }
 .notification small { color: var(--muted); }
 .accountant-report > p { line-height: 1.7; }
+.preline { white-space: pre-line; line-height: 1.7; }
+.tool-list { display: flex; flex-wrap: wrap; gap: 7px; }
+.tool-list small { padding: 5px 8px; border-radius: 999px; background: #eef3f7; color: var(--muted); font-weight: 700; }
 .compact-metrics { margin: 14px 0; }
 .finding, .suggestion { display: grid; gap: 4px; padding: 12px 0; border-top: 1px solid var(--line); }
 .finding p, .suggestion p { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.55; }
