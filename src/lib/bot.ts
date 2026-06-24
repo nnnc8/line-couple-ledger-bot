@@ -21,6 +21,7 @@ import {
   type TextParseResult,
 } from "./ledger";
 import { safeSecretEqual } from "./security";
+import { classifyExpenseCategory } from "./category-agent";
 
 export { safeSecretEqual } from "./security";
 
@@ -388,6 +389,16 @@ async function proposeExpense(
     parsed.ledger === "shared"
       ? await findTargetGroup(dependencies.supabase, user, sourceText)
       : null;
+  const classification = await classifyExpenseCategory(
+    {
+      description: parsed.description,
+      merchant: null,
+      groupName: activeGroup?.name ?? "私人帳",
+      fallbackCategory: parsed.category,
+      history: [],
+    },
+    dependencies.gemini,
+  );
   const actionId = await createPendingAction(
     dependencies.supabase,
     user,
@@ -400,8 +411,8 @@ async function proposeExpense(
       amount_twd: parsed.amountTwd,
       paid_by_user_id: parsed.ledger === "private" ? user.id : paidByUserId,
       expense_date: parsed.expenseDate,
-      category: parsed.category,
-      category_label: lineCategoryLabel(parsed.description, parsed.category),
+      category: classification.category,
+      category_label: classification.categoryLabel,
     },
     activeGroup?.id ?? null,
   );
@@ -412,7 +423,7 @@ async function proposeExpense(
     [
       `確認記帳？${parsed.ledger === "shared" ? activeGroup!.name : "私人帳"}`,
       `${parsed.description} NT$${parsed.amountTwd}`,
-      `付款：${paidByUserId === user.id ? "你" : "另一半"}｜${parsed.expenseDate}｜${parsed.category}`,
+      `付款：${paidByUserId === user.id ? "你" : "另一半"}｜${parsed.expenseDate}｜${classification.categoryLabel}`,
     ].join("\n"),
   );
 }
@@ -447,6 +458,16 @@ async function proposeExpenses(
       return;
     }
     const paidByUserId = item.paidBy === "self" ? user.id : partner.id;
+    const classification = await classifyExpenseCategory(
+      {
+        description: item.description,
+        merchant: null,
+        groupName: activeGroup.name,
+        fallbackCategory: item.category,
+        history: [],
+      },
+      dependencies.gemini,
+    );
     const id = await createPendingAction(
       dependencies.supabase,
       user,
@@ -459,8 +480,8 @@ async function proposeExpenses(
         amount_twd: item.amountTwd,
         paid_by_user_id: paidByUserId,
         expense_date: item.expenseDate,
-        category: item.category,
-        category_label: lineCategoryLabel(item.description, item.category),
+        category: classification.category,
+        category_label: classification.categoryLabel,
       },
       activeGroup.id,
     );
@@ -478,19 +499,6 @@ async function proposeExpenses(
       ),
     ].join("\n"),
   );
-}
-
-function lineCategoryLabel(description: string, category: string) {
-  const cleaned = description
-    .normalize("NFKC")
-    .replace(/nt\$?/gi, "")
-    .replace(/[0-9,]+/g, "")
-    .replace(/我付|你付|他付|她付|付款|付|元|塊/g, "")
-    .trim()
-    .replace(/\s+/g, " ")
-    .slice(0, 40);
-  if (cleaned) return cleaned;
-  return category;
 }
 
 function cleanInlineDescription(value: string) {
@@ -522,6 +530,7 @@ async function proposeDelete(
     .from("expenses")
     .select("id, description, amount_twd")
     .is("deleted_at", null)
+    .is("mirror_kind", null)
     .or(`and(ledger.eq.shared,group_id.eq.${activeGroup.id}),and(ledger.eq.private,created_by_user_id.eq.${user.id})`)
     .order("created_at", { ascending: false })
     .limit(1)

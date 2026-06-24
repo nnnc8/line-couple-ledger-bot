@@ -17,7 +17,6 @@ import {
 import {
   categories,
   geminiReceiptJsonSchema,
-  learnCategoryFromHistory,
   nextRecurringDate,
   receiptExtractionSchema,
   splitEqual,
@@ -41,6 +40,11 @@ import {
   type AgentTimeRange,
 } from "./ledger-agent";
 import {
+  classifyExpenseCategory,
+  splitBootstrapExpenses,
+  type CategoryClassificationInput,
+} from "./category-agent";
+import {
   detectReceiptMime,
   safeSecretEqual,
   signSession,
@@ -53,7 +57,7 @@ const ACTION_SECONDS = 60 * 5;
 const RECEIPT_LIMIT = 10 * 1024 * 1024;
 const MODEL = "gemini-3.1-flash-lite";
 const EXPENSE_SELECT =
-  "id, group_id, ledger, description, merchant, notes, category, category_label, amount_twd, paid_by_user_id, created_by_user_id, expense_date, split_method, version, deleted_at, created_at, expense_splits(user_id, amount_twd), receipts(id, status)";
+  "id, group_id, ledger, description, merchant, notes, category, category_label, mirror_kind, mirror_source_expense_id, amount_twd, paid_by_user_id, created_by_user_id, expense_date, split_method, version, deleted_at, created_at, expense_splits(user_id, amount_twd), receipts(id, status)";
 
 const envSchema = z.object({
   LINE_CHANNEL_ACCESS_TOKEN: z.string().min(1),
@@ -97,6 +101,8 @@ const expenseSchema = z.object({
   notes: z.string().nullable(),
   category: z.enum(categories),
   category_label: z.string(),
+  mirror_kind: z.enum(["shared_share"]).nullable().default(null),
+  mirror_source_expense_id: z.string().uuid().nullable().default(null),
   amount_twd: z.coerce.number().int(),
   paid_by_user_id: z.string().uuid(),
   created_by_user_id: z.string().uuid(),
@@ -371,29 +377,13 @@ export async function loadBootstrap(context: ServerContext) {
   const expenses = z
     .array(expenseSchema)
     .parse([...(sharedResult.data ?? []), ...(privateResult.data ?? [])]);
-  const activeShared = expenses.filter(
-    (expense) =>
-      expense.group_id === activeGroupId &&
-      expense.ledger === "shared" &&
-      !expense.deleted_at,
+  const { sharedExpenses, privateExpenses } = splitBootstrapExpenses(
+    expenses,
+    activeGroupId,
+    user.id,
   );
-  const categoryTotals = Object.fromEntries(
-    categories.map((category) => [category, 0]),
-  ) as Record<string, number>;
-  const trend = Array.from({ length: 6 }, (_, index) => ({
-    month: shiftMonth(month, index - 5),
-    totalTwd: 0,
-  }));
-  for (const expense of activeShared) {
-    const expenseMonth = expense.expense_date.slice(0, 7);
-    const point = trend.find((item) => item.month === expenseMonth);
-    if (point) point.totalTwd += expense.amount_twd;
-    if (expenseMonth === month)
-      categoryTotals[expense.category] += expense.amount_twd;
-  }
-  const thisMonth = activeShared.filter((expense) =>
-    expense.expense_date.startsWith(month),
-  );
+  const activeShared = sharedExpenses.filter((expense) => !expense.deleted_at);
+  const activePrivate = privateExpenses.filter((expense) => !expense.deleted_at);
   const balances = z
     .array(
       z.object({
@@ -410,20 +400,40 @@ export async function loadBootstrap(context: ServerContext) {
     groups,
     activeGroupId,
     expenses,
+    sharedExpenses,
+    privateExpenses,
     balances,
     budgets: budgetsResult.data,
     recurring: recurringResult.data,
     notifications: notificationsResult.data,
-    dashboard: {
-      monthlyTotalTwd: thisMonth.reduce(
-        (sum, expense) => sum + expense.amount_twd,
-        0,
-      ),
-      monthlyCount: thisMonth.length,
-      categoryTotals,
-      trend,
-      recent: activeShared.slice(0, 8),
-    },
+    dashboard: buildDashboard(activeShared, month),
+    privateDashboard: buildDashboard(activePrivate, month),
+  };
+}
+
+function buildDashboard(expenses: AppExpense[], month: string) {
+  const categoryTotals = Object.fromEntries(
+    categories.map((category) => [category, 0]),
+  ) as Record<string, number>;
+  const trend = Array.from({ length: 6 }, (_, index) => ({
+    month: shiftMonth(month, index - 5),
+    totalTwd: 0,
+  }));
+  for (const expense of expenses) {
+    const expenseMonth = expense.expense_date.slice(0, 7);
+    const point = trend.find((item) => item.month === expenseMonth);
+    if (point) point.totalTwd += expense.amount_twd;
+    if (expenseMonth === month) categoryTotals[expense.category] += expense.amount_twd;
+  }
+  const thisMonth = expenses.filter((expense) =>
+    expense.expense_date.startsWith(month),
+  );
+  return {
+    monthlyTotalTwd: thisMonth.reduce((sum, expense) => sum + expense.amount_twd, 0),
+    monthlyCount: thisMonth.length,
+    categoryTotals,
+    trend,
+    recent: expenses.slice(0, 8),
   };
 }
 
@@ -643,6 +653,58 @@ export async function categoryAnalytics(
       percent: totalTwd ? Math.round((item.totalTwd / totalTwd) * 100) : 0,
     })),
   };
+}
+
+export async function suggestCategoryUpdates(context: ServerContext, input: unknown) {
+  const parsed = categoryAnalyticsInputSchema.parse(input);
+  const groupId = await activeGroupId(context);
+  const group = await requireGroup(context, groupId);
+  const allExpenses = await loadAgentExpenses(context, groupId);
+  const expenses = filterAgentExpenses({
+    activeGroupId: groupId,
+    expenses: allExpenses,
+    now: taipeiToday(),
+    scope: parsed.scope === "combined" ? "shared" : parsed.scope,
+    timeRange: parsed.range === "all" ? "all" : parsed.range === "six_months" ? "all" : "this_month",
+    userId: context.user.id,
+  }).filter((expense) =>
+    parsed.range === "six_months"
+      ? expense.expense_date >= `${shiftMonth(taipeiToday().slice(0, 7), -5)}-01`
+      : true,
+  );
+  const history = expenses.map((expense) => ({
+    category: expense.category,
+    categoryLabel: expense.category_label,
+    description: expense.description,
+    merchant: expense.merchant,
+  }));
+  const gemini = new GoogleGenAI({ apiKey: context.env.GEMINI_API_KEY });
+  const rawUpdates = [];
+  for (const expense of expenses.slice(0, 50)) {
+    if (expense.category_label !== "其他" && expense.category_label !== "other") continue;
+    const classified = await classifyExpenseCategory(
+      {
+        description: expense.description,
+        merchant: expense.merchant,
+        groupName: expense.ledger === "shared" ? group.name : "私人帳",
+        fallbackCategory: expense.category,
+        history,
+      },
+      gemini,
+    );
+    if (classified.categoryLabel === "其他" || classified.categoryLabel === "other")
+      continue;
+    rawUpdates.push({
+      expenseId: expense.id,
+      expectedVersion: expense.version,
+      categoryLabel: classified.categoryLabel,
+    });
+  }
+  const updates = safeBatchCategoryUpdates(rawUpdates, allExpenses, {
+    activeGroupId: groupId,
+    userId: context.user.id,
+  });
+  return { updates };
 }
 
 export async function createCategoryCleanup(
@@ -950,6 +1012,8 @@ function toAgentExpense(expense: AppExpense): AgentExpense {
     merchant: expense.merchant,
     category: expense.category,
     category_label: expense.category_label,
+    mirror_kind: expense.mirror_kind,
+    mirror_source_expense_id: expense.mirror_source_expense_id,
     amount_twd: expense.amount_twd,
     paid_by_user_id: expense.paid_by_user_id,
     created_by_user_id: expense.created_by_user_id,
@@ -1170,6 +1234,8 @@ export async function proposeAction(
   let preview: string;
 
   if (parsed.type === "create_expense" || parsed.type === "update_expense") {
+    if (parsed.type === "update_expense")
+      await assertEditableExpense(context, parsed.expenseId);
     const prepared = await prepareExpense(context, parsed.expense, partner);
     groupId = prepared.groupId;
     payload = prepared.payload;
@@ -1210,7 +1276,7 @@ export async function proposeAction(
     const expenseResult = await context.db
       .from("expenses")
       .select(
-        "id, group_id, ledger, description, amount_twd, version, deleted_at, created_by_user_id",
+        "id, group_id, ledger, description, amount_twd, version, deleted_at, created_by_user_id, mirror_kind",
       )
       .eq("id", parsed.expenseId)
       .eq("couple_id", context.user.couple_id)
@@ -1226,8 +1292,11 @@ export async function proposeAction(
         version: z.number().int(),
         deleted_at: z.string().nullable(),
         created_by_user_id: z.string().uuid(),
+        mirror_kind: z.enum(["shared_share"]).nullable().default(null),
       })
       .parse(expenseResult.data);
+    if (expense.mirror_kind)
+      throw new HttpError(403, "共同分攤紀錄請修改來源共同帳");
     if (
       expense.ledger === "private" &&
       expense.created_by_user_id !== context.user.id
@@ -1272,6 +1341,27 @@ export async function proposeAction(
   };
 }
 
+async function assertEditableExpense(context: ServerContext, expenseId: string) {
+  const result = await context.db
+    .from("expenses")
+    .select("id, ledger, created_by_user_id, mirror_kind")
+    .eq("id", expenseId)
+    .eq("couple_id", context.user.couple_id)
+    .single();
+  if (result.error) throw new HttpError(404, "找不到支出");
+  const expense = z
+    .object({
+      ledger: z.enum(["shared", "private"]),
+      created_by_user_id: z.string().uuid(),
+      mirror_kind: z.enum(["shared_share"]).nullable().default(null),
+    })
+    .parse(result.data);
+  if (expense.mirror_kind)
+    throw new HttpError(403, "共同分攤紀錄請修改來源共同帳");
+  if (expense.ledger === "private" && expense.created_by_user_id !== context.user.id)
+    throw new HttpError(403, "無權操作私人支出");
+}
+
 async function prepareExpense(
   context: ServerContext,
   expense: z.infer<typeof expenseInputSchema>,
@@ -1284,7 +1374,8 @@ async function prepareExpense(
   if (expense.ledger === "private" && expense.paidBy !== "self")
     throw new HttpError(400, "私人支出只能由本人付款");
   const payerId = expense.paidBy === "self" ? context.user.id : partner.id;
-  const category = await learnExpenseCategory(context, expense, group?.id ?? null);
+  const classification = await classifyPreparedExpense(context, expense, group);
+  const category = classification.category;
   let splits: Record<string, number>;
   if (expense.ledger === "private")
     splits = { [context.user.id]: expense.amountTwd };
@@ -1304,12 +1395,7 @@ async function prepareExpense(
       [context.user.id]: expense.selfValue ?? -1,
       [partner.id]: expense.partnerValue ?? -1,
     });
-  const categoryLabelValue = await learnExpenseCategoryLabel(
-    context,
-    expense,
-    group?.id ?? null,
-    category,
-  );
+  const categoryLabelValue = expense.categoryLabel ?? classification.categoryLabel;
   return {
     groupId: group?.id ?? null,
     groupName: expense.ledger === "private" ? "私人帳" : group!.name,
@@ -1332,95 +1418,52 @@ async function prepareExpense(
   };
 }
 
-async function learnExpenseCategory(
+async function classifyPreparedExpense(
   context: ServerContext,
   expense: z.infer<typeof expenseInputSchema>,
-  groupId: string | null,
+  group: { id: string; name: string } | null,
 ) {
-  if (expense.category !== "other") return expense.category;
-  let query = context.db
+  const query = context.db
     .from("expenses")
-    .select("category, description, merchant")
+    .select("category, category_label, description, merchant")
     .eq("couple_id", context.user.couple_id)
     .eq("ledger", expense.ledger)
-    .neq("category", "other")
     .is("deleted_at", null)
     .order("created_at", { ascending: false })
     .limit(80);
-  query =
+  const scoped =
     expense.ledger === "shared"
-      ? query.eq("group_id", groupId)
+      ? query.eq("group_id", group?.id ?? "")
       : query.eq("created_by_user_id", context.user.id);
-
-  const result = await query;
-  if (result.error) return expense.category;
-  const history = z
-    .array(
-      z.object({
-        category: z.enum(categories),
-        description: z.string(),
-        merchant: z.string().nullable(),
-      }),
-    )
-    .parse(result.data);
-  return learnCategoryFromHistory(
+  const historyResult = await scoped;
+  const history: CategoryClassificationInput["history"] = historyResult.error
+    ? []
+    : z
+        .array(
+          z.object({
+            category: z.enum(categories),
+            category_label: z.string(),
+            description: z.string(),
+            merchant: z.string().nullable(),
+          }),
+        )
+        .parse(historyResult.data)
+        .map((row) => ({
+          category: row.category,
+          categoryLabel: row.category_label,
+          description: row.description,
+          merchant: row.merchant,
+        }));
+  return classifyExpenseCategory(
     {
-      category: expense.category,
       description: expense.description,
       merchant: expense.merchant,
+      groupName: group?.name ?? "私人帳",
+      fallbackCategory: expense.category,
+      history,
     },
-    history,
+    new GoogleGenAI({ apiKey: context.env.GEMINI_API_KEY }),
   );
-}
-
-async function learnExpenseCategoryLabel(
-  context: ServerContext,
-  expense: z.infer<typeof expenseInputSchema>,
-  groupId: string | null,
-  category: (typeof categories)[number],
-) {
-  if (expense.categoryLabel) return expense.categoryLabel;
-  let query = context.db
-    .from("expenses")
-    .select("category_label, description, merchant")
-    .eq("couple_id", context.user.couple_id)
-    .eq("ledger", expense.ledger)
-    .is("deleted_at", null)
-    .order("created_at", { ascending: false })
-    .limit(120);
-  query =
-    expense.ledger === "shared"
-      ? query.eq("group_id", groupId)
-      : query.eq("created_by_user_id", context.user.id);
-  const result = await query;
-  if (!result.error) {
-    const currentMerchant = normalizeCategoryText(expense.merchant);
-    const currentDescription = normalizeCategoryText(expense.description);
-    const history = z
-      .array(
-        z.object({
-          category_label: z.string(),
-          description: z.string(),
-          merchant: z.string().nullable(),
-        }),
-      )
-      .parse(result.data);
-    const match = history.find((entry) => {
-      const merchant = normalizeCategoryText(entry.merchant);
-      const description = normalizeCategoryText(entry.description);
-      return (
-        (currentMerchant && currentMerchant === merchant) ||
-        (currentDescription &&
-          description &&
-          (currentDescription.includes(description) ||
-            description.includes(currentDescription)))
-      );
-    });
-    if (match?.category_label) return cleanCategoryLabel(match.category_label);
-  }
-  const specific = cleanCategoryLabel(expense.merchant || expense.description);
-  if (specific) return specific;
-  return categoryLabel(category);
 }
 
 async function requireGroup(context: ServerContext, groupId: string | null) {
@@ -2440,13 +2483,6 @@ function cleanCategoryLabel(value: string) {
     .trim()
     .replace(/\s+/g, " ")
     .slice(0, 40);
-}
-
-function normalizeCategoryText(value?: string | null): string {
-  return (value ?? "")
-    .normalize("NFKC")
-    .toLowerCase()
-    .replace(/[^\p{Letter}\p{Number}]+/gu, "");
 }
 
 function taipeiToday(): string {

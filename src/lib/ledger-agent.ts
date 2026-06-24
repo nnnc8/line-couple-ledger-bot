@@ -22,6 +22,8 @@ export interface AgentExpense {
   merchant: string | null;
   category: Category;
   category_label: string;
+  mirror_kind?: "shared_share" | null;
+  mirror_source_expense_id?: string | null;
   amount_twd: number;
   paid_by_user_id: string;
   created_by_user_id: string;
@@ -131,6 +133,7 @@ export function safeBatchCategoryUpdates(
     if (
       !expense ||
       expense.deleted_at ||
+      expense.mirror_kind ||
       expense.version !== parsed.data.expectedVersion ||
       !canAccessExpense(expense, options)
     ) {

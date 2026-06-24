@@ -25,6 +25,7 @@ import {
   saveRecurring,
   serverEnvironment,
   sessionCookie,
+  suggestCategoryUpdates,
 } from "@/lib/app-server";
 
 export const runtime = "nodejs";
@@ -117,6 +118,9 @@ export async function POST(request: Request, route: RouteContext) {
     if (path[0] === "categories" && path[1] === "cleanup") {
       const key = request.headers.get("idempotency-key")?.slice(0, 100);
       return json(await createCategoryCleanup(context, body, key));
+    }
+    if (path[0] === "categories" && path[1] === "suggest") {
+      return json(await suggestCategoryUpdates(context, body));
     }
     throw new HttpError(404, "Not found");
   } catch (error) {

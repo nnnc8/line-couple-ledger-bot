@@ -6,6 +6,7 @@ import { useCallback, useEffect, useState } from "react";
 type Tab =
   | "dashboard"
   | "history"
+  | "private"
   | "add"
   | "accountant"
   | "budgets"
@@ -26,14 +27,24 @@ type Expense = {
   notes: string | null;
   category: string;
   category_label: string;
+  mirror_kind: "shared_share" | null;
+  mirror_source_expense_id: string | null;
   amount_twd: number;
   paid_by_user_id: string;
+  created_by_user_id: string;
   expense_date: string;
   split_method: "equal" | "exact" | "percentage";
   version: number;
   deleted_at: string | null;
   receipts: Array<{ id: string; status: string }>;
   expense_splits: Array<{ user_id: string; amount_twd: number }>;
+};
+type DashboardData = {
+  monthlyTotalTwd: number;
+  monthlyCount: number;
+  categoryTotals: Record<string, number>;
+  trend: Array<{ month: string; totalTwd: number }>;
+  recent: Expense[];
 };
 type Bootstrap = {
   today: string;
@@ -43,6 +54,8 @@ type Bootstrap = {
   groups: Group[];
   activeGroupId: string;
   expenses: Expense[];
+  sharedExpenses: Expense[];
+  privateExpenses: Expense[];
   balances: Array<{ user_id: string; balance_twd: number }>;
   budgets: Array<{ id: string; category: string | null; limit_twd: number }>;
   recurring: Array<{
@@ -61,13 +74,8 @@ type Bootstrap = {
     created_at: string;
     line_status: string;
   }>;
-  dashboard: {
-    monthlyTotalTwd: number;
-    monthlyCount: number;
-    categoryTotals: Record<string, number>;
-    trend: Array<{ month: string; totalTwd: number }>;
-    recent: Expense[];
-  };
+  dashboard: DashboardData;
+  privateDashboard: DashboardData;
 };
 type AccountantReport = {
   id: string;
@@ -136,6 +144,7 @@ type ExpenseForm = {
 const tabs: Tab[] = [
   "dashboard",
   "history",
+  "private",
   "add",
   "accountant",
   "budgets",
@@ -235,6 +244,14 @@ function IconAI() {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round">
       <path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 16.8l-6.2 4.5 2.4-7.4L2 9.4h7.6z" />
+    </svg>
+  );
+}
+function IconUser() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M20 21a8 8 0 10-16 0" />
+      <circle cx="12" cy="7" r="4" />
     </svg>
   );
 }
@@ -422,6 +439,12 @@ export default function Home() {
     (group) => group.id === data.activeGroupId,
   )!;
   const unread = data.notifications.filter((item) => !item.read_at).length;
+  const sharedExpenses =
+    data.sharedExpenses ??
+    data.expenses.filter(
+      (expense) =>
+        expense.ledger === "shared" && expense.group_id === data.activeGroupId,
+    );
 
   function confirmTypeIcon(preview: string): string {
     if (preview.includes("刪除")) return "🗑";
@@ -438,26 +461,28 @@ export default function Home() {
           <span className="eyebrow">共同帳本</span>
           <h1>{titleFor(tab)}</h1>
         </div>
-        <label className="group-picker">
-          <span>目前群組</span>
-          <select
-            value={data.activeGroupId}
-            onChange={(event) =>
-              void mutate("/api/app/groups", {
-                operation: "activate",
-                groupId: event.target.value,
-              })
-            }
-          >
-            {data.groups
-              .filter((group) => !group.archived_at)
-              .map((group) => (
-                <option key={group.id} value={group.id}>
-                  {group.name}
-                </option>
-              ))}
-          </select>
-        </label>
+        {tab !== "private" && (
+          <label className="group-picker">
+            <span>目前群組</span>
+            <select
+              value={data.activeGroupId}
+              onChange={(event) =>
+                void mutate("/api/app/groups", {
+                  operation: "activate",
+                  groupId: event.target.value,
+                })
+              }
+            >
+              {data.groups
+                .filter((group) => !group.archived_at)
+                .map((group) => (
+                  <option key={group.id} value={group.id}>
+                    {group.name}
+                  </option>
+                ))}
+            </select>
+          </label>
+        )}
       </header>
       {error && (
         <div className="toast error" role="alert">
@@ -493,6 +518,24 @@ export default function Home() {
         )}
         {tab === "history" && (
           <History
+            data={data}
+            expenses={sharedExpenses}
+            onEdit={(expense) => {
+              setTab("add");
+              sessionStorage.setItem("editExpense", JSON.stringify(expense));
+            }}
+            onDelete={(expense) =>
+              void propose({
+                type: expense.deleted_at ? "restore_expense" : "delete_expense",
+                expenseId: expense.id,
+                expectedVersion: expense.version,
+              })
+            }
+            onReceipt={(id) => void openReceipt(id)}
+          />
+        )}
+        {tab === "private" && (
+          <PrivateLedger
             data={data}
             onEdit={(expense) => {
               setTab("add");
@@ -556,6 +599,12 @@ export default function Home() {
           label="流水"
           icon={<IconList />}
           onClick={() => setTab("history")}
+        />
+        <NavButton
+          active={tab === "private"}
+          label="私人"
+          icon={<IconUser />}
+          onClick={() => setTab("private")}
         />
         <NavButton
           active={tab === "add"}
@@ -893,8 +942,8 @@ function Dashboard({
   );
 }
 
-/* ─── History ─── */
-function History({
+/* ─── Private Ledger ─── */
+function PrivateLedger({
   data,
   onEdit,
   onDelete,
@@ -905,15 +954,142 @@ function History({
   onDelete(expense: Expense): void;
   onReceipt(id: string): void;
 }) {
+  const [categoryRange, setCategoryRange] =
+    useState<CategoryAnalytics["range"]>("this_month");
+  const [analytics, setAnalytics] = useState<CategoryAnalytics | null>(null);
+  const privateExpenses =
+    data.privateExpenses ??
+    data.expenses.filter(
+      (expense) =>
+        expense.ledger === "private" && expense.created_by_user_id === data.user.id,
+    );
+  const privateDashboard =
+    data.privateDashboard ?? buildClientDashboard(privateExpenses, data.month);
+
+  useEffect(() => {
+    let cancelled = false;
+    void fetch(
+      `/api/app/analytics/categories?range=${categoryRange}&scope=private`,
+      { cache: "no-store" },
+    )
+      .then(parseResponse)
+      .then((result) => {
+        if (!cancelled) setAnalytics(result as CategoryAnalytics);
+      })
+      .catch(() => {
+        if (!cancelled) setAnalytics(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [categoryRange]);
+
+  const fallbackCategories = Object.entries(privateDashboard.categoryTotals)
+    .filter(([, value]) => value > 0)
+    .sort((a, b) => b[1] - a[1])
+    .map(([category, value]) => ({
+      label: categoryNames[category] ?? category,
+      totalTwd: value,
+      count: 0,
+      percent: 0,
+    }));
+  const categoryRows = analytics?.categories.length
+    ? analytics.categories
+    : fallbackCategories;
+  const categoryTotal =
+    analytics?.totalTwd ?? privateDashboard.monthlyTotalTwd;
+
+  return (
+    <div className="stack">
+      <article className="balance-card private-card">
+        <span>👤 私人帳</span>
+        <strong>{money(privateDashboard.monthlyTotalTwd)}</strong>
+        <small>
+          本月 {privateDashboard.monthlyCount} 筆，含共同帳自動分攤
+        </small>
+      </article>
+      <article className="panel">
+        <div className="panel-title">
+          <div>
+            <span className="eyebrow">私人支出分析</span>
+            <h2>分類占比</h2>
+          </div>
+          <strong>{money(categoryTotal)}</strong>
+        </div>
+        <div className="segmented three">
+          {(["this_month", "six_months", "all"] as const).map((range) => (
+            <button
+              key={range}
+              type="button"
+              className={categoryRange === range ? "active" : ""}
+              onClick={() => setCategoryRange(range)}
+            >
+              {range === "this_month" ? "本月" : range === "six_months" ? "近六月" : "全部"}
+            </button>
+          ))}
+        </div>
+        {categoryRows.length ? (
+          <div className="category-chart">
+            <div
+              className="donut"
+              style={{
+                background: donutGradient(
+                  categoryRows.map((item) => [item.label, item.totalTwd]),
+                  categoryTotal,
+                ),
+              }}
+            >
+              <span>
+                {categoryRows.length}
+                <small>分類</small>
+              </span>
+            </div>
+            <div className="legend">
+              {categoryRows.slice(0, 6).map((category, index) => (
+                <div key={category.label}>
+                  <i style={{ background: palette[index] }} />
+                  <span>{category.label}</span>
+                  <strong>{money(category.totalTwd)}</strong>
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : (
+          <Empty text="私人帳還沒有支出" icon="👤" />
+        )}
+      </article>
+      <History
+        data={data}
+        expenses={privateExpenses}
+        onEdit={onEdit}
+        onDelete={onDelete}
+        onReceipt={onReceipt}
+      />
+    </div>
+  );
+}
+
+/* ─── History ─── */
+function History({
+  data,
+  expenses,
+  onEdit,
+  onDelete,
+  onReceipt,
+}: {
+  data: Bootstrap;
+  expenses: Expense[];
+  onEdit(expense: Expense): void;
+  onDelete(expense: Expense): void;
+  onReceipt(id: string): void;
+}) {
   const [query, setQuery] = useState("");
-  const [ledger, setLedger] = useState("all");
   const [category, setCategory] = useState("all");
   const [deleted, setDeleted] = useState(false);
-  const filtered = data.expenses
+  const filtered = expenses
     .filter(
       (expense) =>
         (deleted ? !!expense.deleted_at : !expense.deleted_at) &&
-        (ledger === "all" || expense.ledger === ledger) &&
         (category === "all" || expense.category === category) &&
         `${expense.description} ${expense.merchant ?? ""}`
           .toLowerCase()
@@ -946,15 +1122,6 @@ function History({
         </div>
         <div>
           <select
-            aria-label="帳本"
-            value={ledger}
-            onChange={(event) => setLedger(event.target.value)}
-          >
-            <option value="all">全部帳本</option>
-            <option value="shared">共同</option>
-            <option value="private">私人</option>
-          </select>
-          <select
             aria-label="分類"
             value={category}
             onChange={(event) => setCategory(event.target.value)}
@@ -985,7 +1152,7 @@ function History({
                 <div className="history-item" key={expense.id}>
                   <ExpenseRow expense={expense} users={data.users} />
                   <div className="row-actions">
-                    {!expense.deleted_at && (
+                    {!expense.deleted_at && !expense.mirror_kind && (
                       <button
                         className="text-button"
                         onClick={() => onEdit(expense)}
@@ -1001,12 +1168,14 @@ function History({
                         收據
                       </button>
                     )}
-                    <button
-                      className="text-button danger"
-                      onClick={() => onDelete(expense)}
-                    >
-                      {expense.deleted_at ? "復原" : "刪除"}
-                    </button>
+                    {!expense.mirror_kind && (
+                      <button
+                        className="text-button danger"
+                        onClick={() => onDelete(expense)}
+                      >
+                        {expense.deleted_at ? "復原" : "刪除"}
+                      </button>
+                    )}
                   </div>
                 </div>
               ))}
@@ -1878,7 +2047,13 @@ function ExpenseRow({ expense, users }: { expense: Expense; users: User[] }) {
           {expense.expense_date} ·{" "}
           {users.find((user) => user.id === expense.paid_by_user_id)?.label}付款
           {expense.ledger === "private" ? (
-            <> · <span className="ledger-badge private">私人</span> {label}</>
+            <>
+              {" · "}
+              <span className="ledger-badge private">
+                {expense.mirror_kind ? "共同分攤" : "私人"}
+              </span>{" "}
+              {label}
+            </>
           ) : (
             <> · {label}</>
           )}
@@ -1904,6 +2079,31 @@ function emptyForm(today: string): ExpenseForm {
     selfValue: "",
     partnerValue: "",
     receiptId: null,
+  };
+}
+function buildClientDashboard(expenses: Expense[], month: string): DashboardData {
+  const active = expenses.filter((expense) => !expense.deleted_at);
+  const categoryTotals = Object.fromEntries(
+    Object.keys(categoryNames).map((category) => [category, 0]),
+  ) as Record<string, number>;
+  const trend = Array.from({ length: 6 }, (_, index) => ({
+    month: shiftMonth(month, index - 5),
+    totalTwd: 0,
+  }));
+  for (const expense of active) {
+    const expenseMonth = expense.expense_date.slice(0, 7);
+    const point = trend.find((item) => item.month === expenseMonth);
+    if (point) point.totalTwd += expense.amount_twd;
+    if (expenseMonth === month)
+      categoryTotals[expense.category] = (categoryTotals[expense.category] ?? 0) + expense.amount_twd;
+  }
+  const thisMonth = active.filter((expense) => expense.expense_date.startsWith(month));
+  return {
+    monthlyTotalTwd: thisMonth.reduce((sum, expense) => sum + expense.amount_twd, 0),
+    monthlyCount: thisMonth.length,
+    categoryTotals,
+    trend,
+    recent: active.slice(0, 8),
   };
 }
 function formFromExpense(expense: Expense, data: Bootstrap): ExpenseForm {
@@ -1939,6 +2139,7 @@ function titleFor(tab: Tab) {
     {
       dashboard: "總覽",
       history: "帳務流水",
+      private: "私人帳",
       add: "新增支出",
       accountant: "AI 會計師",
       budgets: "預算管理",
@@ -1966,6 +2167,11 @@ function formatDate(dateStr: string) {
   const day = d.getDate();
   const weekdays = ["日", "一", "二", "三", "四", "五", "六"];
   return `${month}/${day}（${weekdays[d.getDay()]}）`;
+}
+function shiftMonth(month: string, offset: number): string {
+  const [year, monthNumber] = month.split("-").map(Number);
+  const date = new Date(Date.UTC(year!, monthNumber! - 1 + offset, 1));
+  return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, "0")}`;
 }
 function donutGradient(items: Array<[string, number]>, total: number) {
   let position = 0;

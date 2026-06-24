@@ -22,6 +22,11 @@ import {
   safeBatchCategoryUpdates,
   type AgentExpense,
 } from "./ledger-agent";
+import {
+  buildPrivateMirrorDraft,
+  fallbackCategoryClassification,
+  splitBootstrapExpenses,
+} from "./category-agent";
 import { detectReceiptMime, signSession, verifySession } from "./security";
 import {
   calculateBalances,
@@ -143,6 +148,8 @@ test("neutralizes spreadsheet formulas in CSV exports", () => {
     notes: null,
     category: "other",
     category_label: "其他",
+    mirror_kind: null,
+    mirror_source_expense_id: null,
     amount_twd: 1,
     paid_by_user_id: "00000000-0000-4000-8000-000000000003",
     created_by_user_id: "00000000-0000-4000-8000-000000000003",
@@ -258,6 +265,95 @@ test("category analytics use free category labels instead of enum categories", (
     ["外食", 4301],
     ["捷運", 1200],
   ]);
+});
+
+test("group-aware category fallback keeps food groups coarse and parking specific", () => {
+  assert.deepEqual(
+    fallbackCategoryClassification({
+      description: "晚餐 漢堡",
+      groupName: "吃飽喝足",
+      fallbackCategory: "food",
+      history: [],
+    }),
+    {
+      category: "food",
+      categoryLabel: "餐飲",
+      confidence: 0.85,
+      reason: "food group",
+    },
+  );
+  assert.deepEqual(
+    fallbackCategoryClassification({
+      description: "阿提斯 停車費",
+      groupName: "阿提斯",
+      fallbackCategory: "other",
+      history: [],
+    }),
+    {
+      category: "transport",
+      categoryLabel: "停車費",
+      confidence: 0.9,
+      reason: "parking",
+    },
+  );
+});
+
+test("shared expense private mirror records only the requester split", () => {
+  assert.deepEqual(
+    buildPrivateMirrorDraft({
+      sourceExpenseId: "shared-1",
+      requesterUserId: OWNER,
+      description: "晚餐",
+      merchant: null,
+      notes: null,
+      category: "food",
+      categoryLabel: "餐飲",
+      expenseDate: "2026-06-24",
+      splits: { [OWNER]: 300, [PARTNER]: 300 },
+      deletedAt: null,
+    }),
+    {
+      ledger: "private",
+      groupId: null,
+      mirrorKind: "shared_share",
+      mirrorSourceExpenseId: "shared-1",
+      description: "晚餐",
+      merchant: null,
+      notes: null,
+      category: "food",
+      categoryLabel: "餐飲",
+      amountTwd: 300,
+      paidByUserId: OWNER,
+      createdByUserId: OWNER,
+      expenseDate: "2026-06-24",
+      splitMethod: "equal",
+      splits: { [OWNER]: 300 },
+      deletedAt: null,
+    },
+  );
+  assert.equal(
+    buildPrivateMirrorDraft({
+      sourceExpenseId: "shared-1",
+      requesterUserId: OWNER,
+      description: "晚餐",
+      merchant: null,
+      notes: null,
+      category: "food",
+      categoryLabel: "餐飲",
+      expenseDate: "2026-06-24",
+      splits: { [OWNER]: 0, [PARTNER]: 600 },
+      deletedAt: null,
+    }),
+    null,
+  );
+});
+
+test("bootstrap expense split keeps shared groups and private ledger separate", () => {
+  const shared = appExpense("shared", 600, OWNER, "2026-06-24", GROUP, "餐飲");
+  const privateExpense = appExpense("private", 300, OWNER, "2026-06-24", null, "餐飲");
+  const result = splitBootstrapExpenses([shared, privateExpense], GROUP, OWNER);
+  assert.deepEqual(result.sharedExpenses.map((item) => item.id), [shared.id]);
+  assert.deepEqual(result.privateExpenses.map((item) => item.id), [privateExpense.id]);
 });
 
 test("batch category cleanup only updates accessible current expenses", () => {
@@ -552,5 +648,37 @@ function agentExpense(
     expense_date: expenseDate,
     version,
     deleted_at: null,
+  };
+}
+
+function appExpense(
+  ledger: "shared" | "private",
+  amountTwd: number,
+  createdByUserId: string,
+  expenseDate: string,
+  groupId: string | null,
+  categoryLabel: string,
+): AppExpense {
+  return {
+    id: `10000000-0000-4000-8000-${String(amountTwd).padStart(12, "0")}`,
+    group_id: groupId,
+    ledger,
+    description: categoryLabel,
+    merchant: null,
+    notes: null,
+    category: ledger === "shared" ? "food" : "other",
+    category_label: categoryLabel,
+    mirror_kind: null,
+    mirror_source_expense_id: null,
+    amount_twd: amountTwd,
+    paid_by_user_id: createdByUserId,
+    created_by_user_id: createdByUserId,
+    expense_date: expenseDate,
+    split_method: "equal",
+    version: 1,
+    deleted_at: null,
+    created_at: `${expenseDate}T00:00:00Z`,
+    expense_splits: [{ user_id: createdByUserId, amount_twd: amountTwd }],
+    receipts: [],
   };
 }

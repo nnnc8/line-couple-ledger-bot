@@ -84,6 +84,10 @@ test("mobile dashboard, history, and confirmed expense flow", async ({
   await expect(page.getByRole("heading", { name: "帳務流水" })).toBeVisible();
   await expect(page.getByText("晚餐", { exact: true })).toBeVisible();
 
+  await page.getByRole("button", { name: /私人/ }).click();
+  await expect(page.getByRole("heading", { name: "私人帳" })).toBeVisible();
+  await expect(page.getByText("共同分攤")).toBeVisible();
+
   await page.getByRole("button", { name: /新增/ }).click();
   await page.getByLabel("說明").fill("晚餐");
   await page.getByLabel("金額（TWD）").fill("860");
@@ -127,6 +131,8 @@ function bootstrap() {
     notes: null,
     category: "food",
     category_label: "晚餐",
+    mirror_kind: null,
+    mirror_source_expense_id: null,
     amount_twd: 860,
     paid_by_user_id: OWNER,
     created_by_user_id: OWNER,
@@ -140,6 +146,19 @@ function bootstrap() {
       { user_id: PARTNER, amount_twd: 430 },
     ],
     receipts: [],
+  };
+  const privateExpense = {
+    ...expense,
+    id: "00000000-0000-4000-8000-000000000011",
+    group_id: null,
+    ledger: "private",
+    category_label: "餐飲",
+    amount_twd: 430,
+    paid_by_user_id: OWNER,
+    created_by_user_id: OWNER,
+    mirror_kind: "shared_share",
+    mirror_source_expense_id: expense.id,
+    expense_splits: [{ user_id: OWNER, amount_twd: 430 }],
   };
   return {
     today: "2026-06-22",
@@ -159,7 +178,9 @@ function bootstrap() {
       },
     ],
     activeGroupId: GROUP,
-    expenses: [expense],
+    expenses: [expense, privateExpense],
+    sharedExpenses: [expense],
+    privateExpenses: [privateExpense],
     balances: [
       { user_id: OWNER, balance_twd: 430 },
       { user_id: PARTNER, balance_twd: -430 },
@@ -198,6 +219,30 @@ function bootstrap() {
         { month: "2026-06", totalTwd: 1060 },
       ],
       recent: [expense],
+    },
+    privateDashboard: {
+      monthlyTotalTwd: 430,
+      monthlyCount: 1,
+      categoryTotals: {
+        food: 430,
+        transport: 0,
+        groceries: 0,
+        household: 0,
+        entertainment: 0,
+        shopping: 0,
+        medical: 0,
+        travel: 0,
+        other: 0,
+      },
+      trend: [
+        { month: "2026-01", totalTwd: 0 },
+        { month: "2026-02", totalTwd: 0 },
+        { month: "2026-03", totalTwd: 0 },
+        { month: "2026-04", totalTwd: 0 },
+        { month: "2026-05", totalTwd: 0 },
+        { month: "2026-06", totalTwd: 430 },
+      ],
+      recent: [privateExpense],
     },
   };
 }
