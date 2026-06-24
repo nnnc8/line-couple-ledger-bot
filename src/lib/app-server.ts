@@ -124,6 +124,24 @@ const accountantReportRowSchema = z.object({
   source: z.enum(["llm", "fallback"]),
   created_at: z.string(),
 });
+const agentLlmAnswerSchema = z
+  .object({
+    answer: z.string().trim().min(1).max(1_800),
+    facts: z
+      .object({
+        totalTwd: z.number().int().min(0),
+        transactionCount: z.number().int().min(0),
+        topCategoryLabel: z.string().trim().min(1).max(40).nullable(),
+        topCategoryTotalTwd: z.number().int().min(0).nullable(),
+      })
+      .strict(),
+  })
+  .strict();
+const geminiAgentAnswerJsonSchema = Object.fromEntries(
+  Object.entries(z.toJSONSchema(agentLlmAnswerSchema)).filter(
+    ([key]) => key !== "$schema",
+  ),
+);
 
 export type AppUser = z.infer<typeof userSchema>;
 export type AppExpense = z.infer<typeof expenseSchema>;
@@ -496,7 +514,7 @@ export async function runAgent(context: ServerContext, input: unknown) {
       result: cleanupUpdates,
     });
   }
-  const answer = buildAgentAnswer({
+  const fallbackAnswer = buildAgentAnswer({
     message: request.message,
     scope,
     timeRange: request.timeRange,
@@ -505,6 +523,20 @@ export async function runAgent(context: ServerContext, input: unknown) {
     duplicateCount: duplicates.length,
     cleanupCount: cleanupUpdates.length,
   });
+  const answered = await answerWithGemini(
+    context,
+    {
+      message: request.message,
+      scope,
+      timeRange: request.timeRange,
+      aggregate,
+      categories,
+      duplicateCount: duplicates.length,
+      cleanupCount: cleanupUpdates.length,
+    },
+    fallbackAnswer,
+  );
+  const answer = answered.answer;
   const suggestions = cleanupUpdates.length
     ? [
         {
@@ -542,7 +574,7 @@ export async function runAgent(context: ServerContext, input: unknown) {
       },
       findings: buildAgentFindings(categories, duplicates.length),
       suggestions,
-      source: "fallback",
+      source: answered.source,
       dedupe_key: `agent:${randomUUID()}`,
     })
     .select(accountantReportSelect())
@@ -925,6 +957,65 @@ function toAgentExpense(expense: AppExpense): AgentExpense {
     version: expense.version,
     deleted_at: expense.deleted_at,
   };
+}
+
+async function answerWithGemini(
+  context: ServerContext,
+  input: {
+    message: string;
+    scope: AgentScope;
+    timeRange: AgentTimeRange;
+    aggregate: ReturnType<typeof aggregateAgentExpenses>;
+    categories: ReturnType<typeof rankCategoryLabels>;
+    duplicateCount: number;
+    cleanupCount: number;
+  },
+  fallbackAnswer: string,
+): Promise<{ answer: string; source: "llm" | "fallback" }> {
+  const expectedFacts = {
+    totalTwd: input.aggregate.totalTwd,
+    transactionCount: input.aggregate.transactionCount,
+    topCategoryLabel: input.categories[0]?.label ?? null,
+    topCategoryTotalTwd: input.categories[0]?.totalTwd ?? null,
+  };
+  try {
+    const gemini = new GoogleGenAI({ apiKey: context.env.GEMINI_API_KEY });
+    const response = await gemini.models.generateContent({
+      model: MODEL,
+      contents: JSON.stringify({
+        question: input.message,
+        scope: input.scope,
+        timeRange: input.timeRange,
+        facts: expectedFacts,
+        aggregate: input.aggregate,
+        categoryRanking: input.categories.slice(0, 10),
+        duplicateCount: input.duplicateCount,
+        cleanupCount: input.cleanupCount,
+      }),
+      config: {
+        systemInstruction:
+          "你是帳務專用 AI 會計師的回覆層。只能根據提供的工具結果回答；不能新增金額、不能假設不存在的帳務、不能要求使用者打開 LIFF 才知道答案。facts 必須逐字等於輸入 facts。若有操作建議，只能描述需使用者確認。",
+        responseMimeType: "application/json",
+        responseJsonSchema: geminiAgentAnswerJsonSchema,
+        temperature: 0.2,
+        maxOutputTokens: 900,
+      },
+    });
+    const parsed = agentLlmAnswerSchema.parse(
+      JSON.parse(response.text ?? "{}"),
+    );
+    if (
+      parsed.facts.totalTwd !== expectedFacts.totalTwd ||
+      parsed.facts.transactionCount !== expectedFacts.transactionCount ||
+      parsed.facts.topCategoryLabel !== expectedFacts.topCategoryLabel ||
+      parsed.facts.topCategoryTotalTwd !== expectedFacts.topCategoryTotalTwd
+    ) {
+      return { answer: fallbackAnswer, source: "fallback" };
+    }
+    return { answer: parsed.answer, source: "llm" };
+  } catch {
+    return { answer: fallbackAnswer, source: "fallback" };
+  }
 }
 
 function buildAgentAnswer(input: {
