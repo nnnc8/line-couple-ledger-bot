@@ -33,6 +33,30 @@ export const parsedIntentBaseSchema = z
   })
   .strict();
 
+export const parsedExpenseItemSchema = z
+  .object({
+    description: z.string().trim().min(1).max(100),
+    amountTwd: z.number().int().positive().max(100_000_000),
+    ledger: z.enum(["shared", "private"]),
+    paidBy: z.enum(["self", "partner"]),
+    expenseDate: z.iso.date(),
+    category: z.enum(categories),
+  })
+  .strict();
+
+export const textParseSchema = z.discriminatedUnion("intent", [
+  z
+    .object({
+      intent: z.literal("record_expenses"),
+      groupName: z.string().trim().min(1).max(40).nullable().default(null),
+      expenses: z.array(parsedExpenseItemSchema).min(1).max(5),
+    })
+    .strict(),
+  parsedIntentBaseSchema.extend({
+    groupName: z.string().trim().min(1).max(40).nullable().default(null),
+  }),
+]);
+
 export const parsedIntentSchema = parsedIntentBaseSchema.superRefine(
   (value, context) => {
     if (value.intent !== "record_expense") return;
@@ -60,8 +84,16 @@ export const geminiIntentJsonSchema = Object.fromEntries(
     ([key]) => key !== "$schema",
   ),
 );
+export const geminiTextParseJsonSchema = Object.fromEntries(
+  Object.entries(z.toJSONSchema(textParseSchema)).filter(
+    ([key]) => key !== "$schema",
+  ),
+);
+export const geminiTextParseSchema = geminiTextParseJsonSchema;
 
 export type ParsedIntent = z.infer<typeof parsedIntentSchema>;
+export type ParsedExpenseItem = z.infer<typeof parsedExpenseItemSchema>;
+export type TextParseResult = z.infer<typeof textParseSchema>;
 export type Category = (typeof categories)[number];
 export type LedgerType = "shared" | "private";
 export type SplitMethod = "equal" | "exact" | "percentage";

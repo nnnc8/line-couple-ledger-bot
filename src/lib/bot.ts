@@ -11,12 +11,14 @@ import {
 } from "./app-server";
 import {
   calculateBalances,
-  geminiIntentJsonSchema,
+  geminiTextParseJsonSchema,
   monthlySummary,
-  parsedIntentSchema,
+  textParseSchema,
   type LedgerExpense,
+  type ParsedExpenseItem,
   type ParsedIntent,
   type Settlement,
+  type TextParseResult,
 } from "./ledger";
 import { safeSecretEqual } from "./security";
 
@@ -142,6 +144,53 @@ export function parseFixedIntent(text: string): ParsedIntent | null {
   return intent ? emptyIntent(intent) : null;
 }
 
+export function parseInlineExpenseItems(
+  text: string,
+  today: string,
+): ParsedIntent[] {
+  const matches = [
+    ...text.matchAll(/(\d{1,9})\s*(?:元|塊|nt\$?)?\s*(我付|你付|他付|她付)/giu),
+  ];
+  if (matches.length < 2) return [];
+  let cursor = 0;
+  return matches.slice(0, 5).flatMap((match) => {
+    const index = match.index ?? 0;
+    const description = cleanInlineDescription(text.slice(cursor, index));
+    cursor = index + match[0].length;
+    const amountTwd = Number(match[1]);
+    if (!description || !Number.isSafeInteger(amountTwd) || amountTwd <= 0)
+      return [];
+    return [
+      {
+        intent: "record_expense",
+        description,
+        amountTwd,
+        ledger: /私人/.test(text) ? "private" : "shared",
+        paidBy: match[2] === "我付" ? "self" : "partner",
+        expenseDate: today,
+        category: inferInlineCategory(`${text} ${description}`),
+      } satisfies ParsedIntent,
+    ];
+  });
+}
+
+export function selectMentionedGroup<T extends { id: string; name: string }>(
+  text: string,
+  groups: T[],
+  activeGroupId: string,
+): T | null {
+  const normalizedText = normalizeGroupText(text);
+  const mentioned = groups
+    .filter((group) => normalizedText.includes(normalizeGroupText(group.name)))
+    .sort((left, right) => right.name.length - left.name.length);
+  return (
+    mentioned[0] ??
+    groups.find((group) => group.id === activeGroupId) ??
+    groups[0] ??
+    null
+  );
+}
+
 async function handleText(
   text: string,
   eventId: string,
@@ -175,13 +224,32 @@ async function handleText(
     return;
   }
 
-  const parsed =
-    parseFixedIntent(text) ??
-    (await parseWithGemini(text, currentTaipeiDate(), dependencies.gemini));
+  const fixedIntent = parseFixedIntent(text);
+  const parsed: TextParseResult = fixedIntent
+    ? { ...fixedIntent, groupName: null }
+    : await parseWithGemini(text, currentTaipeiDate(), dependencies.gemini);
+
+  if (parsed.intent === "record_expenses") {
+    await proposeExpenses(
+      parsed.expenses,
+      eventId,
+      user,
+      replyToken,
+      dependencies,
+      parsed.groupName ?? text,
+    );
+    return;
+  }
+
+  const inlineExpenses = parseInlineExpenseItems(text, currentTaipeiDate());
+  if (inlineExpenses.length > 1) {
+    await proposeExpenses(inlineExpenses, eventId, user, replyToken, dependencies, text);
+    return;
+  }
 
   switch (parsed.intent) {
     case "record_expense":
-      await proposeExpense(parsed, eventId, user, replyToken, dependencies);
+      await proposeExpense(parsed, eventId, user, replyToken, dependencies, text);
       return;
     case "balance":
       await replyBalance(user, replyToken, dependencies);
@@ -265,23 +333,23 @@ async function parseWithGemini(
   text: string,
   today: string,
   gemini: GoogleGenAI,
-): Promise<ParsedIntent> {
+): Promise<TextParseResult> {
   const response = await gemini.models.generateContent({
     model: MODEL,
     contents: text,
     config: {
-      systemInstruction: `你是台灣情侶分帳 Bot 的文字解析器。今天是 ${today}（Asia/Taipei）。只分類意圖與抽取欄位，不計算分帳、不決定權限。record_expense 預設 ledger=shared、paidBy=self、expenseDate=${today}、category=other；只有明確說私人時才用 private。金額缺失或矛盾時回 unknown。`,
+      systemInstruction: `你是台灣情侶分帳 Bot 的文字解析器。今天是 ${today}（Asia/Taipei）。把自然語言轉成結構化 JSON，不計算分帳、不決定權限、不寫資料庫。可從一句話抽多筆支出；兩筆以上用 record_expenses。可抽 groupName，例如使用者提到「吃飽喝足」「旅遊」等帳本/群組名稱。支出預設 ledger=shared、paidBy=self、expenseDate=${today}、category=other；只有明確說私人時才用 private。付款人：「我付」=self，「你付/他付/她付/另一半付」=partner。金額缺失或矛盾時回 unknown。`,
       responseMimeType: "application/json",
-      responseJsonSchema: geminiIntentJsonSchema,
+      responseJsonSchema: geminiTextParseJsonSchema,
       temperature: 0,
-      maxOutputTokens: 300,
+      maxOutputTokens: 700,
     },
   });
-  if (!response.text) return emptyIntent("unknown");
+  if (!response.text) return emptyTextIntent("unknown");
   try {
-    return parsedIntentSchema.parse(JSON.parse(response.text));
+    return textParseSchema.parse(JSON.parse(response.text));
   } catch {
-    return emptyIntent("unknown");
+    return emptyTextIntent("unknown");
   }
 }
 
@@ -291,6 +359,7 @@ async function proposeExpense(
   user: UserRow,
   replyToken: string,
   dependencies: BotDependencies,
+  sourceText = "",
 ): Promise<void> {
   if (
     parsed.intent !== "record_expense" ||
@@ -315,7 +384,10 @@ async function proposeExpense(
     return;
   }
   const paidByUserId = parsed.paidBy === "self" ? user.id : partner.id;
-  const activeGroup = parsed.ledger === "shared" ? await findActiveGroup(dependencies.supabase, user) : null;
+  const activeGroup =
+    parsed.ledger === "shared"
+      ? await findTargetGroup(dependencies.supabase, user, sourceText)
+      : null;
   const actionId = await createPendingAction(
     dependencies.supabase,
     user,
@@ -345,6 +417,69 @@ async function proposeExpense(
   );
 }
 
+async function proposeExpenses(
+  items: Array<ParsedIntent | ParsedExpenseItem>,
+  eventId: string,
+  user: UserRow,
+  replyToken: string,
+  dependencies: BotDependencies,
+  sourceText: string,
+): Promise<void> {
+  const users = await listUsers(dependencies.supabase);
+  const partner = users.find((candidate) => candidate.id !== user.id);
+  if (!partner) {
+    await replyText(dependencies.lineClient, replyToken, "請先讓另一半加入帳本。");
+    return;
+  }
+  const activeGroup = await findTargetGroup(dependencies.supabase, user, sourceText);
+  const actions: Array<{ id: string; item: ParsedIntent | ParsedExpenseItem; paidByUserId: string }> = [];
+  for (const [index, item] of items.entries()) {
+    if (
+      ("intent" in item && item.intent !== "record_expense") ||
+      item.description === null ||
+      item.amountTwd === null ||
+      item.paidBy === null ||
+      item.expenseDate === null ||
+      item.category === null ||
+      item.ledger !== "shared"
+    ) {
+      await replyText(dependencies.lineClient, replyToken, "多筆記帳目前只支援共同帳。");
+      return;
+    }
+    const paidByUserId = item.paidBy === "self" ? user.id : partner.id;
+    const id = await createPendingAction(
+      dependencies.supabase,
+      user,
+      "create_expense",
+      `${eventId}:${index}`,
+      {
+        ledger: "shared",
+        group_id: activeGroup.id,
+        description: item.description,
+        amount_twd: item.amountTwd,
+        paid_by_user_id: paidByUserId,
+        expense_date: item.expenseDate,
+        category: item.category,
+        category_label: lineCategoryLabel(item.description, item.category),
+      },
+      activeGroup.id,
+    );
+    actions.push({ id, item, paidByUserId });
+  }
+  await replyBatchConfirmation(
+    dependencies.lineClient,
+    replyToken,
+    actions.map((action) => action.id),
+    [
+      `確認記帳？${activeGroup.name} 共 ${actions.length} 筆`,
+      ...actions.map(
+        ({ item, paidByUserId }) =>
+          `${item.description} NT$${item.amountTwd}｜${paidByUserId === user.id ? "你" : "另一半"}付`,
+      ),
+    ].join("\n"),
+  );
+}
+
 function lineCategoryLabel(description: string, category: string) {
   const cleaned = description
     .normalize("NFKC")
@@ -356,6 +491,24 @@ function lineCategoryLabel(description: string, category: string) {
     .slice(0, 40);
   if (cleaned) return cleaned;
   return category;
+}
+
+function cleanInlineDescription(value: string) {
+  return value
+    .replace(/[，,。.!！?？|｜]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 100);
+}
+
+function inferInlineCategory(text: string): ParsedIntent["category"] {
+  return /早餐|午餐|晚餐|宵夜|餐|吃|喝|咖啡|飲料|漢堡|便當|火鍋|越南|拉麵|麵|飯|披薩|甜點/.test(
+    text,
+  )
+    ? "food"
+    : /車|捷運|高鐵|火車|公車|計程車|uber|停車|加油|交通/.test(text)
+      ? "transport"
+      : "other";
 }
 
 async function proposeDelete(
@@ -487,27 +640,37 @@ async function handlePostback(
 ): Promise<void> {
   const parameters = new URLSearchParams(event.postback.data);
   const actionId = parameters.get("id");
+  const actionIds = parameters.get("ids")?.split(",").filter(Boolean) ?? [];
   const decision = parameters.get("decision");
-  if (!actionId || !z.string().uuid().safeParse(actionId).success || !["confirm", "cancel"].includes(decision ?? "")) {
+  if (
+    !["confirm", "cancel"].includes(decision ?? "") ||
+    (!actionId && !actionIds.length) ||
+    (actionId && !z.string().uuid().safeParse(actionId).success) ||
+    actionIds.some((id) => !z.string().uuid().safeParse(id).success)
+  ) {
     await replyText(dependencies.lineClient, replyToken, "這個操作無效。");
     return;
   }
-  const { data, error } = await dependencies.supabase.rpc("confirm_pending_action", {
-    p_action_id: actionId,
-    p_line_user_id: lineUserId,
-    p_confirm: decision === "confirm",
-  });
-  if (error) throw new Error("confirm_pending_action failed");
-  const result = actionResultSchema.parse(data);
-  if (result.result === "confirmed") {
-    const user = await findUser(dependencies.supabase, lineUserId);
-    if (user) {
-      await applyConfirmedActionSideEffects(
-        { env: serverEnvironment(), db: dependencies.supabase, user },
-        actionId,
+  if (actionIds.length) {
+    const results = [];
+    for (const id of actionIds) {
+      results.push(
+        await confirmOneAction(id, decision === "confirm", lineUserId, dependencies),
       );
     }
+    const confirmed = results.filter((result) => result.result === "confirmed").length;
+    await replyText(
+      dependencies.lineClient,
+      replyToken,
+      decision === "confirm"
+        ? confirmed === results.length
+          ? `已記帳 ${confirmed} 筆。`
+          : `已記帳 ${confirmed} 筆，${results.length - confirmed} 筆未完成。`
+        : "已取消。",
+    );
+    return;
   }
+  const result = await confirmOneAction(actionId!, decision === "confirm", lineUserId, dependencies);
   const messages: Record<typeof result.result, string> = {
     confirmed:
       result.action_type === "create_expense"
@@ -524,6 +687,31 @@ async function handlePostback(
     already_done: "這個操作已處理。",
   };
   await replyText(dependencies.lineClient, replyToken, messages[result.result]);
+}
+
+async function confirmOneAction(
+  actionId: string,
+  confirm: boolean,
+  lineUserId: string,
+  dependencies: BotDependencies,
+) {
+  const { data, error } = await dependencies.supabase.rpc("confirm_pending_action", {
+    p_action_id: actionId,
+    p_line_user_id: lineUserId,
+    p_confirm: confirm,
+  });
+  if (error) throw new Error("confirm_pending_action failed");
+  const result = actionResultSchema.parse(data);
+  if (result.result === "confirmed") {
+    const user = await findUser(dependencies.supabase, lineUserId);
+    if (user) {
+      await applyConfirmedActionSideEffects(
+        { env: serverEnvironment(), db: dependencies.supabase, user },
+        actionId,
+      );
+    }
+  }
+  return result;
 }
 
 async function findUser(
@@ -639,6 +827,43 @@ async function findActiveGroup(
   return { id: parsed.groups.id, name: parsed.groups.name };
 }
 
+async function findTargetGroup(
+  supabase: SupabaseClient,
+  user: UserRow,
+  sourceText: string,
+): Promise<{ id: string; name: string }> {
+  const [preference, groupsResult] = await Promise.all([
+    supabase
+      .from("user_preferences")
+      .select("active_group_id")
+      .eq("user_id", user.id)
+      .single(),
+    supabase
+      .from("groups")
+      .select("id, name")
+      .eq("couple_id", user.couple_id)
+      .is("archived_at", null),
+  ]);
+  if (preference.error || groupsResult.error)
+    throw new Error("target group lookup failed");
+  const activeGroupId = z
+    .object({ active_group_id: z.string().uuid() })
+    .parse(preference.data).active_group_id;
+  const groups = z
+    .array(z.object({ id: z.string().uuid(), name: z.string() }))
+    .parse(groupsResult.data);
+  const selected = selectMentionedGroup(sourceText, groups, activeGroupId);
+  if (!selected) throw new Error("active group unavailable");
+  return selected;
+}
+
+function normalizeGroupText(value: string) {
+  return value
+    .normalize("NFKC")
+    .toLowerCase()
+    .replace(/[^\p{Letter}\p{Number}]+/gu, "");
+}
+
 function toLedgerExpense(row: z.infer<typeof expenseRowSchema>): LedgerExpense {
   return {
     id: row.id,
@@ -700,6 +925,42 @@ async function replyConfirmation(
   await lineClient.replyMessage({ replyToken, messages: [message] });
 }
 
+async function replyBatchConfirmation(
+  lineClient: Pick<LineBotClient, "replyMessage">,
+  replyToken: string,
+  actionIds: string[],
+  text: string,
+): Promise<void> {
+  const ids = actionIds.join(",");
+  const message: messagingApi.TextMessage = {
+    type: "text",
+    text,
+    quickReply: {
+      items: [
+        {
+          type: "action",
+          action: {
+            type: "postback",
+            label: "確認全部",
+            data: `decision=confirm&ids=${ids}`,
+            displayText: "確認全部",
+          },
+        },
+        {
+          type: "action",
+          action: {
+            type: "postback",
+            label: "取消全部",
+            data: `decision=cancel&ids=${ids}`,
+            displayText: "取消全部",
+          },
+        },
+      ],
+    },
+  };
+  await lineClient.replyMessage({ replyToken, messages: [message] });
+}
+
 function emptyIntent(intent: ParsedIntent["intent"]): ParsedIntent {
   return {
     intent,
@@ -710,6 +971,10 @@ function emptyIntent(intent: ParsedIntent["intent"]): ParsedIntent {
     expenseDate: null,
     category: null,
   };
+}
+
+function emptyTextIntent(intent: ParsedIntent["intent"]): TextParseResult {
+  return { ...emptyIntent(intent), groupName: null };
 }
 
 function currentTaipeiDate(): string {

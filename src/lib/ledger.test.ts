@@ -1,7 +1,12 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { parseFixedIntent, safeSecretEqual } from "./bot";
+import {
+  parseFixedIntent,
+  parseInlineExpenseItems,
+  safeSecretEqual,
+  selectMentionedGroup,
+} from "./bot";
 import { expensesCsv, type AppExpense } from "./app-server";
 import {
   accountantFactsMatch,
@@ -22,10 +27,12 @@ import {
   calculateBalances,
   crossedBudgetThresholds,
   geminiIntentJsonSchema,
+  geminiTextParseSchema,
   learnCategoryFromHistory,
   monthlySummary,
   nextRecurringDate,
   parsedIntentSchema,
+  textParseSchema,
   receiptExtractionSchema,
   splitEqual,
   splitExact,
@@ -56,6 +63,40 @@ test("routes accountant commands before the expense parser", () => {
     scope: "private",
   });
   assert.equal(parseAccountantCommand("晚餐 860 我付"), null);
+});
+
+test("parses multiple inline LINE expenses before falling back to Gemini", () => {
+  const items = parseInlineExpenseItems(
+    "晚餐 漢堡 95我付 越南290你付 吃飽喝足",
+    "2026-06-24",
+  );
+
+  assert.deepEqual(
+    items.map((item) => ({
+      description: item.description,
+      amountTwd: item.amountTwd,
+      paidBy: item.paidBy,
+      category: item.category,
+    })),
+    [
+      { description: "晚餐 漢堡", amountTwd: 95, paidBy: "self", category: "food" },
+      { description: "越南", amountTwd: 290, paidBy: "partner", category: "food" },
+    ],
+  );
+});
+
+test("selects a mentioned LINE group instead of the active group", () => {
+  assert.equal(
+    selectMentionedGroup(
+      "晚餐 漢堡 95我付 越南290你付 吃飽喝足",
+      [
+        { id: "active", name: "阿提斯" },
+        { id: "food", name: "吃飽喝足" },
+      ],
+      "active",
+    )?.id,
+    "food",
+  );
 });
 
 test("ledger agent treats historical maximum questions as all-history queries", () => {
@@ -412,6 +453,35 @@ test("rejects malformed Gemini structured output", () => {
 
 test("Gemini JSON schema only contains supported top-level keys", () => {
   assert.equal("$schema" in geminiIntentJsonSchema, false);
+  assert.equal("$schema" in geminiTextParseSchema, false);
+});
+
+test("accepts natural language parser output with multiple expenses and group hint", () => {
+  const parsed = textParseSchema.parse({
+    intent: "record_expenses",
+    groupName: "吃飽喝足",
+    expenses: [
+      {
+        description: "晚餐 漢堡",
+        amountTwd: 95,
+        ledger: "shared",
+        paidBy: "self",
+        expenseDate: "2026-06-24",
+        category: "food",
+      },
+      {
+        description: "越南料理",
+        amountTwd: 290,
+        ledger: "shared",
+        paidBy: "partner",
+        expenseDate: "2026-06-24",
+        category: "food",
+      },
+    ],
+  });
+  assert.equal(parsed.intent, "record_expenses");
+  assert.equal(parsed.groupName, "吃飽喝足");
+  assert.equal(parsed.expenses.length, 2);
 });
 
 function expense(
