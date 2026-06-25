@@ -76,7 +76,22 @@ type Bootstrap = {
   }>;
   dashboard: DashboardData;
   privateDashboard: DashboardData;
+  projection: ProjectionData;
 };
+
+type ProjectionData = {
+  daysElapsed: number;
+  daysTotal: number;
+  spentSoFar: number;
+  projectedTotal: number;
+  categoryProjections: Array<{
+    category: string | null;
+    spentSoFar: number;
+    projectedTotal: number;
+    budget: number;
+    projectedOverrun: number;
+  }>;
+} | null;
 type AccountantReport = {
   id: string;
   report_type: string;
@@ -119,13 +134,7 @@ type CategoryAnalytics = {
     percent: number;
   }>;
 };
-type AgentRun = {
-  answer: string;
-  reportId: string;
-  toolCalls: Array<{ tool: string; count?: number; result?: unknown }>;
-  suggestions: AccountantReport["suggestions"];
-  report: AccountantReport;
-};
+
 type ExpenseForm = {
   ledger: "shared" | "private";
   description: string;
@@ -323,21 +332,36 @@ export default function Home() {
 
   useEffect(() => {
     if (!data) return;
-    const receiptId = new URLSearchParams(window.location.search).get(
-      "receipt",
-    );
-    if (!receiptId) return;
-    void fetch(`/api/app/receipts/${receiptId}`)
-      .then(parseResponse)
-      .then((receipt) => {
-        sessionStorage.setItem("receiptDraft", JSON.stringify(receipt));
-        sessionStorage.removeItem("editExpense");
+    const params = new URLSearchParams(window.location.search);
+    const receiptId = params.get("receipt");
+    if (receiptId) {
+      void fetch(`/api/app/receipts/${receiptId}`)
+        .then(parseResponse)
+        .then((receipt) => {
+          sessionStorage.setItem("receiptDraft", JSON.stringify(receipt));
+          sessionStorage.removeItem("editExpense");
+          history.replaceState(null, "", "/");
+          setTab("add");
+        })
+        .catch((reason) =>
+          setError(reason instanceof Error ? reason.message : "無法讀取收據"),
+        );
+      return;
+    }
+    const editId = params.get("edit");
+    if (editId) {
+      const expense =
+        data.expenses.find((e) => e.id === editId) ||
+        data.sharedExpenses.find((e) => e.id === editId) ||
+        data.privateExpenses.find((e) => e.id === editId);
+      if (expense) {
+        sessionStorage.setItem("editExpense", JSON.stringify(expense));
+        sessionStorage.removeItem("receiptDraft");
         history.replaceState(null, "", "/");
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setTab("add");
-      })
-      .catch((reason) =>
-        setError(reason instanceof Error ? reason.message : "無法讀取收據"),
-      );
+      }
+    }
   }, [data]);
 
   const startLiff = useCallback(async () => {
@@ -583,6 +607,7 @@ export default function Home() {
             onRead={() =>
               void mutate("/api/app/notifications/read", {}, "已標示為已讀")
             }
+            onPropose={(confirmData) => setConfirm(confirmData as { actionId: string; preview: string })}
           />
         )}
       </section>
@@ -712,6 +737,71 @@ export default function Home() {
   }
 }
 
+function ProjectionWidget({
+  projection,
+  budgets,
+}: {
+  projection: ProjectionData;
+  budgets: Bootstrap["budgets"];
+}) {
+  if (!projection) return null;
+  const { daysElapsed, spentSoFar, projectedTotal, categoryProjections } = projection;
+  if (daysElapsed < 4) return null;
+
+  // Find total budget
+  const totalBudgetRow = budgets.find((b) => b.category === null);
+  const totalBudget = totalBudgetRow ? Number(totalBudgetRow.limit_twd) : 0;
+  const totalOverrun = totalBudget > 0 ? projectedTotal - totalBudget : 0;
+
+  // Find category overruns
+  const overruns = categoryProjections.filter((cp) => cp.projectedOverrun > 0);
+
+  return (
+    <article className="panel projection-widget">
+      <div className="panel-title">
+        <div>
+          <span className="eyebrow">本月花費線性外推預估</span>
+          <h2>月底收支預估 📊</h2>
+        </div>
+      </div>
+      
+      <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+        <div>
+          已花 <strong>{money(spentSoFar)}</strong> ／ 預估月底 <strong>{money(projectedTotal)}</strong>
+          {totalBudget > 0 && (
+            <div style={{ marginTop: "0.25rem", fontSize: "14px" }}>
+              {totalOverrun > 0 ? (
+                <span style={{ color: "var(--danger)", fontWeight: "bold" }}>
+                  ⚠️ 預估超支 {money(totalOverrun)} (預算 {money(totalBudget)})
+                </span>
+              ) : (
+                <span style={{ color: "#10b981", fontWeight: "bold" }}>
+                  ✅ 預估在預算內 (剩餘空間約 {money(totalBudget - projectedTotal)})
+                </span>
+              )}
+            </div>
+          )}
+        </div>
+
+        {overruns.length > 0 && (
+          <div style={{ borderTop: "1px solid var(--border)", paddingTop: "0.5rem" }}>
+            <span className="eyebrow" style={{ color: "var(--danger)" }}>⚠️ 類別超支預警</span>
+            <ul style={{ margin: "0.25rem 0 0 0", paddingLeft: "1.25rem", fontSize: "13px" }}>
+              {overruns.map((o) => (
+                <li key={o.category || "other"} style={{ margin: "0.2rem 0" }}>
+                  {o.category ? (categoryNames[o.category] || o.category) : "其他"}{" "}
+                  <strong>{money(o.spentSoFar)}</strong> → 預估月底 <strong>{money(o.projectedTotal)}</strong>{" "}
+                  <span style={{ color: "var(--danger)" }}>(預計超出 {money(o.projectedOverrun)})</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+      </div>
+    </article>
+  );
+}
+
 /* ─── Dashboard ─── */
 function Dashboard({
   data,
@@ -765,11 +855,11 @@ function Dashboard({
   const budget = data.budgets.find((item) => item.category === null);
   const budgetPercent = budget
     ? Math.min(
-        100,
-        Math.round(
-          (data.dashboard.monthlyTotalTwd / Number(budget.limit_twd)) * 100,
-        ),
-      )
+      100,
+      Math.round(
+        (data.dashboard.monthlyTotalTwd / Number(budget.limit_twd)) * 100,
+      ),
+    )
     : 0;
   const maxTrend = Math.max(
     1,
@@ -777,6 +867,7 @@ function Dashboard({
   );
   return (
     <div className="stack">
+      <ProjectionWidget projection={data.projection} budgets={data.budgets} />
       <article
         className="balance-card"
         style={{ "--group-color": activeGroup.color } as React.CSSProperties}
@@ -1352,7 +1443,26 @@ function ExpenseEditor({
         <button
           type="button"
           className={form.ledger === "private" ? "active" : ""}
-          onClick={() => update("ledger", "private")}
+          onClick={async () => {
+            if (editing && editing.ledger === "shared") {
+              setLocalError("");
+              try {
+                const res = await fetch(
+                  `/api/app/expenses/${editing.id}/check-settlement`
+                ).then((r) => r.json());
+                if (res && res.settled) {
+                  setLocalError(
+                    res.message ||
+                      "此帳已包含在結清紀錄中，無法改為私人帳。請先復原該筆結清才能修改。"
+                  );
+                  return;
+                }
+              } catch (err) {
+                console.error(err);
+              }
+            }
+            update("ledger", "private");
+          }}
         >
           👤 私人帳
         </button>
@@ -1462,6 +1572,25 @@ function ExpenseEditor({
       <button className="wide" disabled={busy || ocr}>
         {editing ? "預覽修改" : "預覽並確認"}
       </button>
+      {editing && (
+        <button
+          type="button"
+          className="wide text-button danger"
+          style={{ marginTop: "0.75rem", border: "1px solid var(--danger)", borderRadius: "var(--radius)" }}
+          disabled={busy || ocr}
+          onClick={() => {
+            if (confirm("確定要刪除這筆支出嗎？")) {
+              onSubmit({
+                type: "delete_expense",
+                expenseId: editing.id,
+                expectedVersion: editing.version,
+              });
+            }
+          }}
+        >
+          刪除此筆支出
+        </button>
+      )}
     </form>
   );
 }
@@ -1473,11 +1602,23 @@ function Accountant({
   onPropose(body: unknown): void;
 }) {
   const [reports, setReports] = useState<AccountantReport[]>([]);
-  const [question, setQuestion] = useState("歷史以來哪裡花最多？");
-  const [scope, setScope] = useState<AccountantReport["scope"]>("combined");
-  const [latestRun, setLatestRun] = useState<AgentRun | null>(null);
+  const [question, setQuestion] = useState("");
   const [loading, setLoading] = useState(false);
   const [localError, setLocalError] = useState("");
+
+  const [messages, setMessages] = useState<Array<{ role: "user" | "assistant"; content: string }>>(() => {
+    if (typeof window !== "undefined") {
+      const stored = sessionStorage.getItem("accountant_messages");
+      if (stored) return JSON.parse(stored);
+    }
+    return [];
+  });
+  const [sessionId, setSessionId] = useState<string | null>(() => {
+    if (typeof window !== "undefined") {
+      return sessionStorage.getItem("accountant_session_id");
+    }
+    return null;
+  });
 
   const promptSuggestions = [
     "本月哪裡花太多？",
@@ -1494,24 +1635,49 @@ function Accountant({
   }, []);
 
   useEffect(() => {
-    // This effect synchronizes the accountant tab with saved server reports.
     // eslint-disable-next-line react-hooks/set-state-in-effect
     void loadReports().catch((reason) =>
       setLocalError(reason instanceof Error ? reason.message : "無法讀取報告"),
     );
   }, [loadReports]);
 
+  // Save conversation state to sessionStorage
+  useEffect(() => {
+    sessionStorage.setItem("accountant_messages", JSON.stringify(messages));
+    if (sessionId) {
+      sessionStorage.setItem("accountant_session_id", sessionId);
+    } else {
+      sessionStorage.removeItem("accountant_session_id");
+    }
+  }, [messages, sessionId]);
+
   async function ask(event: React.FormEvent) {
     event.preventDefault();
+    const text = question.trim();
+    if (!text || loading) return;
+
     setLoading(true);
     setLocalError("");
+
+    const userMsg = { role: "user" as const, content: text };
+    setMessages((prev) => [...prev, userMsg]);
+    setQuestion("");
+
     try {
-      const run = (await api("/api/app/agent/runs", {
-        message: question,
-        scope,
-      })) as AgentRun;
-      setLatestRun(run);
-      setReports((current) => [run.report, ...current]);
+      const res = (await api("/api/app/accountant/chat", {
+        sessionId,
+        message: text,
+      })) as { sessionId: string; answer: string };
+
+      const replyMsg = { role: "assistant" as const, content: res.answer };
+
+      if (sessionId && res.sessionId !== sessionId) {
+        // Session expired and reset
+        setMessages([userMsg, replyMsg]);
+      } else {
+        setMessages((prev) => [...prev, replyMsg]);
+      }
+      setSessionId(res.sessionId);
     } catch (reason) {
       setLocalError(reason instanceof Error ? reason.message : "會計師暫時無法回覆");
     } finally {
@@ -1519,108 +1685,100 @@ function Accountant({
     }
   }
 
-  const latest = reports[0];
+  function formatChatMessage(text: string) {
+    let html = text.replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>");
+    html = html.replace(/(NT\$[0-9,]+)/g, "<strong>$1</strong>");
+    html = html.split("\n").join("<br />");
+    return <div dangerouslySetInnerHTML={{ __html: html }} />;
+  }
+
   return (
     <div className="stack">
-      <form className="panel form" onSubmit={ask}>
+      <article className="panel">
         <div className="panel-title">
           <div>
-            <span className="eyebrow">LINE 問快答 · LIFF 做整理</span>
-            <h2>AI 會計師</h2>
+            <span className="eyebrow">LINE 多輪問答 · 智慧記帳</span>
+            <h2>AI 會計師對話</h2>
           </div>
         </div>
-        <div className="prompt-chips">
-          {promptSuggestions.map((prompt) => (
-            <button
-              key={prompt}
-              type="button"
-              className="prompt-chip"
-              onClick={() => setQuestion(prompt)}
-            >
-              {prompt}
-            </button>
-          ))}
-        </div>
-        <Field label="你想問什麼">
-          <textarea
-            maxLength={500}
-            value={question}
-            onChange={(event) => setQuestion(event.target.value)}
-          />
-        </Field>
-        <div className="segmented three">
-          <button
-            type="button"
-            className={scope === "combined" ? "active" : ""}
-            onClick={() => setScope("combined")}
-          >
-            合併
-          </button>
-          <button
-            type="button"
-            className={scope === "shared" ? "active" : ""}
-            onClick={() => setScope("shared")}
-          >
-            共同
-          </button>
-          <button
-            type="button"
-            className={scope === "private" ? "active" : ""}
-            onClick={() => setScope("private")}
-          >
-            私人
-          </button>
-        </div>
-        {localError && <p className="form-error">{localError}</p>}
-        <button className="wide" disabled={loading || !question.trim()}>
-          {loading ? "分析中…" : "詢問會計師"}
-        </button>
-      </form>
 
-      {latestRun && (
-        <article className="panel">
-          <div className="panel-title">
-            <div>
-              <span className="eyebrow">本次回覆</span>
-              <h2>Agent 工具執行</h2>
-            </div>
+        <div className="chat-container">
+          <div className="chat-messages">
+            {messages.length === 0 ? (
+              <div style={{ padding: "2rem", textAlign: "center", opacity: 0.6 }}>
+                🤖 你好！我是你的 AI 會計師。你可以問我任何關於記帳的問題，例如：「本月哪裡花太多？」或「誰欠誰多少錢？」
+              </div>
+            ) : (
+              messages.map((msg, index) => (
+                <div key={index} className={`chat-bubble ${msg.role}`}>
+                  {formatChatMessage(msg.content)}
+                </div>
+              ))
+            )}
+            {loading && (
+              <div className="chat-bubble assistant typing">
+                正在分析帳務資料中... ⏳
+              </div>
+            )}
+            {localError && <p className="form-error">{localError}</p>}
           </div>
-          <p className="preline">{latestRun.answer}</p>
-          <div className="tool-list">
-            {latestRun.toolCalls.map((call, index) => (
-              <small key={`${call.tool}-${index}`}>
-                🔧 {call.tool}
-                {typeof call.count === "number" ? ` · ${call.count}` : ""}
-              </small>
+
+          <div className="prompt-chips" style={{ padding: "0.5rem", borderTop: "1px solid var(--border)", display: "flex", gap: "0.25rem", overflowX: "auto" }}>
+            {promptSuggestions.map((prompt) => (
+              <button
+                key={prompt}
+                type="button"
+                className="prompt-chip"
+                onClick={() => setQuestion(prompt)}
+                disabled={loading}
+              >
+                {prompt}
+              </button>
             ))}
           </div>
-        </article>
-      )}
 
-      {latest ? (
-        <AccountantReportCard report={latest} onPropose={onPropose} />
-      ) : (
-        <article className="panel">
-          <Empty text="還沒有 AI 會計師報告" icon="🤖" />
-        </article>
-      )}
+          <form className="chat-input-area" onSubmit={ask}>
+            <textarea
+              maxLength={500}
+              placeholder="輸入你的問題..."
+              value={question}
+              onChange={(event) => setQuestion(event.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  void ask(e);
+                }
+              }}
+              disabled={loading}
+            />
+            <button type="submit" disabled={loading || !question.trim()}>
+              送出
+            </button>
+          </form>
+        </div>
+      </article>
 
-      {reports.length > 1 && (
-        <article className="panel">
-          <div className="panel-title">
-            <div>
-              <span className="eyebrow">歷史</span>
-              <h2>近期報告</h2>
-            </div>
+      {reports.length > 0 && (
+        <details className="panel" style={{ cursor: "pointer" }}>
+          <summary style={{ fontWeight: "bold", padding: "0.5rem 0" }}>
+            📊 展開歷史月報與建議
+          </summary>
+          <div style={{ marginTop: "1rem", cursor: "default" }} onClick={(e) => e.stopPropagation()}>
+            <AccountantReportCard report={reports[0]} onPropose={onPropose} />
+            {reports.length > 1 && (
+              <div style={{ marginTop: "1rem" }}>
+                <h3>近期歷史月報</h3>
+                {reports.slice(1, 8).map((report) => (
+                  <div className="notification read" key={report.id} style={{ margin: "0.5rem 0" }}>
+                    <strong>{report.title}</strong>
+                    <p>{report.summary}</p>
+                    <small>{new Date(report.created_at).toLocaleString("zh-TW")}</small>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
-          {reports.slice(1, 8).map((report) => (
-            <div className="notification read" key={report.id}>
-              <strong>{report.title}</strong>
-              <p>{report.summary}</p>
-              <small>{new Date(report.created_at).toLocaleString("zh-TW")}</small>
-            </div>
-          ))}
-        </article>
+        </details>
       )}
     </div>
   );
@@ -1785,13 +1943,16 @@ function Settings({
   onGroup,
   onRecurring,
   onRead,
+  onPropose,
 }: {
   data: Bootstrap;
   unread: number;
   onGroup(body: unknown): void;
   onRecurring(body: unknown): void;
   onRead(): void;
+  onPropose(body: unknown): void;
 }) {
+  const [view, setView] = useState<"settings" | "labels">("settings");
   const [name, setName] = useState("");
   const [recurring, setRecurring] = useState({
     description: "",
@@ -1799,8 +1960,28 @@ function Settings({
     frequency: "monthly",
     nextRunDate: data.today,
   });
+
+  if (view === "labels") {
+    return (
+      <CanonicalLabelsManager
+        onBack={() => setView("settings")}
+        onPropose={onPropose}
+      />
+    );
+  }
+
   return (
     <div className="stack">
+      <article className="panel" style={{ cursor: "pointer" }} onClick={() => setView("labels")}>
+        <div className="setting-row" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div>
+            <strong>🏷️ 分類標籤管理</strong>
+            <small style={{ display: "block", marginTop: "0.25rem", opacity: 0.6 }}>合併相近標籤或重命名常用標籤</small>
+          </div>
+          <span style={{ fontSize: "1.2rem", opacity: 0.5 }}>&gt;</span>
+        </div>
+      </article>
+
       <article className="panel">
         <div className="panel-title">
           <div>
@@ -1867,18 +2048,33 @@ function Settings({
                 下次 {item.next_run_date} · {frequencyName(item.frequency)}
               </small>
             </div>
-            <button
-              className="text-button"
-              onClick={() =>
-                onRecurring({
-                  operation: "toggle",
-                  id: item.id,
-                  active: !item.active,
-                })
-              }
-            >
-              {item.active ? "停用" : "啟用"}
-            </button>
+            <div style={{ display: "flex", gap: "0.5rem" }}>
+              <button
+                className="text-button"
+                onClick={() =>
+                  onRecurring({
+                    operation: "toggle",
+                    id: item.id,
+                    active: !item.active,
+                  })
+                }
+              >
+                {item.active ? "停用" : "啟用"}
+              </button>
+              <button
+                className="text-button danger"
+                onClick={() => {
+                  if (confirm("確定要刪除此週期支出嗎？")) {
+                    onRecurring({
+                      operation: "delete",
+                      id: item.id,
+                    });
+                  }
+                }}
+              >
+                刪除
+              </button>
+            </div>
           </div>
         ))}
         <div className="form compact">
@@ -1943,6 +2139,7 @@ function Settings({
                 nextRunDate: recurring.nextRunDate,
                 endDate: null,
                 active: true,
+                updated_at: new Date().toISOString(),
               })
             }
           >
@@ -1979,6 +2176,249 @@ function Settings({
       <Link className="button-link" href="/api/app/export">
         📥 匯出目前流水 CSV
       </Link>
+    </div>
+  );
+}
+
+type CanonicalLabel = {
+  id: string;
+  category: string;
+  label: string;
+  aliases: string[];
+};
+
+function CanonicalLabelsManager({
+  onBack,
+  onPropose,
+}: {
+  onBack(): void;
+  onPropose(body: unknown): void;
+}) {
+  const [labels, setLabels] = useState<CanonicalLabel[]>([]);
+  const [selectedLabels, setSelectedLabels] = useState<Record<string, string[]>>({});
+  const [mergeTargets, setMergeTargets] = useState<Record<string, string>>({});
+  const [renaming, setRenaming] = useState<{ category: string; oldLabel: string; newLabel: string } | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
+
+  const loadLabels = useCallback(async () => {
+    try {
+      const res = await fetch("/api/app/canonical-labels", { cache: "no-store" }).then(parseResponse);
+      setLabels(res as CanonicalLabel[]);
+    } catch {
+      setError("無法載入分類標籤");
+    }
+  }, []);
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    void loadLabels();
+  }, [loadLabels]);
+
+  const handleSelect = (category: string, label: string, checked: boolean) => {
+    setSelectedLabels((prev) => {
+      const list = prev[category] ?? [];
+      const next = checked ? [...list, label] : list.filter((l) => l !== label);
+      return { ...prev, [category]: next };
+    });
+  };
+
+  const handleMerge = async (category: string) => {
+    const selected = selectedLabels[category] ?? [];
+    const target = mergeTargets[category]?.trim();
+    if (selected.length < 2) {
+      setError("請至少選擇兩個標籤進行合併");
+      return;
+    }
+    if (!target) {
+      setError("請選擇合併後的目標標籤");
+      return;
+    }
+    setError("");
+    setSuccess("");
+    setLoading(true);
+    try {
+      const sourceLabels = selected.filter((l) => l !== target);
+      const res = (await api("/api/app/canonical-labels/merge", {
+        targetLabel: target,
+        sourceLabels,
+        category,
+      })) as { actionId: string | null; preview: string };
+
+      if (res.actionId) {
+        onPropose({
+          actionId: res.actionId,
+          preview: res.preview,
+        });
+        setSuccess("已提交合併提案，需另一半確認！");
+      } else {
+        setSuccess("標籤已直接合併！");
+        void loadLabels();
+      }
+      setSelectedLabels((prev) => ({ ...prev, [category]: [] }));
+      setMergeTargets((prev) => ({ ...prev, [category]: "" }));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "合併失敗");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleRename = async () => {
+    if (!renaming) return;
+    const target = renaming.newLabel.trim();
+    if (!target) return;
+    setError("");
+    setSuccess("");
+    setLoading(true);
+    try {
+      const res = (await api("/api/app/canonical-labels/merge", {
+        targetLabel: target,
+        sourceLabels: [renaming.oldLabel],
+        category: renaming.category,
+      })) as { actionId: string | null; preview: string };
+
+      if (res.actionId) {
+        onPropose({
+          actionId: res.actionId,
+          preview: res.preview,
+        });
+        setSuccess("已提交重命名提案，需另一半確認！");
+      } else {
+        setSuccess("標籤已重命名！");
+        void loadLabels();
+      }
+      setRenaming(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "重命名失敗");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const labelsByCategory: Record<string, CanonicalLabel[]> = {};
+  for (const cat of Object.keys(categoryNames)) {
+    labelsByCategory[cat] = [];
+  }
+  for (const label of labels) {
+    if (!labelsByCategory[label.category]) {
+      labelsByCategory[label.category] = [];
+    }
+    labelsByCategory[label.category].push(label);
+  }
+
+  return (
+    <div className="stack">
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem" }}>
+        <button type="button" className="text-button" onClick={onBack}>
+          ← 返回設定
+        </button>
+        <h2>標籤管理</h2>
+      </div>
+
+      {error && <p className="form-error">{error}</p>}
+      {success && <p className="form-notice" style={{ color: "#10b981", fontWeight: "bold" }}>{success}</p>}
+
+      {Object.entries(labelsByCategory).map(([cat, catLabels]) => {
+        const selected = selectedLabels[cat] ?? [];
+        return (
+          <article className="panel" key={cat}>
+            <div className="panel-title">
+              <div>
+                <span className="eyebrow">
+                  {categoryEmojis[cat]} {categoryNames[cat] ?? cat}
+                </span>
+                <h2>常用標籤 ({catLabels.length})</h2>
+              </div>
+            </div>
+
+            {catLabels.length > 0 ? (
+              <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+                {catLabels.map((l) => (
+                  <div
+                    key={l.id}
+                    className="setting-row"
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      padding: "0.25rem 0",
+                    }}
+                  >
+                    <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                      <input
+                        type="checkbox"
+                        checked={selected.includes(l.label)}
+                        onChange={(e) => handleSelect(cat, l.label, e.target.checked)}
+                      />
+                      <strong>{l.label}</strong>
+                      {l.aliases && l.aliases.length > 0 && (
+                        <small style={{ opacity: 0.6 }}>(別名: {l.aliases.join(", ")})</small>
+                      )}
+                    </div>
+                    <button
+                      type="button"
+                      className="text-button"
+                      onClick={() => setRenaming({ category: cat, oldLabel: l.label, newLabel: l.label })}
+                    >
+                      ✏️ 改名
+                    </button>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <Empty text="目前沒有標籤" icon="🏷️" />
+            )}
+
+            {selected.length >= 2 && (
+              <div className="inline-form" style={{ marginTop: "1rem" }}>
+                <select
+                  value={mergeTargets[cat] ?? ""}
+                  onChange={(e) => setMergeTargets((prev) => ({ ...prev, [cat]: e.target.value }))}
+                >
+                  <option value="">選擇合併後的目標標籤</option>
+                  {selected.map((l) => (
+                    <option key={l} value={l}>
+                      {l}
+                    </option>
+                  ))}
+                </select>
+                <button type="button" disabled={loading} onClick={() => handleMerge(cat)}>
+                  合併
+                </button>
+              </div>
+            )}
+          </article>
+        );
+      })}
+
+      {renaming && (
+        <div className="modal-backdrop">
+          <div className="modal" role="dialog" aria-modal="true">
+            <div className="modal-title">
+              <h3>重新命名標籤</h3>
+            </div>
+            <div className="field" style={{ margin: "1rem 0" }}>
+              <span>把「{renaming.oldLabel}」改名為：</span>
+              <input
+                type="text"
+                value={renaming.newLabel}
+                onChange={(e) => setRenaming({ ...renaming, newLabel: e.target.value })}
+                maxLength={40}
+              />
+            </div>
+            <div className="two" style={{ display: "flex", gap: "1rem" }}>
+              <button type="button" className="wide secondary" onClick={() => setRenaming(null)}>
+                取消
+              </button>
+              <button type="button" className="wide" disabled={loading} onClick={handleRename}>
+                確定
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

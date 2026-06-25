@@ -3,18 +3,22 @@ import { z } from "zod";
 
 import {
   HttpError,
+  agentChat,
   assertSameOrigin,
   askAccountant,
   changeGroup,
+  checkExpenseInSettlements,
   confirmAction,
   categoryAnalytics,
   createCategoryCleanup,
   createReceiptUpload,
   createSession,
   expensesCsv,
+  listCanonicalLabels,
   loadBootstrap,
   listAccountantReports,
   markNotificationsRead,
+  mergeCanonicalLabels,
   processReceipt,
   proposeAction,
   receiptDetails,
@@ -61,6 +65,12 @@ export async function GET(request: Request, route: RouteContext) {
     }
     if (path[0] === "analytics" && path[1] === "categories") {
       return json(await categoryAnalytics(context, new URL(request.url).searchParams));
+    }
+    if (path[0] === "canonical-labels") {
+      return json(await listCanonicalLabels(context));
+    }
+    if (path[0] === "expenses" && path[1] && path[2] === "check-settlement") {
+      return json(await checkExpenseInSettlements(context, path[1]));
     }
     throw new HttpError(404, "Not found");
   } catch (error) {
@@ -121,6 +131,12 @@ export async function POST(request: Request, route: RouteContext) {
     }
     if (path[0] === "categories" && path[1] === "suggest") {
       return json(await suggestCategoryUpdates(context, body));
+    }
+    if (path[0] === "canonical-labels" && path[1] === "merge") {
+      return json(await mergeCanonicalLabels(context, body));
+    }
+    if (path[0] === "accountant" && path[1] === "chat") {
+      return json(await agentChat(context, body));
     }
     throw new HttpError(404, "Not found");
   } catch (error) {

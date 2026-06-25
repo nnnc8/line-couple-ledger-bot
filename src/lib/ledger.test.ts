@@ -15,6 +15,7 @@ import {
   expensesCsv,
   receiptExpenseInputs,
   retargetPendingActionPayload,
+  buildProjection,
   type AppExpense,
   type ServerContext,
 } from "./app-server";
@@ -1184,3 +1185,78 @@ async function withServerEnv(run: () => Promise<void>) {
     }
   }
 }
+
+test("calculates lineal projections and category overrun warnings", () => {
+  const expenses: AppExpense[] = [
+    {
+      id: "e1",
+      group_id: GROUP,
+      ledger: "shared",
+      description: "外食",
+      merchant: null,
+      notes: null,
+      category: "food",
+      category_label: "外食",
+      amount_twd: 1000,
+      paid_by_user_id: OWNER,
+      created_by_user_id: OWNER,
+      expense_date: "2026-06-10",
+      split_method: "equal",
+      version: 1,
+      deleted_at: null,
+      created_at: "2026-06-10T12:00:00Z",
+      mirror_kind: null,
+      mirror_source_expense_id: null,
+      expense_splits: [],
+      receipts: [],
+    },
+    {
+      id: "e2",
+      group_id: GROUP,
+      ledger: "shared",
+      description: "捷運",
+      merchant: null,
+      notes: null,
+      category: "transport",
+      category_label: "交通",
+      amount_twd: 500,
+      paid_by_user_id: OWNER,
+      created_by_user_id: OWNER,
+      expense_date: "2026-06-10",
+      split_method: "equal",
+      version: 1,
+      deleted_at: null,
+      created_at: "2026-06-10T12:00:00Z",
+      mirror_kind: null,
+      mirror_source_expense_id: null,
+      expense_splits: [],
+      receipts: [],
+    }
+  ];
+
+  // Test case 1: days elapsed < 4 -> returns null
+  const resultNull = buildProjection(expenses, "2026-06", "2026-06-03", []);
+  assert.equal(resultNull, null);
+
+  // Test case 2: 10 days elapsed in a 30-day month (June)
+  // Total TWD = 1500. Average per day = 150. Projected for 30 days = 4500.
+  const resultProj = buildProjection(expenses, "2026-06", "2026-06-10", [
+    { category: null, limit_twd: 4000 }, // Total budget
+    { category: "food", limit_twd: 2500 } // Food budget
+  ]);
+
+  assert.ok(resultProj !== null);
+  assert.equal(resultProj.daysElapsed, 10);
+  assert.equal(resultProj.daysTotal, 30);
+  assert.equal(resultProj.spentSoFar, 1500);
+  assert.equal(resultProj.projectedTotal, 4500); // (1500 / 10) * 30 = 4500
+
+  // Category projections check
+  const foodProj = resultProj.categoryProjections.find((cp) => cp.category === "food");
+  assert.ok(foodProj);
+  assert.equal(foodProj.spentSoFar, 1000);
+  assert.equal(foodProj.projectedTotal, 3000); // (1000 / 10) * 30 = 3000
+  assert.equal(foodProj.budget, 2500);
+  assert.equal(foodProj.projectedOverrun, 500); // 3000 - 2500 = 500
+});
+

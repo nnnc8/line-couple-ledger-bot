@@ -25,6 +25,7 @@ export interface CategoryClassificationInput {
   merchant?: string | null;
   groupName?: string | null;
   fallbackCategory: Category;
+  canonicalLabels?: string[];
   history: Array<{
     category: Category;
     categoryLabel: string;
@@ -115,6 +116,10 @@ export async function classifyExpenseCategory(
   const fallback = fallbackCategoryClassification(input);
   if (!gemini) return fallback;
   try {
+    const canonicalHint =
+      input.canonicalLabels?.length
+        ? `\n現有標籤（請優先使用，只在完全不符合時才新增）：${input.canonicalLabels.join("、")}`
+        : "";
     const response = await gemini.models.generateContent({
       model: "gemini-3.1-flash-lite",
       contents: JSON.stringify({
@@ -130,11 +135,15 @@ export async function classifyExpenseCategory(
           "飲食群組把餐點收斂為餐飲、飲料、甜點、生鮮、其他。",
           "停車費固定 transport + 停車費；油資固定 transport + 油資。",
           "只回 JSON；不能新增金額、不能改權限。",
-        ],
+          canonicalHint,
+        ].filter(Boolean),
       }),
       config: {
         systemInstruction:
-          "你是帳務分類器。輸出 category 與 categoryLabel。category 必須是允許 enum；categoryLabel 用繁體中文、1 到 40 字、可重複用歷史分類。",
+          "你是帳務分類器。輸出 category 與 categoryLabel。category 必須是允許 enum；categoryLabel 用繁體中文、1 到 40 字、可重複用歷史分類。" +
+          (canonicalHint
+            ? " 如果有現有標籤清單，請優先從中選一個最符合的。如果都不符合，回傳一個新的簡短標籤（2-4 字）。"
+            : ""),
         responseMimeType: "application/json",
         responseJsonSchema: geminiCategoryClassificationJsonSchema,
         temperature: 0,

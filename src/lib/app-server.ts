@@ -51,12 +51,19 @@ import {
   signSession,
   verifySession,
 } from "./security";
+import {
+  executeTool,
+  toolDeclarations,
+  type ToolContext,
+} from "./accountant-tools";
 
 export const SESSION_COOKIE = "couple_ledger_session";
 const SESSION_SECONDS = 60 * 60 * 24 * 7;
 const ACTION_SECONDS = 60 * 5;
 const RECEIPT_LIMIT = 10 * 1024 * 1024;
 const MODEL = "gemini-3.1-flash-lite";
+const AGENT_MODEL = "gemini-2.0-flash";
+const SESSION_EXPIRE_MS = 2 * 60 * 60 * 1_000;
 const EXPENSE_SELECT =
   "id, group_id, ledger, description, merchant, notes, category, category_label, mirror_kind, mirror_source_expense_id, amount_twd, paid_by_user_id, created_by_user_id, expense_date, split_method, version, deleted_at, created_at, expense_splits(user_id, amount_twd), receipts(id, status)";
 
@@ -393,6 +400,12 @@ export async function loadBootstrap(context: ServerContext) {
       }),
     )
     .parse(balancesResult.data);
+  const projection = buildProjection(
+    activeShared,
+    month,
+    taipeiToday(),
+    budgetsResult.data ?? [],
+  );
   return {
     today: taipeiToday(),
     month,
@@ -409,6 +422,7 @@ export async function loadBootstrap(context: ServerContext) {
     notifications: notificationsResult.data,
     dashboard: buildDashboard(activeShared, month),
     privateDashboard: buildDashboard(activePrivate, month),
+    projection,
   };
 }
 
@@ -822,7 +836,7 @@ export async function generateAccountantReport(
       contents: JSON.stringify(accountantPrompt(input.question, snapshot)),
       config: {
         systemInstruction:
-          "你是台灣情侶帳本的會計師。只能根據提供的 snapshot 分析。facts 必須逐字等於 snapshot.facts；不能自行改金額、改權限或假設不存在的帳務。可給建議，但所有改帳都只是待確認草稿。",
+          "你是台灣情侶帳本的會計師。只能根據提供的 snapshot 分析。facts 必須逐字等於 snapshot.facts；不能自行改金額、改權限或假設不存在的帳務。可給建議，但所有改帳都只是待確認草稿。你只能根據提供的 snapshot 資料中出現的 merchant 或 description 進行字面推論，絕對禁止憑空捏造 snapshot 中沒有明確指出的具體事件、活動或情境（例如捏造出去某個商圈逛街、參加某種生日聚會、出遊等）。如果資料中沒有明確的商家或備註，僅能說明『主要來自大額支出』，不得虛構原因！",
         responseMimeType: "application/json",
         responseJsonSchema: geminiAccountantJsonSchema,
         temperature: 0.2,
@@ -879,6 +893,9 @@ async function loadAccountantSnapshot(
   const groupId = groupIdOverride ?? (await activeGroupId(context));
   const start = `${month}-01`;
   const end = `${shiftMonth(month, 1)}-01`;
+  const startPrev = `${shiftMonth(month, -1)}-01`;
+  const endPrev = `${month}-01`;
+
   const queries = [];
   if (scope !== "private") {
     queries.push(
@@ -903,17 +920,52 @@ async function loadAccountantSnapshot(
         .order("expense_date", { ascending: false }),
     );
   }
-  const [balances, budgets, ...expenseResults] = await Promise.all([
+
+  const prevSharedQuery = scope !== "private"
+    ? context.db
+        .from("expenses")
+        .select("amount_twd")
+        .eq("group_id", groupId)
+        .is("deleted_at", null)
+        .gte("expense_date", startPrev)
+        .lt("expense_date", endPrev)
+    : Promise.resolve({ data: [] as { amount_twd: number }[], error: null });
+
+  const prevPrivateQuery = scope !== "shared"
+    ? context.db
+        .from("expenses")
+        .select("amount_twd")
+        .eq("ledger", "private")
+        .eq("created_by_user_id", context.user.id)
+        .is("deleted_at", null)
+        .gte("expense_date", startPrev)
+        .lt("expense_date", endPrev)
+    : Promise.resolve({ data: [] as { amount_twd: number }[], error: null });
+
+  const [balances, budgets, prevSharedRes, prevPrivateRes, ...expenseResults] = await Promise.all([
     context.db.rpc("group_balances", { p_group_id: groupId }),
     context.db
       .from("budgets")
       .select("category, limit_twd")
       .eq("group_id", groupId)
       .eq("month", start),
+    prevSharedQuery,
+    prevPrivateQuery,
     ...queries,
   ]);
-  if (balances.error || budgets.error || expenseResults.some((result) => result.error))
+  if (
+    balances.error ||
+    budgets.error ||
+    prevSharedRes.error ||
+    prevPrivateRes.error ||
+    expenseResults.some((result) => result.error)
+  )
     throw new Error("accountant snapshot lookup failed");
+
+  const prevSharedTotal = prevSharedRes.data?.reduce((sum, e) => sum + e.amount_twd, 0) ?? 0;
+  const prevPrivateTotal = prevPrivateRes.data?.reduce((sum, e) => sum + e.amount_twd, 0) ?? 0;
+  const previousMonthTotalTwd = prevSharedTotal + prevPrivateTotal;
+
   const expenses = z
     .array(expenseSchema)
     .parse(expenseResults.flatMap((result) => result.data ?? []))
@@ -930,6 +982,7 @@ async function loadAccountantSnapshot(
     month,
     scope,
     userId: context.user.id,
+    previousMonthTotalTwd,
   });
 }
 
@@ -1440,8 +1493,15 @@ export async function proposeAction(
   let preview: string;
 
   if (parsed.type === "create_expense" || parsed.type === "update_expense") {
-    if (parsed.type === "update_expense")
+    if (parsed.type === "update_expense") {
       await assertEditableExpense(context, parsed.expenseId);
+      // Block shared→private conversion when settlements exist
+      if (parsed.expense.ledger === "private") {
+        const check = await checkExpenseInSettlements(context, parsed.expenseId);
+        if (check.settled)
+          throw new HttpError(409, check.message);
+      }
+    }
     const prepared = await prepareExpense(context, parsed.expense, partner);
     groupId = prepared.groupId;
     payload = prepared.payload;
@@ -1719,19 +1779,26 @@ async function classifyPreparedExpense(
   expense: z.infer<typeof expenseInputSchema>,
   group: { id: string; name: string } | null,
 ) {
-  const query = context.db
-    .from("expenses")
-    .select("category, category_label, description, merchant")
-    .eq("couple_id", context.user.couple_id)
-    .eq("ledger", expense.ledger)
-    .is("deleted_at", null)
-    .order("created_at", { ascending: false })
-    .limit(80);
-  const scoped =
-    expense.ledger === "shared"
-      ? query.eq("group_id", group?.id ?? "")
-      : query.eq("created_by_user_id", context.user.id);
-  const historyResult = await scoped;
+  const [historyResult, canonicalLabels] = await Promise.all([
+    (() => {
+      const query = context.db
+        .from("expenses")
+        .select("category, category_label, description, merchant")
+        .eq("couple_id", context.user.couple_id)
+        .eq("ledger", expense.ledger)
+        .is("deleted_at", null)
+        .order("created_at", { ascending: false })
+        .limit(80);
+      return expense.ledger === "shared"
+        ? query.eq("group_id", group?.id ?? "")
+        : query.eq("created_by_user_id", context.user.id);
+    })(),
+    getCanonicalLabels(
+      context.db,
+      expense.ledger === "shared" ? (group?.id ?? null) : null,
+      expense.category,
+    ),
+  ]);
   const history: CategoryClassificationInput["history"] = historyResult.error
     ? []
     : z
@@ -1751,16 +1818,25 @@ async function classifyPreparedExpense(
           description: row.description,
           merchant: row.merchant,
         }));
-  return classifyExpenseCategory(
+  const result = await classifyExpenseCategory(
     {
       description: expense.description,
       merchant: expense.merchant,
       groupName: group?.name ?? "私人帳",
       fallbackCategory: expense.category,
+      canonicalLabels,
       history,
     },
     new GoogleGenAI({ apiKey: context.env.GEMINI_API_KEY }),
   );
+  // Auto-insert new canonical labels
+  void autoInsertCanonicalLabel(
+    context.db,
+    expense.ledger === "shared" ? (group?.id ?? null) : null,
+    result.category,
+    result.categoryLabel,
+  );
+  return result;
 }
 
 async function requireGroup(context: ServerContext, groupId: string | null) {
@@ -1848,7 +1924,7 @@ export async function applyConfirmedActionSideEffects(
 ) {
   const result = await context.db
     .from("pending_actions")
-    .select("action_type, payload")
+    .select("action_type, payload, group_id")
     .eq("id", actionId)
     .eq("couple_id", context.user.couple_id)
     .single();
@@ -1857,8 +1933,54 @@ export async function applyConfirmedActionSideEffects(
     .object({
       action_type: z.string(),
       payload: z.record(z.string(), z.unknown()),
+      group_id: z.string().uuid().nullable().optional(),
     })
     .parse(result.data);
+
+  if (row.action_type === "batch_update_expenses" && row.payload.merge) {
+    const merge = z
+      .object({
+        targetLabel: z.string().trim().min(1).max(40),
+        sourceLabels: z.array(z.string().trim().min(1).max(40)),
+        category: z.string(),
+      })
+      .parse(row.payload.merge);
+    const groupId = row.group_id ?? null;
+
+    const existing = await context.db
+      .from("canonical_labels")
+      .select("id, aliases")
+      .eq("group_id", groupId)
+      .eq("category", merge.category)
+      .eq("label", merge.targetLabel)
+      .maybeSingle();
+
+    const currentAliases: string[] = existing.data?.aliases ?? [];
+    const newAliases = [...new Set([...currentAliases, ...merge.sourceLabels])];
+
+    if (existing.data) {
+      await context.db
+        .from("canonical_labels")
+        .update({ aliases: newAliases })
+        .eq("id", existing.data.id);
+    } else {
+      await context.db.from("canonical_labels").insert({
+        group_id: groupId,
+        category: merge.category,
+        label: merge.targetLabel,
+        aliases: newAliases,
+      });
+    }
+
+    await context.db
+      .from("canonical_labels")
+      .delete()
+      .eq("group_id", groupId)
+      .eq("category", merge.category)
+      .in("label", merge.sourceLabels);
+    return;
+  }
+
   if (
     !["create_expense", "update_expense"].includes(row.action_type) ||
     typeof row.payload.category_label !== "string"
@@ -2031,6 +2153,27 @@ const recurringInputSchema = expenseInputSchema.extend({
 });
 
 export async function saveRecurring(context: ServerContext, input: unknown) {
+  const deleteOp = z
+    .object({
+      operation: z.literal("delete"),
+      id: z.string().uuid(),
+    })
+    .safeParse(input);
+  if (deleteOp.success) {
+    const before = await context.db.from("recurring_expenses").select("id, group_id, description").eq("id", deleteOp.data.id).eq("couple_id", context.user.couple_id).single();
+    if (before.error || !before.data) throw new HttpError(404, "Not found");
+    const result = await context.db
+      .from("recurring_expenses")
+      .delete()
+      .eq("id", deleteOp.data.id)
+      .eq("couple_id", context.user.couple_id);
+    if (result.error) throw new Error("recurring delete failed");
+    await appendActivity(context, "recurring", deleteOp.data.id, "delete", before.data.group_id ?? null, before.data, null);
+    await notifyPartner(context, "recurring", "週期支出已刪除", `已刪除週期支出：「${before.data.description}」`, before.data.group_id ?? null, "recurring", deleteOp.data.id);
+    await deliverNotifications(context);
+    return { ok: true };
+  }
+
   const toggle = z
     .object({
       operation: z.literal("toggle"),
@@ -2678,9 +2821,35 @@ export async function runDailyJobs(request: Request) {
         expiredReceipts.data.map((row) => row.id),
       );
   }
-  const accountantReports = today.endsWith("-01")
-    ? await generateMonthlyAccountantReports(env, db, shiftMonth(today.slice(0, 7), -1))
-    : 0;
+  let accountantReports = 0;
+  if (today.endsWith("-01")) {
+    accountantReports = await generateMonthlyAccountantReports(env, db, shiftMonth(today.slice(0, 7), -1));
+    const gemini = new GoogleGenAI({ apiKey: env.GEMINI_API_KEY });
+    const groupsResult = await db.from("groups").select("id, couple_id").is("archived_at", null);
+    if (!groupsResult.error && groupsResult.data) {
+      for (const group of groupsResult.data) {
+        const merges = await suggestCanonicalLabelMerges(db, group.id, gemini);
+        if (merges && merges.length > 0) {
+          const usersResult = await db.from("users").select("id").eq("couple_id", group.couple_id);
+          if (!usersResult.error && usersResult.data) {
+            for (const u of usersResult.data) {
+              await db.from("notifications").upsert({
+                recipient_user_id: u.id,
+                group_id: group.id,
+                kind: "recurring",
+                title: "分類標籤合併建議",
+                body: `發現相似標籤「${merges[0]!.source}」與「${merges[0]!.target}」，建議前往 LIFF 進行合併整理。`,
+                entity_type: "recurring",
+                entity_id: group.id,
+                dedupe_key: `label-merge-suggest:${group.id}:${today}`,
+              }, { onConflict: "dedupe_key", ignoreDuplicates: true });
+            }
+          }
+        }
+      }
+    }
+  }
+
   const users = await db
     .from("users")
     .select("id, couple_id, line_user_id, role")
@@ -2688,6 +2857,51 @@ export async function runDailyJobs(request: Request) {
   const firstUser = z.array(userSchema).parse(users.data ?? [])[0];
   if (firstUser) await deliverNotifications({ env, db, user: firstUser });
   return { drafts, purgedReceipts: expiredReceipts.data?.length ?? 0, accountantReports };
+}
+
+async function suggestCanonicalLabelMerges(
+  db: SupabaseClient,
+  groupId: string,
+  gemini: GoogleGenAI,
+) {
+  const labelsResult = await db
+    .from("canonical_labels")
+    .select("label, category")
+    .eq("group_id", groupId);
+  if (labelsResult.error || !labelsResult.data || labelsResult.data.length < 2) return [];
+
+  const labels = labelsResult.data;
+  const prompt = `以下是我們資料庫中某個群組的常用分類標籤清單：
+${labels.map((l) => `- [${l.category}] ${l.label}`).join("\n")}
+
+請找出其中語意高度相似、可能是重複建立的標籤（例如：「捷運」與「台北捷運」、「7-11」與「7-Eleven」）。
+請為每一組相似的標籤建議一個合併的目標（選擇其中較簡短或較常見的一個）。
+請嚴格以 JSON 陣列格式回傳，不要包含 markdown 標籤或說明文字：
+[
+  {"source": "相似的舊標籤", "target": "保留的新標籤", "category": "該大分類名稱"}
+]
+如果沒有發現任何需要合併的相似標籤，回傳空陣列 []。`;
+
+  try {
+    const response = await gemini.models.generateContent({
+      model: AGENT_MODEL,
+      contents: prompt,
+      config: {
+        responseMimeType: "application/json",
+        temperature: 0.1,
+      },
+    });
+    const text = response.text?.trim() ?? "[]";
+    const suggestions = JSON.parse(text) as Array<{ source: string; target: string; category: string }>;
+    
+    return suggestions.filter((s) => 
+      labels.some((l) => l.label === s.source && l.category === s.category) &&
+      labels.some((l) => l.label === s.target && l.category === s.category)
+    );
+  } catch (err) {
+    console.error("Failed to suggest canonical label merges:", err);
+    return [];
+  }
 }
 
 async function generateMonthlyAccountantReports(
@@ -2816,7 +3030,7 @@ async function appendActivity(
   context: ServerContext,
   entityType: "group" | "budget" | "recurring",
   entityId: string,
-  action: "create" | "update" | "archive",
+  action: "create" | "update" | "delete" | "restore" | "archive" | "settle",
   groupId: string | null,
   beforeState: unknown,
   afterState: unknown,
@@ -2877,6 +3091,496 @@ function cleanCategoryLabel(value: string) {
     .slice(0, 40);
 }
 
+/* ─── Projection (month-end spend prediction) ─── */
+
+export function buildProjection(
+  expenses: AppExpense[],
+  month: string,
+  today: string,
+  budgets: Array<{ category?: string | null; limit_twd: number }>,
+) {
+  const daysElapsed = Number(today.slice(8, 10));
+  const daysTotal = new Date(
+    Number(today.slice(0, 4)),
+    Number(today.slice(5, 7)),
+    0,
+  ).getDate();
+
+  if (daysElapsed < 4) return null;
+
+  const thisMonthExpenses = expenses.filter((e) =>
+    e.expense_date.startsWith(month),
+  );
+  const spentSoFar = thisMonthExpenses.reduce(
+    (sum, e) => sum + e.amount_twd,
+    0,
+  );
+  const projectedTotal = Math.round((spentSoFar / daysElapsed) * daysTotal);
+
+  const totalBudget = budgets.find((b) => !b.category);
+  const categoryProjections = budgets
+    .filter((b) => b.category)
+    .map((budget) => {
+      const catSpent = thisMonthExpenses
+        .filter((e) => e.category === budget.category)
+        .reduce((sum, e) => sum + e.amount_twd, 0);
+      const catProjected = Math.round((catSpent / daysElapsed) * daysTotal);
+      return {
+        category: budget.category,
+        spentSoFar: catSpent,
+        projectedTotal: catProjected,
+        budget: budget.limit_twd,
+        projectedOverrun: catProjected - budget.limit_twd,
+      };
+    })
+    .filter((p) => p.projectedOverrun > 0);
+
+  return {
+    daysElapsed,
+    daysTotal,
+    spentSoFar,
+    projectedTotal,
+    budget: totalBudget?.limit_twd ?? null,
+    projectedOverrun: totalBudget
+      ? projectedTotal - totalBudget.limit_twd
+      : null,
+    categoryProjections,
+  };
+}
+
+/* ─── Canonical Labels ─── */
+
+export async function getCanonicalLabels(
+  db: SupabaseClient,
+  groupId: string | null,
+  category?: string,
+): Promise<string[]> {
+  let query = db.from("canonical_labels").select("label");
+  if (groupId) {
+    query = query.eq("group_id", groupId);
+  } else {
+    query = query.is("group_id", null);
+  }
+  if (category) query = query.eq("category", category);
+  const result = await query.order("created_at").limit(50);
+  if (result.error) return [];
+  return z
+    .array(z.object({ label: z.string() }))
+    .parse(result.data)
+    .map((row) => row.label);
+}
+
+export async function autoInsertCanonicalLabel(
+  db: SupabaseClient,
+  groupId: string | null,
+  category: string,
+  label: string,
+) {
+  if (!label || label === "其他" || label === "other") return;
+  await db.from("canonical_labels").upsert(
+    {
+      group_id: groupId,
+      category,
+      label: label.trim().slice(0, 40),
+    },
+    { onConflict: groupId ? "group_id,category,label" : "category,label", ignoreDuplicates: true },
+  );
+}
+
+export async function listCanonicalLabels(context: ServerContext) {
+  const groupId = await activeGroupId(context);
+  const result = await context.db
+    .from("canonical_labels")
+    .select("id, group_id, category, label, aliases, created_at")
+    .eq("group_id", groupId)
+    .order("category")
+    .order("label");
+  if (result.error) throw new Error("canonical labels lookup failed");
+  return result.data;
+}
+
+export async function mergeCanonicalLabels(
+  context: ServerContext,
+  input: unknown,
+) {
+  const parsed = z
+    .object({
+      targetLabel: z.string().trim().min(1).max(40),
+      sourceLabels: z.array(z.string().trim().min(1).max(40)).min(1).max(20),
+      category: z.string().min(1),
+    })
+    .parse(input);
+  const groupId = await activeGroupId(context);
+
+  // Find matching active expenses in the group
+  const expensesResult = await context.db
+    .from("expenses")
+    .select("id, version, category_label")
+    .eq("group_id", groupId)
+    .eq("category", parsed.category)
+    .in("category_label", parsed.sourceLabels)
+    .is("deleted_at", null);
+
+  if (expensesResult.error) throw new Error("expenses lookup failed");
+  const matchingExpenses = expensesResult.data ?? [];
+
+  if (matchingExpenses.length === 0) {
+    // No expenses are using this label, update the dictionary directly
+    const existing = await context.db
+      .from("canonical_labels")
+      .select("id, aliases")
+      .eq("group_id", groupId)
+      .eq("category", parsed.category)
+      .eq("label", parsed.targetLabel)
+      .maybeSingle();
+
+    const currentAliases: string[] = existing.data?.aliases ?? [];
+    const newAliases = [...new Set([...currentAliases, ...parsed.sourceLabels])];
+
+    if (existing.data) {
+      await context.db
+        .from("canonical_labels")
+        .update({ aliases: newAliases })
+        .eq("id", existing.data.id);
+    } else {
+      await context.db.from("canonical_labels").insert({
+        group_id: groupId,
+        category: parsed.category,
+        label: parsed.targetLabel,
+        aliases: newAliases,
+      });
+    }
+
+    await context.db
+      .from("canonical_labels")
+      .delete()
+      .eq("group_id", groupId)
+      .eq("category", parsed.category)
+      .in("label", parsed.sourceLabels);
+
+    return {
+      actionId: null,
+      preview: `已合併標籤為「${parsed.targetLabel}」（0 筆收據受影響）`,
+    };
+  }
+
+  const updates = matchingExpenses.map((e) => ({
+    expense_id: e.id,
+    expected_version: e.version,
+    category_label: parsed.targetLabel,
+  }));
+
+  const insert = await context.db
+    .from("pending_actions")
+    .insert({
+      couple_id: context.user.couple_id,
+      group_id: groupId,
+      requested_by_user_id: context.user.id,
+      action_type: "batch_update_expenses",
+      payload: {
+        updates,
+        merge: {
+          targetLabel: parsed.targetLabel,
+          sourceLabels: parsed.sourceLabels,
+          category: parsed.category,
+        },
+      },
+      source_event_id: `liff:merge-labels:${randomUUID()}`,
+      idempotency_key: null,
+      expires_at: new Date(Date.now() + ACTION_SECONDS * 1_000).toISOString(),
+    })
+    .select("id")
+    .single();
+
+  if (insert.error) throw new Error("failed to propose merge action");
+  const actionId = z.object({ id: z.string().uuid() }).parse(insert.data).id;
+
+  return {
+    actionId,
+    preview: `合併標籤為「${parsed.targetLabel}」（影響 ${matchingExpenses.length} 筆收據）`,
+  };
+}
+
+/* ─── Settlement check ─── */
+
+export async function checkExpenseInSettlements(
+  context: ServerContext,
+  expenseId: string,
+): Promise<{ settled: boolean; message: string }> {
+  const expense = await context.db
+    .from("expenses")
+    .select("id, group_id, ledger")
+    .eq("id", z.string().uuid().parse(expenseId))
+    .eq("couple_id", context.user.couple_id)
+    .single();
+  if (expense.error) throw new HttpError(404, "找不到支出");
+  if (expense.data.ledger !== "shared") {
+    return { settled: false, message: "" };
+  }
+  // Check if this couple has any settlements at all
+  const settlements = await context.db
+    .from("settlements")
+    .select("id", { count: "exact", head: true })
+    .eq("couple_id", context.user.couple_id);
+  const hasSettlements =
+    !settlements.error && (settlements.count ?? 0) > 0;
+  return {
+    settled: hasSettlements,
+    message: hasSettlements
+      ? "此帳已包含在結清紀錄中，無法改為私人帳。請先復原該筆結清才能修改。"
+      : "",
+  };
+}
+
+/* ─── Agentic Accountant Chat ─── */
+
+const chatInputSchema = z.object({
+  sessionId: z.string().uuid().nullable().optional(),
+  message: z.string().trim().min(1).max(500),
+});
+
+type ChatMessage = {
+  role: "user" | "assistant" | "tool";
+  content: string;
+  tool_calls?: Array<{ name: string; args: Record<string, unknown> }>;
+  tool_results?: Array<{ name: string; result: unknown }>;
+};
+
+export async function agentChat(context: ServerContext, input: unknown) {
+  const parsed = chatInputSchema.parse(input);
+  const groupId = await activeGroupId(context);
+  const gemini = new GoogleGenAI({ apiKey: context.env.GEMINI_API_KEY });
+
+  // Load or create session
+  let sessionId = parsed.sessionId ?? null;
+  let messages: ChatMessage[] = [];
+
+  if (sessionId) {
+    const session = await context.db
+      .from("accountant_sessions")
+      .select("id, messages, last_active_at")
+      .eq("id", sessionId)
+      .eq("user_id", context.user.id)
+      .single();
+
+    if (
+      !session.error &&
+      new Date(session.data.last_active_at).getTime() >
+        Date.now() - SESSION_EXPIRE_MS
+    ) {
+      messages = z.array(z.any()).parse(session.data.messages) as ChatMessage[];
+    } else {
+      // Session expired or not found — start fresh
+      sessionId = null;
+    }
+  }
+
+  if (!sessionId) {
+    const insert = await context.db
+      .from("accountant_sessions")
+      .insert({
+        couple_id: context.user.couple_id,
+        group_id: groupId,
+        user_id: context.user.id,
+      })
+      .select("id")
+      .single();
+    if (insert.error) throw new Error("session create failed");
+    sessionId = z.object({ id: z.string().uuid() }).parse(insert.data).id;
+  }
+
+  // Append user message
+  messages.push({ role: "user", content: parsed.message });
+
+  // Build Gemini contents from message history
+  const toolCtx: ToolContext = {
+    db: context.db,
+    groupId,
+    userId: context.user.id,
+    coupleId: context.user.couple_id,
+  };
+
+  const MAX_TOOL_CALLS = 8;
+  let toolCallCount = 0;
+  let assistantResponse = "";
+
+  // Agent loop
+  const geminiContents: Array<{ role: string; parts: Array<Record<string, unknown>> }> = [];
+
+  for (const msg of messages) {
+    if (msg.role === "user") {
+      geminiContents.push({
+        role: "user",
+        parts: [{ text: msg.content }],
+      });
+    } else if (msg.role === "assistant") {
+      const parts: Array<Record<string, unknown>> = [];
+      if (msg.content) parts.push({ text: msg.content });
+      if (msg.tool_calls) {
+        for (const tc of msg.tool_calls) {
+          parts.push({
+            functionCall: { name: tc.name, args: tc.args },
+          });
+        }
+      }
+      geminiContents.push({ role: "model", parts });
+    } else if (msg.role === "tool" && msg.tool_results) {
+      geminiContents.push({
+        role: "user",
+        parts: msg.tool_results.map((tr) => ({
+          functionResponse: {
+            name: tr.name,
+            response: tr.result,
+          },
+        })),
+      });
+    }
+  }
+
+  // Loop: call Gemini, handle tool calls
+  for (let iteration = 0; iteration < MAX_TOOL_CALLS + 1; iteration++) {
+    const response = await gemini.models.generateContent({
+      model: AGENT_MODEL,
+      contents: geminiContents,
+      config: {
+        systemInstruction:
+          "你是台灣情侶帳本的 AI 會計師。你有工具可以查詢帳務資料。" +
+          "根據使用者的問題，自己決定需要查什麼資料，用工具查詢後再回答。" +
+          "回答用繁體中文、口語、簡短。數字要具體。" +
+          "你只能讀取資料，不能修改帳務。如果使用者要改帳，告訴他到 LIFF 操作。" +
+          "不要捏造數字，所有數字都必須來自工具查詢結果。",
+        tools: [{ functionDeclarations: toolDeclarations }],
+        temperature: 0.3,
+        maxOutputTokens: 1_200,
+      },
+    });
+
+    // Check if response has function calls
+    const parts = response.candidates?.[0]?.content?.parts ?? [];
+    const functionCalls = parts.filter(
+      (p): p is { functionCall: { name: string; args: Record<string, unknown> } } =>
+        "functionCall" in p,
+    );
+    const textParts = parts.filter(
+      (p): p is { text: string } => "text" in p,
+    );
+
+    if (functionCalls.length > 0 && toolCallCount < MAX_TOOL_CALLS) {
+      // Execute tool calls
+      const toolResults: Array<{ name: string; result: unknown }> = [];
+      const toolCallsLog: Array<{ name: string; args: Record<string, unknown> }> = [];
+
+      for (const fc of functionCalls) {
+        toolCallCount++;
+        const toolName = fc.functionCall.name;
+        const toolArgs = fc.functionCall.args ?? {};
+        toolCallsLog.push({ name: toolName, args: toolArgs });
+
+        try {
+          const result = await executeTool(toolName, toolArgs, toolCtx);
+          toolResults.push({ name: toolName, result });
+        } catch {
+          toolResults.push({
+            name: toolName,
+            result: { error: "tool execution failed" },
+          });
+        }
+      }
+
+      // Append assistant message with tool calls
+      messages.push({
+        role: "assistant",
+        content: textParts.map((p) => p.text).join(""),
+        tool_calls: toolCallsLog,
+      });
+      geminiContents.push({
+        role: "model",
+        parts: functionCalls.map((fc) => ({
+          functionCall: fc.functionCall,
+        })),
+      });
+
+      // Append tool results
+      messages.push({
+        role: "tool",
+        content: "",
+        tool_results: toolResults,
+      });
+      geminiContents.push({
+        role: "user",
+        parts: toolResults.map((tr) => ({
+          functionResponse: {
+            name: tr.name,
+            response: tr.result,
+          },
+        })),
+      });
+
+      continue;
+    }
+
+    // Text response — done
+    assistantResponse = textParts.map((p) => p.text).join("");
+    if (!assistantResponse && toolCallCount >= MAX_TOOL_CALLS) {
+      assistantResponse = "資料量較大，這是目前查到的結果。請縮小範圍再問一次。";
+    }
+    break;
+  }
+
+  if (!assistantResponse) {
+    assistantResponse = "抱歉，我暫時無法回答這個問題。請換個方式問問看。";
+  }
+
+  // Append final assistant message
+  messages.push({ role: "assistant", content: assistantResponse });
+
+  // Save session (trim to last 30 messages to prevent unbounded growth)
+  const trimmedMessages = messages.slice(-30);
+  await context.db
+    .from("accountant_sessions")
+    .update({
+      messages: trimmedMessages,
+      last_active_at: new Date().toISOString(),
+    })
+    .eq("id", sessionId);
+
+  return {
+    sessionId,
+    answer: assistantResponse,
+    toolCallCount,
+  };
+}
+
+/* ─── Audio transcription ─── */
+
+export async function transcribeAudio(
+  audioBytes: Buffer,
+  mimeType: string,
+  gemini: GoogleGenAI,
+): Promise<string> {
+  const response = await gemini.models.generateContent({
+    model: AGENT_MODEL,
+    contents: [
+      {
+        inlineData: {
+          mimeType,
+          data: audioBytes.toString("base64"),
+        },
+      },
+      {
+        text: "把這段語音轉成文字。只輸出辨識到的文字內容，不加任何前綴或說明。如果聽不清楚，回傳空字串。",
+      },
+    ],
+    config: {
+      temperature: 0,
+      maxOutputTokens: 500,
+    },
+  });
+  return (response.text ?? "").trim();
+}
+
+/* ─── Utility functions ─── */
+
 function taipeiToday(): string {
   return new Intl.DateTimeFormat("en-CA", {
     timeZone: "Asia/Taipei",
@@ -2891,3 +3595,4 @@ function shiftMonth(month: string, offset: number): string {
   const date = new Date(Date.UTC(year!, monthNumber! - 1 + offset, 1));
   return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, "0")}`;
 }
+

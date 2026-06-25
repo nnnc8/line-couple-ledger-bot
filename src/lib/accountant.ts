@@ -56,6 +56,7 @@ export const accountantFactsSchema = z
     transactionCount: z.number().int().min(0),
     balanceTwd: z.number().int(),
     otherTotalTwd: z.number().int().min(0),
+    previousMonthTotalTwd: z.number().int().min(0).default(0),
   })
   .strict();
 
@@ -167,6 +168,7 @@ export function buildAccountantSnapshot(input: {
   month: string;
   scope: AccountantScope;
   userId: string;
+  previousMonthTotalTwd?: number;
 }): AccountantSnapshot {
   const expenses = input.expenses.filter(
     (expense) =>
@@ -215,6 +217,7 @@ export function buildAccountantSnapshot(input: {
         input.balances.find((balance) => balance.user_id === input.userId)
           ?.balance_twd ?? 0,
       otherTotalTwd: categoryTotals.other,
+      previousMonthTotalTwd: input.previousMonthTotalTwd ?? 0,
     },
     categoryTotals,
     budgetUsages,

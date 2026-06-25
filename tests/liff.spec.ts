@@ -135,11 +135,14 @@ test("asks the accountant from the LIFF tab", async ({ page }) => {
   await expect(
     page.getByRole("heading", { level: 1, name: "AI 會計師" }),
   ).toBeVisible();
+
+  // Open the historical reports details
+  await page.getByText("展開歷史月報與建議").click();
   await expect(page.getByRole("heading", { name: "AI 月報" })).toBeVisible();
 
-  await page.getByLabel("你想問什麼").fill("本月哪裡花太多？");
-  await page.getByRole("button", { name: "詢問會計師" }).click();
-  await expect(page.getByRole("heading", { name: "AI 會計師回覆" })).toBeVisible();
+  // Chat with the accountant
+  await page.getByPlaceholder("輸入你的問題...").fill("本月哪裡花太多？");
+  await page.getByRole("button", { name: "送出" }).click();
   await expect(page.getByText("本月共 2 筆").first()).toBeVisible();
 });
 

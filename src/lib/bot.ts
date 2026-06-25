@@ -10,6 +10,7 @@ import {
   retargetPendingActions,
   runAgent,
   serverEnvironment,
+  transcribeAudio,
 } from "./app-server";
 import {
   calculateBalances,
@@ -112,6 +113,10 @@ export async function handleLineEvent(
     if (event.message.type === "image") {
       await replyText(dependencies.lineClient, replyToken, "已收到收據，辨識完成後會通知你到圖形化帳本確認。");
       dependencies.onImage?.({ messageId: event.message.id, eventId: event.webhookEventId, lineUserId: userId });
+      return;
+    }
+    if (event.message.type === "audio") {
+      await handleAudioMessage(event, userId, replyToken, dependencies);
       return;
     }
     if (event.message.type !== "text") return;
@@ -309,6 +314,74 @@ async function handleText(
         replyToken,
         "看不懂這句。可試：晚餐 860 我付、誰欠誰、本月共同支出。",
       );
+  }
+}
+
+async function handleAudioMessage(
+  event: webhook.Event & { message: { id: string } },
+  userId: string,
+  replyToken: string,
+  dependencies: BotDependencies,
+): Promise<void> {
+  try {
+    const content = await dependencies.lineClient.getMessageContent(event.message.id);
+    const chunks: Buffer[] = [];
+    let size = 0;
+    for await (const chunk of content) {
+      const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
+      size += buffer.length;
+      if (size > 10 * 1024 * 1024) {
+        await replyText(dependencies.lineClient, replyToken, "語音訊息太大，請傳短一點的語音。");
+        return;
+      }
+      chunks.push(buffer);
+    }
+    const bytes = Buffer.concat(chunks);
+    const text = await transcribeAudio(bytes, "audio/x-m4a", dependencies.gemini);
+    if (!text) {
+      await replyText(dependencies.lineClient, replyToken, "沒聽清楚，可以再說一次或打字嗎？");
+      return;
+    }
+
+    const prefix = `聽到：「${text}」\n`;
+    const wrappedLineClient = {
+      ...dependencies.lineClient,
+      replyMessage: async (params: {
+        replyToken: string;
+        messages: messagingApi.Message[];
+      }) => {
+        const modifiedMessages = params.messages.map((msg): messagingApi.Message => {
+          if (msg.type === "text") {
+            const textMsg = msg as messagingApi.TextMessage;
+            if (textMsg.text) {
+              return {
+                ...textMsg,
+                text: prefix + textMsg.text,
+              };
+            }
+          }
+          return msg;
+        });
+        return dependencies.lineClient.replyMessage({
+          ...params,
+          messages: modifiedMessages,
+        });
+      },
+    };
+
+    await handleText(
+      text,
+      event.webhookEventId ?? "",
+      userId,
+      replyToken,
+      {
+        ...dependencies,
+        lineClient: wrappedLineClient,
+      },
+    );
+  } catch (err) {
+    console.error("Failed to process audio message:", err);
+    await replyText(dependencies.lineClient, replyToken, "語音處理失敗，請稍後再試或直接打字。");
   }
 }
 
@@ -956,6 +1029,7 @@ async function replyConfirmation(
   actionId: string,
   text: string,
 ): Promise<void> {
+  const env = serverEnvironment();
   const message: messagingApi.TextMessage = {
     type: "text",
     text,
@@ -965,9 +1039,17 @@ async function replyConfirmation(
           type: "action",
           action: {
             type: "postback",
-            label: "確認",
+            label: "✓ 確認",
             data: `decision=confirm&id=${actionId}`,
             displayText: "確認",
+          },
+        },
+        {
+          type: "action",
+          action: {
+            type: "uri",
+            label: "✏️ 去 LIFF 改",
+            uri: `${env.APP_URL}/?tab=history`,
           },
         },
         {
