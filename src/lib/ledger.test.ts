@@ -41,6 +41,7 @@ import {
 import { detectReceiptMime, signSession, verifySession } from "./security";
 import { balanceContributions } from "./balance-detail";
 import { matchTransactions, parseBankCsvWithMeta } from "./bank-csv";
+import { searchExpenseRows, shouldSendInsight } from "./phase4";
 import {
   calculateBalances,
   crossedBudgetThresholds,
@@ -1327,3 +1328,72 @@ test("balance contributions highlight outstanding shared expenses", () => {
   assert.equal(suggestions[0]?.amountTwd, 1800);
 });
 
+test("phase 4 search filters chinese expense text and ranges", () => {
+  const results = searchExpenseRows(
+    [
+      {
+        id: "e1",
+        description: "台中高鐵",
+        merchant: "高鐵",
+        notes: null,
+        category: "transport",
+        category_label: "高鐵",
+        amount_twd: 1455,
+        expense_date: "2026-06-20",
+        deleted_at: null,
+      },
+      {
+        id: "e2",
+        description: "晚餐",
+        merchant: "餐廳",
+        notes: null,
+        category: "food",
+        category_label: "餐飲",
+        amount_twd: 800,
+        expense_date: "2026-06-21",
+        deleted_at: null,
+      },
+      {
+        id: "e3",
+        description: "台中高鐵",
+        merchant: null,
+        notes: null,
+        category: "transport",
+        category_label: "高鐵",
+        amount_twd: 3000,
+        expense_date: "2026-07-01",
+        deleted_at: null,
+      },
+    ],
+    {
+      q: "台中 高鐵",
+      from: "2026-06-01",
+      to: "2026-06-30",
+      category: "高鐵",
+      min: 500,
+      max: 2000,
+      limit: 10,
+    },
+  );
+
+  assert.deepEqual(results.map((item) => item.id), ["e1"]);
+});
+
+test("phase 4 proactive insights suppress duplicate rules for three days", () => {
+  assert.equal(
+    shouldSendInsight(
+      [{ insight_rule_id: "budget_warning_80", created_at: "2026-06-23T00:00:00Z" }],
+      "budget_warning_80",
+      new Date("2026-06-25T00:00:00Z"),
+    ),
+    false,
+  );
+  assert.equal(
+    shouldSendInsight(
+      [{ insight_rule_id: "budget_warning_80", created_at: "2026-06-20T00:00:00Z" }],
+      "budget_warning_80",
+      new Date("2026-06-25T00:00:00Z"),
+    ),
+    true,
+  );
+});

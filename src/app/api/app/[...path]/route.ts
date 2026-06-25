@@ -30,6 +30,7 @@ import {
   runAgent,
   saveBudget,
   saveRecurring,
+  searchExpenses,
   serverEnvironment,
   sessionCookie,
   suggestCategoryUpdates,
@@ -74,6 +75,9 @@ export async function GET(request: Request, route: RouteContext) {
     }
     if (path[0] === "balance" && path[1] === "detail") {
       return json(await balanceDetail(context));
+    }
+    if (path[0] === "expenses" && path[1] === "search") {
+      return json(await searchExpenses(context, new URL(request.url).searchParams));
     }
     if (path[0] === "canonical-labels") {
       return json(await listCanonicalLabels(context));

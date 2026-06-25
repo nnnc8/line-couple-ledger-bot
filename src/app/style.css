@@ -485,8 +485,18 @@ button.secondary:active { background: var(--background); }
 .match-arrow { font-weight: 800; color: var(--muted); }
 .import-meta { margin-top: 10px; font-size: 13px; color: var(--muted); }
 
+/* ─── Phase 4: Search ─── */
+.search-panel { display: grid; gap: 10px; }
+.search-box { display: flex; align-items: center; gap: 10px; padding: 12px 14px; border: 1px solid var(--line); border-radius: 14px; background: var(--background); }
+.search-box input { flex: 1; border: 0; background: transparent; font: inherit; outline: none; min-width: 0; }
+.search-filters { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; }
+.search-filters input,
+.search-filters select { min-width: 0; padding: 9px 10px; border: 1px solid var(--line); border-radius: 10px; background: #fff; font: inherit; }
+.search-results { border-top: 1px solid var(--line); }
+
 @media (max-width: 480px) {
   .settle-actions { grid-template-columns: 1fr; }
   .match-game .match-row { grid-template-columns: 1fr; }
   .match-arrow { text-align: center; }
+  .search-filters { grid-template-columns: 1fr 1fr; }
 }

@@ -62,6 +62,7 @@ import {
   parseBankCsvWithMeta,
   type CsvBank,
 } from "./bank-csv";
+import { searchExpenseRows, shouldSendInsight } from "./phase4";
 
 export const SESSION_COOKIE = "couple_ledger_session";
 const SESSION_SECONDS = 60 * 60 * 24 * 7;
@@ -358,7 +359,7 @@ export async function loadBootstrap(context: ServerContext) {
     db.rpc("group_balances", { p_group_id: activeGroupId }),
     db
       .from("budgets")
-      .select("id, group_id, category, month, limit_twd")
+      .select("id, group_id, category, category_label, month, limit_twd")
       .eq("group_id", activeGroupId)
       .eq("month", `${month}-01`)
       .order("category"),
@@ -2104,20 +2105,21 @@ const budgetInputSchema = z.object({
   groupId: z.string().uuid(),
   month: z.string().regex(/^\d{4}-\d{2}$/),
   category: z.enum(categories).nullable(),
+  categoryLabel: z.string().trim().min(1).max(40).nullable().optional(),
   limitTwd: z.number().int().positive().max(100_000_000),
 });
 
 export async function saveBudget(context: ServerContext, input: unknown) {
   const parsed = budgetInputSchema.parse(input);
   await requireGroup(context, parsed.groupId);
+  const label = parsed.category ? parsed.categoryLabel?.trim() || null : null;
   let query = context.db
     .from("budgets")
-    .select("id, category, limit_twd")
+    .select("id, category, category_label, limit_twd")
     .eq("group_id", parsed.groupId)
     .eq("month", `${parsed.month}-01`);
-  query = parsed.category
-    ? query.eq("category", parsed.category)
-    : query.is("category", null);
+  query = parsed.category ? query.eq("category", parsed.category) : query.is("category", null);
+  query = label ? query.eq("category_label", label) : query.is("category_label", null);
   const existing = await query.maybeSingle();
   if (existing.error) throw new Error("budget lookup failed");
   const result = existing.data
@@ -2136,6 +2138,7 @@ export async function saveBudget(context: ServerContext, input: unknown) {
           group_id: parsed.groupId,
           month: `${parsed.month}-01`,
           category: parsed.category,
+          category_label: label,
           limit_twd: parsed.limitTwd,
           created_by_user_id: context.user.id,
         })
@@ -2144,7 +2147,7 @@ export async function saveBudget(context: ServerContext, input: unknown) {
   if (result.error) throw new Error("budget save failed");
   const budgetId = String(result.data.id);
   await appendActivity(context, "budget", budgetId, existing.data ? "update" : "create", parsed.groupId, existing.data ?? null, parsed);
-  await notifyPartner(context, "budget", "預算已更新", `${parsed.category ? categoryLabel(parsed.category) : "群組總額"} ${parsed.limitTwd} 元`, parsed.groupId, "budget", budgetId);
+  await notifyPartner(context, "budget", "預算已更新", `${label || (parsed.category ? categoryLabel(parsed.category) : "群組總額")} ${parsed.limitTwd} 元`, parsed.groupId, "budget", budgetId);
   await createBudgetAlerts(context);
   await deliverNotifications(context);
   return { ok: true };
@@ -2585,12 +2588,12 @@ async function createBudgetAlerts(context: ServerContext) {
   const [budgets, expenses, users] = await Promise.all([
     context.db
       .from("budgets")
-      .select("id, category, limit_twd")
+      .select("id, category, category_label, limit_twd")
       .eq("group_id", groupId)
       .eq("month", `${month}-01`),
     context.db
       .from("expenses")
-      .select("category, amount_twd")
+      .select("category, category_label, amount_twd")
       .eq("group_id", groupId)
       .is("deleted_at", null)
       .gte("expense_date", `${month}-01`)
@@ -2604,7 +2607,12 @@ async function createBudgetAlerts(context: ServerContext) {
   for (const budget of budgets.data ?? []) {
     const spent = (expenses.data ?? [])
       .filter(
-        (expense) => !budget.category || expense.category === budget.category,
+        (expense) =>
+          !budget.category ||
+          (budget.category_label
+            ? expense.category === budget.category &&
+              expense.category_label === budget.category_label
+            : expense.category === budget.category),
       )
       .reduce((sum, expense) => sum + Number(expense.amount_twd), 0);
     for (const threshold of [80, 100]) {
@@ -2616,7 +2624,7 @@ async function createBudgetAlerts(context: ServerContext) {
             group_id: groupId,
             kind: "budget",
             title: threshold === 100 ? "預算已超過" : "預算接近上限",
-            body: `${budget.category ?? "本月總額"}已使用 ${Math.floor((spent / Number(budget.limit_twd)) * 100)}%`,
+            body: `${budget.category_label ?? budget.category ?? "本月總額"}已使用 ${Math.floor((spent / Number(budget.limit_twd)) * 100)}%`,
             entity_type: "budget",
             entity_id: String(budget.id),
             dedupe_key: `budget:${budget.id}:${threshold}:user:${user.id}`,
@@ -2855,6 +2863,7 @@ export async function runDailyJobs(request: Request) {
       }
     }
   }
+  const insightNotifications = await runProactiveInsightsScan(db, today);
 
   const users = await db
     .from("users")
@@ -2862,7 +2871,204 @@ export async function runDailyJobs(request: Request) {
     .limit(1);
   const firstUser = z.array(userSchema).parse(users.data ?? [])[0];
   if (firstUser) await deliverNotifications({ env, db, user: firstUser });
-  return { drafts, purgedReceipts: expiredReceipts.data?.length ?? 0, accountantReports };
+  return { drafts, purgedReceipts: expiredReceipts.data?.length ?? 0, accountantReports, insightNotifications };
+}
+
+async function runProactiveInsightsScan(db: SupabaseClient, today: string) {
+  const month = today.slice(0, 7);
+  const last7Start = shiftDate(today, -6);
+  const prev7Start = shiftDate(today, -13);
+  const prev7End = shiftDate(today, -7);
+  const noExpenseCutoff = shiftDate(today, -3);
+  const settlementCutoff = shiftDate(today, -14);
+  const [groupsResult, usersResult] = await Promise.all([
+    db.from("groups").select("id, couple_id").is("archived_at", null),
+    db.from("users").select("id, couple_id"),
+  ]);
+  if (groupsResult.error || usersResult.error) return 0;
+  let count = 0;
+
+  for (const group of groupsResult.data ?? []) {
+    const recipients = (usersResult.data ?? []).filter(
+      (user) => Number(user.couple_id) === Number(group.couple_id),
+    );
+    if (!recipients.length) continue;
+    const [expensesResult, budgetsResult, recentResult, balancesResult, settlementsResult] =
+      await Promise.all([
+        db
+          .from("expenses")
+          .select("id, category, category_label, amount_twd, expense_date, deleted_at")
+          .eq("group_id", group.id)
+          .is("deleted_at", null)
+          .gte("expense_date", shiftDate(today, -30))
+          .lte("expense_date", today),
+        db
+          .from("budgets")
+          .select("id, category, category_label, limit_twd")
+          .eq("group_id", group.id)
+          .eq("month", `${month}-01`),
+        db
+          .from("notifications")
+          .select("insight_rule_id, created_at")
+          .eq("group_id", group.id)
+          .not("insight_rule_id", "is", null)
+          .gt("created_at", new Date(Date.now() - 3 * 24 * 60 * 60 * 1_000).toISOString()),
+        db.rpc("group_balances", { p_group_id: group.id }),
+        db
+          .from("settlements")
+          .select("created_at")
+          .eq("group_id", group.id)
+          .order("created_at", { ascending: false })
+          .limit(1),
+      ]);
+    if (expensesResult.error || budgetsResult.error || recentResult.error) continue;
+    const expenses = (expensesResult.data ?? []).map((expense) => ({
+      category: String(expense.category ?? ""),
+      category_label: String(expense.category_label ?? ""),
+      amount_twd: Number(expense.amount_twd),
+      expense_date: String(expense.expense_date),
+    }));
+    const recent = z
+      .array(z.object({ insight_rule_id: z.string().nullable(), created_at: z.string() }))
+      .parse(recentResult.data ?? []);
+
+    for (const budget of budgetsResult.data ?? []) {
+      const spent = expenses
+        .filter((expense) =>
+          budget.category_label
+            ? expense.category === budget.category &&
+              expense.category_label === budget.category_label
+            : !budget.category || expense.category === budget.category,
+        )
+        .reduce((sum, expense) => sum + expense.amount_twd, 0);
+      const limit = Number(budget.limit_twd);
+      if (limit > 0 && spent / limit >= 0.8) {
+        const pct = Math.floor((spent / limit) * 100);
+        count += await insertInsightNotifications(db, {
+          groupId: String(group.id),
+          recipients,
+          recent,
+          ruleId: `budget_warning_80:${budget.id}`,
+          today,
+          body: `${budget.category_label ?? budget.category ?? "本月總額"}預算已用 ${pct}%（NT$${spent.toLocaleString("en-US")} / NT$${limit.toLocaleString("en-US")}）`,
+          entityId: String(budget.id),
+        });
+      }
+    }
+
+    const thisWeek = sumByLabel(
+      expenses.filter((expense) => expense.expense_date >= last7Start),
+    );
+    const lastWeek = sumByLabel(
+      expenses.filter(
+        (expense) =>
+          expense.expense_date >= prev7Start && expense.expense_date <= prev7End,
+      ),
+    );
+    for (const [label, spent] of Object.entries(thisWeek)) {
+      const previous = lastWeek[label] ?? 0;
+      if (spent >= 500 && (previous === 0 || spent / previous >= 2)) {
+        const more = previous ? `比上週多 ${Math.round((spent / previous - 1) * 100)}%` : "上週同期沒有這類支出";
+        count += await insertInsightNotifications(db, {
+          groupId: String(group.id),
+          recipients,
+          recent,
+          ruleId: `week_over_week_spike:${label}`,
+          today,
+          body: `${label}這週花了 NT$${spent.toLocaleString("en-US")}，${more}`,
+          entityId: String(group.id),
+        });
+      }
+    }
+
+    const lastExpenseDate = expenses
+      .map((expense) => expense.expense_date)
+      .sort()
+      .at(-1);
+    if (!lastExpenseDate || lastExpenseDate <= noExpenseCutoff) {
+      count += await insertInsightNotifications(db, {
+        groupId: String(group.id),
+        recipients,
+        recent,
+        ruleId: "no_expense_3_days",
+        today,
+        body: "三天沒有新帳目，有漏記嗎？",
+        entityId: String(group.id),
+      });
+    }
+
+    if (!balancesResult.error) {
+      const maxBalance = Math.max(
+        0,
+        ...(balancesResult.data ?? []).map((row: { balance_twd?: unknown }) =>
+          Math.abs(Number(row.balance_twd ?? 0)),
+        ),
+      );
+      const lastSettlement = String(settlementsResult.data?.[0]?.created_at ?? "").slice(0, 10);
+      if (maxBalance >= 5000 && (!lastSettlement || lastSettlement <= settlementCutoff)) {
+        count += await insertInsightNotifications(db, {
+          groupId: String(group.id),
+          recipients,
+          recent,
+          ruleId: "large_pending_settlement",
+          today,
+          body: `目前還有 NT$${maxBalance.toLocaleString("en-US")} 未結清，要結清嗎？`,
+          entityId: String(group.id),
+        });
+      }
+    }
+  }
+  return count;
+}
+
+async function insertInsightNotifications(
+  db: SupabaseClient,
+  input: {
+    groupId: string;
+    recipients: Array<{ id: unknown }>;
+    recent: Array<{ insight_rule_id?: string | null; created_at: string }>;
+    ruleId: string;
+    today: string;
+    body: string;
+    entityId: string;
+  },
+) {
+  if (!shouldSendInsight(input.recent, input.ruleId)) return 0;
+  let inserted = 0;
+  for (const recipient of input.recipients) {
+    const result = await db.from("notifications").upsert(
+      {
+        recipient_user_id: String(recipient.id),
+        group_id: input.groupId,
+        kind: "insight",
+        title: "📊 帳務提醒",
+        body: `${input.body}\n要我幫你看一下這週花在哪裡嗎？`,
+        entity_type: "insight",
+        entity_id: input.entityId,
+        insight_rule_id: input.ruleId,
+        dedupe_key: `insight:${input.groupId}:${input.ruleId}:${input.today}:user:${recipient.id}`,
+      },
+      { onConflict: "dedupe_key", ignoreDuplicates: true },
+    );
+    if (!result.error) inserted += 1;
+  }
+  return inserted;
+}
+
+function sumByLabel(
+  expenses: Array<{ category: string; category_label: string; amount_twd: number }>,
+) {
+  return expenses.reduce<Record<string, number>>((totals, expense) => {
+    const label = expense.category_label || expense.category;
+    totals[label] = (totals[label] ?? 0) + expense.amount_twd;
+    return totals;
+  }, {});
+}
+
+function shiftDate(date: string, days: number) {
+  const value = new Date(`${date}T00:00:00Z`);
+  value.setUTCDate(value.getUTCDate() + days);
+  return value.toISOString().slice(0, 10);
 }
 
 async function suggestCanonicalLabelMerges(
@@ -3103,7 +3309,7 @@ export function buildProjection(
   expenses: AppExpense[],
   month: string,
   today: string,
-  budgets: Array<{ category?: string | null; limit_twd: number }>,
+  budgets: Array<{ category?: string | null; category_label?: string | null; limit_twd: number }>,
 ) {
   const daysElapsed = Number(today.slice(8, 10));
   const daysTotal = new Date(
@@ -3128,11 +3334,17 @@ export function buildProjection(
     .filter((b) => b.category)
     .map((budget) => {
       const catSpent = thisMonthExpenses
-        .filter((e) => e.category === budget.category)
+        .filter((e) =>
+          budget.category_label
+            ? e.category === budget.category &&
+              e.category_label === budget.category_label
+            : e.category === budget.category,
+        )
         .reduce((sum, e) => sum + e.amount_twd, 0);
       const catProjected = Math.round((catSpent / daysElapsed) * daysTotal);
       return {
         category: budget.category,
+        categoryLabel: budget.category_label ?? null,
         spentSoFar: catSpent,
         projectedTotal: catProjected,
         budget: budget.limit_twd,
@@ -3634,6 +3846,55 @@ export async function importBankCsv(context: ServerContext, input: unknown) {
   };
 }
 
+const expenseSearchParamsSchema = z.object({
+  q: z.string().trim().max(100).optional().default(""),
+  from: z.iso.date().optional(),
+  to: z.iso.date().optional(),
+  category: z.string().trim().max(40).optional(),
+  min: z.coerce.number().int().nonnegative().optional(),
+  max: z.coerce.number().int().positive().optional(),
+  limit: z.coerce.number().int().min(1).max(50).optional().default(20),
+});
+
+export async function searchExpenses(
+  context: ServerContext,
+  searchParams: URLSearchParams,
+) {
+  const parsed = expenseSearchParamsSchema.parse(
+    Object.fromEntries(searchParams.entries()),
+  );
+  const category = parsed.category
+    ? (categories.find(
+        (item) => item === parsed.category || categoryLabel(item) === parsed.category,
+      ) ?? parsed.category)
+    : parsed.category;
+  const groupId = await activeGroupId(context);
+  const [sharedResult, privateResult] = await Promise.all([
+    context.db
+      .from("expenses")
+      .select(EXPENSE_SELECT)
+      .eq("group_id", groupId)
+      .is("deleted_at", null)
+      .order("expense_date", { ascending: false })
+      .limit(500),
+    context.db
+      .from("expenses")
+      .select(EXPENSE_SELECT)
+      .eq("ledger", "private")
+      .eq("created_by_user_id", context.user.id)
+      .is("deleted_at", null)
+      .order("expense_date", { ascending: false })
+      .limit(500),
+  ]);
+  if (sharedResult.error || privateResult.error)
+    throw new Error("expense search failed");
+  const rows = z
+    .array(expenseSchema)
+    .parse([...(sharedResult.data ?? []), ...(privateResult.data ?? [])]);
+  const expenses = searchExpenseRows(rows, { ...parsed, category });
+  return { expenses, count: expenses.length };
+}
+
 export async function balanceDetail(context: ServerContext) {
   const groupId = await activeGroupId(context);
   const [balancesResult, expensesResult, usersResult] = await Promise.all([
@@ -3785,4 +4046,3 @@ function shiftMonth(month: string, offset: number): string {
   const date = new Date(Date.UTC(year!, monthNumber! - 1 + offset, 1));
   return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, "0")}`;
 }
-

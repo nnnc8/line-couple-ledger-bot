@@ -62,7 +62,7 @@ type Bootstrap = {
   sharedExpenses: Expense[];
   privateExpenses: Expense[];
   balances: Array<{ user_id: string; balance_twd: number }>;
-  budgets: Array<{ id: string; category: string | null; limit_twd: number }>;
+  budgets: Array<{ id: string; category: string | null; category_label: string | null; limit_twd: number }>;
   recurring: Array<{
     id: string;
     description: string;
@@ -91,6 +91,7 @@ type ProjectionData = {
   projectedTotal: number;
   categoryProjections: Array<{
     category: string | null;
+    categoryLabel: string | null;
     spentSoFar: number;
     projectedTotal: number;
     budget: number;
@@ -844,8 +845,8 @@ function ProjectionWidget({
             <span className="eyebrow" style={{ color: "var(--danger)" }}>⚠️ 類別超支預警</span>
             <ul style={{ margin: "0.25rem 0 0 0", paddingLeft: "1.25rem", fontSize: "13px" }}>
               {overruns.map((o) => (
-                <li key={o.category || "other"} style={{ margin: "0.2rem 0" }}>
-                  {o.category ? (categoryNames[o.category] || o.category) : "其他"}{" "}
+                <li key={o.categoryLabel || o.category || "other"} style={{ margin: "0.2rem 0" }}>
+                  {o.categoryLabel || (o.category ? (categoryNames[o.category] || o.category) : "其他")}{" "}
                   <strong>{money(o.spentSoFar)}</strong> → 預估月底 <strong>{money(o.projectedTotal)}</strong>{" "}
                   <span style={{ color: "var(--danger)" }}>(預計超出 {money(o.projectedOverrun)})</span>
                 </li>
@@ -922,6 +923,102 @@ type DrillExpense = {
   version: number;
   receipts: Array<{ id: string; status: string }>;
 };
+
+function SearchPanel({
+  users,
+  onEdit,
+  onReceipt,
+}: {
+  users: User[];
+  onEdit(expense: Expense): void;
+  onReceipt(id: string): void;
+}) {
+  const [query, setQuery] = useState(() => urlParam("search") ?? "");
+  const [from, setFrom] = useState("");
+  const [to, setTo] = useState("");
+  const [category, setCategory] = useState("");
+  const [min, setMin] = useState("");
+  const [max, setMax] = useState("");
+  const [results, setResults] = useState<Expense[]>([]);
+  const [error, setError] = useState("");
+  const active = query.trim().length > 0;
+
+  useEffect(() => {
+    if (!active) return;
+    let cancelled = false;
+    const timer = window.setTimeout(() => {
+      const params = new URLSearchParams({
+        q: query.trim(),
+        limit: "20",
+      });
+      if (from) params.set("from", from);
+      if (to) params.set("to", to);
+      if (category) params.set("category", category);
+      if (min) params.set("min", min);
+      if (max) params.set("max", max);
+      void fetch(`/api/app/expenses/search?${params}`, { cache: "no-store" })
+        .then(parseResponse)
+        .then((payload) => {
+          if (!cancelled) {
+            setResults((payload as { expenses: Expense[] }).expenses);
+            setError("");
+          }
+        })
+        .catch((reason) => {
+          if (!cancelled) {
+            setResults([]);
+            setError(reason instanceof Error ? reason.message : "搜尋失敗");
+          }
+        });
+    }, 250);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [active, query, from, to, category, min, max]);
+
+  return (
+    <article className="panel search-panel">
+      <label className="search-box">
+        <IconSearch />
+        <input
+          placeholder="搜尋支出..."
+          value={query}
+          onChange={(event) => setQuery(event.target.value)}
+        />
+      </label>
+      {active && (
+        <>
+          <div className="search-filters">
+            <input type="date" value={from} onChange={(event) => setFrom(event.target.value)} aria-label="搜尋起日" />
+            <input type="date" value={to} onChange={(event) => setTo(event.target.value)} aria-label="搜尋迄日" />
+            <select value={category} onChange={(event) => setCategory(event.target.value)} aria-label="搜尋分類">
+              <option value="">全部分類</option>
+              {Object.entries(categoryNames).map(([key, label]) => (
+                <option value={key} key={key}>{label}</option>
+              ))}
+            </select>
+            <input inputMode="numeric" placeholder="最低金額" value={min} onChange={(event) => setMin(event.target.value)} />
+            <input inputMode="numeric" placeholder="最高金額" value={max} onChange={(event) => setMax(event.target.value)} />
+          </div>
+          {error && <p className="form-error">{error}</p>}
+          <div className="search-results">
+            {results.map((expense) => (
+              <ExpenseDrillItem
+                key={expense.id}
+                expense={expense}
+                users={users}
+                onEdit={onEdit}
+                onReceipt={onReceipt}
+              />
+            ))}
+            {!results.length && !error && <Empty text="沒有符合的支出" icon="🔎" />}
+          </div>
+        </>
+      )}
+    </article>
+  );
+}
 
 function ExpenseDrillItem({
   expense,
@@ -1214,6 +1311,7 @@ function Dashboard({
 
   return (
     <div className="stack">
+      <SearchPanel users={data.users} onEdit={onEdit} onReceipt={onReceipt} />
       <ProjectionWidget projection={data.projection} budgets={data.budgets} />
       <article
         className="balance-card"
@@ -2283,7 +2381,9 @@ function Budgets({
   onSave(body: unknown): void;
 }) {
   const [category, setCategory] = useState("total");
+  const [categoryLabel, setCategoryLabel] = useState("");
   const [limit, setLimit] = useState("");
+  const [error, setError] = useState("");
   return (
     <div className="stack">
       <article className="panel">
@@ -2295,9 +2395,19 @@ function Budgets({
         </div>
         {data.budgets.length ? (
           data.budgets.map((budget) => {
-            const spent = budget.category
-              ? (data.dashboard.categoryTotals[budget.category] ?? 0)
-              : data.dashboard.monthlyTotalTwd;
+            const spent = budget.category_label
+              ? data.sharedExpenses
+                  .filter(
+                    (expense) =>
+                      !expense.deleted_at &&
+                      expense.expense_date.startsWith(data.month) &&
+                      expense.category === budget.category &&
+                      expense.category_label === budget.category_label,
+                  )
+                  .reduce((sum, expense) => sum + expense.amount_twd, 0)
+              : budget.category
+                ? (data.dashboard.categoryTotals[budget.category] ?? 0)
+                : data.dashboard.monthlyTotalTwd;
             const percent = Math.round(
               (spent / Number(budget.limit_twd)) * 100,
             );
@@ -2307,7 +2417,7 @@ function Budgets({
                 <div>
                   <strong>
                     {budget.category
-                      ? `${categoryEmojis[budget.category] ?? "📦"} ${categoryNames[budget.category]}`
+                      ? `${categoryEmojis[budget.category] ?? "📦"} ${budget.category_label ?? categoryNames[budget.category]}`
                       : "📋 群組總預算"}
                   </strong>
                   <small>
@@ -2343,6 +2453,14 @@ function Budgets({
               ))}
             </select>
           </Field>
+          <Field label="細分類標籤（選填）">
+            <input
+              value={categoryLabel}
+              disabled={category === "total"}
+              onChange={(event) => setCategoryLabel(event.target.value)}
+              placeholder="例如：外食、油資、飲料"
+            />
+          </Field>
           <Field label="上限（TWD）">
             <input
               inputMode="numeric"
@@ -2352,15 +2470,31 @@ function Budgets({
             />
           </Field>
         </div>
+        {error && <p className="form-error">{error}</p>}
         <button
-          onClick={() =>
+          onClick={() => {
+            const amount = Number(limit);
+            const label = categoryLabel.trim();
+            const parent = data.budgets.find(
+              (budget) => budget.category === category && !budget.category_label,
+            );
+            if (category !== "total" && label && !parent) {
+              setError("請先設定大分類預算");
+              return;
+            }
+            if (category !== "total" && label && parent && amount > Number(parent.limit_twd)) {
+              setError("細分類預算不能超過大分類預算");
+              return;
+            }
+            setError("");
             onSave({
               groupId: data.activeGroupId,
               month: data.month,
               category: category === "total" ? null : category,
-              limitTwd: Number(limit),
+              categoryLabel: category === "total" ? null : label || null,
+              limitTwd: amount,
             })
-          }
+          }}
         >
           儲存預算
         </button>

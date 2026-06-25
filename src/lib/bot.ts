@@ -9,6 +9,7 @@ import {
   retargetPendingActionById,
   retargetPendingActions,
   runAgent,
+  searchExpenses,
   serverEnvironment,
   transcribeAudio,
 } from "./app-server";
@@ -241,6 +242,12 @@ async function handleText(
     return;
   }
 
+  const searchQuery = parseSearchCommand(text);
+  if (searchQuery) {
+    await replySearch(searchQuery, user, replyToken, dependencies);
+    return;
+  }
+
   const retarget = parsePendingRetargetCommand(text);
   if (retarget) {
     const result = await retargetPendingActions(
@@ -315,6 +322,39 @@ async function handleText(
         "看不懂這句。可試：晚餐 860 我付、誰欠誰、本月共同支出。",
       );
   }
+}
+
+function parseSearchCommand(text: string): string | null {
+  const match = text.trim().match(/^(?:\/?搜尋|搜)\s+(.+)$/);
+  const query = match?.[1]?.trim();
+  return query ? query.slice(0, 100) : null;
+}
+
+async function replySearch(
+  query: string,
+  user: UserRow,
+  replyToken: string,
+  dependencies: BotDependencies,
+) {
+  const env = serverEnvironment();
+  const params = new URLSearchParams({ q: query, limit: "5" });
+  const result = await searchExpenses(
+    { env, db: dependencies.supabase, user },
+    params,
+  );
+  const expenses = result.expenses.slice(0, 5);
+  const link = `${env.APP_URL}/?search=${encodeURIComponent(query)}`;
+  const lines = expenses.length
+    ? [
+        `找到 ${expenses.length} 筆：`,
+        ...expenses.map((expense) => {
+          const label = expense.category_label || expense.category;
+          return `• ${expense.description} NT$${expense.amount_twd.toLocaleString("en-US")}｜${expense.expense_date}｜${label}`;
+        }),
+        `看更多：${link}`,
+      ]
+    : [`找不到「${query}」。`, `可到 LIFF 放寬日期或金額條件：${link}`];
+  await replyText(dependencies.lineClient, replyToken, lines.join("\n"));
 }
 
 async function handleAudioMessage(
