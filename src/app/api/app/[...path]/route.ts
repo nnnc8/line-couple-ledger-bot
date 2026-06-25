@@ -10,10 +10,13 @@ import {
   checkExpenseInSettlements,
   confirmAction,
   categoryAnalytics,
+  categoryExpenses,
+  balanceDetail,
   createCategoryCleanup,
   createReceiptUpload,
   createSession,
   expensesCsv,
+  importBankCsv,
   listCanonicalLabels,
   loadBootstrap,
   listAccountantReports,
@@ -65,6 +68,12 @@ export async function GET(request: Request, route: RouteContext) {
     }
     if (path[0] === "analytics" && path[1] === "categories") {
       return json(await categoryAnalytics(context, new URL(request.url).searchParams));
+    }
+    if (path[0] === "analytics" && path[1] === "expenses") {
+      return json(await categoryExpenses(context, new URL(request.url).searchParams));
+    }
+    if (path[0] === "balance" && path[1] === "detail") {
+      return json(await balanceDetail(context));
     }
     if (path[0] === "canonical-labels") {
       return json(await listCanonicalLabels(context));
@@ -137,6 +146,9 @@ export async function POST(request: Request, route: RouteContext) {
     }
     if (path[0] === "accountant" && path[1] === "chat") {
       return json(await agentChat(context, body));
+    }
+    if (path[0] === "bank" && path[1] === "import") {
+      return json(await importBankCsv(context, body));
     }
     throw new HttpError(404, "Not found");
   } catch (error) {

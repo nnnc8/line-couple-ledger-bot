@@ -56,6 +56,12 @@ import {
   toolDeclarations,
   type ToolContext,
 } from "./accountant-tools";
+import { balanceContributions } from "./balance-detail";
+import {
+  matchTransactions,
+  parseBankCsvWithMeta,
+  type CsvBank,
+} from "./bank-csv";
 
 export const SESSION_COOKIE = "couple_ledger_session";
 const SESSION_SECONDS = 60 * 60 * 24 * 7;
@@ -3577,6 +3583,190 @@ export async function transcribeAudio(
     },
   });
   return (response.text ?? "").trim();
+}
+
+const bankImportInputSchema = z.object({
+  csv: z.string().min(1).max(512_000),
+  bank: z.enum(["esun", "cathay", "taishin", "ctbc", "auto"]).default("auto"),
+});
+
+export async function importBankCsv(context: ServerContext, input: unknown) {
+  const parsed = bankImportInputSchema.parse(input);
+  const groupId = await activeGroupId(context);
+  const { bank, transactions: rows } = parseBankCsvWithMeta(
+    parsed.csv,
+    parsed.bank as CsvBank,
+  );
+  if (!rows.length) throw new HttpError(400, "無法解析 CSV，請確認銀行格式");
+  const expensesResult = await context.db
+    .from("expenses")
+    .select(
+      "id, description, merchant, amount_twd, expense_date, deleted_at",
+    )
+    .eq("group_id", groupId)
+    .gte("expense_date", `${shiftMonth(taipeiToday().slice(0, 7), -2)}-01`)
+    .order("expense_date", { ascending: false })
+    .limit(500);
+  if (expensesResult.error) throw new Error("expense lookup failed");
+  const expenses = z
+    .array(
+      z.object({
+        id: z.string().uuid(),
+        description: z.string(),
+        merchant: z.string().nullable(),
+        amount_twd: z.coerce.number().int(),
+        expense_date: z.string(),
+        deleted_at: z.string().nullable(),
+      }),
+    )
+    .parse(expensesResult.data ?? []);
+  const matches = matchTransactions(rows, expenses);
+  return {
+    bank,
+    transactionCount: rows.length,
+    matchedCount: matches.filter((item) => item.matchedExpenseId).length,
+    matches: matches.map((item) => ({
+      bankTx: item.bankTx,
+      matchedExpenseId: item.matchedExpenseId ?? null,
+      matchedDescription: item.matchedDescription ?? null,
+      confidence: item.confidence,
+    })),
+  };
+}
+
+export async function balanceDetail(context: ServerContext) {
+  const groupId = await activeGroupId(context);
+  const [balancesResult, expensesResult, usersResult] = await Promise.all([
+    context.db.rpc("group_balances", { p_group_id: groupId }),
+    context.db
+      .from("expenses")
+      .select(EXPENSE_SELECT)
+      .eq("group_id", groupId)
+      .is("deleted_at", null)
+      .order("expense_date", { ascending: false })
+      .limit(200),
+    context.db
+      .from("users")
+      .select("id, couple_id, line_user_id, role")
+      .eq("couple_id", context.user.couple_id)
+      .order("role"),
+  ]);
+  if (balancesResult.error || expensesResult.error || usersResult.error) {
+    throw new Error("balance detail lookup failed");
+  }
+  const balances = z
+    .array(
+      z.object({
+        user_id: z.string().uuid(),
+        balance_twd: z.coerce.number().int(),
+      }),
+    )
+    .parse(balancesResult.data);
+  const expenses = z.array(expenseSchema).parse(expensesResult.data ?? []);
+  const myBalance =
+    balances.find((item) => item.user_id === context.user.id)?.balance_twd ?? 0;
+  const suggestions = balanceContributions(expenses, context.user.id, myBalance);
+  return {
+    myBalance,
+    suggestions,
+  };
+}
+
+const categoryExpensesInputSchema = z.object({
+  label: z.string().trim().min(1).max(40),
+  range: z.enum(["this_month", "six_months", "all"]).default("this_month"),
+  scope: z.enum(["shared", "private", "combined"]).default("shared"),
+  month: z.string().regex(/^\d{4}-\d{2}$/).optional(),
+  offset: z.coerce.number().int().min(0).max(500).default(0),
+  limit: z.coerce.number().int().min(1).max(50).default(20),
+});
+
+export async function categoryExpenses(
+  context: ServerContext,
+  params: URLSearchParams,
+) {
+  const parsed = categoryExpensesInputSchema.parse({
+    label: params.get("label") ?? undefined,
+    range: params.get("range") ?? undefined,
+    scope: params.get("scope") ?? undefined,
+    month: params.get("month") ?? undefined,
+    offset: params.get("offset") ?? undefined,
+    limit: params.get("limit") ?? undefined,
+  });
+  const groupId = await activeGroupId(context);
+  const [sharedResult, privateResult] = await Promise.all([
+    context.db
+      .from("expenses")
+      .select(EXPENSE_SELECT)
+      .eq("group_id", groupId)
+      .order("expense_date", { ascending: false })
+      .limit(2_000),
+    context.db
+      .from("expenses")
+      .select(EXPENSE_SELECT)
+      .eq("ledger", "private")
+      .eq("created_by_user_id", context.user.id)
+      .order("expense_date", { ascending: false })
+      .limit(2_000),
+  ]);
+  if (sharedResult.error || privateResult.error) {
+    throw new Error("category expense lookup failed");
+  }
+  const allExpenses = z
+    .array(expenseSchema)
+    .parse([...(sharedResult.data ?? []), ...(privateResult.data ?? [])]);
+  const timeRange: AgentTimeRange =
+    parsed.range === "six_months" ? "last_3_months" : parsed.range;
+  let expenses = filterAgentExpenses({
+    activeGroupId: groupId,
+    expenses: allExpenses.map(toAgentExpense),
+    now: taipeiToday(),
+    scope: parsed.scope,
+    timeRange: parsed.range === "six_months" ? "all" : timeRange,
+    userId: context.user.id,
+  }).filter((expense) =>
+    parsed.range === "six_months"
+      ? expense.expense_date >= `${shiftMonth(taipeiToday().slice(0, 7), -5)}-01`
+      : true,
+  );
+  if (parsed.month) {
+    expenses = expenses.filter((expense) =>
+      expense.expense_date.startsWith(parsed.month!),
+    );
+  }
+  const label = parsed.label;
+  const expenseById = new Map(allExpenses.map((expense) => [expense.id, expense]));
+  const filtered = expenses
+    .filter((expense) => {
+      const expenseLabel = expense.category_label?.trim() || expense.category;
+      return expenseLabel === label;
+    })
+    .sort((left, right) => {
+      const amountDiff = right.amount_twd - left.amount_twd;
+      return amountDiff || right.expense_date.localeCompare(left.expense_date);
+    });
+  const slice = filtered.slice(parsed.offset, parsed.offset + parsed.limit);
+  return {
+    label,
+    total: filtered.length,
+    offset: parsed.offset,
+    limit: parsed.limit,
+    expenses: slice.map((expense) => {
+      const full = expenseById.get(expense.id);
+      return {
+        id: expense.id,
+        description: expense.description,
+        merchant: expense.merchant,
+        amount_twd: expense.amount_twd,
+        expense_date: expense.expense_date,
+        category: expense.category,
+        category_label: expense.category_label,
+        paid_by_user_id: expense.paid_by_user_id,
+        version: expense.version,
+        receipts: full?.receipts ?? [],
+      };
+    }),
+  };
 }
 
 /* ─── Utility functions ─── */

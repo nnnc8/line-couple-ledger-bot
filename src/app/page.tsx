@@ -2,6 +2,10 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
+import {
+  applyOptimistic,
+  type PendingActionInput,
+} from "@/lib/optimistic";
 
 type Tab =
   | "dashboard"
@@ -38,6 +42,7 @@ type Expense = {
   deleted_at: string | null;
   receipts: Array<{ id: string; status: string }>;
   expense_splits: Array<{ user_id: string; amount_twd: number }>;
+  _optimistic?: boolean;
 };
 type DashboardData = {
   monthlyTotalTwd: number;
@@ -306,6 +311,7 @@ export default function Home() {
   const [confirm, setConfirm] = useState<{
     actionId: string;
     preview: string;
+    action?: PendingActionInput;
   } | null>(null);
 
   const load = useCallback(async () => {
@@ -412,15 +418,16 @@ export default function Home() {
     }
   }
 
-  async function propose(body: unknown) {
+  async function propose(body: PendingActionInput) {
+    setError("");
     try {
-      const result = (await mutate("/api/app/actions", body)) as {
+      const result = (await api("/api/app/actions", body)) as {
         actionId: string;
         preview: string;
       };
-      setConfirm(result);
-    } catch {
-      /* error shown */
+      setConfirm({ ...result, action: body });
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "操作失敗");
     }
   }
 
@@ -428,36 +435,71 @@ export default function Home() {
     if (!confirm) return;
     const current = confirm;
     setConfirm(null);
+    if (!value) {
+      try {
+        await api("/api/app/actions/confirm", {
+          actionId: current.actionId,
+          confirm: false,
+        });
+        setNotice("已取消");
+      } catch (reason) {
+        setError(reason instanceof Error ? reason.message : "操作失敗");
+      }
+      return;
+    }
+    const snapshot = data;
+    if (snapshot && current.action) {
+      setData(applyOptimistic(snapshot, current.action) as Bootstrap);
+    }
     try {
-      const result = (await mutate("/api/app/actions/confirm", {
+      const result = (await api("/api/app/actions/confirm", {
         actionId: current.actionId,
-        confirm: value,
+        confirm: true,
       })) as { result: string };
       if (result.result === "confirmed") {
         sessionStorage.removeItem("editExpense");
         sessionStorage.removeItem("receiptDraft");
-      }
-      setNotice(
-        result.result === "confirmed"
-          ? "已完成"
-          : result.result === "cancelled"
+        setNotice("已完成");
+        void load();
+      } else {
+        if (snapshot) setData(snapshot);
+        setNotice(
+          result.result === "cancelled"
             ? "已取消"
             : "帳目已變動，請重試",
-      );
-    } catch {
-      /* error shown */
+        );
+      }
+    } catch (reason) {
+      if (snapshot) setData(snapshot);
+      setError(reason instanceof Error ? reason.message : "操作失敗");
     }
   }
 
-  if (!data)
+  if (!data) {
+    if (error) {
+      return (
+        <main className="center-state">
+          <div className="brand-mark">共</div>
+          <h1>共同帳本</h1>
+          <p>{error}</p>
+          <button onClick={() => void startLiff()}>重新登入</button>
+        </main>
+      );
+    }
     return (
-      <main className="center-state">
-        <div className="brand-mark">共</div>
-        <h1>共同帳本</h1>
-        <p>{error || "正在連接 LINE…"}</p>
-        {error && <button onClick={() => void startLiff()}>重新登入</button>}
+      <main className="app-shell loading-shell">
+        <header className="topbar">
+          <div>
+            <span className="eyebrow">共同帳本</span>
+            <h1>總覽</h1>
+          </div>
+        </header>
+        <section className="content">
+          <DashboardSkeleton />
+        </section>
       </main>
     );
+  }
 
   const activeGroup = data.groups.find(
     (group) => group.id === data.activeGroupId,
@@ -538,6 +580,11 @@ export default function Home() {
               })
             }
             onAdd={() => setTab("add")}
+            onEdit={(expense) => {
+              setTab("add");
+              sessionStorage.setItem("editExpense", JSON.stringify(expense));
+            }}
+            onReceipt={(id) => void openReceipt(id)}
           />
         )}
         {tab === "history" && (
@@ -579,12 +626,12 @@ export default function Home() {
           <ExpenseEditor
             data={data}
             busy={busy}
-            onSubmit={(body) => void propose(body)}
+            onSubmit={(body) => void propose(body as PendingActionInput)}
             onReceipt={async (file) => uploadReceipt(file, data.activeGroupId)}
           />
         )}
         {tab === "accountant" && (
-          <Accountant onPropose={(body) => void propose(body)} />
+          <Accountant onPropose={(body) => void propose(body as PendingActionInput)} />
         )}
         {tab === "budgets" && (
           <Budgets
@@ -607,7 +654,16 @@ export default function Home() {
             onRead={() =>
               void mutate("/api/app/notifications/read", {}, "已標示為已讀")
             }
-            onPropose={(confirmData) => setConfirm(confirmData as { actionId: string; preview: string })}
+            onPropose={(confirmData) =>
+              setConfirm(confirmData as {
+                actionId: string;
+                preview: string;
+                action?: PendingActionInput;
+              })
+            }
+            onBatchCreate={(expenses) =>
+              void propose({ type: "batch_create_expenses", expenses })
+            }
           />
         )}
       </section>
@@ -802,26 +858,278 @@ function ProjectionWidget({
   );
 }
 
+/* ─── Skeleton Loading ─── */
+function DashboardSkeleton() {
+  return (
+    <div className="stack skeleton-stack">
+      <article className="balance-card skeleton-card">
+        <div className="skeleton-line w-40" />
+        <div className="skeleton-line w-60 lg" />
+        <div className="skeleton-line w-80" />
+      </article>
+      <div className="metric-grid">
+        <article className="skeleton-card">
+          <div className="skeleton-line w-50" />
+          <div className="skeleton-line w-70 lg" />
+        </article>
+        <article className="skeleton-card">
+          <div className="skeleton-line w-50" />
+          <div className="skeleton-line w-40 lg" />
+        </article>
+      </div>
+      <article className="panel skeleton-card">
+        <div className="skeleton-line w-30" />
+        <div className="category-chart skeleton-chart">
+          <div className="skeleton-donut animate-pulse" />
+          <div className="legend">
+            {[1, 2, 3].map((item) => (
+              <div key={item}>
+                <div className="skeleton-dot" />
+                <div className="skeleton-line w-80" />
+              </div>
+            ))}
+          </div>
+        </div>
+      </article>
+      <article className="panel skeleton-card">
+        {[1, 2, 3, 4].map((item) => (
+          <div className="skeleton-row" key={item}>
+            <div className="skeleton-avatar" />
+            <div className="skeleton-line w-90" />
+          </div>
+        ))}
+      </article>
+    </div>
+  );
+}
+
+type BalanceSuggestion = {
+  expenseId: string;
+  description: string;
+  amountTwd: number;
+  expenseDate: string;
+};
+
+type DrillExpense = {
+  id: string;
+  description: string;
+  merchant: string | null;
+  amount_twd: number;
+  expense_date: string;
+  category: string;
+  category_label: string;
+  paid_by_user_id: string;
+  version: number;
+  receipts: Array<{ id: string; status: string }>;
+};
+
+function ExpenseDrillItem({
+  expense,
+  users,
+  onEdit,
+  onReceipt,
+}: {
+  expense: DrillExpense | Expense;
+  users: User[];
+  onEdit?(expense: Expense): void;
+  onReceipt?(id: string): void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [thumb, setThumb] = useState<string | null>(null);
+  const receiptId = expense.receipts[0]?.id;
+
+  useEffect(() => {
+    if (!open || !receiptId || thumb) return;
+    let cancelled = false;
+    void fetch(`/api/app/receipts/${receiptId}/url`)
+      .then(parseResponse)
+      .then((result) => {
+        if (!cancelled) setThumb((result as { url: string }).url);
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [open, receiptId, thumb]);
+
+  return (
+    <div className="drill-item">
+      <button
+        type="button"
+        className="drill-item-head"
+        onClick={() => setOpen((value) => !value)}
+      >
+        <div>
+          <strong>{expense.description}</strong>
+          <small>
+            {expense.expense_date.slice(5).replace("-", "/")} ·{" "}
+            {users.find((user) => user.id === expense.paid_by_user_id)?.label}付款
+          </small>
+        </div>
+        <strong>{money(expense.amount_twd)}</strong>
+      </button>
+      {open && (
+        <div className="drill-item-body">
+          {receiptId && thumb && (
+            <img
+              className="receipt-thumb"
+              src={thumb}
+              alt="收據縮圖"
+              loading="lazy"
+            />
+          )}
+          <div className="row-actions">
+            {onEdit && (
+              <button
+                className="text-button"
+                type="button"
+                onClick={() => onEdit(expense as Expense)}
+              >
+                編輯
+              </button>
+            )}
+            {receiptId && onReceipt && (
+              <button
+                className="text-button"
+                type="button"
+                onClick={() => onReceipt(receiptId)}
+              >
+                查看收據
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function CategoryDrillDown({
+  label,
+  range,
+  scope,
+  month,
+  users,
+  onEdit,
+  onReceipt,
+}: {
+  label: string;
+  range: CategoryAnalytics["range"];
+  scope: CategoryAnalytics["scope"];
+  month?: string;
+  users: User[];
+  onEdit?(expense: Expense): void;
+  onReceipt?(id: string): void;
+}) {
+  const [items, setItems] = useState<DrillExpense[]>([]);
+  const [total, setTotal] = useState(0);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    const params = new URLSearchParams({
+      label,
+      range,
+      scope,
+      offset: "0",
+      limit: "20",
+    });
+    if (month) params.set("month", month);
+    void fetch(`/api/app/analytics/expenses?${params}`, { cache: "no-store" })
+      .then(parseResponse)
+      .then((result) => {
+        if (cancelled) return;
+        const payload = result as {
+          expenses: DrillExpense[];
+          total: number;
+        };
+        setItems(payload.expenses);
+        setTotal(payload.total);
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setItems([]);
+          setTotal(0);
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [label, range, scope, month]);
+
+  const loadMore = async () => {
+    const params = new URLSearchParams({
+      label,
+      range,
+      scope,
+      offset: String(items.length),
+      limit: "20",
+    });
+    if (month) params.set("month", month);
+    const result = (await fetch(
+      `/api/app/analytics/expenses?${params}`,
+      { cache: "no-store" },
+    ).then(parseResponse)) as { expenses: DrillExpense[] };
+    setItems((current) => [...current, ...result.expenses]);
+  };
+
+  if (loading) return <div className="drill-panel loading">載入明細…</div>;
+
+  return (
+    <div className="drill-panel">
+      {items.map((expense) => (
+        <ExpenseDrillItem
+          key={expense.id}
+          expense={expense}
+          users={users}
+          onEdit={onEdit}
+          onReceipt={onReceipt}
+        />
+      ))}
+      {items.length < total && (
+        <button type="button" className="text-button load-more" onClick={() => void loadMore()}>
+          載入更多（{items.length}/{total}）
+        </button>
+      )}
+      {!items.length && <Empty text="這個分類沒有明細" icon="📭" />}
+    </div>
+  );
+}
+
 /* ─── Dashboard ─── */
 function Dashboard({
   data,
   activeGroup,
   onSettle,
   onAdd,
+  onEdit,
+  onReceipt,
 }: {
   data: Bootstrap;
   activeGroup: Group;
   onSettle(amount: number): void;
   onAdd(): void;
+  onEdit(expense: Expense): void;
+  onReceipt(id: string): void;
 }) {
-  const [settleAmount, setSettleAmount] = useState("");
+  const [partialAmount, setPartialAmount] = useState("");
   const [categoryRange, setCategoryRange] =
     useState<CategoryAnalytics["range"]>("this_month");
   const [analytics, setAnalytics] = useState<CategoryAnalytics | null>(null);
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [selectedMonth, setSelectedMonth] = useState<string | null>(null);
+  const [selectedMonthCategory, setSelectedMonthCategory] = useState<
+    string | null
+  >(null);
+  const [suggestions, setSuggestions] = useState<BalanceSuggestion[]>([]);
   const mine =
     data.balances.find((item) => item.user_id === data.user.id)?.balance_twd ??
     0;
   const owed = Math.abs(mine);
+
   useEffect(() => {
     let cancelled = false;
     void fetch(
@@ -839,6 +1147,25 @@ function Dashboard({
       cancelled = true;
     };
   }, [categoryRange, data.activeGroupId]);
+
+  useEffect(() => {
+    if (owed <= 0) return;
+    let cancelled = false;
+    void fetch("/api/app/balance/detail", { cache: "no-store" })
+      .then(parseResponse)
+      .then((result) => {
+        if (!cancelled) {
+          setSuggestions((result as { suggestions: BalanceSuggestion[] }).suggestions);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setSuggestions([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [owed, data.activeGroupId, data.balances]);
+
   const fallbackCategories = Object.entries(data.dashboard.categoryTotals)
     .filter(([, value]) => value > 0)
     .sort((a, b) => b[1] - a[1])
@@ -855,16 +1182,36 @@ function Dashboard({
   const budget = data.budgets.find((item) => item.category === null);
   const budgetPercent = budget
     ? Math.min(
-      100,
-      Math.round(
-        (data.dashboard.monthlyTotalTwd / Number(budget.limit_twd)) * 100,
-      ),
-    )
+        100,
+        Math.round(
+          (data.dashboard.monthlyTotalTwd / Number(budget.limit_twd)) * 100,
+        ),
+      )
     : 0;
   const maxTrend = Math.max(
     1,
     ...data.dashboard.trend.map((item) => item.totalTwd),
   );
+
+  const monthCategories = selectedMonth
+    ? Object.entries(
+        data.sharedExpenses
+          .filter(
+            (expense) =>
+              !expense.deleted_at &&
+              expense.expense_date.startsWith(selectedMonth),
+          )
+          .reduce<Record<string, number>>((totals, expense) => {
+            const label = displayCategoryLabel(expense);
+            totals[label] = (totals[label] ?? 0) + expense.amount_twd;
+            return totals;
+          }, {}),
+      )
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 6)
+    : [];
+  const visibleSuggestions = owed > 0 ? suggestions : [];
+
   return (
     <div className="stack">
       <ProjectionWidget projection={data.projection} budgets={data.budgets} />
@@ -880,27 +1227,47 @@ function Dashboard({
               ? `另一半欠你 ${money(owed)}`
               : `你欠另一半 ${money(owed)}`}
         </strong>
+        {owed > 0 && (
+          <div className="settle-actions">
+            <input
+              aria-label="部分結清金額"
+              inputMode="numeric"
+              placeholder={`部分結清（最多 ${owed}）`}
+              value={partialAmount}
+              onChange={(event) => setPartialAmount(event.target.value)}
+            />
+            <button
+              type="button"
+              className="light"
+              onClick={() => {
+                const amount = Number(partialAmount);
+                if (amount > 0 && amount <= owed) onSettle(amount);
+              }}
+            >
+              部分結清
+            </button>
+            <button type="button" className="light primary-settle" onClick={() => onSettle(owed)}>
+              全額結清 ✓
+            </button>
+          </div>
+        )}
+        {visibleSuggestions.length > 0 && (
+          <div className="settle-suggestions">
+            <span className="eyebrow">建議先結清</span>
+            <ul>
+              {visibleSuggestions.map((item) => (
+                <li key={item.expenseId}>
+                  {item.description} {money(item.amountTwd)}（
+                  {item.expenseDate.slice(5).replace("-", "/")}）
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
         <div className="inline-actions">
-          <button className="light" onClick={onAdd}>
+          <button className="light" type="button" onClick={onAdd}>
             ＋ 新增支出
           </button>
-          {owed > 0 && (
-            <>
-              <input
-                aria-label="結清金額"
-                inputMode="numeric"
-                placeholder={String(owed)}
-                value={settleAmount}
-                onChange={(event) => setSettleAmount(event.target.value)}
-              />
-              <button
-                className="light"
-                onClick={() => onSettle(Number(settleAmount || owed))}
-              >
-                結清
-              </button>
-            </>
-          )}
         </div>
       </article>
       <div className="metric-grid">
@@ -926,62 +1293,78 @@ function Dashboard({
           <strong>{money(categoryTotal)}</strong>
         </div>
         <div className="segmented three">
-          <button
-            type="button"
-            className={categoryRange === "this_month" ? "active" : ""}
-            onClick={() => setCategoryRange("this_month")}
-          >
-            本月
-          </button>
-          <button
-            type="button"
-            className={categoryRange === "six_months" ? "active" : ""}
-            onClick={() => setCategoryRange("six_months")}
-          >
-            近六月
-          </button>
-          <button
-            type="button"
-            className={categoryRange === "all" ? "active" : ""}
-            onClick={() => setCategoryRange("all")}
-          >
-            全部
-          </button>
-        </div>
-        {categoryRows.length ? (
-          <div className="category-chart">
-            <div
-              className="donut"
-              style={{
-                background: donutGradient(
-                  categoryRows.map((item) => [item.label, item.totalTwd]),
-                  categoryTotal,
-                ),
+          {(["this_month", "six_months", "all"] as const).map((range) => (
+            <button
+              key={range}
+              type="button"
+              className={categoryRange === range ? "active" : ""}
+              onClick={() => {
+                setCategoryRange(range);
+                setSelectedCategory(null);
               }}
             >
-              <span>
-                {categoryRows.length}
-                <small>分類</small>
-              </span>
+              {range === "this_month" ? "本月" : range === "six_months" ? "近六月" : "全部"}
+            </button>
+          ))}
+        </div>
+        {categoryRows.length ? (
+          <>
+            <div className="category-chart">
+              <div
+                className="donut clickable"
+                style={{
+                  background: donutGradient(
+                    categoryRows.map((item) => [item.label, item.totalTwd]),
+                    categoryTotal,
+                  ),
+                }}
+              >
+                <span>
+                  {categoryRows.length}
+                  <small>分類</small>
+                </span>
+              </div>
+              <div className="legend">
+                {categoryRows.slice(0, 6).map((category, index) => {
+                  const pct =
+                    categoryTotal > 0
+                      ? Math.round((category.totalTwd / categoryTotal) * 100)
+                      : 0;
+                  const active = selectedCategory === category.label;
+                  return (
+                    <button
+                      type="button"
+                      key={category.label}
+                      className={`legend-item ${active ? "active" : ""}`}
+                      onClick={() =>
+                        setSelectedCategory((current) =>
+                          current === category.label ? null : category.label,
+                        )
+                      }
+                    >
+                      <i style={{ background: palette[index] }} />
+                      <span>{category.label}</span>
+                      <strong>
+                        {money(category.totalTwd)}
+                        <span className="pct">{pct}%</span>
+                      </strong>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
-            <div className="legend">
-              {categoryRows.slice(0, 6).map((category, index) => {
-                const pct = categoryTotal > 0
-                  ? Math.round((category.totalTwd / categoryTotal) * 100)
-                  : 0;
-                return (
-                  <div key={category.label}>
-                    <i style={{ background: palette[index] }} />
-                    <span>{category.label}</span>
-                    <strong>
-                      {money(category.totalTwd)}
-                      <span className="pct">{pct}%</span>
-                    </strong>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
+            {selectedCategory && (
+              <CategoryDrillDown
+                key={`${selectedCategory}:${categoryRange}:shared`}
+                label={selectedCategory}
+                range={categoryRange}
+                scope="shared"
+                users={data.users}
+                onEdit={onEdit}
+                onReceipt={onReceipt}
+              />
+            )}
+          </>
         ) : (
           <Empty text="這個範圍還沒有共同支出" icon="📭" />
         )}
@@ -994,25 +1377,75 @@ function Dashboard({
           </div>
         </div>
         <div className="bars">
-          {data.dashboard.trend.map((point) => (
-            <div key={point.month}>
-              <div className="bar-track">
-                <i
-                  style={{
-                    height: `${Math.max(3, (point.totalTwd / maxTrend) * 100)}%`,
-                  }}
-                  title={money(point.totalTwd)}
-                />
-              </div>
-              <div>
-                {point.totalTwd > 0 && (
-                  <span className="bar-label">{shortMoney(point.totalTwd)}</span>
-                )}
-                <small>{Number(point.month.slice(5))}月</small>
-              </div>
-            </div>
-          ))}
+          {data.dashboard.trend.map((point) => {
+            const active = selectedMonth === point.month;
+            return (
+              <button
+                type="button"
+                key={point.month}
+                className={`bar-col ${active ? "active" : ""}`}
+                onClick={() => {
+                  setSelectedMonth((current) =>
+                    current === point.month ? null : point.month,
+                  );
+                  setSelectedMonthCategory(null);
+                }}
+              >
+                <div className="bar-track">
+                  <i
+                    style={{
+                      height: `${Math.max(3, (point.totalTwd / maxTrend) * 100)}%`,
+                    }}
+                    title={money(point.totalTwd)}
+                  />
+                </div>
+                <div>
+                  {point.totalTwd > 0 && (
+                    <span className="bar-label">{shortMoney(point.totalTwd)}</span>
+                  )}
+                  <small>{Number(point.month.slice(5))}月</small>
+                </div>
+              </button>
+            );
+          })}
         </div>
+        {selectedMonth && monthCategories.length > 0 && (
+          <div className="month-drill">
+            <span className="eyebrow">
+              {Number(selectedMonth.slice(5))}月分類
+            </span>
+            <div className="month-bars">
+              {monthCategories.map(([label, total], index) => (
+                <button
+                  type="button"
+                  key={label}
+                  className={`month-bar ${selectedMonthCategory === label ? "active" : ""}`}
+                  onClick={() =>
+                    setSelectedMonthCategory((current) =>
+                      current === label ? null : label,
+                    )
+                  }
+                >
+                  <i style={{ width: `${Math.max(8, (total / monthCategories[0]![1]) * 100)}%`, background: palette[index % palette.length] }} />
+                  <span>{label}</span>
+                  <strong>{money(total)}</strong>
+                </button>
+              ))}
+            </div>
+            {selectedMonthCategory && (
+              <CategoryDrillDown
+                key={`${selectedMonth}:${selectedMonthCategory}:shared`}
+                label={selectedMonthCategory}
+                range="all"
+                scope="shared"
+                month={selectedMonth}
+                users={data.users}
+                onEdit={onEdit}
+                onReceipt={onReceipt}
+              />
+            )}
+          </div>
+        )}
       </article>
       <article className="panel">
         <div className="panel-title">
@@ -1936,6 +2369,178 @@ function Budgets({
   );
 }
 
+/* ─── Bank CSV Import ─── */
+type BankMatch = {
+  bankTx: { date: string; amount: number; description: string };
+  matchedExpenseId: string | null;
+  matchedDescription: string | null;
+  confidence: number;
+};
+
+function BankImport({
+  data,
+  onBack,
+  onBatchCreate,
+}: {
+  data: Bootstrap;
+  onBack(): void;
+  onBatchCreate(
+    expenses: Array<{
+      ledger: "shared" | "private";
+      groupId: string | null;
+      description: string;
+      merchant: string | null;
+      notes: string | null;
+      category: string;
+      amountTwd: number;
+      paidBy: "self" | "partner";
+      expenseDate: string;
+      splitMethod: "equal" | "exact" | "percentage";
+      selfValue: number | null;
+      partnerValue: number | null;
+      receiptId: string | null;
+    }>,
+  ): void;
+}) {
+  const [bank, setBank] = useState<"auto" | "esun" | "cathay" | "taishin" | "ctbc">("auto");
+  const [matches, setMatches] = useState<BankMatch[]>([]);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const [detectedBank, setDetectedBank] = useState("");
+
+  async function handleFile(file?: File) {
+    if (!file) return;
+    setBusy(true);
+    setError("");
+    try {
+      const csv = await file.text();
+      const result = (await api("/api/app/bank/import", { csv, bank })) as {
+        bank: string;
+        matches: BankMatch[];
+      };
+      setDetectedBank(result.bank);
+      setMatches(result.matches);
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "匯入失敗");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const unmatched = matches.filter((item) => !item.matchedExpenseId);
+
+  function buildExpense(match: BankMatch) {
+    return {
+      ledger: "shared" as const,
+      groupId: data.activeGroupId,
+      description: match.bankTx.description.slice(0, 100),
+      merchant: match.bankTx.description.slice(0, 100),
+      notes: "信用卡帳單匯入",
+      category: "other",
+      amountTwd: match.bankTx.amount,
+      paidBy: "self" as const,
+      expenseDate: match.bankTx.date,
+      splitMethod: "equal" as const,
+      selfValue: null,
+      partnerValue: null,
+      receiptId: null,
+    };
+  }
+
+  return (
+    <div className="stack">
+      <article className="panel">
+        <div className="panel-title">
+          <div>
+            <button type="button" className="text-button" onClick={onBack}>
+              ← 返回
+            </button>
+            <h2>匯入信用卡帳單</h2>
+          </div>
+        </div>
+        <Field label="銀行">
+          <select
+            value={bank}
+            onChange={(event) =>
+              setBank(event.target.value as typeof bank)
+            }
+          >
+            <option value="auto">自動偵測</option>
+            <option value="esun">玉山銀行</option>
+            <option value="cathay">國泰世華</option>
+            <option value="taishin">台新銀行</option>
+            <option value="ctbc">中國信託</option>
+          </select>
+        </Field>
+        <label className="upload">
+          <input
+            type="file"
+            accept=".csv,text/csv"
+            onChange={(event) => void handleFile(event.target.files?.[0])}
+          />
+          <strong>{busy ? "解析中…" : "選擇 CSV 檔案"}</strong>
+          <small>支援玉山、國泰、台新、中信常見格式</small>
+        </label>
+        {detectedBank && (
+          <p className="import-meta">
+            偵測銀行：{detectedBank} · 共 {matches.length} 筆 · 已配對{" "}
+            {matches.length - unmatched.length} 筆
+          </p>
+        )}
+        {error && <p className="form-error">{error}</p>}
+      </article>
+
+      {matches.length > 0 && (
+        <article className="panel match-game">
+          <div className="panel-title">
+            <div>
+              <span className="eyebrow">配對結果</span>
+              <h2>帳單 ↔ 系統支出</h2>
+            </div>
+          </div>
+          {matches.map((match, index) => (
+            <div className="match-row" key={`${match.bankTx.date}-${match.bankTx.amount}-${index}`}>
+              <div className="match-bank">
+                <strong>{match.bankTx.description}</strong>
+                <small>
+                  {match.bankTx.date} · {money(match.bankTx.amount)}
+                </small>
+              </div>
+              <span className="match-arrow">
+                {match.matchedExpenseId ? "✓" : "?"}
+              </span>
+              <div className={`match-expense ${match.matchedExpenseId ? "matched" : "unmatched"}`}>
+                {match.matchedExpenseId ? (
+                  <>
+                    <strong>{match.matchedDescription}</strong>
+                    <small>已配對</small>
+                  </>
+                ) : (
+                  <>
+                    <strong>未配對</strong>
+                    <small>確認後批次新增</small>
+                  </>
+                )}
+              </div>
+            </div>
+          ))}
+          {unmatched.length > 0 && (
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() =>
+                onBatchCreate(unmatched.map((match) => buildExpense(match)))
+              }
+            >
+              一鍵新增 {unmatched.length} 筆未配對
+            </button>
+          )}
+        </article>
+      )}
+    </div>
+  );
+}
+
 /* ─── Settings ─── */
 function Settings({
   data,
@@ -1944,6 +2549,7 @@ function Settings({
   onRecurring,
   onRead,
   onPropose,
+  onBatchCreate,
 }: {
   data: Bootstrap;
   unread: number;
@@ -1951,8 +2557,25 @@ function Settings({
   onRecurring(body: unknown): void;
   onRead(): void;
   onPropose(body: unknown): void;
+  onBatchCreate(
+    expenses: Array<{
+      ledger: "shared" | "private";
+      groupId: string | null;
+      description: string;
+      merchant: string | null;
+      notes: string | null;
+      category: string;
+      amountTwd: number;
+      paidBy: "self" | "partner";
+      expenseDate: string;
+      splitMethod: "equal" | "exact" | "percentage";
+      selfValue: number | null;
+      partnerValue: number | null;
+      receiptId: string | null;
+    }>,
+  ): void;
 }) {
-  const [view, setView] = useState<"settings" | "labels">("settings");
+  const [view, setView] = useState<"settings" | "labels" | "import">("settings");
   const [name, setName] = useState("");
   const [recurring, setRecurring] = useState({
     description: "",
@@ -1970,8 +2593,40 @@ function Settings({
     );
   }
 
+  if (view === "import") {
+    return (
+      <BankImport
+        data={data}
+        onBack={() => setView("settings")}
+        onBatchCreate={onBatchCreate}
+      />
+    );
+  }
+
   return (
     <div className="stack">
+      <article
+        className="panel"
+        style={{ cursor: "pointer" }}
+        onClick={() => setView("import")}
+      >
+        <div
+          className="setting-row"
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+          }}
+        >
+          <div>
+            <strong>💳 匯入帳單</strong>
+            <small style={{ display: "block", marginTop: "0.25rem", opacity: 0.6 }}>
+              上傳信用卡 CSV，自動比對既有支出
+            </small>
+          </div>
+          <span style={{ fontSize: "1.2rem", opacity: 0.5 }}>&gt;</span>
+        </div>
+      </article>
       <article className="panel" style={{ cursor: "pointer" }} onClick={() => setView("labels")}>
         <div className="setting-row" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <div>
@@ -2477,12 +3132,15 @@ function ExpenseRow({ expense, users }: { expense: Expense; users: User[] }) {
   const label = displayCategoryLabel(expense);
   const emoji = categoryEmojis[expense.category] ?? "📦";
   return (
-    <div className={`expense-row ${expense.deleted_at ? "deleted" : ""}`}>
-      <div className={`category-icon ${expense.category}`}>
-        {emoji}
-      </div>
+    <div
+      className={`expense-row ${expense.deleted_at ? "deleted" : ""} ${expense._optimistic ? "optimistic" : ""}`}
+    >
+      <div className={`category-icon ${expense.category}`}>{emoji}</div>
       <div>
-        <strong>{expense.description}</strong>
+        <strong>
+          {expense.description}
+          {expense._optimistic && <span className="pending-badge">同步中</span>}
+        </strong>
         <small>
           {expense.expense_date} ·{" "}
           {users.find((user) => user.id === expense.paid_by_user_id)?.label}付款

@@ -123,7 +123,7 @@ test("passes invite code from LIFF link into session creation", async ({
   page,
 }) => {
   await page.goto("/?invite=test-setup-code");
-  await expect(page.getByRole("heading", { name: "總覽" })).toBeVisible();
+  await expect(page.getByText("另一半欠你 NT$430")).toBeVisible();
   expect(sessionBodies).toContainEqual({
     idToken: "test-id-token",
     invite: "test-setup-code",

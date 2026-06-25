@@ -39,6 +39,8 @@ import {
   splitBootstrapExpenses,
 } from "./category-agent";
 import { detectReceiptMime, signSession, verifySession } from "./security";
+import { balanceContributions } from "./balance-detail";
+import { matchTransactions, parseBankCsvWithMeta } from "./bank-csv";
 import {
   calculateBalances,
   crossedBudgetThresholds,
@@ -1258,5 +1260,70 @@ test("calculates lineal projections and category overrun warnings", () => {
   assert.equal(foodProj.projectedTotal, 3000); // (1000 / 10) * 30 = 3000
   assert.equal(foodProj.budget, 2500);
   assert.equal(foodProj.projectedOverrun, 500); // 3000 - 2500 = 500
+});
+
+test("bank csv parser and matcher", () => {
+  const csv = [
+    "交易日期,摘要,支出金額,存入金額",
+    "2026/06/15,咖啡廳,125,0",
+    "2026/06/14,全聯,380,0",
+  ].join("\n");
+  const parsed = parseBankCsvWithMeta(csv, "auto");
+  assert.equal(parsed.bank, "esun");
+  assert.equal(parsed.transactions.length, 2);
+  assert.equal(parsed.transactions[0]?.amount, 125);
+
+  const matches = matchTransactions(parsed.transactions, [
+    {
+      id: "00000000-0000-4000-8000-000000000010",
+      description: "咖啡",
+      merchant: "咖啡廳",
+      amount_twd: 125,
+      expense_date: "2026-06-15",
+      deleted_at: null,
+    },
+  ]);
+  assert.equal(matches[0]?.matchedExpenseId, "00000000-0000-4000-8000-000000000010");
+  assert.equal(matches[1]?.matchedExpenseId, undefined);
+});
+
+test("balance contributions highlight outstanding shared expenses", () => {
+  const userId = "00000000-0000-4000-8000-000000000001";
+  const partnerId = "00000000-0000-4000-8000-000000000002";
+  const suggestions = balanceContributions(
+    [
+      {
+        id: "e1",
+        description: "高鐵",
+        amount_twd: 3600,
+        expense_date: "2026-06-20",
+        paid_by_user_id: userId,
+        deleted_at: null,
+        ledger: "shared",
+        expense_splits: [
+          { user_id: userId, amount_twd: 1800 },
+          { user_id: partnerId, amount_twd: 1800 },
+        ],
+      },
+      {
+        id: "e2",
+        description: "晚餐",
+        amount_twd: 800,
+        expense_date: "2026-06-18",
+        paid_by_user_id: partnerId,
+        deleted_at: null,
+        ledger: "shared",
+        expense_splits: [
+          { user_id: userId, amount_twd: 400 },
+          { user_id: partnerId, amount_twd: 400 },
+        ],
+      },
+    ],
+    userId,
+    1400,
+  );
+  assert.equal(suggestions.length, 1);
+  assert.equal(suggestions[0]?.description, "高鐵");
+  assert.equal(suggestions[0]?.amountTwd, 1800);
 });
 
