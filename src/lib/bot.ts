@@ -6,6 +6,7 @@ import { z } from "zod";
 import { parseAccountantCommand } from "./accountant";
 import {
   confirmAction,
+  retargetPendingActionById,
   retargetPendingActions,
   runAgent,
   serverEnvironment,
@@ -76,10 +77,12 @@ const actionResultSchema = z.object({
       "delete_expense",
       "restore_expense",
       "settle",
+      "batch_create_expenses",
       "batch_update_expenses",
     ])
     .nullable()
     .optional(),
+  created_count: z.number().int().optional(),
 });
 
 type UserRow = z.infer<typeof userRowSchema>;
@@ -681,6 +684,30 @@ async function handlePostback(
   const actionId = parameters.get("id");
   const actionIds = parameters.get("ids")?.split(",").filter(Boolean) ?? [];
   const decision = parameters.get("decision");
+  const edit = parameters.get("edit");
+  if (edit === "private_transport") {
+    if (!actionId || !z.string().uuid().safeParse(actionId).success) {
+      await replyText(dependencies.lineClient, replyToken, "這個操作無效。");
+      return;
+    }
+    const user = await findUser(dependencies.supabase, lineUserId);
+    if (!user) {
+      await replyText(dependencies.lineClient, replyToken, "請先加入帳本。");
+      return;
+    }
+    const result = await retargetPendingActionById(
+      { db: dependencies.supabase, user },
+      actionId,
+      { ledger: "private", category: "transport", categoryLabel: "交通" },
+    );
+    await replyConfirmation(
+      dependencies.lineClient,
+      replyToken,
+      actionId,
+      `已改成私人帳｜交通，共 ${result.count} 筆。\n確認後入帳。`,
+    );
+    return;
+  }
   if (
     !["confirm", "cancel"].includes(decision ?? "") ||
     (!actionId && !actionIds.length) ||
@@ -712,7 +739,9 @@ async function handlePostback(
   const result = await confirmOneAction(actionId!, decision === "confirm", lineUserId, dependencies);
   const messages: Record<typeof result.result, string> = {
     confirmed:
-      result.action_type === "create_expense"
+      result.action_type === "batch_create_expenses"
+        ? `已記帳 ${result.created_count ?? "這批"} 筆。`
+        : result.action_type === "create_expense"
         ? "已記帳。"
         : result.action_type === "batch_update_expenses"
           ? "分類整理已套用。"

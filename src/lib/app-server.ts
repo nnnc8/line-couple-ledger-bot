@@ -1193,6 +1193,10 @@ const expenseInputSchema = z.object({
 export const actionInputSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("create_expense"), expense: expenseInputSchema }),
   z.object({
+    type: z.literal("batch_create_expenses"),
+    expenses: z.array(expenseInputSchema).min(1).max(50),
+  }),
+  z.object({
     type: z.literal("update_expense"),
     expenseId: z.string().uuid(),
     expectedVersion: z.number().int().positive(),
@@ -1226,13 +1230,17 @@ const pendingRetargetInputSchema = z.object({
 });
 
 type PendingRetargetInput = z.infer<typeof pendingRetargetInputSchema>;
+type CreateExpenseActionInput = Extract<
+  z.infer<typeof actionInputSchema>,
+  { type: "create_expense" }
+>;
 
 export function receiptExpenseInputs(input: {
   activeGroupId: string;
   receiptId: string;
   today: string;
   extraction: z.infer<typeof receiptExtractionSchema>;
-}): Array<Extract<z.infer<typeof actionInputSchema>, { type: "create_expense" }>> {
+}): CreateExpenseActionInput[] {
   const items = input.extraction.items.length
     ? input.extraction.items
     : [
@@ -1283,11 +1291,26 @@ export function receiptExpenseInputs(input: {
   });
 }
 
+export function batchCreatePayloadFromActions(actions: CreateExpenseActionInput[]) {
+  return { items: actions.map((action) => action.expense) };
+}
+
 export function retargetPendingActionPayload(
   payload: Record<string, unknown>,
   userId: string,
   input: PendingRetargetInput,
-) {
+): Record<string, unknown> {
+  if (Array.isArray(payload.items)) {
+    return {
+      items: payload.items.map((item) =>
+        retargetPendingActionPayload(
+          z.record(z.string(), z.unknown()).parse(item),
+          userId,
+          input,
+        ),
+      ),
+    };
+  }
   const rest = { ...payload };
   delete rest.splits;
   return {
@@ -1308,10 +1331,9 @@ export async function retargetPendingActions(
   const parsed = pendingRetargetInputSchema.parse(input);
   const rows = await context.db
     .from("pending_actions")
-    .select("id, payload, idempotency_key")
+    .select("id, action_type, payload, idempotency_key")
     .eq("requested_by_user_id", context.user.id)
     .eq("status", "pending")
-    .eq("action_type", "create_expense")
     .gt("expires_at", new Date().toISOString())
     .order("created_at", { ascending: false })
     .limit(30);
@@ -1320,29 +1342,74 @@ export async function retargetPendingActions(
     .array(
       z.object({
         id: z.string().uuid(),
+        action_type: z.string(),
         payload: z.record(z.string(), z.unknown()),
         idempotency_key: z.string().nullable(),
       }),
     )
     .parse(rows.data ?? [])
-    .filter((row) => row.idempotency_key?.startsWith("receipt:"));
+    .filter(
+      (row) =>
+        ["create_expense", "batch_create_expenses"].includes(row.action_type) &&
+        row.idempotency_key?.startsWith("receipt"),
+    );
   let count = 0;
   for (const action of actions) {
+    const payload = retargetPendingActionPayload(
+      action.payload,
+      context.user.id,
+      parsed,
+    );
     const update = await context.db
       .from("pending_actions")
       .update({
         group_id: null,
-        payload: retargetPendingActionPayload(
-          action.payload,
-          context.user.id,
-          parsed,
-        ),
+        payload,
       })
       .eq("id", action.id)
       .eq("status", "pending");
-    if (!update.error) count += 1;
+    if (!update.error)
+      count += Array.isArray(payload.items) ? payload.items.length : 1;
   }
   return { count };
+}
+
+export async function retargetPendingActionById(
+  context: Pick<ServerContext, "db" | "user">,
+  actionId: string,
+  input: unknown,
+) {
+  const parsed = pendingRetargetInputSchema.parse(input);
+  const action = await context.db
+    .from("pending_actions")
+    .select("id, action_type, payload")
+    .eq("id", z.string().uuid().parse(actionId))
+    .eq("requested_by_user_id", context.user.id)
+    .eq("status", "pending")
+    .gt("expires_at", new Date().toISOString())
+    .single();
+  if (action.error) throw new HttpError(404, "找不到待確認草稿");
+  const row = z
+    .object({
+      id: z.string().uuid(),
+      action_type: z.string(),
+      payload: z.record(z.string(), z.unknown()),
+    })
+    .parse(action.data);
+  if (!["create_expense", "batch_create_expenses"].includes(row.action_type))
+    throw new HttpError(400, "這個草稿不能改帳本");
+  const payload = retargetPendingActionPayload(
+    row.payload,
+    context.user.id,
+    parsed,
+  );
+  const update = await context.db
+    .from("pending_actions")
+    .update({ group_id: null, payload })
+    .eq("id", row.id)
+    .eq("status", "pending");
+  if (update.error) throw new Error("pending action update failed");
+  return { count: Array.isArray(payload.items) ? payload.items.length : 1 };
 }
 
 export async function proposeAction(
@@ -1351,6 +1418,12 @@ export async function proposeAction(
   idempotencyKey?: string,
 ) {
   const parsed = actionInputSchema.parse(input);
+  if (parsed.type === "batch_create_expenses")
+    return proposeBatchCreateExpenses(
+      context,
+      parsed.expenses.map((expense) => ({ type: "create_expense", expense })),
+      idempotencyKey,
+    );
   if (parsed.type === "batch_update_expenses")
     return createCategoryCleanup(context, { updates: parsed.updates }, idempotencyKey);
   const usersResult = await context.db
@@ -1472,6 +1545,96 @@ export async function proposeAction(
     actionId: z.object({ id: z.string().uuid() }).parse(insert.data).id,
     preview,
   };
+}
+
+export async function proposeBatchCreateExpenses(
+  context: ServerContext,
+  inputs: CreateExpenseActionInput[],
+  idempotencyKey?: string,
+) {
+  const parsed = z.array(
+    z.object({ type: z.literal("create_expense"), expense: expenseInputSchema }),
+  ).min(1).max(50).parse(inputs);
+  const usersResult = await context.db
+    .from("users")
+    .select("id, couple_id, line_user_id, role")
+    .eq("couple_id", context.user.couple_id)
+    .order("role");
+  if (usersResult.error) throw new Error("users lookup failed");
+  const users = z.array(userSchema).parse(usersResult.data);
+  const partner = users.find((user) => user.id !== context.user.id);
+  if (!partner) throw new HttpError(409, "請先讓另一半加入");
+
+  const items = [];
+  const lines = [];
+  let groupId: string | null = null;
+  let groupName = "";
+  let totalTwd = 0;
+  for (const input of parsed) {
+    const prepared = await prepareExpense(context, input.expense, partner);
+    items.push(prepared.payload);
+    totalTwd += input.expense.amountTwd;
+    groupId = groupId === null ? prepared.groupId : groupId;
+    groupName = groupName || prepared.groupName;
+    lines.push(
+      `${input.expense.expenseDate} ${input.expense.description} NT$${input.expense.amountTwd}`,
+    );
+  }
+  const mixedGroups = items.some(
+    (item) => (item.group_id as string | null) !== groupId,
+  );
+  const sourceEventId = `batch:${randomUUID()}`;
+  const insert = await context.db
+    .from("pending_actions")
+    .insert({
+      couple_id: context.user.couple_id,
+      group_id: mixedGroups ? null : groupId,
+      requested_by_user_id: context.user.id,
+      action_type: "batch_create_expenses",
+      payload: { items },
+      source_event_id: sourceEventId,
+      idempotency_key: idempotencyKey || null,
+      expires_at: new Date(Date.now() + ACTION_SECONDS * 1_000).toISOString(),
+    })
+    .select("id")
+    .single();
+  if (insert.error) {
+    if (idempotencyKey) {
+      const existing = await context.db
+        .from("pending_actions")
+        .select("id")
+        .eq("idempotency_key", idempotencyKey)
+        .single();
+      if (!existing.error)
+        return {
+          actionId: z.object({ id: z.string().uuid() }).parse(existing.data).id,
+          preview: batchPreview(groupName, parsed.length, totalTwd, lines),
+          count: parsed.length,
+          totalTwd,
+        };
+    }
+    throw new Error("batch pending action insert failed");
+  }
+  return {
+    actionId: z.object({ id: z.string().uuid() }).parse(insert.data).id,
+    preview: batchPreview(groupName, parsed.length, totalTwd, lines),
+    count: parsed.length,
+    totalTwd,
+  };
+}
+
+function batchPreview(
+  groupName: string,
+  count: number,
+  totalTwd: number,
+  lines: string[],
+) {
+  return [
+    `收據辨識完成，請確認 ${count} 筆記帳`,
+    `${groupName || "批次草稿"}｜總額 NT$${totalTwd}`,
+    "",
+    ...lines.slice(0, 25),
+  ].join("\n");
 }
 
 async function assertEditableExpense(context: ServerContext, expenseId: string) {
@@ -1636,18 +1799,26 @@ export async function confirmAction(
     .eq("requested_by_user_id", context.user.id)
     .maybeSingle();
   if (action.error) throw new Error("pending action lookup failed");
-  const result =
-    action.data?.action_type === "batch_update_expenses"
-      ? await context.db.rpc("confirm_batch_update_expenses", {
-          p_action_id: id,
-          p_line_user_id: context.user.line_user_id,
-          p_confirm: confirm,
-        })
-      : await context.db.rpc("confirm_pending_action", {
-          p_action_id: id,
-          p_line_user_id: context.user.line_user_id,
-          p_confirm: confirm,
-        });
+  let result;
+  if (action.data?.action_type === "batch_update_expenses") {
+    result = await context.db.rpc("confirm_batch_update_expenses", {
+      p_action_id: id,
+      p_line_user_id: context.user.line_user_id,
+      p_confirm: confirm,
+    });
+  } else if (action.data?.action_type === "batch_create_expenses") {
+    result = await context.db.rpc("confirm_batch_create_expenses", {
+      p_action_id: id,
+      p_line_user_id: context.user.line_user_id,
+      p_confirm: confirm,
+    });
+  } else {
+    result = await context.db.rpc("confirm_pending_action", {
+      p_action_id: id,
+      p_line_user_id: context.user.line_user_id,
+      p_confirm: confirm,
+    });
+  }
   if (result.error) throw new Error("confirm action failed");
   const value = z
     .object({
@@ -1660,6 +1831,7 @@ export async function confirmAction(
         "already_done",
       ]),
       action_type: z.string().nullable().optional(),
+      created_count: z.number().int().optional(),
     })
     .parse(result.data);
   if (value.result === "confirmed") {
@@ -2166,18 +2338,13 @@ export async function processLineReceipt(
       today: taipeiToday(),
       extraction,
     });
-    const actions = [];
-    for (const [index, actionInput] of actionInputs.entries()) {
-      actions.push(
-        await proposeAction(
-          context,
-          actionInput,
-          `receipt:${receiptId}:item:${index}`,
-        ),
+    if (actionInputs.length) {
+      const action = await proposeBatchCreateExpenses(
+        context,
+        actionInputs,
+        `receipt-batch:${receiptId}`,
       );
-    }
-    if (actions.length) {
-      await pushReceiptConfirmations(lineClient, user.line_user_id, actions);
+      await pushReceiptBatchConfirmation(lineClient, user.line_user_id, action);
       return;
     }
     await lineClient.pushMessage({
@@ -2204,53 +2371,47 @@ export async function processLineReceipt(
   }
 }
 
-async function pushReceiptConfirmations(
+async function pushReceiptBatchConfirmation(
   lineClient: Pick<LineBotClient, "pushMessage">,
   lineUserId: string,
-  actions: Array<{ actionId: string; preview: string }>,
+  action: { actionId: string; preview: string; count: number },
 ) {
-  const messages = chunk(actions, 7)
-    .slice(0, 5)
-    .map((items): messagingApi.TextMessage => {
-      const ids = items.map((item) => item.actionId).join(",");
-      return {
-        type: "text",
-        text: `收據辨識完成，請確認 ${items.length} 筆記帳\n\n${items
-          .map((item) => item.preview)
-          .join("\n\n")}`,
-        quickReply: {
-          items: [
-            {
-              type: "action",
-              action: {
-                type: "postback",
-                label: items.length === 1 ? "確認" : "確認全部",
-                data: `decision=confirm&ids=${ids}`,
-                displayText: items.length === 1 ? "確認" : "確認全部",
-              },
-            },
-            {
-              type: "action",
-              action: {
-                type: "postback",
-                label: items.length === 1 ? "取消" : "取消全部",
-                data: `decision=cancel&ids=${ids}`,
-                displayText: items.length === 1 ? "取消" : "取消全部",
-              },
-            },
-          ],
+  const message: messagingApi.TextMessage = {
+    type: "text",
+    text: action.preview,
+    quickReply: {
+      items: [
+        {
+          type: "action",
+          action: {
+            type: "postback",
+            label: action.count === 1 ? "確認" : "確認全部",
+            data: `decision=confirm&id=${action.actionId}`,
+            displayText: action.count === 1 ? "確認" : "確認全部",
+          },
         },
-      };
-    });
-  await lineClient.pushMessage({ to: lineUserId, messages });
-}
-
-function chunk<T>(items: T[], size: number): T[][] {
-  const chunks: T[][] = [];
-  for (let index = 0; index < items.length; index += size) {
-    chunks.push(items.slice(index, index + size));
-  }
-  return chunks;
+        {
+          type: "action",
+          action: {
+            type: "postback",
+            label: "改私人交通",
+            data: `edit=private_transport&id=${action.actionId}`,
+            displayText: "改成私人帳交通",
+          },
+        },
+        {
+          type: "action",
+          action: {
+            type: "postback",
+            label: "取消",
+            data: `decision=cancel&id=${action.actionId}`,
+            displayText: "取消",
+          },
+        },
+      ],
+    },
+  };
+  await lineClient.pushMessage({ to: lineUserId, messages: [message] });
 }
 
 export async function markNotificationsRead(context: ServerContext) {

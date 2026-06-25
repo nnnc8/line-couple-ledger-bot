@@ -10,6 +10,7 @@ import {
   selectMentionedGroup,
 } from "./bot";
 import {
+  batchCreatePayloadFromActions,
   deliverNotifications,
   expensesCsv,
   receiptExpenseInputs,
@@ -616,6 +617,68 @@ test("receipt OCR items become pending expense inputs", () => {
         receiptId: null,
       },
     ],
+  );
+});
+
+test("receipt OCR items can be stored as one batch pending payload", () => {
+  const inputs = receiptExpenseInputs({
+    activeGroupId: GROUP,
+    receiptId: "00000000-0000-4000-8000-000000000055",
+    today: "2026-06-25",
+    extraction: {
+      merchant: null,
+      expenseDate: null,
+      amountTwd: null,
+      confidence: 0.9,
+      items: [
+        { merchant: "ENQ-8622", description: null, expenseDate: "2026-06-06", amountTwd: 42 },
+        { merchant: null, description: "行程費", expenseDate: "2026-06-07", amountTwd: 31 },
+      ],
+    },
+  });
+
+  assert.deepEqual(batchCreatePayloadFromActions(inputs), {
+    items: inputs.map((input) => input.expense),
+  });
+});
+
+test("retargets batch pending payloads into private transport expenses", () => {
+  assert.deepEqual(
+    retargetPendingActionPayload(
+      {
+        items: [
+          {
+            ledger: "shared",
+            group_id: GROUP,
+            description: "EMF-7658",
+            amount_twd: 44,
+            paid_by_user_id: PARTNER,
+            expense_date: "2026-06-21",
+            category: "food",
+            category_label: "餐飲",
+            split_method: "equal",
+            splits: { [OWNER]: 22, [PARTNER]: 22 },
+          },
+        ],
+      },
+      OWNER,
+      { ledger: "private", category: "transport", categoryLabel: "交通" },
+    ),
+    {
+      items: [
+        {
+          ledger: "private",
+          group_id: null,
+          description: "EMF-7658",
+          amount_twd: 44,
+          paid_by_user_id: OWNER,
+          expense_date: "2026-06-21",
+          category: "transport",
+          category_label: "交通",
+          split_method: "equal",
+        },
+      ],
+    },
   );
 });
 
