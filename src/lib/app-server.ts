@@ -1219,6 +1219,14 @@ export const actionInputSchema = z.discriminatedUnion("type", [
   }),
 ]);
 
+const pendingRetargetInputSchema = z.object({
+  ledger: z.literal("private"),
+  category: z.literal("transport"),
+  categoryLabel: z.literal("交通"),
+});
+
+type PendingRetargetInput = z.infer<typeof pendingRetargetInputSchema>;
+
 export function receiptExpenseInputs(input: {
   activeGroupId: string;
   receiptId: string;
@@ -1273,6 +1281,68 @@ export function receiptExpenseInputs(input: {
       },
     };
   });
+}
+
+export function retargetPendingActionPayload(
+  payload: Record<string, unknown>,
+  userId: string,
+  input: PendingRetargetInput,
+) {
+  const rest = { ...payload };
+  delete rest.splits;
+  return {
+    ...rest,
+    ledger: input.ledger,
+    group_id: null,
+    paid_by_user_id: userId,
+    category: input.category,
+    category_label: input.categoryLabel,
+    split_method: "equal",
+  };
+}
+
+export async function retargetPendingActions(
+  context: Pick<ServerContext, "db" | "user">,
+  input: unknown,
+) {
+  const parsed = pendingRetargetInputSchema.parse(input);
+  const rows = await context.db
+    .from("pending_actions")
+    .select("id, payload, idempotency_key")
+    .eq("requested_by_user_id", context.user.id)
+    .eq("status", "pending")
+    .eq("action_type", "create_expense")
+    .gt("expires_at", new Date().toISOString())
+    .order("created_at", { ascending: false })
+    .limit(30);
+  if (rows.error) throw new Error("pending action lookup failed");
+  const actions = z
+    .array(
+      z.object({
+        id: z.string().uuid(),
+        payload: z.record(z.string(), z.unknown()),
+        idempotency_key: z.string().nullable(),
+      }),
+    )
+    .parse(rows.data ?? [])
+    .filter((row) => row.idempotency_key?.startsWith("receipt:"));
+  let count = 0;
+  for (const action of actions) {
+    const update = await context.db
+      .from("pending_actions")
+      .update({
+        group_id: null,
+        payload: retargetPendingActionPayload(
+          action.payload,
+          context.user.id,
+          parsed,
+        ),
+      })
+      .eq("id", action.id)
+      .eq("status", "pending");
+    if (!update.error) count += 1;
+  }
+  return { count };
 }
 
 export async function proposeAction(

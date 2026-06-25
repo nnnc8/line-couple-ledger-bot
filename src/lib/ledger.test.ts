@@ -3,6 +3,7 @@ import test from "node:test";
 
 import {
   handleLineEvent,
+  parsePendingRetargetCommand,
   parseFixedIntent,
   parseInlineExpenseItems,
   safeSecretEqual,
@@ -12,6 +13,7 @@ import {
   deliverNotifications,
   expensesCsv,
   receiptExpenseInputs,
+  retargetPendingActionPayload,
   type AppExpense,
   type ServerContext,
 } from "./app-server";
@@ -94,6 +96,47 @@ test("parses multiple inline LINE expenses before falling back to Gemini", () =>
       { description: "晚餐 漢堡", amountTwd: 95, paidBy: "self", category: "food" },
       { description: "越南", amountTwd: 290, paidBy: "partner", category: "food" },
     ],
+  );
+});
+
+test("routes pending receipt retarget commands before expense parsing", () => {
+  assert.deepEqual(parsePendingRetargetCommand("都改成私人帳 交通"), {
+    ledger: "private",
+    category: "transport",
+    categoryLabel: "交通",
+  });
+  assert.equal(parsePendingRetargetCommand("晚餐 860 我付"), null);
+});
+
+test("retargets pending shared receipt payloads into private transport expenses", () => {
+  assert.deepEqual(
+    retargetPendingActionPayload(
+      {
+        ledger: "shared",
+        group_id: GROUP,
+        description: "EMF-7658",
+        amount_twd: 44,
+        paid_by_user_id: PARTNER,
+        expense_date: "2026-06-21",
+        category: "food",
+        category_label: "餐飲",
+        split_method: "equal",
+        splits: { [OWNER]: 22, [PARTNER]: 22 },
+      },
+      OWNER,
+      { ledger: "private", category: "transport", categoryLabel: "交通" },
+    ),
+    {
+      ledger: "private",
+      group_id: null,
+      description: "EMF-7658",
+      amount_twd: 44,
+      paid_by_user_id: OWNER,
+      expense_date: "2026-06-21",
+      category: "transport",
+      category_label: "交通",
+      split_method: "equal",
+    },
   );
 });
 

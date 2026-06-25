@@ -6,6 +6,7 @@ import { z } from "zod";
 import { parseAccountantCommand } from "./accountant";
 import {
   confirmAction,
+  retargetPendingActions,
   runAgent,
   serverEnvironment,
 } from "./app-server";
@@ -192,6 +193,19 @@ export function selectMentionedGroup<T extends { id: string; name: string }>(
   );
 }
 
+export function parsePendingRetargetCommand(text: string) {
+  const normalized = text.replace(/\s+/g, "");
+  if (!/(都|全部|這批|剛剛|剛才|上面|那些)/.test(normalized)) return null;
+  if (!/(改成|改到|轉成|轉到|移到|換成)/.test(normalized)) return null;
+  if (!/私人帳|私人/.test(normalized)) return null;
+  if (!/交通|車資|搭車|行程|uber|計程車/i.test(normalized)) return null;
+  return {
+    ledger: "private",
+    category: "transport",
+    categoryLabel: "交通",
+  } as const;
+}
+
 async function handleText(
   text: string,
   eventId: string,
@@ -216,6 +230,22 @@ async function handleText(
   }
   if (text.length > MAX_MESSAGE_LENGTH) {
     await replyText(dependencies.lineClient, replyToken, "訊息太長，請縮短後再試。");
+    return;
+  }
+
+  const retarget = parsePendingRetargetCommand(text);
+  if (retarget) {
+    const result = await retargetPendingActions(
+      { db: dependencies.supabase, user },
+      retarget,
+    );
+    await replyText(
+      dependencies.lineClient,
+      replyToken,
+      result.count
+        ? `已把 ${result.count} 筆待確認收據改成私人帳｜交通。請按原本那則訊息的確認。`
+        : "沒有找到還有效的待確認收據，請重新傳照片或手動新增。",
+    );
     return;
   }
 
