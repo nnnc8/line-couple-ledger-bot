@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 
 import { GoogleGenAI } from "@google/genai";
-import type { LineBotClient } from "@line/bot-sdk";
+import type { LineBotClient, messagingApi } from "@line/bot-sdk";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
 
@@ -1219,6 +1219,62 @@ export const actionInputSchema = z.discriminatedUnion("type", [
   }),
 ]);
 
+export function receiptExpenseInputs(input: {
+  activeGroupId: string;
+  receiptId: string;
+  today: string;
+  extraction: z.infer<typeof receiptExtractionSchema>;
+}): Array<Extract<z.infer<typeof actionInputSchema>, { type: "create_expense" }>> {
+  const items = input.extraction.items.length
+    ? input.extraction.items
+    : [
+        {
+          merchant: input.extraction.merchant,
+          description: input.extraction.merchant,
+          expenseDate: input.extraction.expenseDate,
+          amountTwd: input.extraction.amountTwd,
+        },
+      ];
+  const validItems = items.flatMap((item) => {
+    const amountTwd = item.amountTwd;
+    return Number.isSafeInteger(amountTwd) && amountTwd !== null && amountTwd > 0
+      ? [{ ...item, amountTwd }]
+      : [];
+  });
+  const receiptId = validItems.length === 1 ? input.receiptId : null;
+  return validItems.map((item) => {
+    const merchant = item.merchant ?? input.extraction.merchant ?? null;
+    const description = item.description ?? merchant ?? "收據支出";
+    const text = `${merchant ?? ""} ${description}`.toLowerCase();
+    const isTransport =
+      /^(enq|emf|ewx)-\d+/i.test(merchant ?? description) ||
+      /停車|車資|行程|旅程|搭車|高鐵|台鐵|捷運|公車|客運|uber|taxi|計程車/i.test(text);
+    return {
+      type: "create_expense",
+      expense: {
+        ledger: "shared",
+        groupId: input.activeGroupId,
+        description,
+        merchant,
+        notes: "由 LINE 圖片辨識建立",
+        category: isTransport ? "transport" : "other",
+        categoryLabel: isTransport
+          ? /停車/.test(text)
+            ? "停車費"
+            : "車資"
+          : null,
+        amountTwd: item.amountTwd,
+        paidBy: "self",
+        expenseDate: item.expenseDate ?? input.extraction.expenseDate ?? input.today,
+        splitMethod: "equal",
+        selfValue: null,
+        partnerValue: null,
+        receiptId,
+      },
+    };
+  });
+}
+
 export async function proposeAction(
   context: ServerContext,
   input: unknown,
@@ -1889,14 +1945,14 @@ export async function processReceipt(
           inlineData: { mimeType, data: Buffer.from(bytes).toString("base64") },
         },
         {
-          text: "辨識這張台灣收據。只抽取商家名稱、消費日期、應付總額（TWD 整數）與整體信心值；看不清楚的欄位用 null。",
+          text: "辨識這張台灣收據、付款紀錄或叫車/行程截圖。若畫面只有一筆消費，填 merchant、expenseDate、amountTwd 與 confidence；若畫面有多筆交易，items 逐筆列出 merchant/代碼、expenseDate、amountTwd、description。金額只取實際付款的 TWD 整數，忽略 NT$0、折抵、退款與看不清楚的項目；看不清楚欄位用 null。",
         },
       ],
       config: {
         responseMimeType: "application/json",
         responseJsonSchema: geminiReceiptJsonSchema,
         temperature: 0,
-        maxOutputTokens: 200,
+        maxOutputTokens: 1_000,
       },
     });
     const extraction = receiptExtractionSchema.parse(
@@ -1968,7 +2024,7 @@ export async function receiptDetails(
 }
 
 export async function processLineReceipt(
-  lineClient: Pick<LineBotClient, "getMessageContent">,
+  lineClient: Pick<LineBotClient, "getMessageContent" | "pushMessage">,
   input: { messageId: string; eventId: string; lineUserId: string },
 ) {
   const env = serverEnvironment();
@@ -2034,35 +2090,97 @@ export async function processLineReceipt(
   const context = { env, db, user } satisfies ServerContext;
   try {
     const extraction = await processReceipt(context, receiptId);
-    await db.from("notifications").upsert(
-      {
-        recipient_user_id: user.id,
-        group_id: preference.data.active_group_id,
-        kind: "receipt",
-        title: "收據辨識完成",
-        body: `${extraction.merchant ?? "未知商家"} ${extraction.amountTwd ? `NT$${extraction.amountTwd}` : "金額待確認"}\n${env.APP_URL}/?receipt=${receiptId}`,
-        entity_type: "receipt",
-        entity_id: receiptId,
-        dedupe_key: `receipt:${receiptId}`,
-      },
-      { onConflict: "dedupe_key", ignoreDuplicates: true },
-    );
+    const actionInputs = receiptExpenseInputs({
+      activeGroupId: preference.data.active_group_id as string,
+      receiptId,
+      today: taipeiToday(),
+      extraction,
+    });
+    const actions = [];
+    for (const [index, actionInput] of actionInputs.entries()) {
+      actions.push(
+        await proposeAction(
+          context,
+          actionInput,
+          `receipt:${receiptId}:item:${index}`,
+        ),
+      );
+    }
+    if (actions.length) {
+      await pushReceiptConfirmations(lineClient, user.line_user_id, actions);
+      return;
+    }
+    await lineClient.pushMessage({
+      to: user.line_user_id,
+      messages: [
+        {
+          type: "text",
+          text: `收據辨識完成\n${extraction.merchant ?? "未知商家"} 金額待確認\n請打開圖形化帳本補金額：${env.APP_URL}/?receipt=${receiptId}`,
+        },
+      ],
+    });
   } catch {
-    await db.from("notifications").upsert(
+    await lineClient.pushMessage(
       {
-        recipient_user_id: user.id,
-        group_id: preference.data.active_group_id,
-        kind: "receipt",
-        title: "收據辨識失敗",
-        body: `請到圖形化帳本重新上傳。${env.APP_URL}`,
-        entity_type: "receipt",
-        entity_id: receiptId,
-        dedupe_key: `receipt:${receiptId}:failed`,
+        to: user.line_user_id,
+        messages: [
+          {
+            type: "text",
+            text: "收據辨識失敗，請重新拍清楚一點，或到圖形化帳本手動新增。",
+          },
+        ],
       },
-      { onConflict: "dedupe_key", ignoreDuplicates: true },
     );
   }
-  await deliverNotifications(context);
+}
+
+async function pushReceiptConfirmations(
+  lineClient: Pick<LineBotClient, "pushMessage">,
+  lineUserId: string,
+  actions: Array<{ actionId: string; preview: string }>,
+) {
+  const messages = chunk(actions, 7)
+    .slice(0, 5)
+    .map((items): messagingApi.TextMessage => {
+      const ids = items.map((item) => item.actionId).join(",");
+      return {
+        type: "text",
+        text: `收據辨識完成，請確認 ${items.length} 筆記帳\n\n${items
+          .map((item) => item.preview)
+          .join("\n\n")}`,
+        quickReply: {
+          items: [
+            {
+              type: "action",
+              action: {
+                type: "postback",
+                label: items.length === 1 ? "確認" : "確認全部",
+                data: `decision=confirm&ids=${ids}`,
+                displayText: items.length === 1 ? "確認" : "確認全部",
+              },
+            },
+            {
+              type: "action",
+              action: {
+                type: "postback",
+                label: items.length === 1 ? "取消" : "取消全部",
+                data: `decision=cancel&ids=${ids}`,
+                displayText: items.length === 1 ? "取消" : "取消全部",
+              },
+            },
+          ],
+        },
+      };
+    });
+  await lineClient.pushMessage({ to: lineUserId, messages });
+}
+
+function chunk<T>(items: T[], size: number): T[][] {
+  const chunks: T[][] = [];
+  for (let index = 0; index < items.length; index += size) {
+    chunks.push(items.slice(index, index + size));
+  }
+  return chunks;
 }
 
 export async function markNotificationsRead(context: ServerContext) {
@@ -2141,6 +2259,13 @@ export async function deliverNotifications(context: ServerContext) {
     .limit(20);
   if (pending.error || !pending.data?.length) return;
   for (const notification of pending.data) {
+    const claim = await context.db
+      .from("notifications")
+      .update({ line_status: "sending" })
+      .eq("id", notification.id)
+      .eq("line_status", "pending")
+      .select("id");
+    if (claim.error || !claim.data?.length) continue;
     const userRelation = notification.users as unknown;
     const lineUserId = z
       .union([

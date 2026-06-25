@@ -11,6 +11,7 @@ import {
 import {
   deliverNotifications,
   expensesCsv,
+  receiptExpenseInputs,
   type AppExpense,
   type ServerContext,
 } from "./app-server";
@@ -503,6 +504,78 @@ test("rejects unsafe receipt extraction values", () => {
   );
 });
 
+test("receipt OCR items become pending expense inputs", () => {
+  const inputs = receiptExpenseInputs({
+    activeGroupId: GROUP,
+    receiptId: "00000000-0000-4000-8000-000000000055",
+    today: "2026-06-25",
+    extraction: {
+      merchant: null,
+      expenseDate: null,
+      amountTwd: null,
+      confidence: 0.9,
+      items: [
+        {
+          merchant: "ENQ-8622",
+          description: null,
+          expenseDate: "2026-06-06",
+          amountTwd: 42,
+        },
+        {
+          merchant: null,
+          description: "行程費",
+          expenseDate: null,
+          amountTwd: 31,
+        },
+        {
+          merchant: null,
+          description: null,
+          expenseDate: null,
+          amountTwd: null,
+        },
+      ],
+    },
+  });
+
+  assert.deepEqual(
+    inputs.map((input) => input.expense),
+    [
+      {
+        ledger: "shared",
+        groupId: GROUP,
+        description: "ENQ-8622",
+        merchant: "ENQ-8622",
+        notes: "由 LINE 圖片辨識建立",
+        category: "transport",
+        categoryLabel: "車資",
+        amountTwd: 42,
+        paidBy: "self",
+        expenseDate: "2026-06-06",
+        splitMethod: "equal",
+        selfValue: null,
+        partnerValue: null,
+        receiptId: null,
+      },
+      {
+        ledger: "shared",
+        groupId: GROUP,
+        description: "行程費",
+        merchant: null,
+        notes: "由 LINE 圖片辨識建立",
+        category: "transport",
+        categoryLabel: "車資",
+        amountTwd: 31,
+        paidBy: "self",
+        expenseDate: "2026-06-25",
+        splitMethod: "equal",
+        selfValue: null,
+        partnerValue: null,
+        receiptId: null,
+      },
+    ],
+  );
+});
+
 test("calculates who owes whom and applies settlements", () => {
   const expenses: LedgerExpense[] = [
     {
@@ -640,6 +713,20 @@ test("notification delivery attempts LINE push without quota preflight", async (
     ],
   });
   assert.equal(db.updatedStatus, "sent");
+});
+
+test("notification delivery skips rows already claimed by another worker", async () => {
+  const pushed: unknown[] = [];
+  const db = fakeNotificationDb({ claimNotifications: false });
+  await withMockFetch(async (url, init) => {
+    pushed.push({ url, init });
+    return jsonResponse({});
+  }, async () => {
+    await deliverNotifications(fakeContext(db));
+  });
+
+  assert.equal(pushed.length, 0);
+  assert.equal(db.updatedStatus, "sending");
 });
 
 test("LINE postback confirmation delivers partner notification", async () => {
@@ -825,6 +912,7 @@ function fakePostbackDb() {
 function fakeNotificationDb(extra: Record<string, unknown> = {}) {
   const db = {
     updatedStatus: "",
+    claimNotifications: true,
     rpc: async () => ({ data: null, error: null }),
     from(table: string) {
       return fakeQuery(table, db);
@@ -834,7 +922,10 @@ function fakeNotificationDb(extra: Record<string, unknown> = {}) {
   return db;
 }
 
-function fakeQuery(table: string, db: { updatedStatus: string }) {
+function fakeQuery(
+  table: string,
+  db: { updatedStatus: string; claimNotifications?: boolean },
+) {
   let updateValue: Record<string, unknown> | null = null;
   const query = {
     select: () => query,
@@ -852,7 +943,16 @@ function fakeQuery(table: string, db: { updatedStatus: string }) {
     single: async () => singleResultFor(table),
     maybeSingle: async () => singleResultFor(table),
     then(resolve: (value: unknown) => unknown, reject?: (reason: unknown) => unknown) {
-      if (updateValue?.line_status) db.updatedStatus = String(updateValue.line_status);
+      if (updateValue?.line_status) {
+        db.updatedStatus = String(updateValue.line_status);
+        if (table === "notifications" && updateValue.line_status === "sending") {
+          return Promise.resolve({
+            data: db.claimNotifications === false ? [] : [{ id: 123 }],
+            error: null,
+          }).then(resolve, reject);
+        }
+        return Promise.resolve({ data: null, error: null }).then(resolve, reject);
+      }
       return Promise.resolve(listResultFor(table)).then(resolve, reject);
     },
   };
