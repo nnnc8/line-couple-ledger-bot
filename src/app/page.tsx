@@ -6,6 +6,7 @@ import {
   applyOptimistic,
   type PendingActionInput,
 } from "@/lib/optimistic";
+import { ExpenseEditor } from "@/components/expense/expense-form";
 
 type Tab =
   | "dashboard"
@@ -139,21 +140,6 @@ type CategoryAnalytics = {
     count: number;
     percent: number;
   }>;
-};
-
-type ExpenseForm = {
-  ledger: "shared" | "private";
-  description: string;
-  merchant: string;
-  notes: string;
-  category: string;
-  amountTwd: string;
-  paidBy: "self" | "partner";
-  expenseDate: string;
-  splitMethod: "equal" | "exact" | "percentage";
-  selfValue: string;
-  partnerValue: string;
-  receiptId: string | null;
 };
 
 const tabs: Tab[] = [
@@ -291,14 +277,6 @@ function IconSearch() {
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <circle cx="11" cy="11" r="8" />
       <path d="M21 21l-4.35-4.35" />
-    </svg>
-  );
-}
-function IconCamera() {
-  return (
-    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z" />
-      <circle cx="12" cy="13" r="4" />
     </svg>
   );
 }
@@ -1811,321 +1789,6 @@ function History({
   );
 }
 
-/* ─── Expense Editor ─── */
-function ExpenseEditor({
-  data,
-  busy,
-  onSubmit,
-  onReceipt,
-}: {
-  data: Bootstrap;
-  busy: boolean;
-  onSubmit(body: unknown): void;
-  onReceipt(
-    file: File,
-  ): Promise<{
-    extraction: {
-      merchant: string | null;
-      expenseDate: string | null;
-      amountTwd: number | null;
-    };
-    receiptId: string;
-  }>;
-}) {
-  const stored =
-    typeof window !== "undefined"
-      ? sessionStorage.getItem("editExpense")
-      : null;
-  const editing = stored ? (JSON.parse(stored) as Expense) : null;
-  const receiptStored =
-    typeof window !== "undefined"
-      ? sessionStorage.getItem("receiptDraft")
-      : null;
-  const receiptDraft = receiptStored
-    ? (JSON.parse(receiptStored) as {
-        id: string;
-        extraction: {
-          merchant: string | null;
-          expenseDate: string | null;
-          amountTwd: number | null;
-        } | null;
-      })
-    : null;
-  const [form, setForm] = useState<ExpenseForm>(() =>
-    editing
-      ? formFromExpense(editing, data)
-      : receiptDraft?.extraction
-        ? {
-            ...emptyForm(data.today),
-            receiptId: receiptDraft.id,
-            merchant: receiptDraft.extraction.merchant ?? "",
-            description: receiptDraft.extraction.merchant ?? "收據支出",
-            expenseDate: receiptDraft.extraction.expenseDate ?? data.today,
-            amountTwd: receiptDraft.extraction.amountTwd
-              ? String(receiptDraft.extraction.amountTwd)
-              : "",
-          }
-        : emptyForm(data.today),
-  );
-  const [ocr, setOcr] = useState(false);
-  const [localError, setLocalError] = useState("");
-  const update = (key: keyof ExpenseForm, value: string | null) =>
-    setForm((current) => ({ ...current, [key]: value }));
-  function submit(event: React.FormEvent) {
-    event.preventDefault();
-    setLocalError("");
-    const amount = Number(form.amountTwd);
-    if (!Number.isSafeInteger(amount) || amount <= 0)
-      return setLocalError("請輸入正確整數金額");
-    const expense = {
-      ...form,
-      groupId: form.ledger === "shared" ? data.activeGroupId : null,
-      amountTwd: amount,
-      merchant: form.merchant || null,
-      notes: form.notes || null,
-      selfValue: form.selfValue ? Number(form.selfValue) : null,
-      partnerValue: form.partnerValue ? Number(form.partnerValue) : null,
-    };
-    onSubmit(
-      editing
-        ? {
-            type: "update_expense",
-            expenseId: editing.id,
-            expectedVersion: editing.version,
-            expense,
-          }
-        : { type: "create_expense", expense },
-    );
-  }
-  async function scan(file?: File) {
-    if (!file) return;
-    setOcr(true);
-    setLocalError("");
-    try {
-      const result = await onReceipt(file);
-      setForm((current) => ({
-        ...current,
-        receiptId: result.receiptId,
-        merchant: result.extraction.merchant ?? current.merchant,
-        description: result.extraction.merchant ?? current.description,
-        expenseDate: result.extraction.expenseDate ?? current.expenseDate,
-        amountTwd: result.extraction.amountTwd
-          ? String(result.extraction.amountTwd)
-          : current.amountTwd,
-      }));
-    } catch (reason) {
-      setLocalError(reason instanceof Error ? reason.message : "收據辨識失敗");
-    } finally {
-      setOcr(false);
-    }
-  }
-  return (
-    <form className="panel form" onSubmit={submit}>
-      <div className="panel-title">
-        <div>
-          <span className="eyebrow">{editing ? "修改流水" : "建立草稿"}</span>
-          <h2>{editing ? editing.description : "新增支出"}</h2>
-        </div>
-      </div>
-
-      {/* Hero amount input */}
-      <div className="hero-amount">
-        <span className="currency">金額（TWD）</span>
-        <input
-          required
-          inputMode="numeric"
-          placeholder="0"
-          aria-label="金額（TWD）"
-          value={form.amountTwd}
-          onChange={(event) => update("amountTwd", event.target.value)}
-        />
-      </div>
-
-      {/* Receipt upload */}
-      <label className="upload">
-        <input
-          type="file"
-          accept="image/jpeg,image/png,image/webp,image/heic,image/heif"
-          capture="environment"
-          onChange={(event) => void scan(event.target.files?.[0])}
-        />
-        <span className="upload-icon">
-          {ocr ? "⏳" : form.receiptId ? "✅" : <IconCamera />}
-        </span>
-        <strong>
-          {ocr
-            ? "辨識中…"
-            : form.receiptId
-              ? "收據已辨識，可重新選擇"
-              : "拍攝或選擇收據"}
-        </strong>
-        <small>自動填入商家、日期與總額，確認前都能修改</small>
-      </label>
-
-      {/* Ledger toggle */}
-      <div className="segmented">
-        <button
-          type="button"
-          className={form.ledger === "shared" ? "active" : ""}
-          onClick={() => update("ledger", "shared")}
-        >
-          💑 共同帳
-        </button>
-        <button
-          type="button"
-          className={form.ledger === "private" ? "active" : ""}
-          onClick={async () => {
-            if (editing && editing.ledger === "shared") {
-              setLocalError("");
-              try {
-                const res = await fetch(
-                  `/api/app/expenses/${editing.id}/check-settlement`
-                ).then((r) => r.json());
-                if (res && res.settled) {
-                  setLocalError(
-                    res.message ||
-                      "此帳已包含在結清紀錄中，無法改為私人帳。請先復原該筆結清才能修改。"
-                  );
-                  return;
-                }
-              } catch (err) {
-                console.error(err);
-              }
-            }
-            update("ledger", "private");
-          }}
-        >
-          👤 私人帳
-        </button>
-      </div>
-
-      <Field label="說明">
-        <input
-          required
-          maxLength={100}
-          value={form.description}
-          onChange={(event) => update("description", event.target.value)}
-          placeholder="例如：晚餐"
-        />
-      </Field>
-
-      {/* Category chips */}
-      <div className="field">
-        <span>分類</span>
-        <div className="category-chips">
-          {Object.entries(categoryNames).map(([key, label]) => (
-            <button
-              key={key}
-              type="button"
-              className={`category-chip ${form.category === key ? "active" : ""}`}
-              onClick={() => update("category", key)}
-            >
-              {categoryEmojis[key]} {label}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      <div className="two">
-        <Field label="日期">
-          <input
-            required
-            type="date"
-            value={form.expenseDate}
-            onChange={(event) => update("expenseDate", event.target.value)}
-          />
-        </Field>
-        <Field label="商家">
-          <input
-            maxLength={100}
-            value={form.merchant}
-            onChange={(event) => update("merchant", event.target.value)}
-            placeholder="選填"
-          />
-        </Field>
-      </div>
-      <div className="two">
-        <Field label="付款人">
-          <select
-            value={form.paidBy}
-            disabled={form.ledger === "private"}
-            onChange={(event) => update("paidBy", event.target.value)}
-          >
-            <option value="self">你</option>
-            <option value="partner">另一半</option>
-          </select>
-        </Field>
-        <Field label="分帳方式">
-          <select
-            value={form.splitMethod}
-            disabled={form.ledger === "private"}
-            onChange={(event) => update("splitMethod", event.target.value)}
-          >
-            <option value="equal">平均</option>
-            <option value="exact">指定金額</option>
-            <option value="percentage">百分比</option>
-          </select>
-        </Field>
-      </div>
-      {form.ledger === "shared" && form.splitMethod !== "equal" && (
-        <div className="two">
-          <Field
-            label={`你的${form.splitMethod === "exact" ? "金額" : "比例 %"}`}
-          >
-            <input
-              required
-              inputMode="decimal"
-              value={form.selfValue}
-              onChange={(event) => update("selfValue", event.target.value)}
-            />
-          </Field>
-          <Field
-            label={`另一半${form.splitMethod === "exact" ? "金額" : "比例 %"}`}
-          >
-            <input
-              required
-              inputMode="decimal"
-              value={form.partnerValue}
-              onChange={(event) => update("partnerValue", event.target.value)}
-            />
-          </Field>
-        </div>
-      )}
-      <Field label="備註">
-        <textarea
-          maxLength={500}
-          value={form.notes}
-          onChange={(event) => update("notes", event.target.value)}
-          placeholder="選填備註"
-        />
-      </Field>
-      {localError && <p className="form-error">{localError}</p>}
-      <button className="wide" disabled={busy || ocr}>
-        {editing ? "預覽修改" : "預覽並確認"}
-      </button>
-      {editing && (
-        <button
-          type="button"
-          className="wide text-button danger"
-          style={{ marginTop: "0.75rem", border: "1px solid var(--danger)", borderRadius: "var(--radius)" }}
-          disabled={busy || ocr}
-          onClick={() => {
-            if (confirm("確定要刪除這筆支出嗎？")) {
-              onSubmit({
-                type: "delete_expense",
-                expenseId: editing.id,
-                expectedVersion: editing.version,
-              });
-            }
-          }}
-        >
-          刪除此筆支出
-        </button>
-      )}
-    </form>
-  );
-}
-
 /* ─── Accountant ─── */
 function Accountant({
   onPropose,
@@ -3297,22 +2960,6 @@ function ExpenseRow({ expense, users }: { expense: Expense; users: User[] }) {
 }
 
 /* ─── Utility Functions ─── */
-function emptyForm(today: string): ExpenseForm {
-  return {
-    ledger: "shared",
-    description: "",
-    merchant: "",
-    notes: "",
-    category: "other",
-    amountTwd: "",
-    paidBy: "self",
-    expenseDate: today,
-    splitMethod: "equal",
-    selfValue: "",
-    partnerValue: "",
-    receiptId: null,
-  };
-}
 function buildClientDashboard(expenses: Expense[], month: string): DashboardData {
   const active = expenses.filter((expense) => !expense.deleted_at);
   const categoryTotals: Record<string, number> = {};
@@ -3346,34 +2993,6 @@ function displayCategoryLabel(expense: Expense) {
   return categoryNames[expense.category] ?? label ?? expense.category;
 }
 
-function formFromExpense(expense: Expense, data: Bootstrap): ExpenseForm {
-  const mine =
-    expense.expense_splits.find((split) => split.user_id === data.user.id)
-      ?.amount_twd ?? 0;
-  const theirs =
-    expense.expense_splits.find((split) => split.user_id !== data.user.id)
-      ?.amount_twd ?? 0;
-  const percentage = (value: number) =>
-    String(Math.round((value / expense.amount_twd) * 10_000) / 100);
-  return {
-    ledger: expense.ledger,
-    description: expense.description,
-    merchant: expense.merchant ?? "",
-    notes: expense.notes ?? "",
-    category: expense.category,
-    amountTwd: String(expense.amount_twd),
-    paidBy: expense.paid_by_user_id === data.user.id ? "self" : "partner",
-    expenseDate: expense.expense_date,
-    splitMethod: expense.split_method,
-    selfValue:
-      expense.split_method === "percentage" ? percentage(mine) : String(mine),
-    partnerValue:
-      expense.split_method === "percentage"
-        ? percentage(theirs)
-        : String(theirs),
-    receiptId: expense.receipts[0]?.id ?? null,
-  };
-}
 function titleFor(tab: Tab) {
   return (
     {
