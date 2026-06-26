@@ -1397,3 +1397,220 @@ test("phase 4 proactive insights suppress duplicate rules for three days", () =>
     true,
   );
 });
+
+test("write tools: record_expense returns pending_action with expense", async () => {
+  const { executeTool } = await import("./accountant-tools");
+
+  const mockDb = {
+    from: () => ({
+      select: () => ({
+        eq: () => ({
+          neq: () => ({
+            single: () => Promise.resolve({ data: { user_id: "partner-123" }, error: null }),
+          }),
+        }),
+      }),
+    }),
+  } as unknown as import("@supabase/supabase-js").SupabaseClient;
+
+  const ctx = {
+    db: mockDb,
+    groupId: "group-1",
+    userId: "user-1",
+    coupleId: 1,
+  };
+
+  const result = await executeTool(
+    "record_expense",
+    {
+      description: "晚餐",
+      amount_twd: 860,
+      paid_by: "self",
+      ledger: "shared",
+      category: "food",
+      category_label: "餐飲",
+    },
+    ctx,
+  );
+
+  const res = result as {
+    pending_action: {
+      type: string;
+      expense: { description: string; amount_twd: number; paid_by_user_id: string };
+      splits: Array<{ user_id: string; amount_twd: number }>;
+    };
+    message: string;
+  };
+
+  assert.equal(res.pending_action.type, "create_expense");
+  assert.equal(res.pending_action.expense.description, "晚餐");
+  assert.equal(res.pending_action.expense.amount_twd, 860);
+  assert.equal(res.pending_action.expense.paid_by_user_id, "user-1");
+  assert.ok(res.message.includes("860"));
+});
+
+test("write tools: settle_debt returns pending_action when user owes", async () => {
+  const { executeTool } = await import("./accountant-tools");
+
+  const mockDb = {
+    rpc: () =>
+      Promise.resolve({
+        data: [
+          { user_id: "user-1", balance_twd: -500 },
+          { user_id: "user-2", balance_twd: 500 },
+        ],
+        error: null,
+      }),
+  } as unknown as import("@supabase/supabase-js").SupabaseClient;
+
+  const ctx = {
+    db: mockDb,
+    groupId: "group-1",
+    userId: "user-1",
+    coupleId: 1,
+  };
+
+  const result = await executeTool(
+    "settle_debt",
+    { amount_twd: 300 },
+    ctx,
+  );
+
+  const res = result as {
+    pending_action: { type: string; amountTwd: number };
+    message: string;
+  };
+
+  assert.equal(res.pending_action.type, "settle");
+  assert.equal(res.pending_action.amountTwd, 300);
+  assert.ok(res.message.includes("300"));
+});
+
+test("write tools: settle_debt returns message when user does not owe", async () => {
+  const { executeTool } = await import("./accountant-tools");
+
+  const mockDb = {
+    rpc: () =>
+      Promise.resolve({
+        data: [
+          { user_id: "user-1", balance_twd: 500 },
+          { user_id: "user-2", balance_twd: -500 },
+        ],
+        error: null,
+      }),
+  } as unknown as import("@supabase/supabase-js").SupabaseClient;
+
+  const ctx = {
+    db: mockDb,
+    groupId: "group-1",
+    userId: "user-1",
+    coupleId: 1,
+  };
+
+  const result = await executeTool(
+    "settle_debt",
+    { amount_twd: 300 },
+    ctx,
+  );
+
+  const res = result as { message: string };
+  assert.ok(res.message.includes("不需要結清"));
+});
+
+test("write tools: set_budget returns pending_action", async () => {
+  const { executeTool } = await import("./accountant-tools");
+
+  const ctx = {
+    db: {} as unknown as import("@supabase/supabase-js").SupabaseClient,
+    groupId: "group-1",
+    userId: "user-1",
+    coupleId: 1,
+  };
+
+  const result = await executeTool(
+    "set_budget",
+    { limit_twd: 10000, category: "food", category_label: "餐飲" },
+    ctx,
+  );
+
+  const res = result as {
+    pending_action: { type: string; limitTwd: number; category: string };
+    message: string;
+  };
+
+  assert.equal(res.pending_action.type, "set_budget");
+  assert.equal(res.pending_action.limitTwd, 10000);
+  assert.equal(res.pending_action.category, "food");
+  assert.ok(res.message.includes("10000"));
+});
+
+test("write tools: record_expense validates required params", async () => {
+  const { executeTool } = await import("./accountant-tools");
+
+  const ctx = {
+    db: {} as unknown as import("@supabase/supabase-js").SupabaseClient,
+    groupId: "group-1",
+    userId: "user-1",
+    coupleId: 1,
+  };
+
+  try {
+    await executeTool("record_expense", { description: "測試" }, ctx);
+    assert.fail("Should have thrown");
+  } catch (error) {
+    assert.ok(error instanceof Error);
+    assert.ok(error.message.includes("amount_twd") || error.message.includes("Invalid"));
+  }
+});
+
+test("agent-loop: buildSystemPrompt includes today date", async () => {
+  const { runAgentLoop } = await import("./agent-loop");
+
+  const mockGemini = {
+    models: {
+      generateContent: async () => ({
+        candidates: [
+          {
+            content: {
+              parts: [{ text: "測試回應" }],
+              role: "model",
+            },
+          },
+        ],
+      }),
+    },
+  } as unknown as import("@google/genai").GoogleGenAI;
+
+  const mockDb = {
+    from: () => ({
+      select: () => ({
+        eq: () => ({
+          order: () => ({
+            limit: () => ({
+              single: () => Promise.resolve({ data: null }),
+            }),
+          }),
+        }),
+      }),
+      upsert: () => Promise.resolve({ error: null }),
+    }),
+  } as unknown as import("@supabase/supabase-js").SupabaseClient;
+
+  const ctx = {
+    db: mockDb,
+    groupId: "group-1",
+    userId: "user-1",
+    coupleId: 1,
+  };
+
+  const result = await runAgentLoop(
+    "你好",
+    null,
+    "user-1",
+    ctx,
+    { gemini: mockGemini, supabase: mockDb },
+  );
+
+  assert.ok(result.answer);
+  assert.equal(result.toolCallCount, 0);
+});
