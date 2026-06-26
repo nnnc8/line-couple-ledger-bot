@@ -1,0 +1,113 @@
+export type User = { id: string; role: "owner" | "partner"; label: string };
+
+export type Group = {
+  id: string;
+  name: string;
+  color: string;
+  archived_at: string | null;
+};
+
+export type Expense = {
+  id: string;
+  group_id: string | null;
+  ledger: "shared" | "private";
+  description: string;
+  merchant: string | null;
+  notes: string | null;
+  category: string;
+  category_label: string;
+  custom_category_label?: string;
+  mirror_kind: "shared_share" | null;
+  mirror_source_expense_id: string | null;
+  amount_twd: number;
+  paid_by_user_id: string;
+  created_by_user_id: string;
+  expense_date: string;
+  split_method: "equal" | "exact" | "percentage";
+  version: number;
+  deleted_at: string | null;
+  receipts: Array<{ id: string; status: string }>;
+  expense_splits: Array<{ user_id: string; amount_twd: number }>;
+  _optimistic?: boolean;
+};
+
+export type DashboardData = {
+  monthlyTotalTwd: number;
+  monthlyCount: number;
+  categoryTotals: Record<string, number>;
+  trend: Array<{ month: string; totalTwd: number }>;
+  recent: Expense[];
+};
+
+export type Bootstrap = {
+  today: string;
+  month: string;
+  user: User;
+  users: User[];
+  groups: Group[];
+  activeGroupId: string;
+  expenses: Expense[];
+  sharedExpenses: Expense[];
+  privateExpenses: Expense[];
+  balances: Array<{ user_id: string; balance_twd: number }>;
+  budgets: Array<{
+    id: string;
+    category: string | null;
+    category_label: string | null;
+    limit_twd: number;
+  }>;
+  recurring: Array<{
+    id: string;
+    description: string;
+    amount_twd: number;
+    frequency: string;
+    next_run_date: string;
+    active: boolean;
+  }>;
+  notifications: Array<{
+    id: number;
+    title: string;
+    body: string;
+    read_at: string | null;
+    created_at: string;
+    line_status: string;
+  }>;
+  dashboard: DashboardData;
+  privateDashboard: DashboardData;
+  projection: ProjectionData;
+};
+
+export type ProjectionData = {
+  daysElapsed: number;
+  daysTotal: number;
+  spentSoFar: number;
+  projectedTotal: number;
+  categoryProjections: Array<{
+    category: string | null;
+    categoryLabel: string | null;
+    spentSoFar: number;
+    projectedTotal: number;
+    budget: number;
+    projectedOverrun: number;
+  }>;
+} | null;
+
+export type CategoryAnalytics = {
+  range: "this_month" | "six_months" | "all";
+  scope: "shared" | "private" | "combined";
+  totalTwd: number;
+  count: number;
+  categories: Array<{
+    label: string;
+    totalTwd: number;
+    count: number;
+    percent: number;
+  }>;
+};
+
+export type BalanceSuggestion = {
+  expenseId: string;
+  description: string;
+  amountTwd: number;
+  expenseDate: string;
+};
