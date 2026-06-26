@@ -79,8 +79,7 @@ export async function handleLineEvent(
     }
     if (event.type !== "message") return;
     if (event.message.type === "image") {
-      await replyText(dependencies.lineClient, replyToken, "已收到收據，辨識完成後會通知你到圖形化帳本確認。");
-      dependencies.onImage?.({ messageId: event.message.id, eventId: event.webhookEventId, lineUserId: userId });
+      await handleImageMessage(event, userId, replyToken, dependencies);
       return;
     }
     if (event.message.type === "audio") {
@@ -283,6 +282,7 @@ async function runAgentWithReply(
   user: UserRow,
   replyToken: string,
   dependencies: BotDependencies,
+  imageData?: { imageData: string; mimeType: string },
 ): Promise<void> {
 
   const toolCtx: ToolContext = {
@@ -309,8 +309,12 @@ async function runAgentWithReply(
   const sessionId = lastSession?.id ?? null;
 
   try {
+    const input = imageData
+      ? { text, imageData: imageData.imageData, mimeType: imageData.mimeType }
+      : text;
+
     const result = await runAgentLoop(
-      text,
+      input,
       sessionId,
       user.id,
       toolCtx,
@@ -516,6 +520,58 @@ async function handleAudioMessage(
   } catch (err) {
     console.error("Failed to process audio message:", err);
     await replyText(dependencies.lineClient, replyToken, "語音處理失敗，請稍後再試或直接打字。");
+  }
+}
+
+async function handleImageMessage(
+  event: webhook.Event & { message: { id: string } },
+  userId: string,
+  replyToken: string,
+  dependencies: BotDependencies,
+): Promise<void> {
+  try {
+    // Get user info
+    const user = await findUser(dependencies.supabase, userId);
+    if (!user) {
+      await replyText(dependencies.lineClient, replyToken, "請先輸入：加入 <設定碼>");
+      return;
+    }
+
+    // Download image from LINE
+    const content = await dependencies.lineClient.getMessageContent(event.message.id);
+    const chunks: Buffer[] = [];
+    let size = 0;
+    for await (const chunk of content) {
+      const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
+      size += buffer.length;
+      if (size > 10 * 1024 * 1024) {
+        await replyText(dependencies.lineClient, replyToken, "圖片太大，請傳小一點的圖片。");
+        return;
+      }
+      chunks.push(buffer);
+    }
+    const bytes = Buffer.concat(chunks);
+    const base64Image = bytes.toString("base64");
+
+    // Determine MIME type from the first few bytes
+    let mimeType = "image/jpeg"; // default
+    if (bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4e && bytes[3] === 0x47) {
+      mimeType = "image/png";
+    } else if (bytes[0] === 0x52 && bytes[1] === 0x49 && bytes[2] === 0x46 && bytes[3] === 0x46) {
+      mimeType = "image/webp";
+    }
+
+    // Send to Agent with Vision prompt
+    await runAgentWithReply(
+      "這是一張收據或發票照片。請分析圖片內容，提取商家名稱、日期、總金額，並判斷分類，然後呼叫 record_expense 工具記帳。如果圖片不是收據或發票，請告知使用者。",
+      user,
+      replyToken,
+      dependencies,
+      { imageData: base64Image, mimeType },
+    );
+  } catch (err) {
+    console.error("Failed to process image message:", err);
+    await replyText(dependencies.lineClient, replyToken, "圖片處理失敗，請稍後再試。");
   }
 }
 

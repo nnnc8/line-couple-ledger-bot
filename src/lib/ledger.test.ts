@@ -1582,9 +1582,11 @@ test("agent-loop: buildSystemPrompt includes today date", async () => {
   } as unknown as import("@google/genai").GoogleGenAI;
 
   const mockDb = {
+    rpc: () => Promise.resolve({ data: [], error: null }),
     from: () => ({
       select: () => ({
         eq: () => ({
+          is: () => Promise.resolve({ data: [], error: null }),
           order: () => ({
             limit: () => ({
               single: () => Promise.resolve({ data: null }),

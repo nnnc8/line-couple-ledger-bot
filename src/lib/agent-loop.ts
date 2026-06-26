@@ -45,9 +45,48 @@ const MAX_HISTORY = 30;
 
 /* ─── System prompt ─── */
 
-function buildSystemPrompt(ctx: ToolContext, today: string): string {
+async function buildSystemPrompt(ctx: ToolContext, today: string): Promise<string> {
+  // Fetch current balance and budget status
+  const [balanceResult, budgetResult] = await Promise.all([
+    ctx.db.rpc("group_balances", { p_group_id: ctx.groupId }),
+    ctx.db
+      .from("budgets")
+      .select("category, category_label, limit_twd")
+      .eq("group_id", ctx.groupId)
+      .is("archived_at", null),
+  ]);
+
+  // Build balance info
+  let balanceInfo = "";
+  if (!balanceResult.error && balanceResult.data) {
+    const balances = balanceResult.data as Array<{ user_id: string; balance_twd: number }>;
+    const myBalance = balances.find((b) => b.user_id === ctx.userId)?.balance_twd ?? 0;
+    if (myBalance > 0) {
+      balanceInfo = `\n目前狀態：對方欠你 NT$${myBalance}`;
+    } else if (myBalance < 0) {
+      balanceInfo = `\n目前狀態：你欠對方 NT$${Math.abs(myBalance)}`;
+    } else {
+      balanceInfo = "\n目前狀態：帳務已結清";
+    }
+  }
+
+  // Build budget info
+  let budgetInfo = "";
+  if (!budgetResult.error && budgetResult.data && budgetResult.data.length > 0) {
+    const budgetLines = budgetResult.data
+      .filter((b) => b.limit_twd)
+      .map((b) => {
+        const label = b.category_label ?? b.category ?? "總預算";
+        return `${label}: NT$${b.limit_twd}`;
+      });
+    if (budgetLines.length > 0) {
+      budgetInfo = `\n預算設定：${budgetLines.join("、")}`;
+    }
+  }
+
   return `你是一個情侶記帳系統的 AI 助理。今天是 ${today}。
 你的职责是幫助使用者記帳、查帳、分析支出、設定預算等。
+${balanceInfo}${budgetInfo}
 
 規則：
 1. 使用 record_expense 工具時，必須回傳 pending_action，讓使用者在 LINE 上確認。
@@ -95,8 +134,14 @@ function createSessionId(): string {
 
 /* ─── Main agent loop ─── */
 
+export interface AgentInput {
+  text: string;
+  imageData?: string; // base64 encoded image
+  mimeType?: string; // image/jpeg, image/png, etc.
+}
+
 export async function runAgentLoop(
-  userMessage: string,
+  input: string | AgentInput,
   sessionId: string | null,
   userId: string,
   ctx: ToolContext,
@@ -108,6 +153,11 @@ export async function runAgentLoop(
     month: "2-digit",
     day: "2-digit",
   }).format(new Date());
+
+  // Normalize input
+  const normalizedInput: AgentInput = typeof input === "string"
+    ? { text: input }
+    : input;
 
   // Load or create session
   let messages: AgentMessage[] = [];
@@ -124,13 +174,23 @@ export async function runAgentLoop(
     effectiveSessionId = createSessionId();
   }
 
-  // Append user message
+  // Append user message (with or without image)
+  const userParts: Part[] = [];
+  if (normalizedInput.imageData && normalizedInput.mimeType) {
+    userParts.push({
+      inlineData: {
+        mimeType: normalizedInput.mimeType,
+        data: normalizedInput.imageData,
+      },
+    });
+  }
+  userParts.push({ text: normalizedInput.text });
   messages.push({
     role: "user",
-    parts: [{ text: userMessage }],
+    parts: userParts,
   });
 
-  const systemInstruction = buildSystemPrompt(ctx, today);
+  const systemInstruction = await buildSystemPrompt(ctx, today);
   const pendingActions: unknown[] = [];
   let toolCallCount = 0;
 
