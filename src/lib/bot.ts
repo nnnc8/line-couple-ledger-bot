@@ -14,16 +14,12 @@ import {
 import { runAgentLoop, type AgentDeps } from "./agent-loop";
 import type { ToolContext } from "./accountant-tools";
 import {
-  type LedgerExpense,
   type ParsedIntent,
-  type Settlement,
 } from "./ledger";
 import { safeSecretEqual } from "./security";
 
 export { safeSecretEqual } from "./security";
 
-const MODEL = "gemini-3.1-flash-lite";
-const TIME_ZONE = "Asia/Taipei";
 const MAX_MESSAGE_LENGTH = 500;
 const PENDING_ACTION_TTL_MS = 5 * 60 * 1000;
 
@@ -32,28 +28,6 @@ const userRowSchema = z.object({
   couple_id: z.number().int(),
   role: z.enum(["owner", "partner"]),
   line_user_id: z.string(),
-});
-
-const expenseRowSchema = z.object({
-  id: z.string().uuid(),
-  ledger: z.enum(["shared", "private"]),
-  amount_twd: z.coerce.number().int(),
-  paid_by_user_id: z.string().uuid(),
-  created_by_user_id: z.string().uuid(),
-  expense_date: z.string(),
-  deleted_at: z.string().nullable(),
-  expense_splits: z.array(
-    z.object({
-      user_id: z.string().uuid(),
-      amount_twd: z.coerce.number().int(),
-    }),
-  ),
-});
-
-const settlementRowSchema = z.object({
-  from_user_id: z.string().uuid(),
-  to_user_id: z.string().uuid(),
-  amount_twd: z.coerce.number().int(),
 });
 
 const actionResultSchema = z.object({
@@ -310,7 +284,6 @@ async function runAgentWithReply(
   replyToken: string,
   dependencies: BotDependencies,
 ): Promise<void> {
-  const env = serverEnvironment();
 
   const toolCtx: ToolContext = {
     db: dependencies.supabase,
@@ -683,30 +656,6 @@ async function findUser(
     .maybeSingle();
   if (error) throw new Error("user lookup failed");
   return userRowSchema.nullable().parse(data);
-}
-
-async function listUsers(supabase: SupabaseClient): Promise<UserRow[]> {
-  const { data, error } = await supabase
-    .from("users")
-    .select("id, couple_id, role, line_user_id")
-    .order("role");
-  if (error) throw new Error("users lookup failed");
-  return z.array(userRowSchema).parse(data);
-}
-
-function toLedgerExpense(row: z.infer<typeof expenseRowSchema>): LedgerExpense {
-  return {
-    id: row.id,
-    ledger: row.ledger,
-    amountTwd: row.amount_twd,
-    paidByUserId: row.paid_by_user_id,
-    createdByUserId: row.created_by_user_id,
-    expenseDate: row.expense_date,
-    deleted: row.deleted_at !== null,
-    splits: Object.fromEntries(
-      row.expense_splits.map((split) => [split.user_id, split.amount_twd]),
-    ),
-  };
 }
 
 async function replyText(
