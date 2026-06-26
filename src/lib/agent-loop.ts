@@ -118,13 +118,16 @@ async function saveSession(
   sessionId: string,
   userId: string,
   messages: AgentMessage[],
+  ctx: ToolContext,
 ): Promise<void> {
   const trimmed = messages.slice(-MAX_HISTORY * 2);
   await db.from("accountant_sessions").upsert({
     id: sessionId,
+    couple_id: ctx.coupleId,
+    group_id: ctx.groupId,
     user_id: userId,
     messages: trimmed,
-    updated_at: new Date().toISOString(),
+    last_active_at: new Date().toISOString(),
   });
 }
 
@@ -277,7 +280,7 @@ export async function runAgentLoop(
       });
 
       // Save session
-      await saveSession(deps.supabase, effectiveSessionId, userId, messages);
+      await saveSession(deps.supabase, effectiveSessionId, userId, messages, ctx);
 
       return {
         answer: finalText,
@@ -306,7 +309,7 @@ export async function runAgentLoop(
       .map((p) => p.text)
       .join("") || "已完成處理。";
 
-  await saveSession(deps.supabase, effectiveSessionId, userId, messages);
+  await saveSession(deps.supabase, effectiveSessionId, userId, messages, ctx);
 
   return {
     answer: summaryText,
