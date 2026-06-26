@@ -130,22 +130,6 @@ test("passes invite code from LIFF link into session creation", async ({
   });
 });
 
-test("asks the accountant from the LIFF tab", async ({ page }) => {
-  await page.goto("/?tab=accountant");
-  await expect(
-    page.getByRole("heading", { level: 1, name: "AI 會計師" }),
-  ).toBeVisible();
-
-  // Open the historical reports details
-  await page.getByText("展開歷史月報與建議").click();
-  await expect(page.getByRole("heading", { name: "AI 月報" })).toBeVisible();
-
-  // Chat with the accountant
-  await page.getByPlaceholder("輸入你的問題...").fill("本月哪裡花太多？");
-  await page.getByRole("button", { name: "送出" }).click();
-  await expect(page.getByText("本月共 2 筆").first()).toBeVisible();
-});
-
 function bootstrap() {
   const expense = {
     id: "00000000-0000-4000-8000-000000000010",

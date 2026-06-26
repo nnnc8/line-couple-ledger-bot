@@ -17,7 +17,6 @@ type Tab =
   | "history"
   | "private"
   | "add"
-  | "accountant"
   | "budgets"
   | "settings";
 import type {
@@ -31,43 +30,11 @@ import type {
   BalanceSuggestion,
 } from "@/lib/types";
 
-type AccountantReport = {
-  id: string;
-  report_type: string;
-  scope: "shared" | "private" | "combined";
-  month: string;
-  question: string | null;
-  title: string;
-  summary: string;
-  facts: {
-    totalTwd: number;
-    sharedTotalTwd: number;
-    privateTotalTwd: number;
-    transactionCount: number;
-    balanceTwd: number;
-    otherTotalTwd: number;
-  };
-  findings: Array<{
-    severity: "info" | "warning" | "danger";
-    title: string;
-    body: string;
-    amountTwd: number | null;
-  }>;
-  suggestions: Array<{
-    title: string;
-    body: string;
-    actionInput: unknown | null;
-  }>;
-  source: "llm" | "fallback";
-  created_at: string;
-};
-
 const tabs: Tab[] = [
   "dashboard",
   "history",
   "private",
   "add",
-  "accountant",
   "budgets",
   "settings",
 ];
@@ -158,13 +125,6 @@ function IconPlus() {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round">
       <path d="M12 5v14M5 12h14" />
-    </svg>
-  );
-}
-function IconAI() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 16.8l-6.2 4.5 2.4-7.4L2 9.4h7.6z" />
     </svg>
   );
 }
@@ -529,9 +489,6 @@ export default function Home() {
             onReceipt={async (file) => uploadReceipt(file, data.activeGroupId)}
           />
         )}
-        {tab === "accountant" && (
-          <Accountant onPropose={(body) => void propose(body as PendingActionInput)} />
-        )}
         {tab === "budgets" && (
           <BudgetSection
             data={data}
@@ -595,12 +552,6 @@ export default function Home() {
             sessionStorage.removeItem("editExpense");
             setTab("add");
           }}
-        />
-        <NavButton
-          active={tab === "accountant"}
-          label="AI"
-          icon={<IconAI />}
-          onClick={() => setTab("accountant")}
         />
         <NavButton
           active={tab === "budgets"}
@@ -1217,252 +1168,6 @@ function PrivateLedger({
 }
 
 
-/* ─── Accountant ─── */
-function Accountant({
-  onPropose,
-}: {
-  onPropose(body: unknown): void;
-}) {
-  const [reports, setReports] = useState<AccountantReport[]>([]);
-  const [question, setQuestion] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [localError, setLocalError] = useState("");
-
-  const [messages, setMessages] = useState<Array<{ role: "user" | "assistant"; content: string }>>(() => {
-    if (typeof window !== "undefined") {
-      const stored = sessionStorage.getItem("accountant_messages");
-      if (stored) return JSON.parse(stored);
-    }
-    return [];
-  });
-  const [sessionId, setSessionId] = useState<string | null>(() => {
-    if (typeof window !== "undefined") {
-      return sessionStorage.getItem("accountant_session_id");
-    }
-    return null;
-  });
-
-  const promptSuggestions = [
-    "本月哪裡花太多？",
-    "這個月餐飲花了多少？",
-    "可以幫我結清嗎？",
-    "哪個分類增加最快？",
-  ];
-
-  const loadReports = useCallback(async () => {
-    const result = (await fetch("/api/app/accountant/reports", {
-      cache: "no-store",
-    }).then(parseResponse)) as AccountantReport[];
-    setReports(result);
-  }, []);
-
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    void loadReports().catch((reason) =>
-      setLocalError(reason instanceof Error ? reason.message : "無法讀取報告"),
-    );
-  }, [loadReports]);
-
-  // Save conversation state to sessionStorage
-  useEffect(() => {
-    sessionStorage.setItem("accountant_messages", JSON.stringify(messages));
-    if (sessionId) {
-      sessionStorage.setItem("accountant_session_id", sessionId);
-    } else {
-      sessionStorage.removeItem("accountant_session_id");
-    }
-  }, [messages, sessionId]);
-
-  async function ask(event: React.FormEvent) {
-    event.preventDefault();
-    const text = question.trim();
-    if (!text || loading) return;
-
-    setLoading(true);
-    setLocalError("");
-
-    const userMsg = { role: "user" as const, content: text };
-    setMessages((prev) => [...prev, userMsg]);
-    setQuestion("");
-
-    try {
-      const res = (await api("/api/app/accountant/chat", {
-        sessionId,
-        message: text,
-      })) as { sessionId: string; answer: string };
-
-      const replyMsg = { role: "assistant" as const, content: res.answer };
-
-      if (sessionId && res.sessionId !== sessionId) {
-        // Session expired and reset
-        setMessages([userMsg, replyMsg]);
-      } else {
-        setMessages((prev) => [...prev, replyMsg]);
-      }
-      setSessionId(res.sessionId);
-    } catch (reason) {
-      setLocalError(reason instanceof Error ? reason.message : "會計師暫時無法回覆");
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  function formatChatMessage(text: string) {
-    let html = text.replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>");
-    html = html.replace(/(NT\$[0-9,]+)/g, "<strong>$1</strong>");
-    html = html.split("\n").join("<br />");
-    return <div dangerouslySetInnerHTML={{ __html: html }} />;
-  }
-
-  return (
-    <div className="stack">
-      <article className="panel">
-        <div className="panel-title">
-          <div>
-            <span className="eyebrow">LINE 多輪問答 · 智慧記帳</span>
-            <h2>AI 會計師對話</h2>
-          </div>
-        </div>
-
-        <div className="chat-container">
-          <div className="chat-messages">
-            {messages.length === 0 ? (
-              <div style={{ padding: "2rem", textAlign: "center", opacity: 0.6 }}>
-                🤖 你好！我是你的 AI 會計師。你可以問我任何關於記帳的問題，例如：「本月哪裡花太多？」或「誰欠誰多少錢？」
-              </div>
-            ) : (
-              messages.map((msg, index) => (
-                <div key={index} className={`chat-bubble ${msg.role}`}>
-                  {formatChatMessage(msg.content)}
-                </div>
-              ))
-            )}
-            {loading && (
-              <div className="chat-bubble assistant typing">
-                正在分析帳務資料中... ⏳
-              </div>
-            )}
-            {localError && <p className="form-error">{localError}</p>}
-          </div>
-
-          <div className="prompt-chips" style={{ padding: "0.5rem", borderTop: "1px solid var(--border)", display: "flex", gap: "0.25rem", overflowX: "auto" }}>
-            {promptSuggestions.map((prompt) => (
-              <button
-                key={prompt}
-                type="button"
-                className="prompt-chip"
-                onClick={() => setQuestion(prompt)}
-                disabled={loading}
-              >
-                {prompt}
-              </button>
-            ))}
-          </div>
-
-          <form className="chat-input-area" onSubmit={ask}>
-            <textarea
-              maxLength={500}
-              placeholder="輸入你的問題..."
-              value={question}
-              onChange={(event) => setQuestion(event.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && !e.shiftKey) {
-                  e.preventDefault();
-                  void ask(e);
-                }
-              }}
-              disabled={loading}
-            />
-            <button type="submit" disabled={loading || !question.trim()}>
-              送出
-            </button>
-          </form>
-        </div>
-      </article>
-
-      {reports.length > 0 && (
-        <details className="panel" style={{ cursor: "pointer" }}>
-          <summary style={{ fontWeight: "bold", padding: "0.5rem 0" }}>
-            📊 展開歷史月報與建議
-          </summary>
-          <div style={{ marginTop: "1rem", cursor: "default" }} onClick={(e) => e.stopPropagation()}>
-            <AccountantReportCard report={reports[0]} onPropose={onPropose} />
-            {reports.length > 1 && (
-              <div style={{ marginTop: "1rem" }}>
-                <h3>近期歷史月報</h3>
-                {reports.slice(1, 8).map((report) => (
-                  <div className="notification read" key={report.id} style={{ margin: "0.5rem 0" }}>
-                    <strong>{report.title}</strong>
-                    <p>{report.summary}</p>
-                    <small>{new Date(report.created_at).toLocaleString("zh-TW")}</small>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </details>
-      )}
-    </div>
-  );
-}
-
-/* ─── Accountant Report Card ─── */
-function AccountantReportCard({
-  report,
-  onPropose,
-}: {
-  report: AccountantReport;
-  onPropose(body: unknown): void;
-}) {
-  return (
-    <article className="panel accountant-report">
-      <div className="panel-title">
-        <div>
-          <span className="eyebrow">
-            {scopeLabel(report.scope)} · {report.source === "fallback" ? "本地摘要" : "Gemini"}
-          </span>
-          <h2>{report.title}</h2>
-        </div>
-        <strong>{money(report.facts.totalTwd)}</strong>
-      </div>
-      <p>{report.summary}</p>
-      <div className="metric-grid compact-metrics">
-        <article>
-          <span>筆數</span>
-          <strong>{report.facts.transactionCount}</strong>
-        </article>
-        <article>
-          <span>其他分類</span>
-          <strong>{money(report.facts.otherTotalTwd)}</strong>
-        </article>
-      </div>
-      {report.findings.map((finding) => (
-        <div className={`finding ${finding.severity}`} key={`${finding.title}-${finding.body}`}>
-          <strong>{finding.title}</strong>
-          <p>{finding.body}</p>
-          {finding.amountTwd !== null && <small>{money(finding.amountTwd)}</small>}
-        </div>
-      ))}
-      {report.suggestions.map((suggestion) => (
-        <div className="suggestion" key={`${suggestion.title}-${suggestion.body}`}>
-          <div>
-            <strong>{suggestion.title}</strong>
-            <p>{suggestion.body}</p>
-          </div>
-          {suggestion.actionInput !== null && (
-            <button
-              className="text-button"
-              onClick={() => onPropose(suggestion.actionInput)}
-            >
-              建立確認
-            </button>
-          )}
-        </div>
-      ))}
-    </article>
-  );
-}
-
 /* ─── Budgets ─── */
 
 
@@ -2007,14 +1712,10 @@ function titleFor(tab: Tab) {
       history: "帳務流水",
       private: "私人帳",
       add: "新增支出",
-      accountant: "AI 會計師",
       budgets: "預算管理",
       settings: "帳本設定",
     } as const
   )[tab];
-}
-function scopeLabel(scope: AccountantReport["scope"]) {
-  return scope === "shared" ? "共同帳" : scope === "private" ? "私人帳" : "合併帳";
 }
 function frequencyName(value: string) {
   return value === "weekly" ? "每週" : value === "yearly" ? "每年" : "每月";
