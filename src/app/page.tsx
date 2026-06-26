@@ -8,6 +8,9 @@ import {
 } from "@/lib/optimistic";
 import { ExpenseEditor } from "@/components/expense/expense-form";
 import { Dashboard } from "@/components/dashboard/dashboard-section";
+import { SettingsSection } from "@/components/settings/settings-section";
+import { HistorySection } from "@/components/settings/history-section";
+import { BudgetSection } from "@/components/settings/budget-section";
 
 type Tab =
   | "dashboard"
@@ -484,9 +487,9 @@ export default function Home() {
           />
         )}
         {tab === "history" && (
-          <History
-            data={data}
+          <HistorySection
             expenses={sharedExpenses}
+            users={data.users}
             onEdit={(expense) => {
               setTab("add");
               sessionStorage.setItem("editExpense", JSON.stringify(expense));
@@ -530,7 +533,7 @@ export default function Home() {
           <Accountant onPropose={(body) => void propose(body as PendingActionInput)} />
         )}
         {tab === "budgets" && (
-          <Budgets
+          <BudgetSection
             data={data}
             onSave={(body) =>
               void mutate("/api/app/budgets", body, "預算已儲存")
@@ -538,7 +541,7 @@ export default function Home() {
           />
         )}
         {tab === "settings" && (
-          <Settings
+          <SettingsSection
             data={data}
             unread={unread}
             onGroup={(body) =>
@@ -1202,9 +1205,9 @@ function PrivateLedger({
           <Empty text="私人帳還沒有支出" icon="👤" />
         )}
       </article>
-      <History
-        data={data}
+      <HistorySection
         expenses={privateExpenses}
+        users={data.users}
         onEdit={onEdit}
         onDelete={onDelete}
         onReceipt={onReceipt}
@@ -1213,125 +1216,6 @@ function PrivateLedger({
   );
 }
 
-/* ─── History ─── */
-function History({
-  data,
-  expenses,
-  onEdit,
-  onDelete,
-  onReceipt,
-}: {
-  data: Bootstrap;
-  expenses: Expense[];
-  onEdit(expense: Expense): void;
-  onDelete(expense: Expense): void;
-  onReceipt(id: string): void;
-}) {
-  const [query, setQuery] = useState("");
-  const [category, setCategory] = useState("all");
-  const [deleted, setDeleted] = useState(false);
-  const filtered = expenses
-    .filter(
-      (expense) =>
-        (deleted ? !!expense.deleted_at : !expense.deleted_at) &&
-        (category === "all" || expense.category === category) &&
-        `${expense.description} ${expense.merchant ?? ""}`
-          .toLowerCase()
-          .includes(query.toLowerCase()),
-    )
-    .sort((a, b) => b.expense_date.localeCompare(a.expense_date));
-
-  // Group by date
-  const dateGroups: Array<{ date: string; items: Expense[] }> = [];
-  for (const expense of filtered) {
-    const last = dateGroups[dateGroups.length - 1];
-    if (last && last.date === expense.expense_date) {
-      last.items.push(expense);
-    } else {
-      dateGroups.push({ date: expense.expense_date, items: [expense] });
-    }
-  }
-
-  return (
-    <div className="stack">
-      <div className="filters">
-        <div className="search-wrap">
-          <IconSearch />
-          <input
-            type="search"
-            placeholder="搜尋說明或商家"
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-          />
-        </div>
-        <div>
-          <select
-            aria-label="分類"
-            value={category}
-            onChange={(event) => setCategory(event.target.value)}
-          >
-            <option value="all">全部分類</option>
-            {Object.entries(categoryNames).map(([key, label]) => (
-              <option key={key} value={key}>
-                {label}
-              </option>
-            ))}
-          </select>
-        </div>
-        <label className="check">
-          <input
-            type="checkbox"
-            checked={deleted}
-            onChange={(event) => setDeleted(event.target.checked)}
-          />
-          垃圾桶
-        </label>
-      </div>
-      <article className="panel history-list">
-        {dateGroups.length ? (
-          dateGroups.map((group) => (
-            <div key={group.date}>
-              <div className="date-header">{formatDate(group.date)}</div>
-              {group.items.map((expense) => (
-                <div className="history-item" key={expense.id}>
-                  <ExpenseRow expense={expense} users={data.users} />
-                  <div className="row-actions">
-                    {!expense.deleted_at && !expense.mirror_kind && (
-                      <button
-                        className="text-button"
-                        onClick={() => onEdit(expense)}
-                      >
-                        編輯
-                      </button>
-                    )}
-                    {expense.receipts[0] && (
-                      <button
-                        className="text-button"
-                        onClick={() => onReceipt(expense.receipts[0]!.id)}
-                      >
-                        收據
-                      </button>
-                    )}
-                    {!expense.mirror_kind && (
-                      <button
-                        className="text-button danger"
-                        onClick={() => onDelete(expense)}
-                      >
-                        {expense.deleted_at ? "復原" : "刪除"}
-                      </button>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-          ))
-        ) : (
-          <Empty text="找不到符合條件的流水" icon="🔍" />
-        )}
-      </article>
-    </div>
-  );
-}
 
 /* ─── Accountant ─── */
 function Accountant({
@@ -1580,135 +1464,7 @@ function AccountantReportCard({
 }
 
 /* ─── Budgets ─── */
-function Budgets({
-  data,
-  onSave,
-}: {
-  data: Bootstrap;
-  onSave(body: unknown): void;
-}) {
-  const [category, setCategory] = useState("total");
-  const [categoryLabel, setCategoryLabel] = useState("");
-  const [limit, setLimit] = useState("");
-  const [error, setError] = useState("");
-  return (
-    <div className="stack">
-      <article className="panel">
-        <div className="panel-title">
-          <div>
-            <span className="eyebrow">{data.month}</span>
-            <h2>本月預算</h2>
-          </div>
-        </div>
-        {data.budgets.length ? (
-          data.budgets.map((budget) => {
-            const spent = budget.category_label
-              ? data.sharedExpenses
-                  .filter(
-                    (expense) =>
-                      !expense.deleted_at &&
-                      expense.expense_date.startsWith(data.month) &&
-                      expense.category === budget.category &&
-                      expense.category_label === budget.category_label,
-                  )
-                  .reduce((sum, expense) => sum + expense.amount_twd, 0)
-              : budget.category
-                ? (data.dashboard.categoryTotals[budget.category] ?? 0)
-                : data.dashboard.monthlyTotalTwd;
-            const percent = Math.round(
-              (spent / Number(budget.limit_twd)) * 100,
-            );
-            const pctClass = percent >= 100 ? "over" : percent >= 80 ? "warn" : "";
-            return (
-              <div className="budget-row" key={budget.id}>
-                <div>
-                  <strong>
-                    {budget.category
-                      ? `${categoryEmojis[budget.category] ?? "📦"} ${budget.category_label ?? categoryNames[budget.category]}`
-                      : "📋 群組總預算"}
-                  </strong>
-                  <small>
-                    {money(spent)} / {money(Number(budget.limit_twd))}
-                  </small>
-                </div>
-                <strong className={`budget-pct ${pctClass}`}>
-                  {percent}%
-                </strong>
-                <div className={`progress ${percent >= 80 ? "progress-warn" : ""}`}>
-                  <i style={{ width: `${Math.min(100, percent)}%` }} />
-                </div>
-              </div>
-            );
-          })
-        ) : (
-          <Empty text="尚未設定本月預算" icon="🎯" />
-        )}
-      </article>
-      <article className="panel form">
-        <h2>新增或調整預算</h2>
-        <div className="two">
-          <Field label="範圍">
-            <select
-              value={category}
-              onChange={(event) => setCategory(event.target.value)}
-            >
-              <option value="total">群組總額</option>
-              {Object.entries(categoryNames).map(([key, label]) => (
-                <option key={key} value={key}>
-                  {label}
-                </option>
-              ))}
-            </select>
-          </Field>
-          <Field label="細分類標籤（選填）">
-            <input
-              value={categoryLabel}
-              disabled={category === "total"}
-              onChange={(event) => setCategoryLabel(event.target.value)}
-              placeholder="例如：外食、油資、飲料"
-            />
-          </Field>
-          <Field label="上限（TWD）">
-            <input
-              inputMode="numeric"
-              value={limit}
-              onChange={(event) => setLimit(event.target.value)}
-              placeholder="例如：30000"
-            />
-          </Field>
-        </div>
-        {error && <p className="form-error">{error}</p>}
-        <button
-          onClick={() => {
-            const amount = Number(limit);
-            const label = categoryLabel.trim();
-            const parent = data.budgets.find(
-              (budget) => budget.category === category && !budget.category_label,
-            );
-            if (category !== "total" && label && !parent) {
-              setError("請先設定大分類預算");
-              return;
-            }
-            if (category !== "total" && label && parent && amount > Number(parent.limit_twd)) {
-              setError("細分類預算不能超過大分類預算");
-              return;
-            }
-            setError("");
-            onSave({
-              groupId: data.activeGroupId,
-              month: data.month,
-              category: category === "total" ? null : category,
-              categoryLabel: category === "total" ? null : label || null,
-              limitTwd: amount,
-            })
-          }}
-        >
-          儲存預算
-        </button>
-      </article>
-    </div>
-  );
-}
+
 
 /* ─── Bank CSV Import ─── */
 type BankMatch = {
@@ -1882,299 +1638,6 @@ function BankImport({
   );
 }
 
-/* ─── Settings ─── */
-function Settings({
-  data,
-  unread,
-  onGroup,
-  onRecurring,
-  onRead,
-  onPropose,
-  onBatchCreate,
-}: {
-  data: Bootstrap;
-  unread: number;
-  onGroup(body: unknown): void;
-  onRecurring(body: unknown): void;
-  onRead(): void;
-  onPropose(body: unknown): void;
-  onBatchCreate(
-    expenses: Array<{
-      ledger: "shared" | "private";
-      groupId: string | null;
-      description: string;
-      merchant: string | null;
-      notes: string | null;
-      category: string;
-      amountTwd: number;
-      paidBy: "self" | "partner";
-      expenseDate: string;
-      splitMethod: "equal" | "exact" | "percentage";
-      selfValue: number | null;
-      partnerValue: number | null;
-      receiptId: string | null;
-    }>,
-  ): void;
-}) {
-  const [view, setView] = useState<"settings" | "labels" | "import">("settings");
-  const [name, setName] = useState("");
-  const [recurring, setRecurring] = useState({
-    description: "",
-    amountTwd: "",
-    frequency: "monthly",
-    nextRunDate: data.today,
-  });
-
-  if (view === "labels") {
-    return (
-      <CanonicalLabelsManager
-        onBack={() => setView("settings")}
-        onPropose={onPropose}
-      />
-    );
-  }
-
-  if (view === "import") {
-    return (
-      <BankImport
-        data={data}
-        onBack={() => setView("settings")}
-        onBatchCreate={onBatchCreate}
-      />
-    );
-  }
-
-  return (
-    <div className="stack">
-      <article
-        className="panel"
-        style={{ cursor: "pointer" }}
-        onClick={() => setView("import")}
-      >
-        <div
-          className="setting-row"
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-          }}
-        >
-          <div>
-            <strong>💳 匯入帳單</strong>
-            <small style={{ display: "block", marginTop: "0.25rem", opacity: 0.6 }}>
-              上傳信用卡 CSV，自動比對既有支出
-            </small>
-          </div>
-          <span style={{ fontSize: "1.2rem", opacity: 0.5 }}>&gt;</span>
-        </div>
-      </article>
-      <article className="panel" style={{ cursor: "pointer" }} onClick={() => setView("labels")}>
-        <div className="setting-row" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <div>
-            <strong>🏷️ 分類標籤管理</strong>
-            <small style={{ display: "block", marginTop: "0.25rem", opacity: 0.6 }}>合併相近標籤或重命名常用標籤</small>
-          </div>
-          <span style={{ fontSize: "1.2rem", opacity: 0.5 }}>&gt;</span>
-        </div>
-      </article>
-
-      <article className="panel">
-        <div className="panel-title">
-          <div>
-            <span className="eyebrow">共同空間</span>
-            <h2>群組</h2>
-          </div>
-        </div>
-        {data.groups.map((group) => (
-          <div className="setting-row" key={group.id}>
-            <i style={{ background: group.color }} />
-            <div>
-              <strong>{group.name}</strong>
-              <small>
-                {group.archived_at
-                  ? "已封存"
-                  : group.id === data.activeGroupId
-                    ? "目前使用"
-                    : "雙方共享"}
-              </small>
-            </div>
-            {!group.archived_at && (
-              <button
-                className="text-button danger"
-                onClick={() =>
-                  onGroup({ operation: "archive", groupId: group.id })
-                }
-              >
-                封存
-              </button>
-            )}
-          </div>
-        ))}
-        <div className="inline-form">
-          <input
-            placeholder="新群組名稱"
-            maxLength={40}
-            value={name}
-            onChange={(event) => setName(event.target.value)}
-          />
-          <button
-            onClick={() => {
-              onGroup({ operation: "create", name, color: "#173B63" });
-              setName("");
-            }}
-          >
-            新增
-          </button>
-        </div>
-      </article>
-      <article className="panel">
-        <div className="panel-title">
-          <div>
-            <span className="eyebrow">提醒</span>
-            <h2>週期支出</h2>
-          </div>
-        </div>
-        {data.recurring.map((item) => (
-          <div className="setting-row" key={item.id}>
-            <div>
-              <strong>
-                {item.description} · {money(item.amount_twd)}
-              </strong>
-              <small>
-                下次 {item.next_run_date} · {frequencyName(item.frequency)}
-              </small>
-            </div>
-            <div style={{ display: "flex", gap: "0.5rem" }}>
-              <button
-                className="text-button"
-                onClick={() =>
-                  onRecurring({
-                    operation: "toggle",
-                    id: item.id,
-                    active: !item.active,
-                  })
-                }
-              >
-                {item.active ? "停用" : "啟用"}
-              </button>
-              <button
-                className="text-button danger"
-                onClick={() => {
-                  if (confirm("確定要刪除此週期支出嗎？")) {
-                    onRecurring({
-                      operation: "delete",
-                      id: item.id,
-                    });
-                  }
-                }}
-              >
-                刪除
-              </button>
-            </div>
-          </div>
-        ))}
-        <div className="form compact">
-          <Field label="說明">
-            <input
-              value={recurring.description}
-              onChange={(event) =>
-                setRecurring({ ...recurring, description: event.target.value })
-              }
-            />
-          </Field>
-          <div className="two">
-            <Field label="金額">
-              <input
-                inputMode="numeric"
-                value={recurring.amountTwd}
-                onChange={(event) =>
-                  setRecurring({ ...recurring, amountTwd: event.target.value })
-                }
-              />
-            </Field>
-            <Field label="頻率">
-              <select
-                value={recurring.frequency}
-                onChange={(event) =>
-                  setRecurring({ ...recurring, frequency: event.target.value })
-                }
-              >
-                <option value="weekly">每週</option>
-                <option value="monthly">每月</option>
-                <option value="yearly">每年</option>
-              </select>
-            </Field>
-          </div>
-          <Field label="下次日期">
-            <input
-              type="date"
-              value={recurring.nextRunDate}
-              onChange={(event) =>
-                setRecurring({ ...recurring, nextRunDate: event.target.value })
-              }
-            />
-          </Field>
-          <button
-            onClick={() =>
-              onRecurring({
-                id: null,
-                ledger: "shared",
-                groupId: data.activeGroupId,
-                description: recurring.description,
-                merchant: null,
-                notes: null,
-                category: "other",
-                amountTwd: Number(recurring.amountTwd),
-                paidBy: "self",
-                expenseDate: recurring.nextRunDate,
-                splitMethod: "equal",
-                selfValue: null,
-                partnerValue: null,
-                receiptId: null,
-                frequency: recurring.frequency,
-                nextRunDate: recurring.nextRunDate,
-                endDate: null,
-                active: true,
-                updated_at: new Date().toISOString(),
-              })
-            }
-          >
-            新增週期支出
-          </button>
-        </div>
-      </article>
-      <article className="panel">
-        <div className="panel-title">
-          <div>
-            <span className="eyebrow">通知中心</span>
-            <h2>{unread ? `${unread} 則未讀` : "全部已讀"}</h2>
-          </div>
-          {unread > 0 && (
-            <button className="text-button" onClick={onRead}>
-              全部已讀
-            </button>
-          )}
-        </div>
-        {data.notifications.slice(0, 10).map((item) => (
-          <div
-            className={`notification ${item.read_at ? "read" : ""}`}
-            key={item.id}
-          >
-            <strong>{item.title}</strong>
-            <p>{item.body}</p>
-            <small>
-              {new Date(item.created_at).toLocaleString("zh-TW")}
-              {item.line_status === "skipped" ? " · 已留在站內" : ""}
-            </small>
-          </div>
-        ))}
-      </article>
-      <Link className="button-link" href="/api/app/export">
-        📥 匯出目前流水 CSV
-      </Link>
-    </div>
-  );
-}
 
 type CanonicalLabel = {
   id: string;
