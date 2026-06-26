@@ -71,6 +71,35 @@ const predictMonthEndParams = z.object({
   category_label: z.string().optional(),
 });
 
+const recordExpenseParams = z.object({
+  description: z.string().min(1).max(200),
+  amount_twd: z.number().int().positive(),
+  category: z.string().optional(),
+  category_label: z.string().optional(),
+  paid_by: z.enum(["self", "partner"]),
+  ledger: z.enum(["shared", "private"]).default("shared"),
+  split_method: z.enum(["equal", "exact", "percentage"]).default("equal"),
+  expense_date: z.string().optional(),
+  merchant: z.string().optional(),
+  notes: z.string().optional(),
+});
+
+const settleDebtParams = z.object({
+  amount_twd: z.number().int().positive(),
+  note: z.string().optional(),
+});
+
+const setBudgetParams = z.object({
+  category: z.string().nullable().optional(),
+  category_label: z.string().optional(),
+  limit_twd: z.number().int().positive(),
+});
+
+const analyzeSpendingParams = z.object({
+  date_from: z.string().optional(),
+  date_to: z.string().optional(),
+});
+
 /* ─── Tool declarations for Gemini function calling ─── */
 
 export const toolDeclarations: FunctionDeclaration[] = [
@@ -221,6 +250,123 @@ export const toolDeclarations: FunctionDeclaration[] = [
       },
     },
   },
+  /* ─── Write tools (create pending actions) ─── */
+  {
+    name: "record_expense",
+    description:
+      "記帳。建立一筆待確認的支出。使用者需要在 LINE 上點選確認才會正式寫入。",
+    parameters: {
+      type: Type.OBJECT,
+      properties: {
+        description: {
+          type: Type.STRING,
+          description: "支出說明，例如「晚餐」、「全聯超市」",
+        },
+        amount_twd: {
+          type: Type.INTEGER,
+          description: "金額（新台幣整數）",
+        },
+        category: {
+          type: Type.STRING,
+          description:
+            "大分類：food / transport / shopping / entertainment / housing / utilities / health / education / travel / other",
+        },
+        category_label: {
+          type: Type.STRING,
+          description: "細分類標籤，例如「外食」、「油資」",
+        },
+        paid_by: {
+          type: Type.STRING,
+          description: "誰付的：self / partner",
+          enum: ["self", "partner"],
+        },
+        ledger: {
+          type: Type.STRING,
+          description: "shared（共同帳）或 private（私人帳）",
+          enum: ["shared", "private"],
+        },
+        split_method: {
+          type: Type.STRING,
+          description: "分帳方式：equal（平均）/ exact（指定金額）/ percentage",
+          enum: ["equal", "exact", "percentage"],
+        },
+        expense_date: {
+          type: Type.STRING,
+          description: "支出日期 YYYY-MM-DD，預設今天",
+        },
+        merchant: {
+          type: Type.STRING,
+          description: "商家名稱（選填）",
+        },
+        notes: {
+          type: Type.STRING,
+          description: "備註（選填）",
+        },
+      },
+      required: ["description", "amount_twd", "paid_by"],
+    },
+  },
+  {
+    name: "settle_debt",
+    description:
+      "建議或建立結清。產生一筆待確認的結清 action。",
+    parameters: {
+      type: Type.OBJECT,
+      properties: {
+        amount_twd: {
+          type: Type.INTEGER,
+          description: "結清金額（新台幣整數）",
+        },
+        note: {
+          type: Type.STRING,
+          description: "備註（選填）",
+        },
+      },
+      required: ["amount_twd"],
+    },
+  },
+  {
+    name: "set_budget",
+    description:
+      "設定月預算。產生一筆待確認的預算 action。",
+    parameters: {
+      type: Type.OBJECT,
+      properties: {
+        category: {
+          type: Type.STRING,
+          description:
+            "大分類，或 null 表示群組總預算",
+        },
+        category_label: {
+          type: Type.STRING,
+          description: "細分類標籤（選填）",
+        },
+        limit_twd: {
+          type: Type.INTEGER,
+          description: "預算上限（新台幣整數）",
+        },
+      },
+      required: ["limit_twd"],
+    },
+  },
+  {
+    name: "analyze_spending",
+    description:
+      "深度分析支出。回傳分類佔比、趨勢、預算狀態、異常偵測等綜合分析。",
+    parameters: {
+      type: Type.OBJECT,
+      properties: {
+        date_from: {
+          type: Type.STRING,
+          description: "起始日期 YYYY-MM-DD（預設本月1號）",
+        },
+        date_to: {
+          type: Type.STRING,
+          description: "結束日期 YYYY-MM-DD（預設今天）",
+        },
+      },
+    },
+  },
 ];
 
 /* ─── Tool implementations ─── */
@@ -249,6 +395,14 @@ export async function executeTool(
       return getCategoryTrend(categoryTrendParams.parse(args), ctx);
     case "predict_month_end":
       return predictMonthEnd(predictMonthEndParams.parse(args), ctx);
+    case "record_expense":
+      return recordExpense(recordExpenseParams.parse(args), ctx);
+    case "settle_debt":
+      return settleDebt(settleDebtParams.parse(args), ctx);
+    case "set_budget":
+      return setBudget(setBudgetParams.parse(args), ctx);
+    case "analyze_spending":
+      return analyzeSpending(analyzeSpendingParams.parse(args), ctx);
     default:
       return { error: `Unknown tool: ${name}` };
   }
@@ -730,4 +884,217 @@ function shiftMonth(month: string, offset: number): string {
   const [year, monthNumber] = month.split("-").map(Number);
   const date = new Date(Date.UTC(year!, monthNumber! - 1 + offset, 1));
   return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, "0")}`;
+}
+
+/* ─── record_expense ─── */
+
+async function recordExpense(
+  params: z.infer<typeof recordExpenseParams>,
+  ctx: ToolContext,
+) {
+  const today = taipeiToday();
+  const expenseDate = params.expense_date || today;
+
+  // Look up partner user id
+  const { data: partnerRow } = await ctx.db
+    .from("group_members")
+    .select("user_id")
+    .eq("group_id", ctx.groupId)
+    .neq("user_id", ctx.userId)
+    .single();
+
+  const partnerId = partnerRow?.user_id as string | undefined;
+
+  const paidBy = params.paid_by === "self" ? ctx.userId : partnerId;
+  if (!paidBy) return { error: "找不到對方用戶" };
+
+  // Build expense row for pending action
+  const expenseRow = {
+    group_id: ctx.groupId,
+    ledger: params.ledger,
+    description: params.description,
+    merchant: params.merchant ?? null,
+    notes: params.notes ?? null,
+    category: params.category ?? "other",
+    category_label: params.category_label ?? null,
+    amount_twd: params.amount_twd,
+    paid_by_user_id: paidBy,
+    created_by_user_id: ctx.userId,
+    expense_date: expenseDate,
+    split_method: params.split_method,
+  };
+
+  // Build pending action
+  const action = {
+    type: "create_expense" as const,
+    groupId: ctx.groupId,
+    userId: ctx.userId,
+    expense: expenseRow,
+    splits:
+      params.split_method === "equal"
+        ? [
+            { user_id: ctx.userId, amount_twd: Math.ceil(params.amount_twd / 2) },
+            { user_id: partnerId!, amount_twd: Math.floor(params.amount_twd / 2) },
+          ]
+        : undefined,
+  };
+
+  return {
+    pending_action: action,
+    message: `已為您建立一筆 ${params.ledger === "private" ? "私人" : "共同"}帳支出：${params.description} NT$${params.amount_twd}（${params.paid_by === "self" ? "你付的" : "對方付的"}），請確認。`,
+  };
+}
+
+/* ─── settle_debt ─── */
+
+async function settleDebt(
+  params: z.infer<typeof settleDebtParams>,
+  ctx: ToolContext,
+) {
+  // Get current balance
+  const result = await ctx.db.rpc("group_balances", {
+    p_group_id: ctx.groupId,
+  });
+  if (result.error) return { error: "查詢餘額失敗" };
+
+  const balances = z
+    .array(z.object({ user_id: z.string(), balance_twd: z.number() }))
+    .parse(result.data ?? []);
+
+  const mine = balances.find((b) => b.user_id === ctx.userId)?.balance_twd ?? 0;
+
+  if (mine >= 0) {
+    return {
+      message: `目前你不需要結清（你的餘額為 NT$${mine}）。對方欠你 NT$${Math.abs(mine)}。`,
+    };
+  }
+
+  const maxSettle = Math.abs(mine);
+  if (params.amount_twd > maxSettle) {
+    return {
+      error: `結清金額 NT$${params.amount_twd} 超過你欠的 NT$${maxSettle}，請調整。`,
+    };
+  }
+
+  const action = {
+    type: "settle" as const,
+    groupId: ctx.groupId,
+    userId: ctx.userId,
+    amountTwd: params.amount_twd,
+  };
+
+  return {
+    pending_action: action,
+    message: `已為您建立結清：你欠另一半 NT$${params.amount_twd}，請確認。`,
+  };
+}
+
+/* ─── set_budget ─── */
+
+async function setBudget(
+  params: z.infer<typeof setBudgetParams>,
+  ctx: ToolContext,
+) {
+  const action = {
+    type: "set_budget" as const,
+    groupId: ctx.groupId,
+    userId: ctx.userId,
+    category: params.category ?? null,
+    categoryLabel: params.category_label ?? null,
+    limitTwd: params.limit_twd,
+  };
+
+  const label = params.category_label ?? params.category ?? "群組總預算";
+  return {
+    pending_action: action,
+    message: `已為您設定「${label}」月預算 NT$${params.limit_twd}，請確認。`,
+  };
+}
+
+/* ─── analyze_spending ─── */
+
+async function analyzeSpending(
+  params: z.infer<typeof analyzeSpendingParams>,
+  ctx: ToolContext,
+) {
+  const today = taipeiToday();
+  const monthStart = today.slice(0, 7) + "-01";
+  const dateFrom = params.date_from ?? monthStart;
+  const dateTo = params.date_to ?? today;
+
+  // Gather all data in parallel
+  const [expenses, balanceResult, budgetResult, anomalies] = await Promise.all([
+    loadFilteredExpenses(ctx, { dateFrom, dateTo, type: "shared" }),
+    ctx.db.rpc("group_balances", { p_group_id: ctx.groupId }),
+    ctx.db
+      .from("budgets")
+      .select("*")
+      .eq("group_id", ctx.groupId)
+      .is("category", null)
+      .single(),
+    detectDuplicateAgentExpenses(
+      await loadFilteredExpenses(ctx, { dateFrom, dateTo, type: "shared" }).then(
+        (expenses) =>
+          expenses.map((e) => ({
+            ...e,
+            group_id: ctx.groupId,
+            created_by_user_id: ctx.userId,
+            version: 1,
+            deleted_at: null,
+          })) as AgentExpense[],
+      ),
+    ),
+  ]);
+
+  const total = expenses.reduce((s, e) => s + e.amount_twd, 0);
+  const byCategory = breakdownByKey(expenses, "category_label");
+
+  const topCategories = [...byCategory.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 5)
+    .map(([label, amount]) => ({
+      label,
+      amount,
+      percent: total > 0 ? Math.round((amount / total) * 100) : 0,
+    }));
+
+  const budgetData = budgetResult.data as { limit_twd: number } | null;
+  const budgetUsage = budgetData
+    ? {
+        limit: budgetData.limit_twd,
+        spent: total,
+        percent: Math.round((total / budgetData.limit_twd) * 100),
+        remaining: Math.max(0, budgetData.limit_twd - total),
+      }
+    : null;
+
+  // Daily average and projection
+  const daysElapsed = Math.max(
+    1,
+    Math.floor(
+      (new Date(dateTo).getTime() - new Date(dateFrom).getTime()) /
+        (1000 * 60 * 60 * 24),
+    ) + 1,
+  );
+  const daysInMonth = new Date(
+    new Date(dateFrom).getFullYear(),
+    new Date(dateFrom).getMonth() + 1,
+    0,
+  ).getDate();
+  const dailyAvg = Math.round(total / daysElapsed);
+  const projected = dailyAvg * daysInMonth;
+
+  return {
+    period: { from: dateFrom, to: dateTo },
+    total,
+    transaction_count: expenses.length,
+    daily_average: dailyAvg,
+    projected_month_end: projected,
+    top_categories: topCategories,
+    budget_usage: budgetUsage,
+    anomalies: anomalies.length > 0 ? anomalies.slice(0, 3) : undefined,
+    balance: !balanceResult.error
+      ? (balanceResult.data as Array<{ user_id: string; balance_twd: number }>)
+      : undefined,
+  };
 }

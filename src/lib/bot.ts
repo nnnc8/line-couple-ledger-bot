@@ -3,29 +3,22 @@ import type { LineBotClient, messagingApi, webhook } from "@line/bot-sdk";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
 
-import { parseAccountantCommand } from "./accountant";
 import {
   confirmAction,
   retargetPendingActionById,
   retargetPendingActions,
-  runAgent,
   searchExpenses,
   serverEnvironment,
   transcribeAudio,
 } from "./app-server";
+import { runAgentLoop, type AgentDeps } from "./agent-loop";
+import type { ToolContext } from "./accountant-tools";
 import {
-  calculateBalances,
-  geminiTextParseJsonSchema,
-  monthlySummary,
-  textParseSchema,
   type LedgerExpense,
-  type ParsedExpenseItem,
   type ParsedIntent,
   type Settlement,
-  type TextParseResult,
 } from "./ledger";
 import { safeSecretEqual } from "./security";
-import { classifyExpenseCategory } from "./category-agent";
 
 export { safeSecretEqual } from "./security";
 
@@ -141,6 +134,43 @@ export async function handleLineEvent(
   }
 }
 
+function emptyIntent(intent: ParsedIntent["intent"]): ParsedIntent {
+  return {
+    intent,
+    description: null,
+    amountTwd: null,
+    ledger: null,
+    paidBy: null,
+    expenseDate: null,
+    category: null,
+  };
+}
+
+function cleanInlineDescription(value: string) {
+  return value
+    .replace(/[，,。.!！?？|｜]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 100);
+}
+
+function inferInlineCategory(text: string): ParsedIntent["category"] {
+  return /早餐|午餐|晚餐|宵夜|餐|吃|喝|咖啡|飲料|漢堡|便當|火鍋|越南|拉麵|麵|飯|披薩|甜點/.test(
+    text,
+  )
+    ? "food"
+    : /車|捷運|高鐵|火車|公車|計程車|uber|停車|加油|交通/.test(text)
+      ? "transport"
+      : "other";
+}
+
+function normalizeGroupText(value: string) {
+  return value
+    .normalize("NFKC")
+    .toLowerCase()
+    .replace(/[^\p{Letter}\p{Number}]+/gu, "");
+}
+
 export function parseFixedIntent(text: string): ParsedIntent | null {
   const intent = new Map<string, ParsedIntent["intent"]>([
     ["誰欠誰", "balance"],
@@ -242,12 +272,14 @@ async function handleText(
     return;
   }
 
+  // Search command (kept for LIFF integration)
   const searchQuery = parseSearchCommand(text);
   if (searchQuery) {
     await replySearch(searchQuery, user, replyToken, dependencies);
     return;
   }
 
+  // Pending retarget command
   const retarget = parsePendingRetargetCommand(text);
   if (retarget) {
     const result = await retargetPendingActions(
@@ -264,64 +296,153 @@ async function handleText(
     return;
   }
 
-  const accountant = parseAccountantCommand(text);
-  if (accountant) {
-    await replyAccountant(accountant, user, replyToken, dependencies);
-    return;
-  }
+  // Route all other messages through the Agent Loop
+  await runAgentWithReply(text, user, replyToken, dependencies);
+}
 
-  const fixedIntent = parseFixedIntent(text);
-  const parsed: TextParseResult = fixedIntent
-    ? { ...fixedIntent, groupName: null }
-    : await parseWithGemini(text, currentTaipeiDate(), dependencies.gemini);
+/**
+ * Run the Agent Loop and reply with the result.
+ * If the agent produces pending actions, send confirmation UI.
+ */
+async function runAgentWithReply(
+  text: string,
+  user: UserRow,
+  replyToken: string,
+  dependencies: BotDependencies,
+): Promise<void> {
+  const env = serverEnvironment();
 
-  if (parsed.intent === "record_expenses") {
-    await proposeExpenses(
-      parsed.expenses,
-      eventId,
-      user,
-      replyToken,
-      dependencies,
-      parsed.groupName ?? text,
+  const toolCtx: ToolContext = {
+    db: dependencies.supabase,
+    groupId: user.couple_id.toString(),
+    userId: user.id,
+    coupleId: user.couple_id,
+  };
+
+  const agentDeps: AgentDeps = {
+    gemini: dependencies.gemini,
+    supabase: dependencies.supabase,
+  };
+
+  // Get or create session ID from user's last session
+  const { data: lastSession } = await dependencies.supabase
+    .from("accountant_sessions")
+    .select("id")
+    .eq("user_id", user.id)
+    .order("updated_at", { ascending: false })
+    .limit(1)
+    .single();
+
+  const sessionId = lastSession?.id ?? null;
+
+  try {
+    const result = await runAgentLoop(
+      text,
+      sessionId,
+      user.id,
+      toolCtx,
+      agentDeps,
     );
-    return;
+
+    // If there are pending actions, send confirmation UI
+    if (result.pendingActions.length > 0) {
+      for (const action of result.pendingActions) {
+        const actionRecord = action as Record<string, unknown>;
+        if (actionRecord.type === "create_expense") {
+          // Create pending action in DB and send confirmation
+          const pendingResult = await createAgentPendingAction(
+            dependencies.supabase,
+            actionRecord,
+          );
+          if (pendingResult) {
+            await replyConfirmation(
+              dependencies.lineClient,
+              replyToken,
+              pendingResult.id,
+              result.answer,
+            );
+            return;
+          }
+        } else if (actionRecord.type === "settle") {
+          const pendingResult = await createAgentPendingAction(
+            dependencies.supabase,
+            actionRecord,
+          );
+          if (pendingResult) {
+            await replyConfirmation(
+              dependencies.lineClient,
+              replyToken,
+              pendingResult.id,
+              result.answer,
+            );
+            return;
+          }
+        }
+      }
+    }
+
+    // No pending actions — just reply with the text
+    await replyText(dependencies.lineClient, replyToken, result.answer);
+  } catch (error) {
+    console.error("Agent loop failed", error);
+    await replyText(
+      dependencies.lineClient,
+      replyToken,
+      "抱歉，AI 助理暫時無法處理您的請求，請稍後再試。",
+    );
+  }
+}
+
+/**
+ * Create a pending action for agent-created expenses/settlements.
+ */
+async function createAgentPendingAction(
+  supabase: SupabaseClient,
+  action: Record<string, unknown>,
+): Promise<{ id: string; expense: Record<string, unknown> } | null> {
+  const type = action.type as string;
+  const expiresAt = new Date(Date.now() + PENDING_ACTION_TTL_MS).toISOString();
+
+  if (type === "create_expense") {
+    const expense = action.expense as Record<string, unknown>;
+    const splits = action.splits as Array<{ user_id: string; amount_twd: number }> | undefined;
+
+    const { data, error } = await supabase
+      .from("pending_actions")
+      .insert({
+        action_type: "create_expense",
+        payload: { expense, splits },
+        expires_at: expiresAt,
+      })
+      .select("id")
+      .single();
+
+    if (error || !data) return null;
+
+    return { id: data.id, expense };
   }
 
-  const inlineExpenses = parseInlineExpenseItems(text, currentTaipeiDate());
-  if (inlineExpenses.length > 1) {
-    await proposeExpenses(inlineExpenses, eventId, user, replyToken, dependencies, text);
-    return;
+  if (type === "settle") {
+    const { data, error } = await supabase
+      .from("pending_actions")
+      .insert({
+        action_type: "settle",
+        payload: {
+          groupId: action.groupId,
+          userId: action.userId,
+          amountTwd: action.amountTwd,
+        },
+        expires_at: expiresAt,
+      })
+      .select("id")
+      .single();
+
+    if (error || !data) return null;
+
+    return { id: data.id, expense: { description: "結清", amount_twd: action.amountTwd } };
   }
 
-  switch (parsed.intent) {
-    case "record_expense":
-      await proposeExpense(parsed, eventId, user, replyToken, dependencies, text);
-      return;
-    case "balance":
-      await replyBalance(user, replyToken, dependencies);
-      return;
-    case "shared_monthly":
-      await replyMonthly("shared", user, replyToken, dependencies);
-      return;
-    case "private_monthly":
-      await replyMonthly("private", user, replyToken, dependencies);
-      return;
-    case "delete_last":
-      await proposeDelete(eventId, user, replyToken, dependencies);
-      return;
-    case "settle":
-      await proposeSettlement(eventId, user, replyToken, dependencies);
-      return;
-    case "help":
-      await replyText(dependencies.lineClient, replyToken, helpText());
-      return;
-    case "unknown":
-      await replyText(
-        dependencies.lineClient,
-        replyToken,
-        "看不懂這句。可試：晚餐 860 我付、誰欠誰、本月共同支出。",
-      );
-  }
+  return null;
 }
 
 function parseSearchCommand(text: string): string | null {
@@ -425,31 +546,6 @@ async function handleAudioMessage(
   }
 }
 
-async function replyAccountant(
-  input: { question: string; scope: "shared" | "private" | "combined" },
-  user: UserRow,
-  replyToken: string,
-  dependencies: BotDependencies,
-): Promise<void> {
-  const env = serverEnvironment();
-  const result = await runAgent(
-    { env, db: dependencies.supabase, user },
-    {
-      message: input.question,
-      scope: input.scope,
-    },
-  );
-  const liffLine =
-    result.answer.length > 650
-      ? `\n詳情：${env.APP_URL}/?tab=accountant`
-      : `\n${env.APP_URL}/?tab=accountant`;
-  await replyText(
-    dependencies.lineClient,
-    replyToken,
-    `${result.answer.slice(0, 900)}${liffLine}`,
-  );
-}
-
 async function joinCouple(
   receivedCode: string,
   lineUserId: string,
@@ -474,317 +570,6 @@ async function joinCouple(
         ? "你已經加入帳本。"
         : `加入成功，你是 ${result.role}。`;
   await replyText(dependencies.lineClient, replyToken, message);
-}
-
-async function parseWithGemini(
-  text: string,
-  today: string,
-  gemini: GoogleGenAI,
-): Promise<TextParseResult> {
-  const response = await gemini.models.generateContent({
-    model: MODEL,
-    contents: text,
-    config: {
-      systemInstruction: `你是台灣情侶分帳 Bot 的文字解析器。今天是 ${today}（Asia/Taipei）。把自然語言轉成結構化 JSON，不計算分帳、不決定權限、不寫資料庫。可從一句話抽多筆支出；兩筆以上用 record_expenses。可抽 groupName，例如使用者提到「吃飽喝足」「旅遊」等帳本/群組名稱。支出預設 ledger=shared、paidBy=self、expenseDate=${today}、category=other；只有明確說私人時才用 private。付款人：「我付」=self，「你付/他付/她付/另一半付」=partner。金額缺失或矛盾時回 unknown。`,
-      responseMimeType: "application/json",
-      responseJsonSchema: geminiTextParseJsonSchema,
-      temperature: 0,
-      maxOutputTokens: 700,
-    },
-  });
-  if (!response.text) return emptyTextIntent("unknown");
-  try {
-    return textParseSchema.parse(JSON.parse(response.text));
-  } catch {
-    return emptyTextIntent("unknown");
-  }
-}
-
-async function proposeExpense(
-  parsed: ParsedIntent,
-  eventId: string,
-  user: UserRow,
-  replyToken: string,
-  dependencies: BotDependencies,
-  sourceText = "",
-): Promise<void> {
-  if (
-    parsed.intent !== "record_expense" ||
-    parsed.description === null ||
-    parsed.amountTwd === null ||
-    parsed.ledger === null ||
-    parsed.paidBy === null ||
-    parsed.expenseDate === null ||
-    parsed.category === null
-  ) {
-    await replyText(dependencies.lineClient, replyToken, "資料不足，請重新描述這筆支出。");
-    return;
-  }
-  if (parsed.ledger === "private" && parsed.paidBy === "partner") {
-    await replyText(dependencies.lineClient, replyToken, "私人支出只能由本人付款。");
-    return;
-  }
-  const users = await listUsers(dependencies.supabase);
-  const partner = users.find((candidate) => candidate.id !== user.id);
-  if (!partner) {
-    await replyText(dependencies.lineClient, replyToken, "請先讓另一半加入帳本。");
-    return;
-  }
-  const paidByUserId = parsed.paidBy === "self" ? user.id : partner.id;
-  const activeGroup =
-    parsed.ledger === "shared"
-      ? await findTargetGroup(dependencies.supabase, user, sourceText)
-      : null;
-  const classification = await classifyExpenseCategory(
-    {
-      description: parsed.description,
-      merchant: null,
-      groupName: activeGroup?.name ?? "私人帳",
-      fallbackCategory: parsed.category,
-      history: [],
-    },
-    dependencies.gemini,
-  );
-  const actionId = await createPendingAction(
-    dependencies.supabase,
-    user,
-    "create_expense",
-    eventId,
-    {
-      ledger: parsed.ledger,
-      group_id: activeGroup?.id ?? null,
-      description: parsed.description,
-      amount_twd: parsed.amountTwd,
-      paid_by_user_id: parsed.ledger === "private" ? user.id : paidByUserId,
-      expense_date: parsed.expenseDate,
-      category: classification.category,
-      category_label: classification.categoryLabel,
-    },
-    activeGroup?.id ?? null,
-  );
-  await replyConfirmation(
-    dependencies.lineClient,
-    replyToken,
-    actionId,
-    [
-      `確認記帳？${parsed.ledger === "shared" ? activeGroup!.name : "私人帳"}`,
-      `${parsed.description} NT$${parsed.amountTwd}`,
-      `付款：${paidByUserId === user.id ? "你" : "另一半"}｜${parsed.expenseDate}｜${classification.categoryLabel}`,
-    ].join("\n"),
-  );
-}
-
-async function proposeExpenses(
-  items: Array<ParsedIntent | ParsedExpenseItem>,
-  eventId: string,
-  user: UserRow,
-  replyToken: string,
-  dependencies: BotDependencies,
-  sourceText: string,
-): Promise<void> {
-  const users = await listUsers(dependencies.supabase);
-  const partner = users.find((candidate) => candidate.id !== user.id);
-  if (!partner) {
-    await replyText(dependencies.lineClient, replyToken, "請先讓另一半加入帳本。");
-    return;
-  }
-  const activeGroup = await findTargetGroup(dependencies.supabase, user, sourceText);
-  const actions: Array<{ id: string; item: ParsedIntent | ParsedExpenseItem; paidByUserId: string }> = [];
-  for (const [index, item] of items.entries()) {
-    if (
-      ("intent" in item && item.intent !== "record_expense") ||
-      item.description === null ||
-      item.amountTwd === null ||
-      item.paidBy === null ||
-      item.expenseDate === null ||
-      item.category === null ||
-      item.ledger !== "shared"
-    ) {
-      await replyText(dependencies.lineClient, replyToken, "多筆記帳目前只支援共同帳。");
-      return;
-    }
-    const paidByUserId = item.paidBy === "self" ? user.id : partner.id;
-    const classification = await classifyExpenseCategory(
-      {
-        description: item.description,
-        merchant: null,
-        groupName: activeGroup.name,
-        fallbackCategory: item.category,
-        history: [],
-      },
-      dependencies.gemini,
-    );
-    const id = await createPendingAction(
-      dependencies.supabase,
-      user,
-      "create_expense",
-      `${eventId}:${index}`,
-      {
-        ledger: "shared",
-        group_id: activeGroup.id,
-        description: item.description,
-        amount_twd: item.amountTwd,
-        paid_by_user_id: paidByUserId,
-        expense_date: item.expenseDate,
-        category: classification.category,
-        category_label: classification.categoryLabel,
-      },
-      activeGroup.id,
-    );
-    actions.push({ id, item, paidByUserId });
-  }
-  await replyBatchConfirmation(
-    dependencies.lineClient,
-    replyToken,
-    actions.map((action) => action.id),
-    [
-      `確認記帳？${activeGroup.name} 共 ${actions.length} 筆`,
-      ...actions.map(
-        ({ item, paidByUserId }) =>
-          `${item.description} NT$${item.amountTwd}｜${paidByUserId === user.id ? "你" : "另一半"}付`,
-      ),
-    ].join("\n"),
-  );
-}
-
-function cleanInlineDescription(value: string) {
-  return value
-    .replace(/[，,。.!！?？|｜]+/g, " ")
-    .replace(/\s+/g, " ")
-    .trim()
-    .slice(0, 100);
-}
-
-function inferInlineCategory(text: string): ParsedIntent["category"] {
-  return /早餐|午餐|晚餐|宵夜|餐|吃|喝|咖啡|飲料|漢堡|便當|火鍋|越南|拉麵|麵|飯|披薩|甜點/.test(
-    text,
-  )
-    ? "food"
-    : /車|捷運|高鐵|火車|公車|計程車|uber|停車|加油|交通/.test(text)
-      ? "transport"
-      : "other";
-}
-
-async function proposeDelete(
-  eventId: string,
-  user: UserRow,
-  replyToken: string,
-  dependencies: BotDependencies,
-): Promise<void> {
-  const activeGroup = await findActiveGroup(dependencies.supabase, user);
-  const { data, error } = await dependencies.supabase
-    .from("expenses")
-    .select("id, description, amount_twd")
-    .is("deleted_at", null)
-    .is("mirror_kind", null)
-    .or(`and(ledger.eq.shared,group_id.eq.${activeGroup.id}),and(ledger.eq.private,created_by_user_id.eq.${user.id})`)
-    .order("created_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-  if (error) throw new Error("expense lookup failed");
-  const expense = z
-    .object({ id: z.string().uuid(), description: z.string(), amount_twd: z.coerce.number().int() })
-    .nullable()
-    .parse(data);
-  if (!expense) {
-    await replyText(dependencies.lineClient, replyToken, "沒有可刪除的支出。");
-    return;
-  }
-  const actionId = await createPendingAction(
-    dependencies.supabase,
-    user,
-    "delete_expense",
-    eventId,
-    { expense_id: expense.id },
-    activeGroup.id,
-  );
-  await replyConfirmation(
-    dependencies.lineClient,
-    replyToken,
-    actionId,
-    `確認刪除「${expense.description} NT$${expense.amount_twd}」？`,
-  );
-}
-
-async function proposeSettlement(
-  eventId: string,
-  user: UserRow,
-  replyToken: string,
-  dependencies: BotDependencies,
-): Promise<void> {
-  const activeGroup = await findActiveGroup(dependencies.supabase, user);
-  const { users, balances } = await loadBalances(dependencies.supabase, activeGroup.id);
-  const debtor = users.find((candidate) => (balances[candidate.id] ?? 0) < 0);
-  const creditor = users.find((candidate) => (balances[candidate.id] ?? 0) > 0);
-  if (!debtor || !creditor) {
-    await replyText(dependencies.lineClient, replyToken, "目前已經結清。");
-    return;
-  }
-  const amountTwd = Math.abs(balances[debtor.id]!);
-  const actionId = await createPendingAction(
-    dependencies.supabase,
-    user,
-    "settle",
-    eventId,
-    {
-      from_user_id: debtor.id,
-      to_user_id: creditor.id,
-      amount_twd: amountTwd,
-      expected_balance_twd: balances[debtor.id],
-      group_id: activeGroup.id,
-    },
-    activeGroup.id,
-  );
-  await replyConfirmation(
-    dependencies.lineClient,
-    replyToken,
-    actionId,
-    `確認結清「${activeGroup.name}」？${debtor.id === user.id ? "你" : "另一半"} 支付 ${creditor.id === user.id ? "你" : "另一半"} NT$${amountTwd}`,
-  );
-}
-
-async function replyBalance(
-  user: UserRow,
-  replyToken: string,
-  dependencies: BotDependencies,
-): Promise<void> {
-  const activeGroup = await findActiveGroup(dependencies.supabase, user);
-  const { users, balances } = await loadBalances(dependencies.supabase, activeGroup.id);
-  const debtor = users.find((candidate) => (balances[candidate.id] ?? 0) < 0);
-  const creditor = users.find((candidate) => (balances[candidate.id] ?? 0) > 0);
-  const message =
-    debtor && creditor
-      ? `${activeGroup.name}：${debtor.id === user.id ? "你" : "另一半"} 欠 ${creditor.id === user.id ? "你" : "另一半"} NT$${Math.abs(balances[debtor.id]!)}`
-      : `${activeGroup.name}：目前已經結清。`;
-  await replyText(dependencies.lineClient, replyToken, message);
-}
-
-async function replyMonthly(
-  ledger: "shared" | "private",
-  user: UserRow,
-  replyToken: string,
-  dependencies: BotDependencies,
-): Promise<void> {
-  const month = currentTaipeiDate().slice(0, 7);
-  const activeGroup = ledger === "shared" ? await findActiveGroup(dependencies.supabase, user) : null;
-  let query = dependencies.supabase
-    .from("expenses")
-    .select("id, ledger, amount_twd, paid_by_user_id, created_by_user_id, expense_date, deleted_at, expense_splits(user_id, amount_twd)")
-    .eq("ledger", ledger)
-    .is("deleted_at", null)
-    .gte("expense_date", `${month}-01`)
-    .lt("expense_date", nextMonth(month));
-  if (ledger === "shared") query = query.eq("group_id", activeGroup!.id);
-  if (ledger === "private") query = query.eq("created_by_user_id", user.id);
-  const { data, error } = await query;
-  if (error) throw new Error("monthly lookup failed");
-  const expenses = z.array(expenseRowSchema).parse(data).map(toLedgerExpense);
-  const summary = monthlySummary(expenses, ledger, user.id, month);
-  await replyText(
-    dependencies.lineClient,
-    replyToken,
-    `本月${ledger === "shared" ? `${activeGroup!.name}共同` : "私人"}支出 NT$${summary.totalTwd}（${summary.count} 筆）`,
-  );
 }
 
 async function handlePostback(
@@ -909,134 +694,6 @@ async function listUsers(supabase: SupabaseClient): Promise<UserRow[]> {
   return z.array(userRowSchema).parse(data);
 }
 
-async function createPendingAction(
-  supabase: SupabaseClient,
-  user: UserRow,
-  actionType: "create_expense" | "delete_expense" | "settle",
-  sourceEventId: string,
-  payload: Record<string, unknown>,
-  groupId: string | null = null,
-): Promise<string> {
-  const expiresAt = new Date(Date.now() + PENDING_ACTION_TTL_MS).toISOString();
-  const { data, error } = await supabase
-    .from("pending_actions")
-    .upsert(
-      {
-        couple_id: user.couple_id,
-        requested_by_user_id: user.id,
-        action_type: actionType,
-        group_id: groupId,
-        payload,
-        source_event_id: sourceEventId,
-        expires_at: expiresAt,
-      },
-      { onConflict: "source_event_id", ignoreDuplicates: true },
-    )
-    .select("id")
-    .maybeSingle();
-  if (error) throw new Error("pending action insert failed");
-  if (data) return z.object({ id: z.string().uuid() }).parse(data).id;
-
-  const existing = await supabase
-    .from("pending_actions")
-    .select("id")
-    .eq("source_event_id", sourceEventId)
-    .single();
-  if (existing.error) throw new Error("pending action lookup failed");
-  return z.object({ id: z.string().uuid() }).parse(existing.data).id;
-}
-
-async function loadBalances(
-  supabase: SupabaseClient,
-  groupId: string,
-): Promise<{ users: UserRow[]; balances: Record<string, number> }> {
-  const [users, expensesResult, settlementsResult] = await Promise.all([
-    listUsers(supabase),
-    supabase
-      .from("expenses")
-      .select("id, ledger, amount_twd, paid_by_user_id, created_by_user_id, expense_date, deleted_at, expense_splits(user_id, amount_twd)")
-      .eq("ledger", "shared")
-      .eq("group_id", groupId)
-      .is("deleted_at", null),
-    supabase
-      .from("settlements")
-      .select("from_user_id, to_user_id, amount_twd")
-      .eq("group_id", groupId),
-  ]);
-  if (expensesResult.error || settlementsResult.error) {
-    throw new Error("balance lookup failed");
-  }
-  const expenses = z
-    .array(expenseRowSchema)
-    .parse(expensesResult.data)
-    .map(toLedgerExpense);
-  const settlements: Settlement[] = z
-    .array(settlementRowSchema)
-    .parse(settlementsResult.data)
-    .map((row) => ({
-      fromUserId: row.from_user_id,
-      toUserId: row.to_user_id,
-      amountTwd: row.amount_twd,
-    }));
-  return { users, balances: calculateBalances(expenses, settlements) };
-}
-
-async function findActiveGroup(
-  supabase: SupabaseClient,
-  user: UserRow,
-): Promise<{ id: string; name: string }> {
-  const preference = await supabase.from("user_preferences")
-    .select("active_group_id, groups!user_preferences_active_group_id_fkey(id, name, archived_at)")
-    .eq("user_id", user.id).single();
-  if (preference.error) throw new Error("active group lookup failed");
-  const parsed = z.object({
-    active_group_id: z.string().uuid(),
-    groups: z.union([
-      z.object({ id: z.string().uuid(), name: z.string(), archived_at: z.string().nullable() }),
-      z.array(z.object({ id: z.string().uuid(), name: z.string(), archived_at: z.string().nullable() })).transform((rows) => rows[0]),
-    ]),
-  }).parse(preference.data);
-  if (!parsed.groups || parsed.groups.archived_at) throw new Error("active group unavailable");
-  return { id: parsed.groups.id, name: parsed.groups.name };
-}
-
-async function findTargetGroup(
-  supabase: SupabaseClient,
-  user: UserRow,
-  sourceText: string,
-): Promise<{ id: string; name: string }> {
-  const [preference, groupsResult] = await Promise.all([
-    supabase
-      .from("user_preferences")
-      .select("active_group_id")
-      .eq("user_id", user.id)
-      .single(),
-    supabase
-      .from("groups")
-      .select("id, name")
-      .eq("couple_id", user.couple_id)
-      .is("archived_at", null),
-  ]);
-  if (preference.error || groupsResult.error)
-    throw new Error("target group lookup failed");
-  const activeGroupId = z
-    .object({ active_group_id: z.string().uuid() })
-    .parse(preference.data).active_group_id;
-  const groups = z
-    .array(z.object({ id: z.string().uuid(), name: z.string() }))
-    .parse(groupsResult.data);
-  const selected = selectMentionedGroup(sourceText, groups, activeGroupId);
-  if (!selected) throw new Error("active group unavailable");
-  return selected;
-}
-
-function normalizeGroupText(value: string) {
-  return value
-    .normalize("NFKC")
-    .toLowerCase()
-    .replace(/[^\p{Letter}\p{Number}]+/gu, "");
-}
-
 function toLedgerExpense(row: z.infer<typeof expenseRowSchema>): LedgerExpense {
   return {
     id: row.id,
@@ -1105,82 +762,4 @@ async function replyConfirmation(
     },
   };
   await lineClient.replyMessage({ replyToken, messages: [message] });
-}
-
-async function replyBatchConfirmation(
-  lineClient: Pick<LineBotClient, "replyMessage">,
-  replyToken: string,
-  actionIds: string[],
-  text: string,
-): Promise<void> {
-  const ids = actionIds.join(",");
-  const message: messagingApi.TextMessage = {
-    type: "text",
-    text,
-    quickReply: {
-      items: [
-        {
-          type: "action",
-          action: {
-            type: "postback",
-            label: "確認全部",
-            data: `decision=confirm&ids=${ids}`,
-            displayText: "確認全部",
-          },
-        },
-        {
-          type: "action",
-          action: {
-            type: "postback",
-            label: "取消全部",
-            data: `decision=cancel&ids=${ids}`,
-            displayText: "取消全部",
-          },
-        },
-      ],
-    },
-  };
-  await lineClient.replyMessage({ replyToken, messages: [message] });
-}
-
-function emptyIntent(intent: ParsedIntent["intent"]): ParsedIntent {
-  return {
-    intent,
-    description: null,
-    amountTwd: null,
-    ledger: null,
-    paidBy: null,
-    expenseDate: null,
-    category: null,
-  };
-}
-
-function emptyTextIntent(intent: ParsedIntent["intent"]): TextParseResult {
-  return { ...emptyIntent(intent), groupName: null };
-}
-
-function currentTaipeiDate(): string {
-  return new Intl.DateTimeFormat("en-CA", {
-    timeZone: TIME_ZONE,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).format(new Date());
-}
-
-function nextMonth(month: string): string {
-  const [year, monthNumber] = month.split("-").map(Number);
-  const next = new Date(Date.UTC(year!, monthNumber!, 1));
-  return `${next.getUTCFullYear()}-${String(next.getUTCMonth() + 1).padStart(2, "0")}-01`;
-}
-
-function helpText(): string {
-  return [
-    "可用說法：",
-    "晚餐 860 我付",
-    "私人 午餐 120",
-    "誰欠誰",
-    "本月共同支出／本月私人支出",
-    "刪除剛剛那筆／結清",
-  ].join("\n");
 }
