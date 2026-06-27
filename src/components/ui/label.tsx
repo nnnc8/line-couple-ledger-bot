@@ -1,20 +1,16 @@
-"use client"
+import * as React from "react";
+import { cn } from "@/lib/utils";
 
-import * as React from "react"
+export type LabelProps = React.LabelHTMLAttributes<HTMLLabelElement>;
 
-import { cn } from "@/lib/utils"
-
-function Label({ className, ...props }: React.ComponentProps<"label">) {
+export function Label({ className, ...props }: LabelProps) {
   return (
     <label
-      data-slot="label"
       className={cn(
-        "flex items-center gap-2 text-sm leading-none font-medium select-none group-data-[disabled=true]:pointer-events-none group-data-[disabled=true]:opacity-50 peer-disabled:cursor-not-allowed peer-disabled:opacity-50",
-        className
+        "block text-[13px] font-semibold text-foreground/80",
+        className,
       )}
       {...props}
     />
-  )
+  );
 }
-
-export { Label }

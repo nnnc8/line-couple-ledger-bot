@@ -42,7 +42,7 @@ type BootstrapLike = {
   privateDashboard: BootstrapLike["dashboard"];
 };
 
-type ExpenseInput = {
+export type ExpenseInput = {
   ledger: "shared" | "private";
   groupId: string | null;
   description: string;

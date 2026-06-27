@@ -229,11 +229,10 @@ export async function runAgentLoop(
 
     // If there are function calls, execute them
     if (functionCalls.length > 0) {
-      // Append model message with function calls
-      messages.push({
-        role: "model",
-        parts: functionCalls.map((fc) => ({ functionCall: fc.functionCall })),
-      });
+      // Append model message preserving thoughtSignature on functionCall parts.
+      // Stripping thoughtSignature causes thinking models (e.g. gemini-3.1-flash-lite)
+      // to reject the next request with INVALID_ARGUMENT.
+      messages.push({ role: "model", parts });
 
       // Execute each tool call
       const functionResponses: Part[] = [];

@@ -1,138 +1,98 @@
-"use client"
+"use client";
 
-import * as React from "react"
-import { Dialog as SheetPrimitive } from "@base-ui/react/dialog"
+import * as React from "react";
+import { X } from "lucide-react";
+import { cn } from "@/lib/utils";
 
-import { cn } from "@/lib/utils"
-import { Button } from "@/components/ui/button"
-import { XIcon } from "lucide-react"
-
-function Sheet({ ...props }: SheetPrimitive.Root.Props) {
-  return <SheetPrimitive.Root data-slot="sheet" {...props} />
+interface SheetProps {
+  open: boolean;
+  onClose: () => void;
+  children: React.ReactNode;
+  title?: string;
+  subtitle?: string;
+  className?: string;
+  bodyClassName?: string;
+  labelledBy?: string;
+  variant?: "compact" | "full";
+  showClose?: boolean;
 }
 
-function SheetTrigger({ ...props }: SheetPrimitive.Trigger.Props) {
-  return <SheetPrimitive.Trigger data-slot="sheet-trigger" {...props} />
-}
-
-function SheetClose({ ...props }: SheetPrimitive.Close.Props) {
-  return <SheetPrimitive.Close data-slot="sheet-close" {...props} />
-}
-
-function SheetPortal({ ...props }: SheetPrimitive.Portal.Props) {
-  return <SheetPrimitive.Portal data-slot="sheet-portal" {...props} />
-}
-
-function SheetOverlay({ className, ...props }: SheetPrimitive.Backdrop.Props) {
-  return (
-    <SheetPrimitive.Backdrop
-      data-slot="sheet-overlay"
-      className={cn(
-        "fixed inset-0 z-50 bg-black/10 transition-opacity duration-150 data-ending-style:opacity-0 data-starting-style:opacity-0 supports-backdrop-filter:backdrop-blur-xs",
-        className
-      )}
-      {...props}
-    />
-  )
-}
-
-function SheetContent({
-  className,
+export function Sheet({
+  open,
+  onClose,
   children,
-  side = "right",
-  showCloseButton = true,
-  ...props
-}: SheetPrimitive.Popup.Props & {
-  side?: "top" | "right" | "bottom" | "left"
-  showCloseButton?: boolean
-}) {
-  return (
-    <SheetPortal>
-      <SheetOverlay />
-      <SheetPrimitive.Popup
-        data-slot="sheet-content"
-        data-side={side}
-        className={cn(
-          "fixed z-50 flex flex-col gap-4 bg-popover bg-clip-padding text-sm text-popover-foreground shadow-lg transition duration-200 ease-in-out data-ending-style:opacity-0 data-starting-style:opacity-0 data-[side=bottom]:inset-x-0 data-[side=bottom]:bottom-0 data-[side=bottom]:h-auto data-[side=bottom]:border-t data-[side=bottom]:data-ending-style:translate-y-[2.5rem] data-[side=bottom]:data-starting-style:translate-y-[2.5rem] data-[side=left]:inset-y-0 data-[side=left]:left-0 data-[side=left]:h-full data-[side=left]:w-3/4 data-[side=left]:border-r data-[side=left]:data-ending-style:translate-x-[-2.5rem] data-[side=left]:data-starting-style:translate-x-[-2.5rem] data-[side=right]:inset-y-0 data-[side=right]:right-0 data-[side=right]:h-full data-[side=right]:w-3/4 data-[side=right]:border-l data-[side=right]:data-ending-style:translate-x-[2.5rem] data-[side=right]:data-starting-style:translate-x-[2.5rem] data-[side=top]:inset-x-0 data-[side=top]:top-0 data-[side=top]:h-auto data-[side=top]:border-b data-[side=top]:data-ending-style:translate-y-[-2.5rem] data-[side=top]:data-starting-style:translate-y-[-2.5rem] data-[side=left]:sm:max-w-sm data-[side=right]:sm:max-w-sm",
-          className
-        )}
-        {...props}
-      >
-        {children}
-        {showCloseButton && (
-          <SheetPrimitive.Close
-            data-slot="sheet-close"
-            render={
-              <Button
-                variant="ghost"
-                className="absolute top-3 right-3"
-                size="icon-sm"
-              />
-            }
-          >
-            <XIcon
-            />
-            <span className="sr-only">Close</span>
-          </SheetPrimitive.Close>
-        )}
-      </SheetPrimitive.Popup>
-    </SheetPortal>
-  )
-}
-
-function SheetHeader({ className, ...props }: React.ComponentProps<"div">) {
-  return (
-    <div
-      data-slot="sheet-header"
-      className={cn("flex flex-col gap-0.5 p-4", className)}
-      {...props}
-    />
-  )
-}
-
-function SheetFooter({ className, ...props }: React.ComponentProps<"div">) {
-  return (
-    <div
-      data-slot="sheet-footer"
-      className={cn("mt-auto flex flex-col gap-2 p-4", className)}
-      {...props}
-    />
-  )
-}
-
-function SheetTitle({ className, ...props }: SheetPrimitive.Title.Props) {
-  return (
-    <SheetPrimitive.Title
-      data-slot="sheet-title"
-      className={cn(
-        "font-heading text-base font-medium text-foreground",
-        className
-      )}
-      {...props}
-    />
-  )
-}
-
-function SheetDescription({
+  title,
+  subtitle,
   className,
-  ...props
-}: SheetPrimitive.Description.Props) {
-  return (
-    <SheetPrimitive.Description
-      data-slot="sheet-description"
-      className={cn("text-sm text-muted-foreground", className)}
-      {...props}
-    />
-  )
-}
+  bodyClassName,
+  labelledBy,
+  variant = "compact",
+  showClose = true,
+}: SheetProps) {
+  React.useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [open, onClose]);
 
-export {
-  Sheet,
-  SheetTrigger,
-  SheetClose,
-  SheetContent,
-  SheetHeader,
-  SheetFooter,
-  SheetTitle,
-  SheetDescription,
+  if (!open) return null;
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-end justify-center bg-black/45 animate-backdrop-in sm:items-center sm:p-4"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={labelledBy}
+        className={cn(
+          "w-full max-w-[640px] rounded-t-3xl bg-[var(--card)] shadow-[var(--shadow-sheet)] animate-sheet-up sm:rounded-3xl",
+          variant === "full" ? "max-h-[92dvh]" : "",
+          className,
+        )}
+      >
+        <div className="flex items-center justify-between gap-3 px-5 pt-4">
+          <div className="flex justify-center absolute left-1/2 top-3 -translate-x-1/2">
+            <span className="h-1.5 w-10 rounded-full bg-muted sm:hidden" />
+          </div>
+          <div className="space-y-0.5">
+            {title ? (
+              <h2
+                id={labelledBy}
+                className="text-lg font-bold tracking-tight"
+              >
+                {title}
+              </h2>
+            ) : null}
+            {subtitle ? (
+              <p className="text-[13px] text-[var(--muted-foreground)]">{subtitle}</p>
+            ) : null}
+          </div>
+          {showClose ? (
+            <button
+              aria-label="關閉"
+              onClick={onClose}
+              className="flex size-9 items-center justify-center rounded-full text-[var(--muted-foreground)] transition hover:bg-muted"
+            >
+              <X className="size-5" />
+            </button>
+          ) : null}
+        </div>
+        <div
+          className={cn(
+            "px-5 pt-3 pb-[max(20px,env(safe-area-inset-bottom))]",
+            variant === "full" && "max-h-[calc(92dvh-64px)] overflow-y-auto touch-scroll",
+            bodyClassName,
+          )}
+        >
+          {children}
+        </div>
+      </div>
+    </div>
+  );
 }
