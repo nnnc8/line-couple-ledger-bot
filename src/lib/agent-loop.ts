@@ -89,7 +89,7 @@ async function buildSystemPrompt(ctx: ToolContext, today: string): Promise<strin
 ${balanceInfo}${budgetInfo}
 
 規則：
-1. 使用 record_expense 工具時，必須回傳 pending_action，讓使用者在 LINE 上確認。
+1. record_expense / settle_debt / set_budget 等寫入工具會直接寫入資料庫，不需要使用者再按確認；送出後立刻入帳。
 2. 金額必須是正整數（新台幣）。
 3. 分類使用英文 enum：food / transport / shopping / entertainment / housing / utilities / health / education / travel / other。
 4. 當使用者說「我付的」或「我請客」，paid_by = "self"；說「對方付的」或「另一半付的」，paid_by = "partner"。

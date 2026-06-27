@@ -321,41 +321,30 @@ async function runAgentWithReply(
       agentDeps,
     );
 
-    // If there are pending actions, send confirmation UI
+    // If there are pending actions, write them straight to the DB (no LINE
+    // confirmation step) and reply with the agent's plain-text summary.
     if (result.pendingActions.length > 0) {
+      const serverContext: Parameters<typeof confirmAction>[0] = {
+        env: serverEnvironment(),
+        db: dependencies.supabase,
+        user: {
+          id: user.id,
+          couple_id: user.couple_id,
+          line_user_id: user.line_user_id,
+          role: user.role,
+        },
+      };
       for (const action of result.pendingActions) {
         const actionRecord = action as Record<string, unknown>;
-        if (actionRecord.type === "create_expense") {
-          // Create pending action in DB and send confirmation
-          const pendingResult = await createAgentPendingAction(
-            dependencies.supabase,
-            actionRecord,
-          );
-          if (pendingResult) {
-            await replyConfirmation(
-              dependencies.lineClient,
-              replyToken,
-              pendingResult.id,
-              result.answer,
-            );
-            return;
-          }
-        } else if (actionRecord.type === "settle") {
-          const pendingResult = await createAgentPendingAction(
-            dependencies.supabase,
-            actionRecord,
-          );
-          if (pendingResult) {
-            await replyConfirmation(
-              dependencies.lineClient,
-              replyToken,
-              pendingResult.id,
-              result.answer,
-            );
-            return;
-          }
-        }
+        const pendingResult = await createAgentPendingAction(
+          dependencies.supabase,
+          actionRecord,
+        );
+        if (!pendingResult) continue;
+        await confirmAction(serverContext, pendingResult.id, true);
       }
+      await replyText(dependencies.lineClient, replyToken, result.answer);
+      return;
     }
 
     // No pending actions — just reply with the text

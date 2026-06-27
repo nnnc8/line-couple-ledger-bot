@@ -254,7 +254,7 @@ export const toolDeclarations: FunctionDeclaration[] = [
   {
     name: "record_expense",
     description:
-      "記帳。建立一筆待確認的支出。使用者需要在 LINE 上點選確認才會正式寫入。",
+      "記帳。直接寫入一筆支出，不需使用者再按確認。",
     parameters: {
       type: Type.OBJECT,
       properties: {
@@ -309,7 +309,7 @@ export const toolDeclarations: FunctionDeclaration[] = [
   {
     name: "settle_debt",
     description:
-      "建議或建立結清。產生一筆待確認的結清 action。",
+      "建立結清紀錄。直接寫入，不需使用者再按確認。",
     parameters: {
       type: Type.OBJECT,
       properties: {
@@ -328,7 +328,7 @@ export const toolDeclarations: FunctionDeclaration[] = [
   {
     name: "set_budget",
     description:
-      "設定月預算。產生一筆待確認的預算 action。",
+      "設定月預算。直接寫入，不需使用者再按確認。",
     parameters: {
       type: Type.OBJECT,
       properties: {
