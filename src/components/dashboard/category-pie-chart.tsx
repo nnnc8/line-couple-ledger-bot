@@ -1,5 +1,6 @@
 "use client";
 
+import { Inbox } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   ChartContainer,
@@ -71,14 +72,14 @@ export function CategoryPieChart({
             </p>
             <CardTitle className="text-base">分類占比</CardTitle>
           </div>
-          <span className="text-sm font-bold">{money(totalTwd)}</span>
+          <span className="text-sm font-bold tabular-nums">{money(totalTwd)}</span>
         </div>
       </CardHeader>
       <CardContent>
         {categories.length > 0 ? (
-          <div className="flex flex-col items-center gap-4 sm:flex-row">
+          <div className="flex flex-col items-center gap-3 sm:flex-row sm:gap-4">
             {/* Donut chart */}
-            <div className="relative h-[180px] w-[180px] shrink-0">
+            <div className="relative h-[160px] w-[160px] shrink-0 sm:h-[180px] sm:w-[180px]">
               <ChartContainer config={config} className="h-full w-full">
                 <PieChart>
                   <ChartTooltip
@@ -94,8 +95,8 @@ export function CategoryPieChart({
                     nameKey="name"
                     cx="50%"
                     cy="50%"
-                    innerRadius={55}
-                    outerRadius={80}
+                    innerRadius={48}
+                    outerRadius={72}
                     strokeWidth={2}
                     stroke="#ffffff"
                   >
@@ -122,7 +123,7 @@ export function CategoryPieChart({
               </ChartContainer>
               {/* Center label */}
               <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
-                <span className="text-2xl font-extrabold">
+                <span className="text-xl font-extrabold sm:text-2xl">
                   {categories.length}
                 </span>
                 <span className="text-[10px] text-muted-foreground">分類</span>
@@ -130,7 +131,7 @@ export function CategoryPieChart({
             </div>
 
             {/* Legend list */}
-            <div className="flex-1 space-y-1.5">
+            <div className="w-full flex-1 space-y-1 sm:w-auto">
               {categories.slice(0, 6).map((cat, index) => {
                 const pct =
                   totalTwd > 0
@@ -141,7 +142,7 @@ export function CategoryPieChart({
                   <button
                     type="button"
                     key={cat.label}
-                    className={`flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm transition-colors hover:bg-muted ${
+                    className={`flex min-h-[40px] w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm transition-colors active:scale-[0.99] hover:bg-muted ${
                       active ? "bg-muted ring-1 ring-ring" : ""
                     }`}
                     onClick={() =>
@@ -167,9 +168,10 @@ export function CategoryPieChart({
             </div>
           </div>
         ) : (
-          <p className="py-8 text-center text-sm text-muted-foreground">
-            📭 這個範圍還沒有共同支出
-          </p>
+          <div className="flex flex-col items-center justify-center gap-2 py-8 text-center text-muted-foreground">
+            <Inbox className="h-8 w-8 opacity-40" />
+            <p className="text-sm">這個範圍還沒有共同支出</p>
+          </div>
         )}
       </CardContent>
     </Card>

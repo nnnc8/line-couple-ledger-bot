@@ -233,7 +233,7 @@ export function ExpenseEditor({
   }
 
   return (
-    <form onSubmit={handleSubmit(onFormSubmit)} className="space-y-5">
+    <form onSubmit={handleSubmit(onFormSubmit)} className="space-y-5 pb-24">
       {/* Header */}
       <div className="space-y-1">
         <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
@@ -252,10 +252,10 @@ export function ExpenseEditor({
         <Input
           {...register("amountTwd")}
           required
-          inputMode="numeric"
+          inputMode="decimal"
           placeholder="0"
           aria-label="金額（TWD）"
-          className="h-16 border-0 border-b-2 border-border bg-transparent text-center text-4xl font-extrabold tracking-tight focus-visible:ring-0 focus-visible:border-primary"
+          className="h-18 border-0 border-b-2 border-border bg-transparent text-center text-4xl font-extrabold tracking-tight placeholder:text-muted-foreground/40 focus-visible:ring-0 focus-visible:border-primary"
         />
       </div>
 
@@ -332,12 +332,12 @@ export function ExpenseEditor({
       {/* Category chips */}
       <div className="space-y-2">
         <Label>分類</Label>
-        <div className="flex flex-wrap gap-2">
+        <div className="no-scrollbar -mx-1 flex gap-2 overflow-x-auto px-1 py-0.5 snap-x">
           {Object.entries(categoryNames).map(([key, label]) => (
             <button
               key={key}
               type="button"
-              className={`inline-flex items-center gap-1.5 rounded-full px-3.5 py-2 text-sm font-semibold transition-all ${
+              className={`snap-start inline-flex shrink-0 items-center gap-1.5 rounded-full px-3.5 py-2.5 text-sm font-semibold transition-all active:scale-95 ${
                 category === key
                   ? "bg-primary text-primary-foreground shadow-sm"
                   : "bg-muted text-muted-foreground hover:bg-muted/80"

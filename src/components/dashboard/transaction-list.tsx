@@ -1,5 +1,6 @@
 "use client";
 
+import { Inbox } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import type { Expense, User } from "@/lib/types";
@@ -61,7 +62,7 @@ export function TransactionList({
       </CardHeader>
       <CardContent>
         {expenses.length > 0 ? (
-          <div className="space-y-1">
+          <div className="space-y-0.5">
             {expenses.map((expense) => {
               const emoji = categoryEmojis[expense.category] ?? "📦";
               const label = displayCategoryLabel(expense);
@@ -73,12 +74,12 @@ export function TransactionList({
                 <button
                   key={expense.id}
                   type="button"
-                  className={`flex w-full items-center gap-3 rounded-md px-2 py-2.5 text-left transition-colors hover:bg-muted ${
+                  className={`flex min-h-[56px] w-full items-center gap-3 rounded-lg px-2 py-2 text-left transition-colors active:scale-[0.99] hover:bg-muted ${
                     expense.deleted_at ? "opacity-40" : ""
                   } ${expense._optimistic ? "animate-pulse" : ""}`}
                   onClick={() => onEdit?.(expense)}
                 >
-                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-muted text-lg">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-muted text-lg">
                     {emoji}
                   </div>
                   <div className="min-w-0 flex-1">
@@ -107,9 +108,10 @@ export function TransactionList({
             })}
           </div>
         ) : (
-          <p className="py-8 text-center text-sm text-muted-foreground">
-            📝 尚無流水
-          </p>
+          <div className="flex flex-col items-center justify-center gap-2 py-8 text-center text-muted-foreground">
+            <Inbox className="h-8 w-8 opacity-40" />
+            <p className="text-sm">尚無流水</p>
+          </div>
         )}
       </CardContent>
     </Card>

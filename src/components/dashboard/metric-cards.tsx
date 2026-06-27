@@ -23,11 +23,11 @@ export function MetricCards({
   return (
     <div className="grid grid-cols-2 gap-3">
       <Card>
-        <CardContent className="p-4">
+        <CardContent className="p-3.5 sm:p-4">
           <p className="text-xs font-medium text-muted-foreground">
             📊 本月共同支出
           </p>
-          <p className="mt-1.5 text-xl font-bold tabular-nums">
+          <p className="mt-1.5 text-lg font-bold tabular-nums sm:text-xl">
             {money(monthlyTotal)}
           </p>
           <p className="mt-0.5 text-xs text-muted-foreground">
@@ -36,11 +36,11 @@ export function MetricCards({
         </CardContent>
       </Card>
       <Card>
-        <CardContent className="p-4">
+        <CardContent className="p-3.5 sm:p-4">
           <p className="text-xs font-medium text-muted-foreground">
             🎯 月預算
           </p>
-          <p className="mt-1.5 text-xl font-bold tabular-nums">
+          <p className="mt-1.5 text-lg font-bold tabular-nums sm:text-xl">
             {budgetSet ? `${budgetPercent}%` : "未設定"}
           </p>
           {budgetSet && (

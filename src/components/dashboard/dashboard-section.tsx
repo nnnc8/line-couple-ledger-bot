@@ -128,7 +128,7 @@ export function Dashboard({
   const visibleSuggestions = owed > 0 ? suggestions : [];
 
   return (
-    <div className="space-y-4 px-1 pb-20">
+    <div className="space-y-3 px-0.5 pb-20 sm:space-y-4 sm:px-1">
       {/* Balance card */}
       <Card
         className="relative overflow-hidden border-0 text-white"

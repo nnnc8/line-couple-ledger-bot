@@ -1,5 +1,6 @@
 "use client";
 
+import { TrendingDown } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 function shortMoney(n: number) {
@@ -31,43 +32,50 @@ export function TrendBarChart({
         </div>
       </CardHeader>
       <CardContent>
-        <div className="flex gap-1.5">
-          {trend.map((point) => {
-            const active = selectedMonth === point.month;
-            return (
-              <button
-                type="button"
-                key={point.month}
-                className={`flex flex-1 flex-col items-center gap-1 rounded-md py-2 transition-colors hover:bg-muted ${
-                  active ? "bg-muted ring-1 ring-ring" : ""
-                }`}
-                onClick={() =>
-                  onSelectMonth(
-                    selectedMonth === point.month ? null : point.month,
-                  )
-                }
-              >
-                <span className="text-[11px] font-medium tabular-nums">
-                  {point.totalTwd > 0 ? shortMoney(point.totalTwd) : ""}
-                </span>
-                <div className="relative flex h-24 w-full items-end justify-center">
-                  <div
-                    className="w-full max-w-8 rounded-t-sm transition-all"
-                    style={{
-                      height: `${Math.max(4, (point.totalTwd / maxTrend) * 100)}%`,
-                      background: active
-                        ? "var(--primary)"
-                        : "color-mix(in srgb, var(--primary) 40%, transparent)",
-                    }}
-                  />
-                </div>
-                <span className="text-xs text-muted-foreground">
-                  {Number(point.month.slice(5))}月
-                </span>
-              </button>
-            );
-          })}
-        </div>
+        {trend.some((p) => p.totalTwd > 0) ? (
+          <div className="flex gap-1">
+            {trend.map((point) => {
+              const active = selectedMonth === point.month;
+              return (
+                <button
+                  type="button"
+                  key={point.month}
+                  className={`flex min-h-[120px] flex-1 flex-col items-center justify-between rounded-lg py-2 transition-colors active:scale-[0.98] hover:bg-muted ${
+                    active ? "bg-muted ring-1 ring-ring" : ""
+                  }`}
+                  onClick={() =>
+                    onSelectMonth(
+                      selectedMonth === point.month ? null : point.month,
+                    )
+                  }
+                >
+                  <span className="text-[11px] font-medium tabular-nums">
+                    {point.totalTwd > 0 ? shortMoney(point.totalTwd) : ""}
+                  </span>
+                  <div className="relative flex h-20 w-full flex-1 items-end justify-center px-1">
+                    <div
+                      className="w-full max-w-7 rounded-t-md transition-all"
+                      style={{
+                        height: `${Math.max(4, (point.totalTwd / maxTrend) * 100)}%`,
+                        background: active
+                          ? "var(--primary)"
+                          : "color-mix(in srgb, var(--primary) 45%, transparent)",
+                      }}
+                    />
+                  </div>
+                  <span className="text-[11px] font-semibold text-muted-foreground">
+                    {Number(point.month.slice(5))}月
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="flex flex-col items-center justify-center gap-2 py-8 text-center text-muted-foreground">
+            <TrendingDown className="h-8 w-8 opacity-40" />
+            <p className="text-sm">近六個月尚無支出</p>
+          </div>
+        )}
       </CardContent>
     </Card>
   );
