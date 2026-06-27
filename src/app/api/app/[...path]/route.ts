@@ -31,6 +31,7 @@ import {
   sessionCookie,
   suggestCategoryUpdates,
 } from "@/lib/app-server";
+import { getOpenTasks } from "@/lib/secretary-tasks";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -77,6 +78,13 @@ export async function GET(request: Request, route: RouteContext) {
     }
     if (path[0] === "expenses" && path[1] && path[2] === "check-settlement") {
       return json(await checkExpenseInSettlements(context, path[1]));
+    }
+    if (path[0] === "secretary" && path[1] === "tasks") {
+      const tasks = await getOpenTasks(context.db, {
+        coupleId: context.user.couple_id,
+        limit: 10,
+      });
+      return json({ tasks });
     }
     throw new HttpError(404, "Not found");
   } catch (error) {

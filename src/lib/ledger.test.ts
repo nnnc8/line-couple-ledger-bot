@@ -1616,3 +1616,124 @@ test("agent-loop: buildSystemPrompt includes today date", async () => {
   assert.ok(result.answer);
   assert.equal(result.toolCallCount, 0);
 });
+
+test("secretary: createTask returns uuid", async () => {
+  const { createTask } = await import("./secretary-tasks");
+
+  const mockDb = {
+    from: () => ({
+      insert: () => ({
+        select: () => ({
+          single: () =>
+            Promise.resolve({
+              data: { id: "00000000-0000-4000-8000-000000000001" },
+              error: null,
+            }),
+        }),
+      }),
+    }),
+  } as unknown as import("@supabase/supabase-js").SupabaseClient;
+
+  const id = await createTask(mockDb, {
+    coupleId: 1,
+    groupId: "00000000-0000-4000-8000-000000000002",
+    type: "confirm_expense",
+    title: "確認全聯 NT$812",
+    summary: "這筆要確認",
+    source: "line",
+  });
+
+  assert.ok(typeof id === "string");
+  assert.ok(id.length > 0);
+});
+
+test("secretary: createMemory stores merchant_rule", async () => {
+  const { createMemory } = await import("./secretary-memory");
+
+  const mockDb = {
+    from: () => ({
+      insert: () => ({
+        select: () => ({
+          single: () =>
+            Promise.resolve({
+              data: { id: "00000000-0000-4000-8000-000000000003" },
+              error: null,
+            }),
+        }),
+      }),
+    }),
+  } as unknown as import("@supabase/supabase-js").SupabaseClient;
+
+  const id = await createMemory(mockDb, {
+    coupleId: 1,
+    userId: "user-1",
+    scope: "user",
+    kind: "merchant_rule",
+    key: "uber",
+    value: {
+      ledger: "private",
+      category: "transport",
+      category_label: "交通",
+    },
+    source: "line",
+  });
+
+  assert.ok(typeof id === "string");
+  assert.ok(id.length > 0);
+});
+
+test("secretary: getRecentExpenses filters by ledger", async () => {
+  const { executeSecretaryTool } = await import("./secretary-tools");
+
+  const sharedData = [
+    {
+      id: "e1",
+      group_id: "g1",
+      ledger: "shared",
+      description: "晚餐",
+      merchant: null,
+      category: "food",
+      category_label: "餐飲",
+      amount_twd: 860,
+      paid_by_user_id: "user-1",
+      created_by_user_id: "user-1",
+      expense_date: "2026-06-27",
+      version: 1,
+      deleted_at: null,
+    },
+  ];
+
+  const mockDb = {
+    from: () => ({
+      select: () => ({
+        eq: () => ({
+          is: () => ({
+            order: () => ({
+              limit: () =>
+                Promise.resolve({
+                  data: sharedData,
+                  error: null,
+                }) as unknown,
+            }),
+          }),
+        }),
+      }),
+    }),
+  } as unknown as import("@supabase/supabase-js").SupabaseClient;
+
+  const ctx = {
+    db: mockDb,
+    groupId: "g1",
+    userId: "user-1",
+    coupleId: 1,
+  };
+
+  const result = (await executeSecretaryTool(
+    "get_recent_expenses",
+    { limit: 3, ledger: "shared" },
+    ctx,
+  )) as { count: number; items: Array<{ description: string }> };
+
+  assert.equal(result.count, 1);
+  assert.equal(result.items[0].description, "晚餐");
+});

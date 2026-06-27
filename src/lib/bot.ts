@@ -1,4 +1,4 @@
-import { GoogleGenAI } from "@google/genai";
+import type { GoogleGenAI } from "@google/genai";
 import type { LineBotClient, messagingApi, webhook } from "@line/bot-sdk";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
@@ -11,8 +11,10 @@ import {
   serverEnvironment,
   transcribeAudio,
 } from "./app-server";
-import { runAgentLoop, type AgentDeps } from "./agent-loop";
+import { runSecretaryLoop, type SecretaryResult } from "./secretary-agent";
+import { notifyPartner } from "./secretary-push";
 import type { ToolContext } from "./accountant-tools";
+import type { AgentDeps } from "./agent-loop";
 import {
   type ParsedIntent,
 } from "./ledger";
@@ -270,14 +272,15 @@ async function handleText(
   }
 
   // Route all other messages through the Agent Loop
-  await runAgentWithReply(text, user, replyToken, dependencies);
+  await runSecretaryWithReply(text, user, replyToken, dependencies);
 }
 
 /**
- * Run the Agent Loop and reply with the result.
- * If the agent produces pending actions, send confirmation UI.
+ * Route user message through the Secretary Agent Loop.
+ * If the secretary produces pending actions, send confirmation UI.
+ * If the secretary needs to notify the partner, push a LINE message.
  */
-async function runAgentWithReply(
+async function runSecretaryWithReply(
   text: string,
   user: UserRow,
   replyToken: string,
@@ -297,66 +300,123 @@ async function runAgentWithReply(
     supabase: dependencies.supabase,
   };
 
-  // Get or create session ID from user's last session
+  // Get partner user info for secretary context
+  const partner = await findPartner(dependencies.supabase, user);
+
+  // Load couple-level session
   const { data: lastSession } = await dependencies.supabase
-    .from("accountant_sessions")
+    .from("secretary_sessions")
     .select("id")
-    .eq("user_id", user.id)
-    .order("updated_at", { ascending: false })
+    .eq("couple_id", user.couple_id)
+    .eq("group_id", user.couple_id.toString())
+    .order("last_active_at", { ascending: false })
     .limit(1)
     .single();
 
   const sessionId = lastSession?.id ?? null;
 
   try {
-    const input = imageData
-      ? { text, imageData: imageData.imageData, mimeType: imageData.mimeType }
-      : text;
+    const userName = user.role === "owner" ? "你" : "你";
+    const partnerName = partner ? `${partner.role === "owner" ? "另一半" : "另一半"}` : "另一半";
 
-    const result = await runAgentLoop(
+    const input = {
+      text,
+      ...(imageData ? { imageData: imageData.imageData, mimeType: imageData.mimeType } : {}),
+    };
+
+    const result: SecretaryResult = await runSecretaryLoop(
       input,
       sessionId,
       user.id,
+      user.couple_id,
+      userName,
+      partnerName,
       toolCtx,
       agentDeps,
     );
 
-    // If there are pending actions, write them straight to the DB (no LINE
-    // confirmation step) and reply with the agent's plain-text summary.
+    // If there are pending actions, create them and send confirmation UI
     if (result.pendingActions.length > 0) {
-      const serverContext: Parameters<typeof confirmAction>[0] = {
-        env: serverEnvironment(),
-        db: dependencies.supabase,
-        user: {
-          id: user.id,
-          couple_id: user.couple_id,
-          line_user_id: user.line_user_id,
-          role: user.role,
-        },
-      };
       for (const action of result.pendingActions) {
         const actionRecord = action as Record<string, unknown>;
-        const pendingResult = await createAgentPendingAction(
-          dependencies.supabase,
-          actionRecord,
-        );
-        if (!pendingResult) continue;
-        await confirmAction(serverContext, pendingResult.id, true);
+        if (actionRecord.type === "create_expense" || actionRecord.type === "update_expense") {
+          const pendingResult = await createAgentPendingAction(
+            dependencies.supabase,
+            actionRecord,
+          );
+          if (pendingResult) {
+            await replyConfirmation(
+              dependencies.lineClient,
+              replyToken,
+              pendingResult.id,
+              result.answer,
+            );
+            // Notify partner
+            if (result.notifyPartner && result.partnerMessage && partner) {
+              await notifyPartner(dependencies.lineClient, dependencies.supabase, {
+                targetUserId: partner.id,
+                message: result.partnerMessage,
+              });
+            }
+            return;
+          }
+        } else if (actionRecord.type === "settle") {
+          const pendingResult = await createAgentPendingAction(
+            dependencies.supabase,
+            actionRecord,
+          );
+          if (pendingResult) {
+            await replyConfirmation(
+              dependencies.lineClient,
+              replyToken,
+              pendingResult.id,
+              result.answer,
+            );
+            if (result.notifyPartner && partner) {
+              await notifyPartner(dependencies.lineClient, dependencies.supabase, {
+                targetUserId: partner.id,
+                message: `對方提出結清：NT$${actionRecord.amountTwd ?? "?"}`,
+              });
+            }
+            return;
+          }
+        }
       }
-      await replyText(dependencies.lineClient, replyToken, result.answer);
-      return;
     }
 
-    // No pending actions — just reply with the text
+    // No pending actions — just reply
     await replyText(dependencies.lineClient, replyToken, result.answer);
+
+    // Notify partner if needed (e.g., merchant rule changes)
+    if (result.notifyPartner && result.partnerMessage && partner) {
+      await notifyPartner(dependencies.lineClient, dependencies.supabase, {
+        targetUserId: partner.id,
+        message: result.partnerMessage,
+      });
+    }
   } catch (error) {
-    console.error("Agent loop failed", error);
+    console.error("Secretary loop failed", error);
     await replyText(
       dependencies.lineClient,
       replyToken,
-      "抱歉，AI 助理暫時無法處理您的請求，請稍後再試。",
+      "抱歉，我暫時無法處理你的請求，請稍後再試。",
     );
   }
+}
+
+async function findPartner(
+  supabase: SupabaseClient,
+  user: UserRow,
+): Promise<UserRow | null> {
+  const { data, error } = await supabase
+    .from("users")
+    .select("id, couple_id, role, line_user_id")
+    .eq("couple_id", user.couple_id)
+    .neq("id", user.id)
+    .maybeSingle();
+
+  if (error || !data) return null;
+  return userRowSchema.parse(data);
 }
 
 /**
@@ -551,7 +611,7 @@ async function handleImageMessage(
     }
 
     // Send to Agent with Vision prompt
-    await runAgentWithReply(
+    await runSecretaryWithReply(
       "這是一張收據或發票照片。請分析圖片內容，提取商家名稱、日期、總金額，並判斷分類，然後呼叫 record_expense 工具記帳。如果圖片不是收據或發票，請告知使用者。",
       user,
       replyToken,

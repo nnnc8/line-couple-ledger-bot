@@ -1,0 +1,654 @@
+/**
+ * Secretary Tools for Gemini function calling.
+ *
+ * Extends the accountant read-tools with secretary-specific actions:
+ * propose edits, search for recent expenses, manage tasks, remember patterns.
+ *
+ * All write actions return pending_action / task — LLM never writes directly.
+ */
+
+import type { SupabaseClient } from "@supabase/supabase-js";
+import { z } from "zod";
+import { type FunctionDeclaration, Type } from "@google/genai";
+
+import { executeTool as executeAccountantTool } from "./accountant-tools";
+import type { ToolContext } from "./accountant-tools";
+import { createTask, getOpenTasks } from "./secretary-tasks";
+import {
+  matchMerchantRule,
+  getMemories,
+} from "./secretary-memory";
+
+/* ─── Types ─── */
+
+export type { ToolContext };
+
+export interface SecretaryDeps {
+  db: SupabaseClient;
+  coupleId: number;
+}
+
+interface ExpenseRow {
+  id: string;
+  group_id: string;
+  ledger: "shared" | "private";
+  description: string;
+  merchant: string | null;
+  category: string;
+  category_label: string;
+  amount_twd: number;
+  paid_by_user_id: string;
+  created_by_user_id: string;
+  expense_date: string;
+  version: number;
+  deleted_at: string | null;
+}
+
+/* ─── Constants ─── */
+
+/* ─── Tool Declarations ─── */
+
+export const secretaryToolDeclarations: FunctionDeclaration[] = [
+  // ── Read tools (reuse accountant) ──
+  {
+    name: "query_expenses",
+    description:
+      "自由查帳。不指定 limit 只回聚合摘要。有 limit 才回明細（最多 20 筆）。",
+    parameters: {
+      type: Type.OBJECT,
+      properties: {
+        date_from: { type: Type.STRING, description: "起始 YYYY-MM-DD" },
+        date_to: { type: Type.STRING, description: "結束 YYYY-MM-DD" },
+        category: { type: Type.STRING, description: "大分類 enum" },
+        category_label: { type: Type.STRING, description: "細分類 label" },
+        limit: { type: Type.INTEGER, description: "回傳筆數上限 1-20" },
+        type: {
+          type: Type.STRING,
+          enum: ["shared", "private", "all"],
+          description: "帳本類型",
+        },
+      },
+    },
+  },
+  {
+    name: "get_recent_expenses",
+    description:
+      "查最近 N 筆支出（含共同與私人）。用於「剛剛那筆」、「上一筆」等指代查詢。",
+    parameters: {
+      type: Type.OBJECT,
+      properties: {
+        limit: { type: Type.INTEGER, description: "筆數，預設 5，最多 10" },
+        ledger: {
+          type: Type.STRING,
+          enum: ["shared", "private", "all"],
+          description: "預設 all",
+        },
+      },
+    },
+  },
+  {
+    name: "get_balance_summary",
+    description: "查詢目前誰欠誰多少，含 breakdown。",
+    parameters: { type: Type.OBJECT, properties: {} },
+  },
+  {
+    name: "get_budget_status",
+    description: "取得當月預算使用狀態。",
+    parameters: { type: Type.OBJECT, properties: {} },
+  },
+  {
+    name: "get_open_tasks",
+    description: "查詢目前待處理的秘書任務（待確認、待分類等）。",
+    parameters: {
+      type: Type.OBJECT,
+      properties: {
+        limit: { type: Type.INTEGER, description: "回傳筆數上限，預設 10" },
+      },
+    },
+  },
+  {
+    name: "get_user_memories",
+    description: "查詢已儲存的使用者偏好與規則（商家規則、分帳習慣等）。",
+    parameters: {
+      type: Type.OBJECT,
+      properties: {
+        kind: {
+          type: Type.STRING,
+          enum: ["merchant_rule", "category_rule", "split_rule", "routine", "wording_preference"],
+          description: "規則類型，不傳則全部",
+        },
+      },
+    },
+  },
+
+  // ── Propose tools ──
+  {
+    name: "record_expense",
+    description:
+      "記帳。建立一筆待確認的支出。使用者需在 LINE 點選確認後才正式寫入。",
+    parameters: {
+      type: Type.OBJECT,
+      properties: {
+        description: { type: Type.STRING, description: "支出說明" },
+        amount_twd: { type: Type.INTEGER, description: "金額 TWD 整數" },
+        category: { type: Type.STRING, description: "大分類 enum" },
+        category_label: { type: Type.STRING, description: "細分類標籤" },
+        paid_by: {
+          type: Type.STRING,
+          enum: ["self", "partner"],
+          description: "誰付的",
+        },
+        ledger: {
+          type: Type.STRING,
+          enum: ["shared", "private"],
+          description: "共同或私人帳",
+        },
+        expense_date: { type: Type.STRING, description: "YYYY-MM-DD" },
+        merchant: { type: Type.STRING, description: "商家名稱" },
+      },
+      required: ["description", "amount_twd", "paid_by"],
+    },
+  },
+  {
+    name: "propose_update_expense",
+    description:
+      "修改最近一筆支出。用於「剛剛那筆改私人」、「上一筆改分類」等情境。只提出待確認修改。",
+    parameters: {
+      type: Type.OBJECT,
+      properties: {
+        expense_id: { type: Type.STRING, description: "要修改的支出 ID" },
+        updates: {
+          type: Type.OBJECT,
+          description: "要修改的欄位（只傳要改的）",
+          properties: {
+            ledger: {
+              type: Type.STRING,
+              enum: ["shared", "private"],
+              description: "改成共同或私人",
+            },
+            category: { type: Type.STRING, description: "大分類" },
+            category_label: { type: Type.STRING, description: "細分類" },
+            description: { type: Type.STRING, description: "說明" },
+            amount_twd: { type: Type.INTEGER, description: "金額" },
+            paid_by: {
+              type: Type.STRING,
+              enum: ["self", "partner"],
+              description: "誰付",
+            },
+            expense_date: { type: Type.STRING, description: "日期" },
+          },
+        },
+      },
+      required: ["expense_id", "updates"],
+    },
+  },
+  {
+    name: "propose_settlement",
+    description: "建議結清。建立一筆待確認的結清 pending action。",
+    parameters: {
+      type: Type.OBJECT,
+      properties: {
+        amount_twd: { type: Type.INTEGER, description: "結清金額" },
+        note: { type: Type.STRING, description: "備註" },
+      },
+      required: ["amount_twd"],
+    },
+  },
+  {
+    name: "propose_merchant_rule",
+    description:
+      "建議建立商家規則。例如「之後 Uber 都私人交通」。先產生確認任務，使用者確認後才寫入 memory。",
+    parameters: {
+      type: Type.OBJECT,
+      properties: {
+        merchant: { type: Type.STRING, description: "商家名稱" },
+        rule: {
+          type: Type.OBJECT,
+          description: "規則內容",
+          properties: {
+            ledger: {
+              type: Type.STRING,
+              enum: ["shared", "private"],
+            },
+            category: { type: Type.STRING },
+            category_label: { type: Type.STRING },
+            paid_by: {
+              type: Type.STRING,
+              enum: ["self", "partner"],
+            },
+          },
+        },
+      },
+      required: ["merchant", "rule"],
+    },
+  },
+
+  // ── Secretary helper tools ──
+  {
+    name: "create_task",
+    description:
+      "建立一筆秘書待辦任務。用於需要追蹤但不需要帳務確認的情境（例如：建議使用者整理分類）。",
+    parameters: {
+      type: Type.OBJECT,
+      properties: {
+        type: {
+          type: Type.STRING,
+          enum: [
+            "confirm_expense",
+            "fix_uncertain_receipt",
+            "budget_warning",
+            "duplicate_expense_review",
+            "merchant_rule_suggestion",
+            "category_cleanup",
+          ],
+        },
+        title: { type: Type.STRING, description: "任務標題" },
+        summary: { type: Type.STRING, description: "任務摘要" },
+        priority: {
+          type: Type.STRING,
+          enum: ["low", "normal", "high"],
+        },
+      },
+      required: ["type", "title"],
+    },
+  },
+];
+
+/* ─── Tool Executor ─── */
+
+export async function executeSecretaryTool(
+  name: string,
+  args: Record<string, unknown>,
+  ctx: ToolContext,
+): Promise<unknown> {
+  // Delegate to accountant tools for read operations
+  switch (name) {
+    case "query_expenses":
+    case "get_balance_summary":
+    case "get_budget_status":
+      return executeAccountantTool(name, args, ctx);
+
+    case "get_recent_expenses":
+      return getRecentExpenses(ctx, args);
+
+    case "get_open_tasks":
+      return getOpenTasksTool(ctx, args);
+
+    case "get_user_memories":
+      return getUserMemories(ctx, args);
+
+    case "record_expense":
+      return recordExpense(ctx, args);
+
+    case "propose_update_expense":
+      return proposeUpdateExpense(ctx, args);
+
+    case "propose_settlement":
+      return proposeSettlement(ctx, args);
+
+    case "propose_merchant_rule":
+      return proposeMerchantRule(ctx, args);
+
+    case "create_task":
+      return createSecretaryTask(ctx, args);
+
+    default:
+      return { error: `Unknown tool: ${name}` };
+  }
+}
+
+/* ─── get_recent_expenses ─── */
+
+async function getRecentExpenses(ctx: ToolContext, args: Record<string, unknown>) {
+  const limit = Math.min(
+    z.number().int().min(1).max(10).default(5).parse(args.limit ?? 5),
+    10,
+  );
+  const ledger = z.enum(["shared", "private", "all"]).default("all").parse(args.ledger);
+
+  const queries: Promise<{ data: unknown[] | null; error: unknown }>[] = [];
+
+  if (ledger !== "private") {
+    queries.push(
+      ctx.db
+        .from("expenses")
+        .select(
+          "id, group_id, ledger, description, merchant, category, category_label, amount_twd, paid_by_user_id, created_by_user_id, expense_date, version, deleted_at",
+        )
+        .eq("group_id", ctx.groupId)
+        .is("mirror_kind", null)
+        .order("created_at", { ascending: false })
+        .limit(limit) as unknown as Promise<{
+        data: unknown[] | null;
+        error: unknown;
+      }>,
+    );
+  }
+
+  if (ledger !== "shared") {
+    queries.push(
+      ctx.db
+        .from("expenses")
+        .select(
+          "id, group_id, ledger, description, merchant, category, category_label, amount_twd, paid_by_user_id, created_by_user_id, expense_date, version, deleted_at",
+        )
+        .eq("ledger", "private")
+        .eq("created_by_user_id", ctx.userId)
+        .is("mirror_kind", null)
+        .order("created_at", { ascending: false })
+        .limit(limit) as unknown as Promise<{
+        data: unknown[] | null;
+        error: unknown;
+      }>,
+    );
+  }
+
+  const results = await Promise.all(queries);
+  const rows = results.flatMap((r) =>
+    r.error ? [] : (r.data as ExpenseRow[]),
+  );
+
+  // Deduplicate by id
+  const seen = new Set<string>();
+  const unique = rows.filter((r) => {
+    if (seen.has(r.id) || r.deleted_at) return false;
+    seen.add(r.id);
+    return true;
+  });
+
+  const sorted = unique
+    .sort((a, b) => b.created_by_user_id.localeCompare(a.created_by_user_id))
+    .slice(0, limit);
+
+  return {
+    count: sorted.length,
+    items: sorted.map((e) => ({
+      id: e.id,
+      description: e.description,
+      merchant: e.merchant,
+      category: e.category,
+      category_label: e.category_label,
+      amount_twd: e.amount_twd,
+      ledger: e.ledger,
+      expense_date: e.expense_date,
+      paid_by: e.paid_by_user_id === ctx.userId ? "self" : "partner",
+      version: e.version,
+    })),
+  };
+}
+
+/* ─── get_open_tasks ─── */
+
+async function getOpenTasksTool(ctx: ToolContext, args: Record<string, unknown>) {
+  const limit = z.number().int().min(1).max(20).default(10).parse(args.limit ?? 10);
+  const tasks = await getOpenTasks(ctx.db, {
+    coupleId: ctx.coupleId,
+    groupId: ctx.groupId,
+    limit,
+  });
+
+  return {
+    count: tasks.length,
+    tasks: tasks.map((t) => ({
+      id: t.id,
+      type: t.type,
+      title: t.title,
+      summary: t.summary,
+      priority: t.priority,
+      status: t.status,
+    })),
+  };
+}
+
+/* ─── get_user_memories ─── */
+
+async function getUserMemories(ctx: ToolContext, args: Record<string, unknown>) {
+  const kind = z
+    .enum(["merchant_rule", "category_rule", "split_rule", "routine", "wording_preference"])
+    .optional()
+    .parse(args.kind);
+
+  const memories = await getMemories(ctx.db, {
+    coupleId: ctx.coupleId,
+    groupId: ctx.groupId,
+    userId: ctx.userId,
+    kind,
+    limit: 20,
+  });
+
+  return {
+    count: memories.length,
+    items: memories.map((m) => ({
+      id: m.id,
+      kind: m.kind,
+      key: m.key,
+      value: m.value,
+      confidence: m.confidence,
+      scope: m.scope,
+      approved: !!m.approved_at,
+    })),
+  };
+}
+
+/* ─── record_expense ─── */
+
+async function recordExpense(ctx: ToolContext, args: Record<string, unknown>) {
+  return executeAccountantTool("record_expense", args, ctx);
+}
+
+/* ─── propose_update_expense ─── */
+
+const updateExpenseParams = z.object({
+  expense_id: z.string().uuid(),
+  updates: z.object({
+    ledger: z.enum(["shared", "private"]).optional(),
+    category: z.string().optional(),
+    category_label: z.string().optional(),
+    description: z.string().min(1).max(200).optional(),
+    amount_twd: z.number().int().positive().optional(),
+    paid_by: z.enum(["self", "partner"]).optional(),
+    expense_date: z.string().optional(),
+  }),
+});
+
+async function proposeUpdateExpense(
+  ctx: ToolContext,
+  args: Record<string, unknown>,
+) {
+  const params = updateExpenseParams.parse(args);
+
+  // Verify expense exists and belongs to this group/couple
+  const { data: expense, error } = await ctx.db
+    .from("expenses")
+    .select("id, description, amount_twd, category, category_label, ledger, paid_by_user_id, expense_date, version")
+    .eq("id", params.expense_id)
+    .eq("group_id", ctx.groupId)
+    .is("deleted_at", null)
+    .single();
+
+  if (error || !expense) return { error: "找不到這筆支出" };
+
+  // Build update payload
+  const updates: Record<string, unknown> = {};
+  if (params.updates.ledger) updates.ledger = params.updates.ledger;
+  if (params.updates.category) updates.category = params.updates.category;
+  if (params.updates.category_label) updates.category_label = params.updates.category_label;
+  if (params.updates.description) updates.description = params.updates.description;
+  if (params.updates.amount_twd) updates.amount_twd = params.updates.amount_twd;
+  if (params.updates.expense_date) updates.expense_date = params.updates.expense_date;
+
+  // Handle paid_by → paid_by_user_id
+  if (params.updates.paid_by) {
+    const partnerResult = await ctx.db
+      .from("group_members")
+      .select("user_id")
+      .eq("group_id", ctx.groupId)
+      .neq("user_id", ctx.userId)
+      .single();
+
+    updates.paid_by_user_id =
+      params.updates.paid_by === "self"
+        ? ctx.userId
+        : partnerResult.data?.user_id ?? ctx.userId;
+  }
+
+  const pendingAction = {
+    type: "update_expense" as const,
+    expenseId: params.expense_id,
+    expectedVersion: (expense as Record<string, unknown>).version as number,
+    groupId: ctx.groupId,
+    userId: ctx.userId,
+    updates,
+  };
+
+  const changedFields = Object.keys(updates)
+    .map((k) => fieldLabel(k as keyof typeof updates))
+    .filter(Boolean)
+    .join("、");
+
+  return {
+    pending_action: pendingAction,
+    message: `已為你提出修改：${(expense as Record<string, unknown>).description as string}（${changedFields}），請確認。`,
+  };
+}
+
+function fieldLabel(key: string): string {
+  const map: Record<string, string> = {
+    ledger: "帳本類型",
+    category: "大分類",
+    category_label: "細分類",
+    description: "說明",
+    amount_twd: "金額",
+    paid_by_user_id: "付款人",
+    expense_date: "日期",
+  };
+  return map[key] ?? key;
+}
+
+/* ─── propose_settlement ─── */
+
+async function proposeSettlement(ctx: ToolContext, args: Record<string, unknown>) {
+  return executeAccountantTool("settle_debt", args, ctx);
+}
+
+/* ─── propose_merchant_rule ─── */
+
+const merchantRuleParams = z.object({
+  merchant: z.string().min(1).max(100),
+  rule: z.object({
+    ledger: z.enum(["shared", "private"]).optional(),
+    category: z.string().optional(),
+    category_label: z.string().optional(),
+    paid_by: z.enum(["self", "partner"]).optional(),
+  }),
+});
+
+async function proposeMerchantRule(
+  ctx: ToolContext,
+  args: Record<string, unknown>,
+) {
+  const params = merchantRuleParams.parse(args);
+
+  // Check if a similar rule already exists
+  const existing = await matchMerchantRule(ctx.db, {
+    coupleId: ctx.coupleId,
+    groupId: ctx.groupId,
+    merchant: params.merchant,
+    minConfidence: 0.5,
+  });
+
+  if (existing) {
+    return {
+      message: `已有關於「${params.merchant}」的規則：${JSON.stringify(existing.memory.value)}。要更新嗎？`,
+      existing_memory_id: existing.memory.id,
+    };
+  }
+
+  // Create a task for the user to confirm
+  const memoryValue: Record<string, unknown> = {};
+  if (params.rule.ledger) memoryValue.ledger = params.rule.ledger;
+  if (params.rule.category) memoryValue.category = params.rule.category;
+  if (params.rule.category_label) memoryValue.category_label = params.rule.category_label;
+  if (params.rule.paid_by) memoryValue.paid_by = params.rule.paid_by;
+
+  // Build user-friendly summary
+  const parts: string[] = [];
+  if (params.rule.ledger === "private") parts.push("私人帳");
+  else if (params.rule.ledger === "shared") parts.push("共同帳");
+  if (params.rule.category_label) parts.push(params.rule.category_label);
+  if (params.rule.paid_by) {
+    parts.push(
+      params.rule.paid_by === "self"
+        ? "你付"
+        : "對方付",
+    );
+  }
+
+  const title = `商家規則建議：${params.merchant} → ${parts.join(" / ") || "記帳"}`;
+
+  const taskId = await createTask(ctx.db, {
+    coupleId: ctx.coupleId,
+    groupId: ctx.groupId,
+    ownerUserId: ctx.userId,
+    type: "merchant_rule_suggestion",
+    title,
+    summary: `之後「${params.merchant}」預設為 ${parts.join(" / ") || "記帳"}。要套用這個規則嗎？`,
+    payload: {
+      merchant: params.merchant,
+      rule: memoryValue,
+      memoryValue,
+      suggestedBy: ctx.userId,
+    },
+    priority: "low",
+    source: "line",
+  });
+
+  return {
+    task_id: taskId,
+    message: `我記住了：之後「${params.merchant}」預設為 ${parts.join(" / ") || "目前設定"}。已幫你建立一個規則確認。[確認套用] [先不要]`,
+    pending_memory: {
+      kind: "merchant_rule",
+      key: params.merchant,
+      value: memoryValue,
+    },
+  };
+}
+
+/* ─── create_secretary_task ─── */
+
+const createTaskParams = z.object({
+  type: z.enum([
+    "confirm_expense",
+    "fix_uncertain_receipt",
+    "budget_warning",
+    "duplicate_expense_review",
+    "merchant_rule_suggestion",
+    "category_cleanup",
+  ]),
+  title: z.string().min(1).max(200),
+  summary: z.string().optional(),
+  priority: z.enum(["low", "normal", "high"]).default("normal"),
+});
+
+async function createSecretaryTask(
+  ctx: ToolContext,
+  args: Record<string, unknown>,
+) {
+  const params = createTaskParams.parse(args);
+
+  const taskId = await createTask(ctx.db, {
+    coupleId: ctx.coupleId,
+    groupId: ctx.groupId,
+    ownerUserId: ctx.userId,
+    type: params.type,
+    title: params.title,
+    summary: params.summary,
+    priority: params.priority,
+    source: "line",
+  });
+
+  return {
+    task_id: taskId,
+    message: `已建立任務：${params.title}`,
+  };
+}

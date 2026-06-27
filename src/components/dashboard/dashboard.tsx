@@ -7,6 +7,7 @@ import { Segmented } from "@/components/ui/segmented";
 import { Empty } from "@/components/ui/empty";
 import { Inbox, Plus, TrendingDown } from "lucide-react";
 import { useCategoryAnalytics, useBalanceSuggestions } from "@/hooks/use-analytics";
+import { SecretaryTaskCard } from "@/components/dashboard/secretary-task-card";
 import { donutGradient, money, moneyAbs, shortMoney, monthShort } from "@/lib/format";
 import { categoryList, categoryColor, categoryEmoji, categoryLabel, displayLabel } from "@/lib/categories";
 import type { Bootstrap, Expense, User } from "@/lib/types";
@@ -81,6 +82,7 @@ export function Dashboard({
         onAdd={onAdd}
         suggestions={suggestions}
       />
+      <SecretaryTaskCard />
 
       <div className="grid grid-cols-2 gap-3">
         <Card className="p-4">
