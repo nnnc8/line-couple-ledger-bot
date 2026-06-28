@@ -134,7 +134,8 @@ async function buildSecretaryPrompt(
 10. 如果使用者問「有什麼還沒處理」，用 get_open_tasks 查詢任務。
 11. 如果商家名稱有已存的 approved merchant_rule，自動套用不用再問。
 12. 涉及另一半的變動（結清、規則等），要告知對方。
-13. 如果使用者意圖模糊，主動問清楚而不是亂猜。`;
+13. 如果使用者意圖模糊，主動問清楚而不是亂猜。
+14. ⚠️ **自主通知另一半的決策：** 如果你的回覆內容涉及重要的共同變動（例如建立或修改了新商家規則、共同分帳模式、提出結清等），且你認為另一半【非常有必要】知道這件事，請在你的最終文字回覆最尾端加上標籤「[通知另一半]」；如果是私人帳、私人查帳、私人閒聊，或不重要的資訊，【絕對不要】加此標籤。`;
 }
 
 /* ─── Session Management ─── */
@@ -355,24 +356,27 @@ export async function runSecretaryLoop(
         parts: functionResponses,
       });
     } else {
-      const finalText =
+      let finalText =
         textParts.map((p) => p.text).join("") || "處理完成。";
+
+      // Parse [通知另一半] tag if present
+      const notifyTag = "[通知另一半]";
+      if (finalText.includes(notifyTag)) {
+        notifyPartner = true;
+        finalText = finalText.replace(notifyTag, "").trim();
+      } else {
+        notifyPartner = false;
+      }
 
       messages.push({
         role: "model",
         parts: [{ text: finalText }],
       });
 
-      // Mark partner notification for known patterns
-      if (
-        /\b(結清|settle|改|更新|刪除|取消|規則|記住)\b/.test(finalText) ||
-        pendingActions.length > 0
-      ) {
-        notifyPartner = true;
-      }
-
-      if (notifyPartner && !partnerMessage) {
+      if (notifyPartner) {
         partnerMessage = finalText.slice(0, 200);
+      } else {
+        partnerMessage = null;
       }
 
       await saveSecretarySession(
@@ -409,14 +413,24 @@ export async function runSecretaryLoop(
     config: { systemInstruction },
   });
 
-  const summaryText =
+  let summaryText =
     summaryResponse.candidates?.[0]?.content?.parts
       ?.filter((p): p is { text: string } => "text" in p)
       .map((p) => p.text)
       .join("") || "已完成處理。";
 
-  if (notifyPartner && !partnerMessage) {
+  const notifyTag = "[通知另一半]";
+  if (summaryText.includes(notifyTag)) {
+    notifyPartner = true;
+    summaryText = summaryText.replace(notifyTag, "").trim();
+  } else {
+    notifyPartner = false;
+  }
+
+  if (notifyPartner) {
     partnerMessage = summaryText.slice(0, 200);
+  } else {
+    partnerMessage = null;
   }
 
   await saveSecretarySession(
