@@ -50,12 +50,15 @@ export function Dashboard({
       color: tagColor(key),
     }));
   const categoryRows = (analytics?.categories.length ?? 0)
-    ? analytics!.categories.map((c) => ({
-        tag: c.tag,
-        label: c.tag,
-        value: c.totalTwd,
-        color: tagColor(c.tag),
-      }))
+    ? analytics!.categories.map((c) => {
+        const tag = c.tag || (c as any).label || "其他";
+        return {
+          tag,
+          label: tag,
+          value: c.totalTwd,
+          color: tagColor(tag),
+        };
+      })
     : fallbackCategories;
   const categoryTotal = analytics?.totalTwd ?? data.dashboard.monthlyTotalTwd;
 

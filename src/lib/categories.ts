@@ -1,16 +1,18 @@
-export function tagColor(tag: string): string {
+export function tagColor(tag: string | null | undefined): string {
+  const safeTag = tag || "其他";
   let hash = 5381;
-  for (let i = 0; i < tag.length; i++) {
-    hash = ((hash << 5) + hash + tag.charCodeAt(i)) >>> 0;
+  for (let i = 0; i < safeTag.length; i++) {
+    hash = ((hash << 5) + hash + safeTag.charCodeAt(i)) >>> 0;
   }
   const hue = (hash * 137.508) % 360;
   return `hsl(${Math.round(hue)}, 65%, 50%)`;
 }
 
-export function tagTint(tag: string): string {
+export function tagTint(tag: string | null | undefined): string {
+  const safeTag = tag || "其他";
   let hash = 5381;
-  for (let i = 0; i < tag.length; i++) {
-    hash = ((hash << 5) + hash + tag.charCodeAt(i)) >>> 0;
+  for (let i = 0; i < safeTag.length; i++) {
+    hash = ((hash << 5) + hash + safeTag.charCodeAt(i)) >>> 0;
   }
   const hue = (hash * 137.508) % 360;
   return `hsl(${Math.round(hue)}, 65%, 50%, 0.12)`;
