@@ -1,4 +1,3 @@
-import { GoogleGenAI } from "@google/genai";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Content, Part } from "@google/genai";
 
@@ -9,7 +8,7 @@ import {
 } from "./accountant-tools";
 
 export interface AgentDeps {
-  gemini: GoogleGenAI;
+  gemini: any;
   supabase: SupabaseClient;
 }
 
@@ -176,11 +175,11 @@ export async function runAgentLoop(
 
     const parts = candidate.content.parts;
     const functionCalls = parts.filter(
-      (p): p is { functionCall: { name: string; args: Record<string, unknown> } } =>
+      (p: any): p is { functionCall: { name: string; args: Record<string, unknown> } } =>
         "functionCall" in p,
     );
     const textParts = parts.filter(
-      (p): p is { text: string } => "text" in p,
+      (p: any): p is { text: string } => "text" in p,
     );
 
     if (functionCalls.length > 0) {
@@ -220,7 +219,7 @@ export async function runAgentLoop(
         parts: functionResponses,
       });
     } else {
-      const finalText = textParts.map((p) => p.text).join("") || "處理完成。";
+      const finalText = textParts.map((p: any) => p.text).join("") || "處理完成。";
       messages.push({
         role: "model",
         parts: [{ text: finalText }],
@@ -250,9 +249,9 @@ export async function runAgentLoop(
 
   const summaryText =
     summaryResponse.candidates?.[0]?.content?.parts
-      ?.filter((p): p is { text: string } => "text" in p)
-      .map((p) => p.text)
-      .join("") || "已完成處理。";
+      ?.filter((p: any): p is { text: string } => "text" in p)
+      ?.map((p: any) => p.text)
+      ?.join("") || "已完成處理。";
 
   await saveSession(deps.supabase, effectiveSessionId, userId, messages, ctx);
 

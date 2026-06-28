@@ -12,6 +12,7 @@ import type { GoogleGenAI } from "@google/genai";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Content, Part } from "@google/genai";
 
+import { runVercelAgent } from "./vercel-agent";
 import {
   secretaryToolDeclarations,
   executeSecretaryTool,
@@ -261,177 +262,13 @@ export async function runSecretaryLoop(
     partnerName,
   );
 
-  const pendingActions: unknown[] = [];
-  const newTasks: string[] = [];
-  let toolCallCount = 0;
-  let notifyPartner = false;
-  let partnerMessage: string | null = null;
+  const result = await runVercelAgent(messages, systemInstruction, ctx);
 
-  // Agent loop
-  for (let i = 0; i < MAX_TOOL_CALLS; i++) {
-    const response = await deps.gemini.models.generateContent({
-      model: AGENT_MODEL,
-      contents: messages,
-      config: {
-        systemInstruction,
-        tools: [{ functionDeclarations: secretaryToolDeclarations }],
-      },
-    });
-
-    const candidate = response.candidates?.[0];
-    if (!candidate?.content?.parts) {
-      messages.push({
-        role: "model",
-        parts: [{ text: "抱歉，我暫時無法處理，請稍後再試。" }],
-      });
-      break;
-    }
-
-    const parts = candidate.content.parts;
-    const functionCalls = parts.filter(
-      (p): p is { functionCall: { name: string; args: Record<string, unknown> } } =>
-        "functionCall" in p,
-    );
-    const textParts = parts.filter(
-      (p): p is { text: string } => "text" in p,
-    );
-
-    if (functionCalls.length > 0) {
-      // Preserve full parts including thoughtSignature — required by Gemini thinking models.
-      // Stripping thoughtSignature causes INVALID_ARGUMENT on the next request.
-      messages.push({ role: "model", parts });
-
-      const functionResponses: Part[] = [];
-
-      for (const fc of functionCalls) {
-        toolCallCount++;
-        const toolName = fc.functionCall.name;
-        const toolArgs = fc.functionCall.args;
-
-        let result: unknown;
-        try {
-          result = await executeSecretaryTool(toolName, toolArgs, ctx);
-        } catch (error) {
-          result = {
-            error: error instanceof Error ? error.message : "工具執行失敗",
-          };
-        }
-
-        // Collect pending actions
-        const resultRecord = result as Record<string, unknown>;
-        if (resultRecord?.pending_action) {
-          pendingActions.push(resultRecord.pending_action);
-        }
-
-        // Collect new tasks
-        if (resultRecord?.task_id) {
-          newTasks.push(String(resultRecord.task_id));
-        }
-
-        // Check if partner should be notified
-        if (resultRecord?.notify_partner) {
-          notifyPartner = true;
-        }
-        if (resultRecord?.partner_message) {
-          partnerMessage = String(resultRecord.partner_message);
-        }
-
-        // Mark partner notification for settlement/propose tools
-        const actionType =
-          (resultRecord?.pending_action as Record<string, unknown>)?.type;
-        if (actionType === "settle" || actionType === "update_expense") {
-          notifyPartner = true;
-        }
-
-        functionResponses.push({
-          functionResponse: {
-            name: toolName,
-            response: result,
-          },
-        } as Part);
-      }
-
-      messages.push({
-        role: "user",
-        parts: functionResponses,
-      });
-    } else {
-      let finalText =
-        textParts.map((p) => p.text).join("") || "處理完成。";
-
-      // Parse [通知另一半] tag if present
-      const notifyTag = "[通知另一半]";
-      if (finalText.includes(notifyTag)) {
-        notifyPartner = true;
-        finalText = finalText.replace(notifyTag, "").trim();
-      } else {
-        notifyPartner = false;
-      }
-
-      messages.push({
-        role: "model",
-        parts: [{ text: finalText }],
-      });
-
-      if (notifyPartner) {
-        partnerMessage = finalText.slice(0, 200);
-      } else {
-        partnerMessage = null;
-      }
-
-      await saveSecretarySession(
-        deps.supabase,
-        effectiveSessionId,
-        userId,
-        coupleId,
-        ctx.groupId,
-        messages,
-      );
-
-      return {
-        answer: finalText,
-        toolCallCount,
-        pendingActions,
-        sessionId: effectiveSessionId,
-        newTasks,
-        notifyPartner,
-        partnerMessage,
-      };
-    }
-  }
-
-  // Exhausted tool calls — summarize
-  const summaryResponse = await deps.gemini.models.generateContent({
-    model: AGENT_MODEL,
-    contents: [
-      ...messages,
-      {
-        role: "user",
-        parts: [{ text: "請用一句話總結你剛才做了什麼。" }],
-      },
-    ] as Content[],
-    config: { systemInstruction },
+  // Append model answer to history for future turns
+  messages.push({
+    role: "model",
+    parts: [{ text: result.answer }],
   });
-
-  let summaryText =
-    summaryResponse.candidates?.[0]?.content?.parts
-      ?.filter((p): p is { text: string } => "text" in p)
-      .map((p) => p.text)
-      .join("") || "已完成處理。";
-
-  const notifyTag = "[通知另一半]";
-  if (summaryText.includes(notifyTag)) {
-    notifyPartner = true;
-    summaryText = summaryText.replace(notifyTag, "").trim();
-  } else {
-    notifyPartner = false;
-  }
-
-  if (notifyPartner) {
-    partnerMessage = summaryText.slice(0, 200);
-  } else {
-    partnerMessage = null;
-  }
 
   await saveSecretarySession(
     deps.supabase,
@@ -443,12 +280,12 @@ export async function runSecretaryLoop(
   );
 
   return {
-    answer: summaryText,
-    toolCallCount,
-    pendingActions,
+    answer: result.answer,
+    toolCallCount: result.toolCallCount,
+    pendingActions: result.pendingActions,
     sessionId: effectiveSessionId,
-    newTasks,
-    notifyPartner,
-    partnerMessage,
+    newTasks: result.newTasks,
+    notifyPartner: result.notifyPartner,
+    partnerMessage: result.partnerMessage,
   };
 }

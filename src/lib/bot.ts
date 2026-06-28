@@ -1,4 +1,3 @@
-import type { GoogleGenAI } from "@google/genai";
 import type { LineBotClient, messagingApi, webhook } from "@line/bot-sdk";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
@@ -61,7 +60,7 @@ type UserRow = z.infer<typeof userRowSchema>;
 interface BotDependencies {
   lineClient: Pick<LineBotClient, "replyMessage" | "getMessageContent" | "pushMessage">;
   supabase: SupabaseClient;
-  gemini: GoogleGenAI;
+  gemini: any;
   setupCode: string;
   onImage?: (input: { messageId: string; eventId: string; lineUserId: string }) => void;
 }
@@ -609,7 +608,7 @@ async function handleAudioMessage(
       chunks.push(buffer);
     }
     const bytes = Buffer.concat(chunks);
-    const text = await transcribeAudio(bytes, "audio/x-m4a", dependencies.gemini);
+    const text = await transcribeAudio(bytes, "audio/x-m4a");
     if (!text) {
       await replyText(dependencies.lineClient, replyToken, "沒聽清楚，可以再說一次或打字嗎？");
       return;

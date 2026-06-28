@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 
-import { GoogleGenAI } from "@google/genai";
+import { google } from "@ai-sdk/google";
+import { generateText, generateObject } from "ai";
 import type { LineBotClient, messagingApi } from "@line/bot-sdk";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
@@ -778,7 +779,6 @@ export async function generateAccountantReport(
     reportType: "manual_question" | "monthly_health" | "cleanup_review";
     groupId?: string;
   },
-  gemini = new GoogleGenAI({ apiKey: context.env.GEMINI_API_KEY }),
 ) {
   const snapshot = await loadAccountantSnapshot(
     context,
@@ -792,20 +792,15 @@ export async function generateAccountantReport(
     input.reportType,
   );
   try {
-    const response = await gemini.models.generateContent({
-      model: MODEL,
-      contents: JSON.stringify(accountantPrompt(input.question, snapshot)),
-      config: {
-        systemInstruction:
-          "你是台灣情侶帳本的會計師。只能根據提供的 snapshot 分析。facts 必須逐字等於 snapshot.facts；不能自行改金額、改權限或假設不存在的帳務。可給建議，但所有改帳都只是待確認草稿。你只能根據提供的 snapshot 資料中出現的 merchant 或 description 進行字面推論，絕對禁止憑空捏造 snapshot 中沒有明確指出的具體事件、活動或情境（例如捏造出去某個商圈逛街、參加某種生日聚會、出遊等）。如果資料中沒有明確的商家或備註，僅能說明『主要來自大額支出』，不得虛構原因！",
-        responseMimeType: "application/json",
-        responseJsonSchema: geminiAccountantJsonSchema,
-        temperature: 0.2,
-        maxOutputTokens: 1_400,
-      },
+    const response = await generateObject({
+      model: google(MODEL),
+      system: "你是台灣情侶帳本的會計師。只能根據提供的 snapshot 分析。facts 必須逐字等於 snapshot.facts；不能自行改金額、改權限或假設不存在的帳務。可給建議，但所有改帳都只是待確認草稿。你只能根據提供的 snapshot 資料中出現的 merchant 或 description 進行字面推論，絕對禁止憑空捏造 snapshot 中沒有明確指出的具體事件、活動或情境（例如捏造出去某個商圈逛街、參加某種生日聚會、出遊等）。如果資料中沒有明確的商家或備註，僅能說明『主要來自大額支出』，不得虛構原因！",
+      messages: [{ role: "user", content: JSON.stringify(accountantPrompt(input.question, snapshot)) }],
+      temperature: 0.2,
+      schema: accountantLlmReportSchema,
     });
     report = accountantReportFromLlm(
-      accountantLlmReportSchema.parse(JSON.parse(response.text ?? "{}")),
+      response.object,
       snapshot,
     );
   } catch {
@@ -1052,31 +1047,26 @@ async function answerWithGemini(
     topCategoryTotalTwd: input.categories[0]?.totalTwd ?? null,
   };
   try {
-    const gemini = new GoogleGenAI({ apiKey: context.env.GEMINI_API_KEY });
-    const response = await gemini.models.generateContent({
-      model: MODEL,
-      contents: JSON.stringify({
-        question: input.message,
-        scope: input.scope,
-        timeRange: input.timeRange,
-        facts: expectedFacts,
-        aggregate: input.aggregate,
-        categoryRanking: input.categories.slice(0, 10),
-        duplicateCount: input.duplicateCount,
-        cleanupCount: input.cleanupCount,
-      }),
-      config: {
-        systemInstruction:
-          "你是帳務專用 AI 會計師的回覆層。只能根據提供的工具結果回答；不能新增金額、不能假設不存在的帳務、不能要求使用者打開 LIFF 才知道答案。facts 必須逐字等於輸入 facts。若有操作建議，只能描述需使用者確認。",
-        responseMimeType: "application/json",
-        responseJsonSchema: geminiAgentAnswerJsonSchema,
-        temperature: 0.2,
-        maxOutputTokens: 900,
-      },
+    const response = await generateObject({
+      model: google(MODEL),
+      system: "你是帳務專用 AI 會計師的回覆層。只能根據提供的工具結果回答；不能新增金額、不能假設不存在的帳務、不能要求使用者打開 LIFF 才知道答案。facts 必須逐字等於輸入 facts。若有操作建議，只能描述需使用者確認。",
+      messages: [{
+        role: "user",
+        content: JSON.stringify({
+          question: input.message,
+          scope: input.scope,
+          timeRange: input.timeRange,
+          facts: expectedFacts,
+          aggregate: input.aggregate,
+          categoryRanking: input.categories.slice(0, 10),
+          duplicateCount: input.duplicateCount,
+          cleanupCount: input.cleanupCount,
+        })
+      }],
+      temperature: 0.2,
+      schema: agentLlmAnswerSchema,
     });
-    const parsed = agentLlmAnswerSchema.parse(
-      JSON.parse(response.text ?? "{}"),
-    );
+    const parsed = response.object;
     if (
       parsed.facts.totalTwd !== expectedFacts.totalTwd ||
       parsed.facts.transactionCount !== expectedFacts.transactionCount ||
@@ -2104,27 +2094,28 @@ export async function processReceipt(
       throw new HttpError(400, "收據大小不符");
     const mimeType = detectReceiptMime(bytes);
     if (!mimeType) throw new HttpError(400, "收據格式不正確");
-    const gemini = new GoogleGenAI({ apiKey: context.env.GEMINI_API_KEY });
-    const response = await gemini.models.generateContent({
-      model: MODEL,
-      contents: [
+    const response = await generateObject({
+      model: google(MODEL),
+      messages: [
         {
-          inlineData: { mimeType, data: Buffer.from(bytes).toString("base64") },
-        },
-        {
-          text: "辨識這張台灣收據、付款紀錄或叫車/行程截圖。若畫面只有一筆消費，填 merchant、expenseDate、amountTwd 與 confidence；若畫面有多筆交易，items 逐筆列出 merchant/代碼、expenseDate、amountTwd、description。金額只取實際付款的 TWD 整數，忽略 NT$0、折抵、退款與看不清楚的項目；看不清楚欄位用 null。",
+          role: "user",
+          content: [
+            {
+              type: "image",
+              image: bytes,
+              mimeType,
+            } as any,
+            {
+              type: "text",
+              text: "辨識這張台灣收據、付款紀錄或叫車/行程截圖。若畫面只有一筆消費，填 merchant、expenseDate、amountTwd 與 confidence；若畫面有多筆交易，items 逐筆列出 merchant/代碼、expenseDate、amountTwd、description。金額只取實際付款的 TWD 整數，忽略 NT$0、折抵、退款與看不清楚的項目；看不清楚欄位用 null。",
+            },
+          ],
         },
       ],
-      config: {
-        responseMimeType: "application/json",
-        responseJsonSchema: geminiReceiptJsonSchema,
-        temperature: 0,
-        maxOutputTokens: 1_000,
-      },
+      temperature: 0,
+      schema: receiptExtractionSchema,
     });
-    const extraction = receiptExtractionSchema.parse(
-      JSON.parse(response.text ?? "{}"),
-    );
+    const extraction = response.object;
     const update = await context.db
       .from("receipts")
       .update({
@@ -2950,7 +2941,6 @@ type ChatMessage = {
 export async function agentChat(context: ServerContext, input: unknown) {
   const parsed = chatInputSchema.parse(input);
   const groupId = await activeGroupId(context);
-  const gemini = new GoogleGenAI({ apiKey: context.env.GEMINI_API_KEY });
 
   // Load or create session
   let sessionId = parsed.sessionId ?? null;
@@ -3001,141 +2991,153 @@ export async function agentChat(context: ServerContext, input: unknown) {
     coupleId: context.user.couple_id,
   };
 
-  const MAX_TOOL_CALLS = 8;
-  let toolCallCount = 0;
-  let assistantResponse = "";
-
-  // Agent loop
-  const geminiContents: Array<{ role: string; parts: Array<Record<string, unknown>> }> = [];
-
-  for (const msg of messages) {
+  const coreMessages: any[] = [];
+  for (let i = 0; i < messages.length; i++) {
+    const msg = messages[i];
     if (msg.role === "user") {
-      geminiContents.push({
-        role: "user",
-        parts: [{ text: msg.content }],
-      });
+      coreMessages.push({ role: "user", content: msg.content });
     } else if (msg.role === "assistant") {
-      const parts: Array<Record<string, unknown>> = [];
-      if (msg.content) parts.push({ text: msg.content });
-      if (msg.tool_calls) {
-        for (const tc of msg.tool_calls) {
-          parts.push({
-            functionCall: { name: tc.name, args: tc.args },
-          });
-        }
+      if (msg.tool_calls && msg.tool_calls.length > 0) {
+        coreMessages.push({
+          role: "assistant",
+          content: msg.content,
+          toolCalls: msg.tool_calls.map((tc, idx) => ({
+            type: "function",
+            id: `call_${i}_${idx}`,
+            name: tc.name,
+            args: tc.args,
+          })),
+        });
+      } else {
+        coreMessages.push({ role: "assistant", content: msg.content });
       }
-      geminiContents.push({ role: "model", parts });
     } else if (msg.role === "tool" && msg.tool_results) {
-      geminiContents.push({
-        role: "user",
-        parts: msg.tool_results.map((tr) => ({
-          functionResponse: {
-            name: tr.name,
-            response: tr.result,
-          },
-        })),
+      const toolResults = msg.tool_results.map((tr, idx) => ({
+        type: "tool-result" as const,
+        toolCallId: `call_${i - 1}_${idx}`,
+        toolName: tr.name,
+        result: tr.result,
+      }));
+      coreMessages.push({
+        role: "tool",
+        content: toolResults,
       });
     }
   }
 
-  // Loop: call Gemini, handle tool calls
-  for (let iteration = 0; iteration < MAX_TOOL_CALLS + 1; iteration++) {
-    const response = await gemini.models.generateContent({
-      model: AGENT_MODEL,
-      contents: geminiContents,
-      config: {
-        systemInstruction:
-          "你是台灣情侶帳本的 AI 會計師。你有工具可以查詢帳務資料。" +
-          "根據使用者的問題，自己決定需要查什麼資料，用工具查詢後再回答。" +
-          "回答用繁體中文、口語、簡短。數字要具體。" +
-          "你只能讀取資料，不能修改帳務。如果使用者要改帳，告訴他到 LIFF 操作。" +
-          "不要捏造數字，所有數字都必須來自工具查詢結果。",
-        tools: [{ functionDeclarations: toolDeclarations }],
-        temperature: 0.3,
-        maxOutputTokens: 1_200,
+  const result = await generateText({
+    model: google(AGENT_MODEL),
+    system:
+      "你是台灣情侶帳本的 AI 會計師。你有工具可以查詢帳務資料。" +
+      "根據使用者的問題，自己決定需要查什麼資料，用工具查詢後再回答。" +
+      "回答用繁體中文、口語、簡短。數字要具體。" +
+      "你只能讀取資料，不能修改帳務。如果使用者要改帳，告訴他到 LIFF 操作。" +
+      "不要捏造數字，所有數字都必須來自工具查詢結果。",
+    messages: coreMessages,
+    maxSteps: 8,
+    temperature: 0.3,
+    tools: {
+      query_expenses: {
+        description: "自由查帳。不指定 limit 只回聚合摘要。有 limit 才回明細（最多 20 筆）。",
+        parameters: z.object({
+          date_from: z.string().optional(),
+          date_to: z.string().optional(),
+          category: z.string().optional(),
+          category_label: z.string().optional(),
+          limit: z.number().int().min(1).max(20).optional(),
+          type: z.enum(["shared", "private", "all"]).optional(),
+        }),
+        execute: async (args: any) => executeTool("query_expenses", args, toolCtx),
       },
-    });
+      get_balance_summary: {
+        description: "查詢目前誰欠誰多少，含 breakdown。",
+        parameters: z.object({}),
+        execute: async () => executeTool("get_balance_summary", {}, toolCtx),
+      },
+      get_category_breakdown: {
+        description: "查詢特定時間區間內的分類支出占比與加總。",
+        parameters: z.object({
+          date_from: z.string().optional(),
+          date_to: z.string().optional(),
+        }),
+        execute: async (args: any) => executeTool("get_category_breakdown", args, toolCtx),
+      },
+      compare_period: {
+        description: "比較兩個時間區間的支出。",
+        parameters: z.object({
+          metric: z.enum(["total", "category"]),
+          tag: z.string().optional(),
+          date_from_a: z.string(),
+          date_to_a: z.string(),
+          date_from_b: z.string(),
+          date_to_b: z.string(),
+        }),
+        execute: async (args: any) => executeTool("compare_period", args, toolCtx),
+      },
+      get_recurring_list: {
+        description: "查詢週期性支出（固定支出）的設定清單。",
+        parameters: z.object({}),
+        execute: async () => executeTool("get_recurring_list", {}, toolCtx),
+      },
+      get_anomalies: {
+        description: "偵測異常 high 額的支出紀錄。",
+        parameters: z.object({
+          threshold_std_dev: z.number().optional(),
+        }),
+        execute: async (args: any) => executeTool("get_anomalies", args, toolCtx),
+      },
+      get_category_trend: {
+        description: "分析特定分類在過去幾個月的支出趨勢。",
+        parameters: z.object({
+          tag: z.string(),
+          months: z.number().int().optional(),
+        }),
+        execute: async (args: any) => executeTool("get_category_trend", args, toolCtx),
+      },
+      predict_month_end: {
+        description: "預測本月結束時的總支出金額或特定分類的消費。",
+        parameters: z.object({
+          tag: z.string().optional(),
+        }),
+        execute: async (args: any) => executeTool("predict_month_end", args, toolCtx),
+      },
+      analyze_spending: {
+        description: "深度分析支出。回傳標籤佔比、趨勢、異常偵測等綜合分析。",
+        parameters: z.object({
+          date_from: z.string().optional(),
+          date_to: z.string().optional(),
+        }),
+        execute: async (args: any) => executeTool("analyze_spending", args, toolCtx),
+      },
+    },
+  } as any);
 
-    // Check if response has function calls
-    const parts = response.candidates?.[0]?.content?.parts ?? [];
-    const functionCalls = parts.filter(
-      (p): p is { functionCall: { name: string; args: Record<string, unknown> } } =>
-        "functionCall" in p,
-    );
-    const textParts = parts.filter(
-      (p): p is { text: string } => "text" in p,
-    );
-
-    if (functionCalls.length > 0 && toolCallCount < MAX_TOOL_CALLS) {
-      // Execute tool calls
-      const toolResults: Array<{ name: string; result: unknown }> = [];
-      const toolCallsLog: Array<{ name: string; args: Record<string, unknown> }> = [];
-
-      for (const fc of functionCalls) {
-        toolCallCount++;
-        const toolName = fc.functionCall.name;
-        const toolArgs = fc.functionCall.args ?? {};
-        toolCallsLog.push({ name: toolName, args: toolArgs });
-
-        try {
-          const result = await executeTool(toolName, toolArgs, toolCtx);
-          toolResults.push({ name: toolName, result });
-        } catch {
-          toolResults.push({
-            name: toolName,
-            result: { error: "tool execution failed" },
-          });
-        }
-      }
-
-      // Append assistant message with tool calls
+  let toolCallCount = 0;
+  for (const step of result.steps) {
+    if (step.toolCalls && step.toolCalls.length > 0) {
+      toolCallCount += step.toolCalls.length;
       messages.push({
         role: "assistant",
-        content: textParts.map((p) => p.text).join(""),
-        tool_calls: toolCallsLog,
-      });
-      geminiContents.push({
-        role: "model",
-        parts: functionCalls.map((fc) => ({
-          functionCall: fc.functionCall,
+        content: step.text ?? "",
+        tool_calls: step.toolCalls.map((tc) => ({
+          name: tc.toolName,
+          args: (tc as any).args,
         })),
       });
-
-      // Append tool results
       messages.push({
         role: "tool",
         content: "",
-        tool_results: toolResults,
-      });
-      geminiContents.push({
-        role: "user",
-        parts: toolResults.map((tr) => ({
-          functionResponse: {
-            name: tr.name,
-            response: tr.result,
-          },
+        tool_results: step.toolResults.map((tr) => ({
+          name: tr.toolName,
+          result: (tr as any).result,
         })),
       });
-
-      continue;
     }
-
-    // Text response — done
-    assistantResponse = textParts.map((p) => p.text).join("");
-    if (!assistantResponse && toolCallCount >= MAX_TOOL_CALLS) {
-      assistantResponse = "資料量較大，這是目前查到的結果。請縮小範圍再問一次。";
-    }
-    break;
   }
 
-  if (!assistantResponse) {
-    assistantResponse = "抱歉，我暫時無法回答這個問題。請換個方式問問看。";
-  }
-
-  // Append final assistant message
+  const assistantResponse = result.text || "已為您處理完畢。";
   messages.push({ role: "assistant", content: assistantResponse });
 
-  // Save session (trim to last 30 messages to prevent unbounded growth)
   const trimmedMessages = messages.slice(-30);
   await context.db
     .from("accountant_sessions")
@@ -3157,25 +3159,26 @@ export async function agentChat(context: ServerContext, input: unknown) {
 export async function transcribeAudio(
   audioBytes: Buffer,
   mimeType: string,
-  gemini: GoogleGenAI,
 ): Promise<string> {
-  const response = await gemini.models.generateContent({
-    model: AGENT_MODEL,
-    contents: [
+  const response = await generateText({
+    model: google(AGENT_MODEL),
+    messages: [
       {
-        inlineData: {
-          mimeType,
-          data: audioBytes.toString("base64"),
-        },
-      },
-      {
-        text: "把這段語音轉成文字。只輸出辨識到的文字內容，不加任何前綴或說明。如果聽不清楚，回傳空字串。",
+        role: "user",
+        content: [
+          {
+            type: "file",
+            data: audioBytes,
+            mimeType,
+          } as any,
+          {
+            type: "text",
+            text: "把這段語音轉成文字。只輸出辨識到的文字內容，不加任何前綴或說明。如果聽不清楚，回傳空字串。",
+          },
+        ],
       },
     ],
-    config: {
-      temperature: 0,
-      maxOutputTokens: 500,
-    },
+    temperature: 0,
   });
   return (response.text ?? "").trim();
 }

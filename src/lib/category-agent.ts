@@ -1,4 +1,5 @@
-import type { GoogleGenAI } from "@google/genai";
+import { google } from "@ai-sdk/google";
+import { generateText, generateObject } from "ai";
 import { z } from "zod";
 
 export const categoryClassificationSchema = z
@@ -105,41 +106,37 @@ export function fallbackCategoryClassification(
 
 export async function classifyExpenseCategory(
   input: CategoryClassificationInput,
-  gemini?: GoogleGenAI,
+  gemini?: any,
 ): Promise<CategoryClassification> {
   const fallback = fallbackCategoryClassification(input);
   if (!gemini) return fallback;
   try {
-    const response = await gemini.models.generateContent({
-      model: "gemini-3.1-flash-lite",
-      contents: JSON.stringify({
-        expense: {
-          description: input.description,
-          merchant: input.merchant,
-          fallbackTag: input.fallbackTag,
-          groupName: input.groupName,
-        },
-        recentHistory: input.history.slice(0, 30),
-        rules: [
-          "共同帳分群組判斷分類；不要把餐點或店名直接當分類。",
-          "飲食群組把餐點收斂為餐飲、飲料、甜點、生鮮、其他。",
-          "停車費固定 停車費；油資固定 油資。",
-          "只回 JSON；不能新增金額、不能改權限。",
-          "回傳 tag（自由繁體中文標籤，1-40 字）。",
-        ],
-      }),
-      config: {
-        systemInstruction:
-          "你是帳務分類器。輸出 tag（自由繁體中文標籤，1 到 40 字）。tag 可參考歷史標籤但也可以是新的簡短標籤。",
-        responseMimeType: "application/json",
-        responseJsonSchema: geminiCategoryClassificationJsonSchema,
-        temperature: 0,
-        maxOutputTokens: 220,
-      },
+    const response = await generateObject({
+      model: google("gemini-3.1-flash-lite"),
+      system: "你是帳務分類器。輸出 tag（自由繁體中文標籤，1 到 40 字）。tag 可參考歷史標籤但也可以是新的簡短標籤。",
+      messages: [{
+        role: "user",
+        content: JSON.stringify({
+          expense: {
+            description: input.description,
+            merchant: input.merchant,
+            fallbackTag: input.fallbackTag,
+            groupName: input.groupName,
+          },
+          recentHistory: input.history.slice(0, 30),
+          rules: [
+            "共同帳分群組判斷分類；不要把餐點或店名直接當分類。",
+            "飲食群組把餐點收斂為餐飲、飲料、甜點、生鮮、其他。",
+            "停車費固定 停車費；油資固定 油資。",
+            "只回 JSON；不能新增金額、不能改權限。",
+            "回傳 tag（自由繁體中文標籤，1-40 字）。",
+          ],
+        }),
+      }],
+      temperature: 0,
+      schema: categoryClassificationSchema,
     });
-    const parsed = categoryClassificationSchema.parse(
-      JSON.parse(response.text ?? "{}"),
-    );
+    const parsed = response.object;
     if (parsed.confidence < 0.35) return fallback;
     return { ...parsed, tag: cleanLabel(parsed.tag) };
   } catch {
