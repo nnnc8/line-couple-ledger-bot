@@ -8,7 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select } from "@/components/ui/select";
 import { Segmented } from "@/components/ui/segmented";
 import { Camera, Check, Loader2, Trash2 } from "lucide-react";
-import { categoryList } from "@/lib/categories";
+import { tagPreset, tagColor } from "@/lib/categories";
 import type { Bootstrap, Expense } from "@/lib/types";
 import type { PendingActionInput } from "@/lib/optimistic";
 import { cn } from "@/lib/utils";
@@ -37,8 +37,7 @@ interface FormState {
   description: string;
   merchant: string;
   notes: string;
-  category: string;
-  categoryLabel: string;
+  tag: string;
   amount: string;
   paidBy: PaidBy;
   expenseDate: string;
@@ -59,8 +58,7 @@ function deriveInitial(data: Bootstrap, editing: Expense | null): FormState {
       description: editing.description,
       merchant: editing.merchant ?? "",
       notes: editing.notes ?? "",
-      category: editing.category,
-      categoryLabel: editing.category_label ?? "",
+      tag: editing.tag,
       amount: String(editing.amount_twd),
       paidBy: editing.paid_by_user_id === data.user.id ? "self" : "partner",
       expenseDate: editing.expense_date,
@@ -90,8 +88,7 @@ function deriveInitial(data: Bootstrap, editing: Expense | null): FormState {
     description: draft?.merchant ?? "",
     merchant: draft?.merchant ?? "",
     notes: "",
-    category: "other",
-    categoryLabel: "",
+    tag: "",
     amount: draft?.amount_twd ? String(draft.amount_twd) : "",
     paidBy: "self",
     expenseDate: draft?.expense_date ?? data.today,
@@ -162,8 +159,7 @@ export function ExpenseForm({
       description: state.description.trim(),
       merchant: state.merchant.trim() || null,
       notes: state.notes.trim() || null,
-      category: state.category,
-      categoryLabel: state.categoryLabel.trim() || null,
+      tag: state.tag.trim() || "其他",
       amountTwd: amount,
       paidBy: state.paidBy,
       expenseDate: state.expenseDate,
@@ -258,30 +254,22 @@ export function ExpenseForm({
         />
       </div>
 
-      {/* Category chips */}
+      {/* Tag input */}
       <div>
-        <Label className="mb-2">分類</Label>
-        <div className="-mx-1 flex gap-2 overflow-x-auto px-1 py-0.5 no-scrollbar">
-          {categoryList.map((c) => {
-            const active = state.category === c.key;
-            return (
-              <button
-                key={c.key}
-                type="button"
-                onClick={() => patch("category", c.key)}
-                className={cn(
-                  "inline-flex shrink-0 snap-start items-center gap-1.5 rounded-full px-3.5 py-2.5 text-[14px] font-semibold transition active:scale-95",
-                  active
-                    ? "bg-primary text-primary-foreground shadow-[0_2px_8px_rgba(20,42,71,0.25)]"
-                    : "bg-muted text-foreground/70 hover:bg-muted/80",
-                )}
-              >
-                <span>{c.emoji}</span>
-                <span>{c.label}</span>
-              </button>
-            );
-          })}
-        </div>
+        <Label htmlFor="tag" className="mb-2">標籤</Label>
+        <Input
+          id="tag"
+          list="tag-suggestions"
+          value={state.tag}
+          onChange={(e) => patch("tag", e.target.value)}
+          placeholder="例如：餐飲、交通、購物"
+          maxLength={30}
+        />
+        <datalist id="tag-suggestions">
+          {tagPreset.map((t) => (
+            <option key={t} value={t} />
+          ))}
+        </datalist>
       </div>
 
       {/* Date + Merchant */}

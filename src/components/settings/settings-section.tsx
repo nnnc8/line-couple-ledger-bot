@@ -25,17 +25,13 @@ import {
 } from "lucide-react";
 import type { Bootstrap } from "@/lib/types";
 import type { PendingActionInput, ExpenseInput } from "@/lib/optimistic";
-import { categoryList, categoryEmoji, categoryLabel } from "@/lib/categories";
 import { money, dateShort, timeLabel } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 interface SettingsProps {
   data: Bootstrap;
-  unread: number;
   onGroup: (body: unknown, success?: string) => void;
   onRecurring: (body: unknown, success?: string) => void;
-  onBudget: (body: unknown, success?: string) => void;
-  onRead: () => void;
   onPropose: (proposal: {
     actionId: string;
     preview: string;
@@ -46,11 +42,8 @@ interface SettingsProps {
 
 export function SettingsSection({
   data,
-  unread,
   onGroup,
   onRecurring,
-  onBudget,
-  onRead,
 }: SettingsProps) {
   const [newGroupName, setNewGroupName] = React.useState("");
 
@@ -73,9 +66,6 @@ export function SettingsSection({
           onClick={() => {}}
         />
       </div>
-
-      {/* Budgets */}
-      <BudgetEditor data={data} onSave={onBudget} />
 
       {/* Groups */}
       <Card>
@@ -153,52 +143,6 @@ export function SettingsSection({
 
       {/* Recurring expenses */}
       <RecurringEditor data={data} onSave={onRecurring} />
-
-      {/* Notifications */}
-      <Card>
-        <CardHeader className="pb-2">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-[12px] font-medium text-[var(--muted-foreground)]">
-                通知中心
-              </p>
-              <CardTitle>
-                {unread ? `${unread} 則未讀` : "全部已讀"}
-              </CardTitle>
-            </div>
-            {unread > 0 ? (
-              <Button variant="ghost" size="sm" onClick={onRead}>
-                全部已讀
-              </Button>
-            ) : null}
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-2">
-          {data.notifications.length > 0 ? (
-            data.notifications.slice(0, 12).map((n) => (
-              <div
-                key={n.id}
-                className={cn(
-                  "rounded-lg px-2 py-2",
-                  n.read_at ? "opacity-60" : "",
-                )}
-              >
-                <div className="flex items-center gap-2">
-                  <Bell className="size-3.5 shrink-0 text-[var(--muted-foreground)]" />
-                  <p className="text-[14px] font-semibold">{n.title}</p>
-                </div>
-                <p className="mt-0.5 text-[12px] text-foreground/80">{n.body}</p>
-                <p className="mt-1 text-[11px] text-[var(--muted-foreground)]">
-                  {timeLabel(n.created_at)}
-                  {n.line_status === "skipped" ? " · 已留在網頁" : ""}
-                </p>
-              </div>
-            ))
-          ) : (
-            <Empty icon={<Bell />} title="沒有通知" className="py-6" />
-          )}
-        </CardContent>
-      </Card>
 
       {/* Export */}
       <Link

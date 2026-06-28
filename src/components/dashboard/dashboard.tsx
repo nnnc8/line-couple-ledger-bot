@@ -6,10 +6,10 @@ import { Button } from "@/components/ui/button";
 import { Segmented } from "@/components/ui/segmented";
 import { Empty } from "@/components/ui/empty";
 import { Inbox, Plus, TrendingDown } from "lucide-react";
-import { useCategoryAnalytics, useBalanceSuggestions } from "@/hooks/use-analytics";
+import { useCategoryAnalytics } from "@/hooks/use-analytics";
 import { SecretaryTaskCard } from "@/components/dashboard/secretary-task-card";
 import { donutGradient, money, moneyAbs, shortMoney, monthShort } from "@/lib/format";
-import { categoryList, categoryColor, categoryEmoji, categoryLabel, displayLabel } from "@/lib/categories";
+import { tagColor, tagTint, displayTag } from "@/lib/categories";
 import type { Bootstrap, Expense, User } from "@/lib/types";
 
 interface DashboardProps {
@@ -18,7 +18,6 @@ interface DashboardProps {
   onAdd: () => void;
   onEdit: (expense: Expense) => void;
   onReceipt: (id: string) => void;
-  onOpenBudgets: () => void;
 }
 
 type Range = "this_month" | "six_months" | "all";
@@ -29,7 +28,6 @@ export function Dashboard({
   onAdd,
   onEdit,
   onReceipt,
-  onOpenBudgets,
 }: DashboardProps) {
   const [range, setRange] = React.useState<Range>("this_month");
   const [partial, setPartial] = React.useState("");
@@ -40,8 +38,6 @@ export function Dashboard({
   const mine =
     data.balances.find((b) => b.user_id === data.user.id)?.balance_twd ?? 0;
   const owed = Math.abs(mine);
-  const showSuggestions = owed > 0;
-  const suggestions = useBalanceSuggestions(showSuggestions);
 
   const analytics = useCategoryAnalytics(range, "shared");
   const fallbackCategories = Object.entries(data.dashboard.categoryTotals)
@@ -49,25 +45,19 @@ export function Dashboard({
     .sort((a, b) => b[1] - a[1])
     .map(([key, value]) => ({
       key,
-      label: categoryLabel(key),
+      label: key,
       value,
-      color: categoryColor(key),
+      color: tagColor(key),
     }));
   const categoryRows = (analytics?.categories.length ?? 0)
     ? analytics!.categories.map((c) => ({
-        key: c.label,
-        label: c.label,
+        key: c.tag,
+        label: c.tag,
         value: c.totalTwd,
-        color:
-          categoryList.find((cat) => cat.label === c.label)?.color ?? "#64748b",
+        color: tagColor(c.tag),
       }))
     : fallbackCategories;
   const categoryTotal = analytics?.totalTwd ?? data.dashboard.monthlyTotalTwd;
-
-  const totalBudget = data.budgets.find((b) => b.category === null);
-  const budgetPercent = totalBudget
-    ? Math.min(100, Math.round((data.dashboard.monthlyTotalTwd / Number(totalBudget.limit_twd)) * 100))
-    : 0;
 
   return (
     <div className="space-y-3">
@@ -80,7 +70,6 @@ export function Dashboard({
         setPartial={setPartial}
         onSettle={onSettle}
         onAdd={onAdd}
-        suggestions={suggestions}
       />
       <SecretaryTaskCard />
 
@@ -96,30 +85,6 @@ export function Dashboard({
             {data.dashboard.monthlyCount} 筆交易
           </p>
         </Card>
-        <button
-          type="button"
-          onClick={onOpenBudgets}
-          className="rounded-2xl border border-[var(--border)] bg-[var(--card)] p-4 text-left shadow-[var(--shadow-card)] transition hover:border-accent active:scale-[0.99]"
-        >
-          <p className="text-[12px] font-medium text-[var(--muted-foreground)]">
-            預算進度
-          </p>
-          <p className="mt-1.5 text-xl font-bold tabular-nums">
-            {totalBudget ? `${budgetPercent}%` : "未設定"}
-          </p>
-          {totalBudget ? (
-            <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-muted">
-              <div
-                className={`h-full rounded-full ${budgetPercent >= 80 ? "bg-destructive" : "bg-accent"}`}
-                style={{ width: `${budgetPercent}%` }}
-              />
-            </div>
-          ) : (
-            <p className="mt-0.5 text-[11px] text-[var(--muted-foreground)]">
-              點此設定每月預算
-            </p>
-          )}
-        </button>
       </div>
 
       <Card className="p-4">
@@ -268,7 +233,7 @@ export function Dashboard({
         onEdit={onEdit}
         onReceipt={onReceipt}
         monthFilter={selectedMonth}
-        categoryFilter={selectedCategory}
+        tagFilter={selectedCategory}
       />
     </div>
   );
@@ -284,7 +249,6 @@ function BalanceCard({
   setPartial,
   onSettle,
   onAdd,
-  suggestions,
 }: {
   groupName: string;
   groupColor: string;
@@ -294,7 +258,6 @@ function BalanceCard({
   setPartial: (v: string) => void;
   onSettle: (amount: number) => void;
   onAdd: () => void;
-  suggestions: Array<{ expenseId: string; description: string; amountTwd: number; expenseDate: string }>;
 }) {
   return (
     <div
@@ -318,47 +281,15 @@ function BalanceCard({
       {owed > 0 ? (
         <div className="relative mt-4 space-y-2.5">
           <div className="flex gap-2">
-            <input
-              inputMode="numeric"
-              value={partial}
-              onChange={(e) => setPartial(e.target.value)}
-              placeholder={`部分結清（最多 ${owed.toLocaleString()}）`}
-              className="h-10 flex-1 rounded-xl border border-white/25 bg-white/15 px-3 text-[15px] text-white placeholder:text-white/55 focus:border-white/50 focus:outline-none focus:ring-2 focus:ring-white/20"
-            />
-            <Button
-              variant="secondary"
-              size="sm"
-              className="h-10 bg-white/20 text-white hover:bg-white/30"
-              onClick={() => {
-                const v = Number(partial);
-                if (v > 0 && v <= owed) onSettle(v);
-              }}
-            >
-              部分結清
-            </Button>
             <Button
               variant="primary"
               size="sm"
               className="h-10 bg-white/25 text-white hover:bg-white/35"
               onClick={() => onSettle(owed)}
             >
-              全額結清 ✓
+              轉帳給另一半
             </Button>
           </div>
-          {suggestions.length > 0 ? (
-            <div className="border-t border-white/15 pt-2.5">
-              <p className="mb-1 text-[11px] font-semibold uppercase tracking-wider text-white/60">
-                建議先結清
-              </p>
-              <ul className="space-y-1 text-[13px] text-white/90">
-                {suggestions.map((s) => (
-                  <li key={s.expenseId}>
-                    {s.description} {moneyAbs(s.amountTwd)}（{s.expenseDate.slice(5).replace("-", "/")}）
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ) : null}
         </div>
       ) : null}
 
@@ -381,26 +312,26 @@ function RecentTransactions({
   onEdit,
   onReceipt,
   monthFilter,
-  categoryFilter,
+  tagFilter,
 }: {
   expenses: Expense[];
   users: User[];
   onEdit: (e: Expense) => void;
   onReceipt: (id: string) => void;
   monthFilter: string | null;
-  categoryFilter: string | null;
+  tagFilter: string | null;
 }) {
   const filtered = React.useMemo(() => {
     let list = expenses;
     if (monthFilter) list = list.filter((e) => e.expense_date.startsWith(monthFilter));
-    if (categoryFilter) {
+    if (tagFilter) {
       list = list.filter((e) => {
-        const label = displayLabel(e);
-        return label === categoryFilter;
+        const tag = displayTag(e);
+        return tag === tagFilter;
       });
     }
     return list.slice(0, 12);
-  }, [expenses, monthFilter, categoryFilter]);
+  }, [expenses, monthFilter, tagFilter]);
 
   return (
     <Card className="p-4">
@@ -411,7 +342,7 @@ function RecentTransactions({
           </p>
           <h2 className="text-base font-bold">最近流水</h2>
         </div>
-        {(monthFilter || categoryFilter) ? (
+        {(monthFilter || tagFilter) ? (
           <p className="text-[11px] text-var(--muted-foreground)">
             已套用篩選
           </p>
@@ -451,11 +382,9 @@ export function ExpenseList({
   return (
     <div className="divide-y divide-[var(--border)]">
       {expenses.map((expense) => {
-        const emoji = categoryEmoji(expense.category);
+        const tag = displayTag(expense);
         const payer = users.find((u) => u.id === expense.paid_by_user_id);
-        const tint =
-          categoryList.find((c) => c.key === expense.category)?.tint ??
-          "rgba(100,116,139,.12)";
+        const tint = tagTint(expense.tag);
         return (
           <button
             key={expense.id}
@@ -467,10 +396,10 @@ export function ExpenseList({
             }`}
           >
             <div
-              className="flex size-10 shrink-0 items-center justify-center rounded-full text-[18px]"
-              style={{ background: tint }}
+              className="flex size-10 shrink-0 items-center justify-center rounded-full text-[14px] font-bold"
+              style={{ background: tint, color: tagColor(expense.tag) }}
             >
-              {emoji}
+              {tag.charAt(0)}
             </div>
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-1.5">
@@ -484,7 +413,7 @@ export function ExpenseList({
                 ) : null}
               </div>
               <p className="mt-0.5 truncate text-[12px] text-[var(--muted-foreground)]">
-                {payer?.label ?? "?"}付款 · {displayLabel(expense)}
+                {payer?.label ?? "?"}付款 · {displayTag(expense)}
                 {expense.ledger === "private" && expense.mirror_kind
                   ? " · 共同分攤"
                   : expense.ledger === "private"

@@ -1,3 +1,5 @@
+import { tagColor } from "./categories";
+
 const MONTHS_SHORT = ["", "1月", "2月", "3月", "4月", "5月", "6月", "7月", "8月", "9月", "10月", "11月", "12月"];
 const WEEKDAYS = ["日", "一", "二", "三", "四", "五", "六"];
 
@@ -62,14 +64,15 @@ export function timeLabel(iso: string): string {
 }
 
 export function donutGradient(
-  items: Array<{ label: string; value: number; color: string }>,
+  items: Array<{ tag: string; value: number; color?: string }>,
   total: number,
 ): string {
   let position = 0;
   const parts = items.map((item) => {
     const start = position;
     position += (item.value / Math.max(1, total)) * 100;
-    return `${item.color} ${start}% ${position}%`;
+    const color = item.color ?? tagColor(item.tag);
+    return `${color} ${start}% ${position}%`;
   });
   return `conic-gradient(${parts.join(",")})`;
 }

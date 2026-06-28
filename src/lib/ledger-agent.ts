@@ -2,9 +2,7 @@ import { z } from "zod";
 
 import {
   fallbackCategoryClassification,
-  isLegacyCategoryLabel,
 } from "./category-agent";
-import { type Category } from "./ledger";
 
 export const agentScopes = ["shared", "private", "combined"] as const;
 export const agentTimeRanges = [
@@ -24,8 +22,7 @@ export interface AgentExpense {
   ledger: "shared" | "private";
   description: string;
   merchant: string | null;
-  category: Category;
-  category_label: string;
+  tag: string;
   mirror_kind?: "shared_share" | null;
   mirror_source_expense_id?: string | null;
   amount_twd: number;
@@ -51,14 +48,14 @@ export interface CategoryRank {
 export interface BatchCategoryUpdate {
   expenseId: string;
   expectedVersion: number;
-  categoryLabel: string;
+  tag: string;
 }
 
 export const batchCategoryUpdateSchema = z
   .object({
     expenseId: z.string().uuid(),
     expectedVersion: z.number().int().positive(),
-    categoryLabel: z.string().trim().min(1).max(40),
+    tag: z.string().trim().min(1).max(40),
   })
   .strict();
 
@@ -123,15 +120,15 @@ export function rankCategoryLabels(expenses: AgentExpense[]): CategoryRank[] {
 }
 
 function rankLabel(expense: AgentExpense) {
-  const label = normalizeLabel(expense.category_label || expense.category);
-  if (label && !isLegacyCategoryLabel(label)) return label;
+  const label = normalizeLabel(expense.tag);
+  if (label && label !== "其他") return label;
   return fallbackCategoryClassification({
     description: expense.description,
     merchant: expense.merchant,
     groupName: null,
-    fallbackCategory: expense.category,
+    fallbackTag: expense.tag,
     history: [],
-  }).categoryLabel;
+  }).tag;
 }
 
 export function safeBatchCategoryUpdates(
@@ -159,7 +156,7 @@ export function safeBatchCategoryUpdates(
     updates.push({
       expenseId: expense.id,
       expectedVersion: expense.version,
-      categoryLabel: normalizeLabel(parsed.data.categoryLabel),
+      tag: normalizeLabel(parsed.data.tag),
     });
   }
   return updates;
@@ -196,14 +193,14 @@ export function suggestCategoryCleanup(expenses: AgentExpense[]) {
   const learned = buildLabelHistory(expenses);
   const updates: BatchCategoryUpdate[] = [];
   for (const expense of expenses) {
-    const current = normalizeLabel(expense.category_label || expense.category);
-    if (current !== "其他" && current !== "other") continue;
+    const current = normalizeLabel(expense.tag);
+    if (current !== "其他") continue;
     const suggested = suggestLabel(expense, learned);
     if (!suggested || suggested === current) continue;
     updates.push({
       expenseId: expense.id,
       expectedVersion: expense.version,
-      categoryLabel: suggested,
+      tag: suggested,
     });
   }
   return updates;
@@ -265,13 +262,13 @@ function canAccessExpense(
 function buildLabelHistory(expenses: AgentExpense[]) {
   return expenses
     .map((expense) => ({
-      label: normalizeLabel(expense.category_label || expense.category),
+      label: normalizeLabel(expense.tag),
       tokens: [
         normalizeComparable(expense.merchant),
         normalizeComparable(expense.description),
       ].filter(Boolean),
     }))
-    .filter((entry) => entry.label !== "其他" && entry.label !== "other");
+    .filter((entry) => entry.label !== "其他");
 }
 
 function suggestLabel(
@@ -305,7 +302,6 @@ function suggestLabel(
 }
 
 function fallbackLabel(expense: AgentExpense) {
-  if (expense.category !== "other") return expense.category;
   const source = expense.merchant || expense.description;
   return normalizeLabel(source.replace(/\d+/g, "").slice(0, 40)) || "其他";
 }

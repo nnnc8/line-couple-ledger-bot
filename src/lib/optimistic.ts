@@ -7,8 +7,7 @@ export type OptimisticExpense = {
   description: string;
   merchant: string | null;
   notes: string | null;
-  category: string;
-  category_label: string;
+  tag: string;
   mirror_kind: "shared_share" | null;
   mirror_source_expense_id: string | null;
   amount_twd: number;
@@ -48,8 +47,7 @@ export type ExpenseInput = {
   description: string;
   merchant: string | null;
   notes: string | null;
-  category: string;
-  categoryLabel?: string | null;
+  tag: string;
   amountTwd: number;
   paidBy: "self" | "partner";
   expenseDate: string;
@@ -173,7 +171,6 @@ function buildExpenseFromInput(
               amount_twd: input.partnerValue ?? 0,
             },
           ];
-  const categoryLabel = input.categoryLabel?.trim() || input.category;
   return {
     id,
     group_id: input.ledger === "shared" ? input.groupId : null,
@@ -181,8 +178,7 @@ function buildExpenseFromInput(
     description: input.description,
     merchant: input.merchant,
     notes: input.notes,
-    category: input.category,
-    category_label: categoryLabel,
+    tag: input.tag || "其他",
     mirror_kind: null,
     mirror_source_expense_id: null,
     amount_twd: input.amountTwd,
@@ -284,7 +280,7 @@ function buildDashboard(
     const point = trend.find((item) => item.month === expenseMonth);
     if (point) point.totalTwd += expense.amount_twd;
     if (expenseMonth === month) {
-      const label = expense.category_label || expense.category;
+      const label = expense.tag || "其他";
       categoryTotals[label] = (categoryTotals[label] ?? 0) + expense.amount_twd;
     }
   }

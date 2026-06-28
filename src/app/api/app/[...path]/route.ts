@@ -9,22 +9,17 @@ import {
   confirmAction,
   categoryAnalytics,
   categoryExpenses,
-  balanceDetail,
   createCategoryCleanup,
   createReceiptUpload,
   createSession,
   expensesCsv,
   importBankCsv,
-  listCanonicalLabels,
   loadBootstrap,
-  markNotificationsRead,
-  mergeCanonicalLabels,
   processReceipt,
   proposeAction,
   receiptDetails,
   receiptUrl,
   requireContext,
-  saveBudget,
   saveRecurring,
   searchExpenses,
   serverEnvironment,
@@ -67,14 +62,8 @@ export async function GET(request: Request, route: RouteContext) {
     if (path[0] === "analytics" && path[1] === "expenses") {
       return json(await categoryExpenses(context, new URL(request.url).searchParams));
     }
-    if (path[0] === "balance" && path[1] === "detail") {
-      return json(await balanceDetail(context));
-    }
     if (path[0] === "expenses" && path[1] === "search") {
       return json(await searchExpenses(context, new URL(request.url).searchParams));
-    }
-    if (path[0] === "canonical-labels") {
-      return json(await listCanonicalLabels(context));
     }
     if (path[0] === "expenses" && path[1] && path[2] === "check-settlement") {
       return json(await checkExpenseInSettlements(context, path[1]));
@@ -126,24 +115,18 @@ export async function POST(request: Request, route: RouteContext) {
       return json(await confirmAction(context, input.actionId, input.confirm));
     }
     if (path[0] === "groups") return json(await changeGroup(context, body));
-    if (path[0] === "budgets") return json(await saveBudget(context, body));
     if (path[0] === "recurring")
       return json(await saveRecurring(context, body));
     if (path[0] === "receipts" && path[1] === "upload")
       return json(await createReceiptUpload(context, body));
     if (path[0] === "receipts" && path[1] && path[2] === "process")
       return json({ extraction: await processReceipt(context, path[1]) });
-    if (path[0] === "notifications" && path[1] === "read")
-      return json(await markNotificationsRead(context));
     if (path[0] === "categories" && path[1] === "cleanup") {
       const key = request.headers.get("idempotency-key")?.slice(0, 100);
       return json(await createCategoryCleanup(context, body, key));
     }
     if (path[0] === "categories" && path[1] === "suggest") {
       return json(await suggestCategoryUpdates(context, body));
-    }
-    if (path[0] === "canonical-labels" && path[1] === "merge") {
-      return json(await mergeCanonicalLabels(context, body));
     }
     if (path[0] === "bank" && path[1] === "import") {
       return json(await importBankCsv(context, body));

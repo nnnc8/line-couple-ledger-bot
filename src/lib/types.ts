@@ -14,9 +14,7 @@ export type Expense = {
   description: string;
   merchant: string | null;
   notes: string | null;
-  category: string;
-  category_label: string;
-  custom_category_label?: string;
+  tag: string;
   mirror_kind: "shared_share" | null;
   mirror_source_expense_id: string | null;
   amount_twd: number;
@@ -50,12 +48,6 @@ export type Bootstrap = {
   sharedExpenses: Expense[];
   privateExpenses: Expense[];
   balances: Array<{ user_id: string; balance_twd: number }>;
-  budgets: Array<{
-    id: string;
-    category: string | null;
-    category_label: string | null;
-    limit_twd: number;
-  }>;
   recurring: Array<{
     id: string;
     description: string;
@@ -64,33 +56,9 @@ export type Bootstrap = {
     next_run_date: string;
     active: boolean;
   }>;
-  notifications: Array<{
-    id: number;
-    title: string;
-    body: string;
-    read_at: string | null;
-    created_at: string;
-    line_status: string;
-  }>;
   dashboard: DashboardData;
   privateDashboard: DashboardData;
-  projection: ProjectionData;
 };
-
-export type ProjectionData = {
-  daysElapsed: number;
-  daysTotal: number;
-  spentSoFar: number;
-  projectedTotal: number;
-  categoryProjections: Array<{
-    category: string | null;
-    categoryLabel: string | null;
-    spentSoFar: number;
-    projectedTotal: number;
-    budget: number;
-    projectedOverrun: number;
-  }>;
-} | null;
 
 export type CategoryAnalytics = {
   range: "this_month" | "six_months" | "all";
@@ -98,16 +66,9 @@ export type CategoryAnalytics = {
   totalTwd: number;
   count: number;
   categories: Array<{
-    label: string;
+    tag: string;
     totalTwd: number;
     count: number;
     percent: number;
   }>;
-};
-
-export type BalanceSuggestion = {
-  expenseId: string;
-  description: string;
-  amountTwd: number;
-  expenseDate: string;
 };

@@ -15,7 +15,6 @@ import {
   type AccountantReport,
 } from "./accountant";
 import {
-  categories,
   geminiReceiptJsonSchema,
   nextRecurringDate,
   receiptExtractionSchema,
@@ -40,10 +39,7 @@ import {
   type AgentTimeRange,
 } from "./ledger-agent";
 import {
-  classifyExpenseCategory,
-  isLegacyCategoryLabel,
   splitBootstrapExpenses,
-  type CategoryClassificationInput,
 } from "./category-agent";
 import {
   detectReceiptMime,
@@ -56,7 +52,6 @@ import {
   toolDeclarations,
   type ToolContext,
 } from "./accountant-tools";
-import { balanceContributions } from "./balance-detail";
 import {
   matchTransactions,
   parseBankCsvWithMeta,
@@ -72,7 +67,7 @@ const MODEL = "gemini-3.1-flash-lite";
 const AGENT_MODEL = "gemini-2.0-flash";
 const SESSION_EXPIRE_MS = 2 * 60 * 60 * 1_000;
 const EXPENSE_SELECT =
-  "id, group_id, ledger, description, merchant, notes, category, category_label, mirror_kind, mirror_source_expense_id, amount_twd, paid_by_user_id, created_by_user_id, expense_date, split_method, version, deleted_at, created_at, expense_splits(user_id, amount_twd), receipts(id, status)";
+  "id, group_id, ledger, description, merchant, notes, tag, mirror_kind, mirror_source_expense_id, amount_twd, paid_by_user_id, created_by_user_id, expense_date, split_method, version, deleted_at, created_at, expense_splits(user_id, amount_twd), receipts(id, status)";
 
 const envSchema = z.object({
   LINE_CHANNEL_ACCESS_TOKEN: z.string().min(1),
@@ -114,8 +109,7 @@ const expenseSchema = z.object({
   description: z.string(),
   merchant: z.string().nullable(),
   notes: z.string().nullable(),
-  category: z.enum(categories),
-  category_label: z.string(),
+  tag: z.string(),
   mirror_kind: z.enum(["shared_share"]).nullable().default(null),
   mirror_source_expense_id: z.string().uuid().nullable().default(null),
   amount_twd: z.coerce.number().int(),
@@ -337,7 +331,6 @@ export async function loadBootstrap(context: ServerContext) {
     sharedResult,
     privateResult,
     balancesResult,
-    budgetsResult,
     recurringResult,
     notificationsResult,
   ] = await Promise.all([
@@ -358,12 +351,6 @@ export async function loadBootstrap(context: ServerContext) {
       .limit(300),
     db.rpc("group_balances", { p_group_id: activeGroupId }),
     db
-      .from("budgets")
-      .select("id, group_id, category, category_label, month, limit_twd")
-      .eq("group_id", activeGroupId)
-      .eq("month", `${month}-01`)
-      .order("category"),
-    db
       .from("recurring_expenses")
       .select(
         "id, group_id, ledger, description, category, amount_twd, frequency, next_run_date, active",
@@ -383,7 +370,6 @@ export async function loadBootstrap(context: ServerContext) {
     sharedResult.error ||
     privateResult.error ||
     balancesResult.error ||
-    budgetsResult.error ||
     recurringResult.error ||
     notificationsResult.error
   ) {
@@ -407,12 +393,6 @@ export async function loadBootstrap(context: ServerContext) {
       }),
     )
     .parse(balancesResult.data);
-  const projection = buildProjection(
-    activeShared,
-    month,
-    taipeiToday(),
-    budgetsResult.data ?? [],
-  );
   return {
     today: taipeiToday(),
     month,
@@ -424,12 +404,10 @@ export async function loadBootstrap(context: ServerContext) {
     sharedExpenses,
     privateExpenses,
     balances,
-    budgets: budgetsResult.data,
     recurring: recurringResult.data,
     notifications: notificationsResult.data,
     dashboard: buildDashboard(activeShared, month),
     privateDashboard: buildDashboard(activePrivate, month),
-    projection,
   };
 }
 
@@ -446,9 +424,11 @@ function buildDashboard(expenses: AppExpense[], month: string) {
   const thisMonth = expenses.filter((expense) =>
     expense.expense_date.startsWith(month),
   );
-  const categoryTotals = Object.fromEntries(
-    rankCategoryLabels(thisMonth).map((item) => [item.label, item.totalTwd]),
-  );
+  const categoryTotals: Record<string, number> = {};
+  for (const expense of thisMonth) {
+    const label = expense.tag;
+    categoryTotals[label] = (categoryTotals[label] ?? 0) + expense.amount_twd;
+  }
   return {
     monthlyTotalTwd: thisMonth.reduce((sum, expense) => sum + expense.amount_twd, 0),
     monthlyCount: thisMonth.length,
@@ -679,7 +659,6 @@ export async function categoryAnalytics(
 export async function suggestCategoryUpdates(context: ServerContext, input: unknown) {
   const parsed = categoryAnalyticsInputSchema.parse(input);
   const groupId = await activeGroupId(context);
-  const group = await requireGroup(context, groupId);
   const allExpenses = await loadAgentExpenses(context, groupId);
   const expenses = filterAgentExpenses({
     activeGroupId: groupId,
@@ -693,39 +672,14 @@ export async function suggestCategoryUpdates(context: ServerContext, input: unkn
       ? expense.expense_date >= `${shiftMonth(taipeiToday().slice(0, 7), -5)}-01`
       : true,
   );
-  const history = expenses
-    .filter((expense) => !isLegacyCategoryLabel(expense.category_label))
-    .map((expense) => ({
-      category: expense.category,
-      categoryLabel: expense.category_label,
-      description: expense.description,
-      merchant: expense.merchant,
-    }));
-  const gemini = new GoogleGenAI({ apiKey: context.env.GEMINI_API_KEY });
   const rawUpdates = [];
   for (const expense of expenses.slice(0, 50)) {
-    if (
-      expense.category_label !== "其他" &&
-      expense.category_label !== "other" &&
-      !isLegacyCategoryLabel(expense.category_label)
-    )
-      continue;
-    const classified = await classifyExpenseCategory(
-      {
-        description: expense.description,
-        merchant: expense.merchant,
-        groupName: expense.ledger === "shared" ? group.name : "私人帳",
-        fallbackCategory: expense.category,
-        history,
-      },
-      gemini,
-    );
-    if (classified.categoryLabel === "其他" || classified.categoryLabel === "other")
+    if (expense.tag !== "其他" && expense.tag !== "other")
       continue;
     rawUpdates.push({
       expenseId: expense.id,
       expectedVersion: expense.version,
-      categoryLabel: classified.categoryLabel,
+      tag: "其他",
     });
   }
   const updates = safeBatchCategoryUpdates(rawUpdates, allExpenses, {
@@ -751,7 +705,7 @@ export async function createCategoryCleanup(
   const payloadUpdates = updates.map((update) => ({
     expense_id: update.expenseId,
     expected_version: update.expectedVersion,
-    category_label: update.categoryLabel,
+    tag: update.tag,
   }));
   const insert = await context.db
     .from("pending_actions")
@@ -949,20 +903,14 @@ async function loadAccountantSnapshot(
         .lt("expense_date", endPrev)
     : Promise.resolve({ data: [] as { amount_twd: number }[], error: null });
 
-  const [balances, budgets, prevSharedRes, prevPrivateRes, ...expenseResults] = await Promise.all([
+  const [balances, prevSharedRes, prevPrivateRes, ...expenseResults] = await Promise.all([
     context.db.rpc("group_balances", { p_group_id: groupId }),
-    context.db
-      .from("budgets")
-      .select("category, limit_twd")
-      .eq("group_id", groupId)
-      .eq("month", start),
     prevSharedQuery,
     prevPrivateQuery,
     ...queries,
   ]);
   if (
     balances.error ||
-    budgets.error ||
     prevSharedRes.error ||
     prevPrivateRes.error ||
     expenseResults.some((result) => result.error)
@@ -982,9 +930,6 @@ async function loadAccountantSnapshot(
     balances: z
       .array(z.object({ user_id: z.string().uuid(), balance_twd: z.coerce.number().int() }))
       .parse(balances.data),
-    budgets: z
-      .array(z.object({ category: z.enum(categories).nullable(), limit_twd: z.coerce.number().int() }))
-      .parse(budgets.data),
     expenses,
     month,
     scope,
@@ -998,7 +943,6 @@ function accountantPrompt(question: string, snapshot: Awaited<ReturnType<typeof 
     question,
     facts: snapshot.facts,
     categoryTotals: snapshot.categoryTotals,
-    budgetUsages: snapshot.budgetUsages,
     duplicateCandidates: snapshot.duplicateCandidates.map((items) =>
       items.map((expense) => ({
         id: expense.id,
@@ -1013,7 +957,7 @@ function accountantPrompt(question: string, snapshot: Awaited<ReturnType<typeof 
       ledger: expense.ledger,
       description: expense.description,
       merchant: expense.merchant,
-      category: expense.category,
+      tag: expense.tag,
       amountTwd: expense.amount_twd,
       date: expense.expense_date,
       splitMethod: expense.split_method,
@@ -1030,8 +974,7 @@ function toAccountantExpense(expense: AppExpense): AccountantExpense {
     description: expense.description,
     merchant: expense.merchant,
     notes: expense.notes,
-    category: expense.category,
-    category_label: expense.category_label,
+    tag: expense.tag,
     amount_twd: expense.amount_twd,
     paid_by_user_id: expense.paid_by_user_id,
     created_by_user_id: expense.created_by_user_id,
@@ -1077,8 +1020,7 @@ function toAgentExpense(expense: AppExpense): AgentExpense {
     ledger: expense.ledger,
     description: expense.description,
     merchant: expense.merchant,
-    category: expense.category,
-    category_label: expense.category_label,
+    tag: expense.tag,
     mirror_kind: expense.mirror_kind,
     mirror_source_expense_id: expense.mirror_source_expense_id,
     amount_twd: expense.amount_twd,
@@ -1239,8 +1181,7 @@ const expenseInputSchema = z.object({
   description: z.string().trim().min(1).max(100),
   merchant: z.string().trim().max(100).nullable().default(null),
   notes: z.string().trim().max(500).nullable().default(null),
-  category: z.enum(categories),
-  categoryLabel: z.string().trim().min(1).max(40).nullable().default(null),
+  tag: z.string().trim().min(1).max(40),
   amountTwd: z.number().int().positive().max(100_000_000),
   paidBy: z.enum(["self", "partner"]),
   expenseDate: z.iso.date(),
@@ -1285,8 +1226,7 @@ export const actionInputSchema = z.discriminatedUnion("type", [
 
 const pendingRetargetInputSchema = z.object({
   ledger: z.literal("private"),
-  category: z.literal("transport"),
-  categoryLabel: z.literal("交通"),
+  tag: z.literal("交通"),
 });
 
 type PendingRetargetInput = z.infer<typeof pendingRetargetInputSchema>;
@@ -1333,12 +1273,11 @@ export function receiptExpenseInputs(input: {
         description,
         merchant,
         notes: "由 LINE 圖片辨識建立",
-        category: isTransport ? "transport" : "other",
-        categoryLabel: isTransport
+        tag: isTransport
           ? /停車/.test(text)
             ? "停車費"
             : "車資"
-          : null,
+          : "其他",
         amountTwd: item.amountTwd,
         paidBy: "self",
         expenseDate: item.expenseDate ?? input.extraction.expenseDate ?? input.today,
@@ -1378,8 +1317,7 @@ export function retargetPendingActionPayload(
     ledger: input.ledger,
     group_id: null,
     paid_by_user_id: userId,
-    category: input.category,
-    category_label: input.categoryLabel,
+    tag: input.tag,
     split_method: "equal",
   };
 }
@@ -1512,7 +1450,7 @@ export async function proposeAction(
     const prepared = await prepareExpense(context, parsed.expense, partner);
     groupId = prepared.groupId;
     payload = prepared.payload;
-    preview = `${parsed.type === "create_expense" ? "新增" : "修改"} ${prepared.groupName}\n${parsed.expense.description} NT$${parsed.expense.amountTwd}\n${splitLabel(parsed.expense.splitMethod)} · ${categoryLabel(prepared.category)}`;
+    preview = `${parsed.type === "create_expense" ? "新增" : "修改"} ${prepared.groupName}\n${parsed.expense.description} NT$${parsed.expense.amountTwd}\n${splitLabel(parsed.expense.splitMethod)} · ${prepared.tag}`;
     if (parsed.type === "update_expense")
       Object.assign(payload, {
         expense_id: parsed.expenseId,
@@ -1737,8 +1675,7 @@ async function prepareExpense(
   if (expense.ledger === "private" && expense.paidBy !== "self")
     throw new HttpError(400, "私人支出只能由本人付款");
   const payerId = expense.paidBy === "self" ? context.user.id : partner.id;
-  const classification = await classifyPreparedExpense(context, expense, group);
-  const category = classification.category;
+  const tag = expense.tag;
   let splits: Record<string, number>;
   if (expense.ledger === "private")
     splits = { [context.user.id]: expense.amountTwd };
@@ -1758,19 +1695,17 @@ async function prepareExpense(
       [context.user.id]: expense.selfValue ?? -1,
       [partner.id]: expense.partnerValue ?? -1,
     });
-  const categoryLabelValue = expense.categoryLabel ?? classification.categoryLabel;
   return {
     groupId: group?.id ?? null,
     groupName: expense.ledger === "private" ? "私人帳" : group!.name,
-    category,
+    tag,
     payload: {
       group_id: group?.id ?? null,
       ledger: expense.ledger,
       description: expense.description,
       merchant: expense.merchant,
       notes: expense.notes,
-      category,
-      category_label: categoryLabelValue,
+      tag,
       amount_twd: expense.amountTwd,
       paid_by_user_id: expense.ledger === "private" ? context.user.id : payerId,
       expense_date: expense.expenseDate,
@@ -1779,71 +1714,6 @@ async function prepareExpense(
       receipt_id: expense.receiptId,
     },
   };
-}
-
-async function classifyPreparedExpense(
-  context: ServerContext,
-  expense: z.infer<typeof expenseInputSchema>,
-  group: { id: string; name: string } | null,
-) {
-  const [historyResult, canonicalLabels] = await Promise.all([
-    (() => {
-      const query = context.db
-        .from("expenses")
-        .select("category, category_label, description, merchant")
-        .eq("couple_id", context.user.couple_id)
-        .eq("ledger", expense.ledger)
-        .is("deleted_at", null)
-        .order("created_at", { ascending: false })
-        .limit(80);
-      return expense.ledger === "shared"
-        ? query.eq("group_id", group?.id ?? "")
-        : query.eq("created_by_user_id", context.user.id);
-    })(),
-    getCanonicalLabels(
-      context.db,
-      expense.ledger === "shared" ? (group?.id ?? null) : null,
-      expense.category,
-    ),
-  ]);
-  const history: CategoryClassificationInput["history"] = historyResult.error
-    ? []
-    : z
-        .array(
-          z.object({
-            category: z.enum(categories),
-            category_label: z.string(),
-            description: z.string(),
-            merchant: z.string().nullable(),
-          }),
-        )
-        .parse(historyResult.data)
-        .filter((row) => !isLegacyCategoryLabel(row.category_label))
-        .map((row) => ({
-          category: row.category,
-          categoryLabel: row.category_label,
-          description: row.description,
-          merchant: row.merchant,
-        }));
-  const result = await classifyExpenseCategory(
-    {
-      description: expense.description,
-      merchant: expense.merchant,
-      groupName: group?.name ?? "私人帳",
-      fallbackCategory: expense.category,
-      canonicalLabels,
-      history,
-    },
-    new GoogleGenAI({ apiKey: context.env.GEMINI_API_KEY }),
-  );
-  // Auto-insert new canonical labels
-  void autoInsertCanonicalLabel(
-    context.db,
-    expense.ledger === "shared" ? (group?.id ?? null) : null,
-    result.category,
-    result.categoryLabel,
-  );
-  return result;
 }
 
 async function requireGroup(context: ServerContext, groupId: string | null) {
@@ -1919,7 +1789,6 @@ export async function confirmAction(
     .parse(result.data);
   if (value.result === "confirmed") {
     await applyConfirmedActionSideEffects(context, id);
-    await createBudgetAlerts(context);
     await deliverNotifications(context);
   }
   return value;
@@ -1944,68 +1813,24 @@ export async function applyConfirmedActionSideEffects(
     })
     .parse(result.data);
 
-  if (row.action_type === "batch_update_expenses" && row.payload.merge) {
-    const merge = z
-      .object({
-        targetLabel: z.string().trim().min(1).max(40),
-        sourceLabels: z.array(z.string().trim().min(1).max(40)),
-        category: z.string(),
-      })
-      .parse(row.payload.merge);
-    const groupId = row.group_id ?? null;
-
-    const existing = await context.db
-      .from("canonical_labels")
-      .select("id, aliases")
-      .eq("group_id", groupId)
-      .eq("category", merge.category)
-      .eq("label", merge.targetLabel)
-      .maybeSingle();
-
-    const currentAliases: string[] = existing.data?.aliases ?? [];
-    const newAliases = [...new Set([...currentAliases, ...merge.sourceLabels])];
-
-    if (existing.data) {
-      await context.db
-        .from("canonical_labels")
-        .update({ aliases: newAliases })
-        .eq("id", existing.data.id);
-    } else {
-      await context.db.from("canonical_labels").insert({
-        group_id: groupId,
-        category: merge.category,
-        label: merge.targetLabel,
-        aliases: newAliases,
-      });
-    }
-
-    await context.db
-      .from("canonical_labels")
-      .delete()
-      .eq("group_id", groupId)
-      .eq("category", merge.category)
-      .in("label", merge.sourceLabels);
-    return;
-  }
-
   if (
     !["create_expense", "update_expense"].includes(row.action_type) ||
-    typeof row.payload.category_label !== "string"
+    typeof row.payload.tag !== "string"
   ) {
     return;
   }
-  const label = cleanCategoryLabel(row.payload.category_label);
+  const label = cleanCategoryLabel(row.payload.tag);
   if (!label) return;
   const base = context.db
     .from("expenses")
-    .update({ category_label: label })
+    .update({ tag: label })
     .eq("couple_id", context.user.couple_id);
   const expenseId =
     typeof row.payload.expense_id === "string" ? row.payload.expense_id : null;
   const update = expenseId
     ? await base.eq("id", expenseId)
     : await base.eq("source_action_id", actionId);
-  if (update.error) throw new Error("category label side effect failed");
+  if (update.error) throw new Error("tag side effect failed");
 }
 
 const groupInputSchema = z.discriminatedUnion("operation", [
@@ -2101,58 +1926,6 @@ export async function changeGroup(context: ServerContext, input: unknown) {
   return { ok: true };
 }
 
-const budgetInputSchema = z.object({
-  groupId: z.string().uuid(),
-  month: z.string().regex(/^\d{4}-\d{2}$/),
-  category: z.enum(categories).nullable(),
-  categoryLabel: z.string().trim().min(1).max(40).nullable().optional(),
-  limitTwd: z.number().int().positive().max(100_000_000),
-});
-
-export async function saveBudget(context: ServerContext, input: unknown) {
-  const parsed = budgetInputSchema.parse(input);
-  await requireGroup(context, parsed.groupId);
-  const label = parsed.category ? parsed.categoryLabel?.trim() || null : null;
-  let query = context.db
-    .from("budgets")
-    .select("id, category, category_label, limit_twd")
-    .eq("group_id", parsed.groupId)
-    .eq("month", `${parsed.month}-01`);
-  query = parsed.category ? query.eq("category", parsed.category) : query.is("category", null);
-  query = label ? query.eq("category_label", label) : query.is("category_label", null);
-  const existing = await query.maybeSingle();
-  if (existing.error) throw new Error("budget lookup failed");
-  const result = existing.data
-    ? await context.db
-        .from("budgets")
-        .update({
-          limit_twd: parsed.limitTwd,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", existing.data.id)
-        .select("id")
-        .single()
-    : await context.db
-        .from("budgets")
-        .insert({
-          group_id: parsed.groupId,
-          month: `${parsed.month}-01`,
-          category: parsed.category,
-          category_label: label,
-          limit_twd: parsed.limitTwd,
-          created_by_user_id: context.user.id,
-        })
-        .select("id")
-        .single();
-  if (result.error) throw new Error("budget save failed");
-  const budgetId = String(result.data.id);
-  await appendActivity(context, "budget", budgetId, existing.data ? "update" : "create", parsed.groupId, existing.data ?? null, parsed);
-  await notifyPartner(context, "budget", "預算已更新", `${label || (parsed.category ? categoryLabel(parsed.category) : "群組總額")} ${parsed.limitTwd} 元`, parsed.groupId, "budget", budgetId);
-  await createBudgetAlerts(context);
-  await deliverNotifications(context);
-  return { ok: true };
-}
-
 const recurringInputSchema = expenseInputSchema.extend({
   id: z.string().uuid().nullable().default(null),
   frequency: z.enum(["weekly", "monthly", "yearly"]),
@@ -2226,7 +1999,7 @@ export async function saveRecurring(context: ServerContext, input: unknown) {
     paid_by_user_id: prepared.payload.paid_by_user_id,
     ledger: parsed.ledger,
     description: parsed.description,
-    category: parsed.category,
+    category: parsed.tag,
     amount_twd: parsed.amountTwd,
     split_method: parsed.splitMethod,
     splits: prepared.payload.splits,
@@ -2566,76 +2339,6 @@ async function pushReceiptBatchConfirmation(
   await lineClient.pushMessage({ to: lineUserId, messages: [message] });
 }
 
-export async function markNotificationsRead(context: ServerContext) {
-  const result = await context.db
-    .from("notifications")
-    .update({ read_at: new Date().toISOString() })
-    .eq("recipient_user_id", context.user.id)
-    .is("read_at", null);
-  if (result.error) throw new Error("notification update failed");
-  return { ok: true };
-}
-
-async function createBudgetAlerts(context: ServerContext) {
-  const month = taipeiToday().slice(0, 7);
-  const preferences = await context.db
-    .from("user_preferences")
-    .select("active_group_id")
-    .eq("user_id", context.user.id)
-    .single();
-  if (preferences.error) return;
-  const groupId = preferences.data.active_group_id as string;
-  const [budgets, expenses, users] = await Promise.all([
-    context.db
-      .from("budgets")
-      .select("id, category, category_label, limit_twd")
-      .eq("group_id", groupId)
-      .eq("month", `${month}-01`),
-    context.db
-      .from("expenses")
-      .select("category, category_label, amount_twd")
-      .eq("group_id", groupId)
-      .is("deleted_at", null)
-      .gte("expense_date", `${month}-01`)
-      .lt("expense_date", shiftMonth(month, 1) + "-01"),
-    context.db
-      .from("users")
-      .select("id")
-      .eq("couple_id", context.user.couple_id),
-  ]);
-  if (budgets.error || expenses.error || users.error) return;
-  for (const budget of budgets.data ?? []) {
-    const spent = (expenses.data ?? [])
-      .filter(
-        (expense) =>
-          !budget.category ||
-          (budget.category_label
-            ? expense.category === budget.category &&
-              expense.category_label === budget.category_label
-            : expense.category === budget.category),
-      )
-      .reduce((sum, expense) => sum + Number(expense.amount_twd), 0);
-    for (const threshold of [80, 100]) {
-      if (spent * 100 < Number(budget.limit_twd) * threshold) continue;
-      for (const user of users.data ?? []) {
-        await context.db.from("notifications").upsert(
-          {
-            recipient_user_id: user.id,
-            group_id: groupId,
-            kind: "budget",
-            title: threshold === 100 ? "預算已超過" : "預算接近上限",
-            body: `${budget.category_label ?? budget.category ?? "本月總額"}已使用 ${Math.floor((spent / Number(budget.limit_twd)) * 100)}%`,
-            entity_type: "budget",
-            entity_id: String(budget.id),
-            dedupe_key: `budget:${budget.id}:${threshold}:user:${user.id}`,
-          },
-          { onConflict: "dedupe_key", ignoreDuplicates: true },
-        );
-      }
-    }
-  }
-}
-
 export async function deliverNotifications(context: ServerContext) {
   const pending = await context.db
     .from("notifications")
@@ -2714,7 +2417,7 @@ async function lineNotificationText(
     const [expenseResult, groupResult] = await Promise.all([
       context.db
         .from("expenses")
-        .select("description, amount_twd, expense_date, category, category_label")
+        .select("description, amount_twd, expense_date, tag")
         .eq("id", notification.entity_id)
         .single(),
       notification.group_id
@@ -2730,14 +2433,13 @@ async function lineNotificationText(
         description: z.string(),
         amount_twd: z.coerce.number().int(),
         expense_date: z.string(),
-        category: z.enum(categories),
-        category_label: z.string().nullable().optional(),
+        tag: z.string(),
       })
       .safeParse(expenseResult.data);
     const group = z.object({ name: z.string() }).nullable().safeParse(groupResult.data);
     if (!expenseResult.error && expense.success) {
       const groupName = group.success && group.data ? ` ${group.data.name}` : "";
-      const label = expense.data.category_label || categoryLabel(expense.data.category);
+      const label = expense.data.tag;
       return `${notification.body}${groupName}\n${expense.data.description} ${notificationMoney(expense.data.amount_twd)}｜${expense.data.expense_date}｜${label}`;
     }
   }
@@ -2776,7 +2478,7 @@ export async function runDailyJobs(request: Request) {
           amount_twd: Number(row.amount_twd),
           paid_by_user_id: row.paid_by_user_id,
           expense_date: row.next_run_date,
-          category: row.category,
+          tag: row.category,
           split_method: row.split_method,
           splits: row.splits,
         },
@@ -2838,30 +2540,6 @@ export async function runDailyJobs(request: Request) {
   let accountantReports = 0;
   if (today.endsWith("-01")) {
     accountantReports = await generateMonthlyAccountantReports(env, db, shiftMonth(today.slice(0, 7), -1));
-    const gemini = new GoogleGenAI({ apiKey: env.GEMINI_API_KEY });
-    const groupsResult = await db.from("groups").select("id, couple_id").is("archived_at", null);
-    if (!groupsResult.error && groupsResult.data) {
-      for (const group of groupsResult.data) {
-        const merges = await suggestCanonicalLabelMerges(db, group.id, gemini);
-        if (merges && merges.length > 0) {
-          const usersResult = await db.from("users").select("id").eq("couple_id", group.couple_id);
-          if (!usersResult.error && usersResult.data) {
-            for (const u of usersResult.data) {
-              await db.from("notifications").upsert({
-                recipient_user_id: u.id,
-                group_id: group.id,
-                kind: "recurring",
-                title: "分類標籤合併建議",
-                body: `發現相似標籤「${merges[0]!.source}」與「${merges[0]!.target}」，建議前往 LIFF 進行合併整理。`,
-                entity_type: "recurring",
-                entity_id: group.id,
-                dedupe_key: `label-merge-suggest:${group.id}:${today}`,
-              }, { onConflict: "dedupe_key", ignoreDuplicates: true });
-            }
-          }
-        }
-      }
-    }
   }
   const insightNotifications = await runProactiveInsightsScan(db, today);
 
@@ -2893,20 +2571,15 @@ async function runProactiveInsightsScan(db: SupabaseClient, today: string) {
       (user) => Number(user.couple_id) === Number(group.couple_id),
     );
     if (!recipients.length) continue;
-    const [expensesResult, budgetsResult, recentResult, balancesResult, settlementsResult] =
+    const [expensesResult, recentResult, balancesResult, settlementsResult] =
       await Promise.all([
         db
           .from("expenses")
-          .select("id, category, category_label, amount_twd, expense_date, deleted_at")
+          .select("id, tag, amount_twd, expense_date, deleted_at")
           .eq("group_id", group.id)
           .is("deleted_at", null)
           .gte("expense_date", shiftDate(today, -30))
           .lte("expense_date", today),
-        db
-          .from("budgets")
-          .select("id, category, category_label, limit_twd")
-          .eq("group_id", group.id)
-          .eq("month", `${month}-01`),
         db
           .from("notifications")
           .select("insight_rule_id, created_at")
@@ -2921,10 +2594,9 @@ async function runProactiveInsightsScan(db: SupabaseClient, today: string) {
           .order("created_at", { ascending: false })
           .limit(1),
       ]);
-    if (expensesResult.error || budgetsResult.error || recentResult.error) continue;
+    if (expensesResult.error || recentResult.error) continue;
     const expenses = (expensesResult.data ?? []).map((expense) => ({
-      category: String(expense.category ?? ""),
-      category_label: String(expense.category_label ?? ""),
+      tag: String(expense.tag ?? ""),
       amount_twd: Number(expense.amount_twd),
       expense_date: String(expense.expense_date),
     }));
@@ -2932,34 +2604,10 @@ async function runProactiveInsightsScan(db: SupabaseClient, today: string) {
       .array(z.object({ insight_rule_id: z.string().nullable(), created_at: z.string() }))
       .parse(recentResult.data ?? []);
 
-    for (const budget of budgetsResult.data ?? []) {
-      const spent = expenses
-        .filter((expense) =>
-          budget.category_label
-            ? expense.category === budget.category &&
-              expense.category_label === budget.category_label
-            : !budget.category || expense.category === budget.category,
-        )
-        .reduce((sum, expense) => sum + expense.amount_twd, 0);
-      const limit = Number(budget.limit_twd);
-      if (limit > 0 && spent / limit >= 0.8) {
-        const pct = Math.floor((spent / limit) * 100);
-        count += await insertInsightNotifications(db, {
-          groupId: String(group.id),
-          recipients,
-          recent,
-          ruleId: `budget_warning_80:${budget.id}`,
-          today,
-          body: `${budget.category_label ?? budget.category ?? "本月總額"}預算已用 ${pct}%（NT$${spent.toLocaleString("en-US")} / NT$${limit.toLocaleString("en-US")}）`,
-          entityId: String(budget.id),
-        });
-      }
-    }
-
-    const thisWeek = sumByLabel(
+    const thisWeek = sumByTag(
       expenses.filter((expense) => expense.expense_date >= last7Start),
     );
-    const lastWeek = sumByLabel(
+    const lastWeek = sumByTag(
       expenses.filter(
         (expense) =>
           expense.expense_date >= prev7Start && expense.expense_date <= prev7End,
@@ -3055,11 +2703,11 @@ async function insertInsightNotifications(
   return inserted;
 }
 
-function sumByLabel(
-  expenses: Array<{ category: string; category_label: string; amount_twd: number }>,
+function sumByTag(
+  expenses: Array<{ tag: string; amount_twd: number }>,
 ) {
   return expenses.reduce<Record<string, number>>((totals, expense) => {
-    const label = expense.category_label || expense.category;
+    const label = expense.tag;
     totals[label] = (totals[label] ?? 0) + expense.amount_twd;
     return totals;
   }, {});
@@ -3069,51 +2717,6 @@ function shiftDate(date: string, days: number) {
   const value = new Date(`${date}T00:00:00Z`);
   value.setUTCDate(value.getUTCDate() + days);
   return value.toISOString().slice(0, 10);
-}
-
-async function suggestCanonicalLabelMerges(
-  db: SupabaseClient,
-  groupId: string,
-  gemini: GoogleGenAI,
-) {
-  const labelsResult = await db
-    .from("canonical_labels")
-    .select("label, category")
-    .eq("group_id", groupId);
-  if (labelsResult.error || !labelsResult.data || labelsResult.data.length < 2) return [];
-
-  const labels = labelsResult.data;
-  const prompt = `以下是我們資料庫中某個群組的常用分類標籤清單：
-${labels.map((l) => `- [${l.category}] ${l.label}`).join("\n")}
-
-請找出其中語意高度相似、可能是重複建立的標籤（例如：「捷運」與「台北捷運」、「7-11」與「7-Eleven」）。
-請為每一組相似的標籤建議一個合併的目標（選擇其中較簡短或較常見的一個）。
-請嚴格以 JSON 陣列格式回傳，不要包含 markdown 標籤或說明文字：
-[
-  {"source": "相似的舊標籤", "target": "保留的新標籤", "category": "該大分類名稱"}
-]
-如果沒有發現任何需要合併的相似標籤，回傳空陣列 []。`;
-
-  try {
-    const response = await gemini.models.generateContent({
-      model: AGENT_MODEL,
-      contents: prompt,
-      config: {
-        responseMimeType: "application/json",
-        temperature: 0.1,
-      },
-    });
-    const text = response.text?.trim() ?? "[]";
-    const suggestions = JSON.parse(text) as Array<{ source: string; target: string; category: string }>;
-    
-    return suggestions.filter((s) => 
-      labels.some((l) => l.label === s.source && l.category === s.category) &&
-      labels.some((l) => l.label === s.target && l.category === s.category)
-    );
-  } catch (err) {
-    console.error("Failed to suggest canonical label merges:", err);
-    return [];
-  }
 }
 
 async function generateMonthlyAccountantReports(
@@ -3213,7 +2816,7 @@ export function expensesCsv(
       expense.ledger === "shared" ? "共同" : "私人",
       expense.description,
       expense.merchant ?? "",
-      expense.category,
+      expense.tag,
       String(expense.amount_twd),
       users.find((user) => user.id === expense.paid_by_user_id)?.label ?? "",
       splitLabel(expense.split_method),
@@ -3240,7 +2843,7 @@ async function assertReceiptRate(db: SupabaseClient, userId: string) {
 
 async function appendActivity(
   context: ServerContext,
-  entityType: "group" | "budget" | "recurring",
+  entityType: "group" | "recurring",
   entityId: string,
   action: "create" | "update" | "delete" | "restore" | "archive" | "settle",
   groupId: string | null,
@@ -3262,7 +2865,7 @@ async function appendActivity(
 
 async function notifyPartner(
   context: ServerContext,
-  kind: "budget" | "recurring",
+  kind: "recurring",
   title: string,
   body: string,
   groupId: string | null,
@@ -3285,13 +2888,6 @@ async function notifyPartner(
   }
 }
 
-function categoryLabel(category: (typeof categories)[number]) {
-  return ({
-    food: "餐飲", transport: "交通", groceries: "生鮮", household: "居家",
-    entertainment: "娛樂", shopping: "購物", medical: "醫療", travel: "旅行", other: "其他",
-  } as const)[category];
-}
-
 function cleanCategoryLabel(value: string) {
   return value
     .normalize("NFKC")
@@ -3301,222 +2897,6 @@ function cleanCategoryLabel(value: string) {
     .trim()
     .replace(/\s+/g, " ")
     .slice(0, 40);
-}
-
-/* ─── Projection (month-end spend prediction) ─── */
-
-export function buildProjection(
-  expenses: AppExpense[],
-  month: string,
-  today: string,
-  budgets: Array<{ category?: string | null; category_label?: string | null; limit_twd: number }>,
-) {
-  const daysElapsed = Number(today.slice(8, 10));
-  const daysTotal = new Date(
-    Number(today.slice(0, 4)),
-    Number(today.slice(5, 7)),
-    0,
-  ).getDate();
-
-  if (daysElapsed < 4) return null;
-
-  const thisMonthExpenses = expenses.filter((e) =>
-    e.expense_date.startsWith(month),
-  );
-  const spentSoFar = thisMonthExpenses.reduce(
-    (sum, e) => sum + e.amount_twd,
-    0,
-  );
-  const projectedTotal = Math.round((spentSoFar / daysElapsed) * daysTotal);
-
-  const totalBudget = budgets.find((b) => !b.category);
-  const categoryProjections = budgets
-    .filter((b) => b.category)
-    .map((budget) => {
-      const catSpent = thisMonthExpenses
-        .filter((e) =>
-          budget.category_label
-            ? e.category === budget.category &&
-              e.category_label === budget.category_label
-            : e.category === budget.category,
-        )
-        .reduce((sum, e) => sum + e.amount_twd, 0);
-      const catProjected = Math.round((catSpent / daysElapsed) * daysTotal);
-      return {
-        category: budget.category,
-        categoryLabel: budget.category_label ?? null,
-        spentSoFar: catSpent,
-        projectedTotal: catProjected,
-        budget: budget.limit_twd,
-        projectedOverrun: catProjected - budget.limit_twd,
-      };
-    })
-    .filter((p) => p.projectedOverrun > 0);
-
-  return {
-    daysElapsed,
-    daysTotal,
-    spentSoFar,
-    projectedTotal,
-    budget: totalBudget?.limit_twd ?? null,
-    projectedOverrun: totalBudget
-      ? projectedTotal - totalBudget.limit_twd
-      : null,
-    categoryProjections,
-  };
-}
-
-/* ─── Canonical Labels ─── */
-
-export async function getCanonicalLabels(
-  db: SupabaseClient,
-  groupId: string | null,
-  category?: string,
-): Promise<string[]> {
-  let query = db.from("canonical_labels").select("label");
-  if (groupId) {
-    query = query.eq("group_id", groupId);
-  } else {
-    query = query.is("group_id", null);
-  }
-  if (category) query = query.eq("category", category);
-  const result = await query.order("created_at").limit(50);
-  if (result.error) return [];
-  return z
-    .array(z.object({ label: z.string() }))
-    .parse(result.data)
-    .map((row) => row.label);
-}
-
-export async function autoInsertCanonicalLabel(
-  db: SupabaseClient,
-  groupId: string | null,
-  category: string,
-  label: string,
-) {
-  if (!label || label === "其他" || label === "other") return;
-  await db.from("canonical_labels").upsert(
-    {
-      group_id: groupId,
-      category,
-      label: label.trim().slice(0, 40),
-    },
-    { onConflict: groupId ? "group_id,category,label" : "category,label", ignoreDuplicates: true },
-  );
-}
-
-export async function listCanonicalLabels(context: ServerContext) {
-  const groupId = await activeGroupId(context);
-  const result = await context.db
-    .from("canonical_labels")
-    .select("id, group_id, category, label, aliases, created_at")
-    .eq("group_id", groupId)
-    .order("category")
-    .order("label");
-  if (result.error) throw new Error("canonical labels lookup failed");
-  return result.data;
-}
-
-export async function mergeCanonicalLabels(
-  context: ServerContext,
-  input: unknown,
-) {
-  const parsed = z
-    .object({
-      targetLabel: z.string().trim().min(1).max(40),
-      sourceLabels: z.array(z.string().trim().min(1).max(40)).min(1).max(20),
-      category: z.string().min(1),
-    })
-    .parse(input);
-  const groupId = await activeGroupId(context);
-
-  // Find matching active expenses in the group
-  const expensesResult = await context.db
-    .from("expenses")
-    .select("id, version, category_label")
-    .eq("group_id", groupId)
-    .eq("category", parsed.category)
-    .in("category_label", parsed.sourceLabels)
-    .is("deleted_at", null);
-
-  if (expensesResult.error) throw new Error("expenses lookup failed");
-  const matchingExpenses = expensesResult.data ?? [];
-
-  if (matchingExpenses.length === 0) {
-    // No expenses are using this label, update the dictionary directly
-    const existing = await context.db
-      .from("canonical_labels")
-      .select("id, aliases")
-      .eq("group_id", groupId)
-      .eq("category", parsed.category)
-      .eq("label", parsed.targetLabel)
-      .maybeSingle();
-
-    const currentAliases: string[] = existing.data?.aliases ?? [];
-    const newAliases = [...new Set([...currentAliases, ...parsed.sourceLabels])];
-
-    if (existing.data) {
-      await context.db
-        .from("canonical_labels")
-        .update({ aliases: newAliases })
-        .eq("id", existing.data.id);
-    } else {
-      await context.db.from("canonical_labels").insert({
-        group_id: groupId,
-        category: parsed.category,
-        label: parsed.targetLabel,
-        aliases: newAliases,
-      });
-    }
-
-    await context.db
-      .from("canonical_labels")
-      .delete()
-      .eq("group_id", groupId)
-      .eq("category", parsed.category)
-      .in("label", parsed.sourceLabels);
-
-    return {
-      actionId: null,
-      preview: `已合併標籤為「${parsed.targetLabel}」（0 筆收據受影響）`,
-    };
-  }
-
-  const updates = matchingExpenses.map((e) => ({
-    expense_id: e.id,
-    expected_version: e.version,
-    category_label: parsed.targetLabel,
-  }));
-
-  const insert = await context.db
-    .from("pending_actions")
-    .insert({
-      couple_id: context.user.couple_id,
-      group_id: groupId,
-      requested_by_user_id: context.user.id,
-      action_type: "batch_update_expenses",
-      payload: {
-        updates,
-        merge: {
-          targetLabel: parsed.targetLabel,
-          sourceLabels: parsed.sourceLabels,
-          category: parsed.category,
-        },
-      },
-      source_event_id: `liff:merge-labels:${randomUUID()}`,
-      idempotency_key: null,
-      expires_at: new Date(Date.now() + ACTION_SECONDS * 1_000).toISOString(),
-    })
-    .select("id")
-    .single();
-
-  if (insert.error) throw new Error("failed to propose merge action");
-  const actionId = z.object({ id: z.string().uuid() }).parse(insert.data).id;
-
-  return {
-    actionId,
-    preview: `合併標籤為「${parsed.targetLabel}」（影響 ${matchingExpenses.length} 筆收據）`,
-  };
 }
 
 /* ─── Settlement check ─── */
@@ -3850,7 +3230,7 @@ const expenseSearchParamsSchema = z.object({
   q: z.string().trim().max(100).optional().default(""),
   from: z.iso.date().optional(),
   to: z.iso.date().optional(),
-  category: z.string().trim().max(40).optional(),
+  tag: z.string().trim().max(40).optional(),
   min: z.coerce.number().int().nonnegative().optional(),
   max: z.coerce.number().int().positive().optional(),
   limit: z.coerce.number().int().min(1).max(50).optional().default(20),
@@ -3863,11 +3243,6 @@ export async function searchExpenses(
   const parsed = expenseSearchParamsSchema.parse(
     Object.fromEntries(searchParams.entries()),
   );
-  const category = parsed.category
-    ? (categories.find(
-        (item) => item === parsed.category || categoryLabel(item) === parsed.category,
-      ) ?? parsed.category)
-    : parsed.category;
   const groupId = await activeGroupId(context);
   const [sharedResult, privateResult] = await Promise.all([
     context.db
@@ -3891,46 +3266,8 @@ export async function searchExpenses(
   const rows = z
     .array(expenseSchema)
     .parse([...(sharedResult.data ?? []), ...(privateResult.data ?? [])]);
-  const expenses = searchExpenseRows(rows, { ...parsed, category });
+  const expenses = searchExpenseRows(rows, { ...parsed, category: parsed.tag });
   return { expenses, count: expenses.length };
-}
-
-export async function balanceDetail(context: ServerContext) {
-  const groupId = await activeGroupId(context);
-  const [balancesResult, expensesResult, usersResult] = await Promise.all([
-    context.db.rpc("group_balances", { p_group_id: groupId }),
-    context.db
-      .from("expenses")
-      .select(EXPENSE_SELECT)
-      .eq("group_id", groupId)
-      .is("deleted_at", null)
-      .order("expense_date", { ascending: false })
-      .limit(200),
-    context.db
-      .from("users")
-      .select("id, couple_id, line_user_id, role")
-      .eq("couple_id", context.user.couple_id)
-      .order("role"),
-  ]);
-  if (balancesResult.error || expensesResult.error || usersResult.error) {
-    throw new Error("balance detail lookup failed");
-  }
-  const balances = z
-    .array(
-      z.object({
-        user_id: z.string().uuid(),
-        balance_twd: z.coerce.number().int(),
-      }),
-    )
-    .parse(balancesResult.data);
-  const expenses = z.array(expenseSchema).parse(expensesResult.data ?? []);
-  const myBalance =
-    balances.find((item) => item.user_id === context.user.id)?.balance_twd ?? 0;
-  const suggestions = balanceContributions(expenses, context.user.id, myBalance);
-  return {
-    myBalance,
-    suggestions,
-  };
 }
 
 const categoryExpensesInputSchema = z.object({
@@ -3998,10 +3335,7 @@ export async function categoryExpenses(
   const label = parsed.label;
   const expenseById = new Map(allExpenses.map((expense) => [expense.id, expense]));
   const filtered = expenses
-    .filter((expense) => {
-      const expenseLabel = expense.category_label?.trim() || expense.category;
-      return expenseLabel === label;
-    })
+    .filter((expense) => expense.tag === label)
     .sort((left, right) => {
       const amountDiff = right.amount_twd - left.amount_twd;
       return amountDiff || right.expense_date.localeCompare(left.expense_date);
@@ -4020,8 +3354,7 @@ export async function categoryExpenses(
         merchant: expense.merchant,
         amount_twd: expense.amount_twd,
         expense_date: expense.expense_date,
-        category: expense.category,
-        category_label: expense.category_label,
+        tag: expense.tag,
         paid_by_user_id: expense.paid_by_user_id,
         version: expense.version,
         receipts: full?.receipts ?? [],

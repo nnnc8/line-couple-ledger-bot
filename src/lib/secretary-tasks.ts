@@ -13,11 +13,11 @@ const ASSISTANT_TASK_TYPES = [
   "fix_uncertain_receipt",
   "review_unmatched_bank_items",
   "settlement_suggestion",
-  "budget_warning",
   "duplicate_expense_review",
   "merchant_rule_suggestion",
   "missing_daily_entry",
-  "category_cleanup",
+  "budget_warning",
+  "tag_cleanup",
   "recurring_expense_review",
 ] as const;
 

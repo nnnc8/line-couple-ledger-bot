@@ -1,7 +1,5 @@
 import { z } from "zod";
 
-import { categories, type Category } from "./ledger";
-
 export const accountantScopes = ["shared", "private", "combined"] as const;
 export const reportTypes = [
   "manual_question",
@@ -19,8 +17,7 @@ export interface AccountantExpense {
   description: string;
   merchant: string | null;
   notes: string | null;
-  category: Category;
-  category_label: string;
+  tag: string;
   amount_twd: number;
   paid_by_user_id: string;
   created_by_user_id: string;
@@ -35,13 +32,7 @@ export interface AccountantSnapshot {
   activeGroupId: string;
   userId: string;
   facts: AccountantFacts;
-  categoryTotals: Record<Category, number>;
-  budgetUsages: Array<{
-    category: Category | null;
-    spentTwd: number;
-    limitTwd: number;
-    percent: number;
-  }>;
+  categoryTotals: Record<string, number>;
   duplicateCandidates: AccountantExpense[][];
   expenses: AccountantExpense[];
 }
@@ -55,7 +46,6 @@ export const accountantFactsSchema = z
     totalTwd: z.number().int().min(0),
     transactionCount: z.number().int().min(0),
     balanceTwd: z.number().int(),
-    otherTotalTwd: z.number().int().min(0),
     previousMonthTotalTwd: z.number().int().min(0).default(0),
   })
   .strict();
@@ -91,7 +81,7 @@ export const rawSuggestionActionSchema = z.discriminatedUnion("type", [
       type: z.literal("update_expense"),
       expenseId: z.string().uuid(),
       expectedVersion: z.number().int().positive(),
-      category: z.enum(categories).nullable().default(null),
+      tag: z.string().trim().min(1).max(40).nullable().default(null),
       description: z.string().trim().min(1).max(100).nullable().default(null),
       amountTwd: z.number().int().positive().max(100_000_000).nullable().default(null),
       expenseDate: z.iso.date().nullable().default(null),
@@ -163,7 +153,6 @@ export function parseAccountantCommand(
 export function buildAccountantSnapshot(input: {
   activeGroupId: string;
   balances: Array<{ user_id: string; balance_twd: number }>;
-  budgets: Array<{ category: Category | null; limit_twd: number }>;
   expenses: AccountantExpense[];
   month: string;
   scope: AccountantScope;
@@ -187,22 +176,12 @@ export function buildAccountantSnapshot(input: {
   const privateTotalTwd = sum(
     expenses.filter((expense) => expense.ledger === "private"),
   );
-  const categoryTotals = Object.fromEntries(
-    categories.map((category) => [category, 0]),
-  ) as Record<Category, number>;
-  for (const expense of expenses) categoryTotals[expense.category] += expense.amount_twd;
+  const categoryTotals: Record<string, number> = {};
+  for (const expense of expenses) {
+    const tag = expense.tag || "其他";
+    categoryTotals[tag] = (categoryTotals[tag] ?? 0) + expense.amount_twd;
+  }
   const totalTwd = sharedTotalTwd + privateTotalTwd;
-  const budgetUsages = input.budgets.map((budget) => {
-    const spentTwd = budget.category
-      ? categoryTotals[budget.category]
-      : sharedTotalTwd;
-    return {
-      category: budget.category,
-      spentTwd,
-      limitTwd: Number(budget.limit_twd),
-      percent: budget.limit_twd > 0 ? Math.floor((spentTwd / Number(budget.limit_twd)) * 100) : 0,
-    };
-  });
   return {
     activeGroupId: input.activeGroupId,
     userId: input.userId,
@@ -216,11 +195,9 @@ export function buildAccountantSnapshot(input: {
       balanceTwd:
         input.balances.find((balance) => balance.user_id === input.userId)
           ?.balance_twd ?? 0,
-      otherTotalTwd: categoryTotals.other,
       previousMonthTotalTwd: input.previousMonthTotalTwd ?? 0,
     },
     categoryTotals,
-    budgetUsages,
     duplicateCandidates: duplicateExpenses(expenses),
     expenses: expenses.slice(0, 80),
   };
@@ -281,7 +258,7 @@ export function safeSuggestionAction(
       description: actionData.description ?? expense.description,
       merchant: expense.merchant,
       notes: expense.notes,
-      category: actionData.category ?? expense.category,
+      tag: actionData.tag ?? expense.tag,
       amountTwd: nextAmount,
       paidBy: expense.paid_by_user_id === snapshot.userId ? "self" : "partner",
       expenseDate: actionData.expenseDate ?? expense.expense_date,
@@ -322,23 +299,6 @@ export function fallbackAccountantReport(
   reportType: AccountantReportType = "manual_question",
 ): AccountantReport {
   const findings: AccountantReport["findings"] = [];
-  const overBudget = snapshot.budgetUsages.find((budget) => budget.percent >= 100);
-  if (overBudget) {
-    findings.push({
-      severity: "danger",
-      title: "預算已超過",
-      body: `${overBudget.category ?? "共同帳"} 已使用 ${overBudget.percent}%`,
-      amountTwd: overBudget.spentTwd,
-    });
-  }
-  if (snapshot.facts.otherTotalTwd > 0) {
-    findings.push({
-      severity: "warning",
-      title: "其他分類偏高",
-      body: "有支出落在其他分類，建議到流水修正，之後分類學習會跟上。",
-      amountTwd: snapshot.facts.otherTotalTwd,
-    });
-  }
   if (snapshot.duplicateCandidates.length) {
     findings.push({
       severity: "warning",

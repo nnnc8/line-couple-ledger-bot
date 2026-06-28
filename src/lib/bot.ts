@@ -117,7 +117,7 @@ function emptyIntent(intent: ParsedIntent["intent"]): ParsedIntent {
     ledger: null,
     paidBy: null,
     expenseDate: null,
-    category: null,
+    tag: null,
   };
 }
 
@@ -129,7 +129,7 @@ function cleanInlineDescription(value: string) {
     .slice(0, 100);
 }
 
-function inferInlineCategory(text: string): ParsedIntent["category"] {
+function inferInlineTag(text: string): ParsedIntent["tag"] {
   return /早餐|午餐|晚餐|宵夜|餐|吃|喝|咖啡|飲料|漢堡|便當|火鍋|越南|拉麵|麵|飯|披薩|甜點/.test(
     text,
   )
@@ -184,7 +184,7 @@ export function parseInlineExpenseItems(
         ledger: /私人/.test(text) ? "private" : "shared",
         paidBy: match[2] === "我付" ? "self" : "partner",
         expenseDate: today,
-        category: inferInlineCategory(`${text} ${description}`),
+        tag: inferInlineTag(`${text} ${description}`),
       } satisfies ParsedIntent,
     ];
   });
@@ -215,8 +215,7 @@ export function parsePendingRetargetCommand(text: string) {
   if (!/交通|車資|搭車|行程|uber|計程車/i.test(normalized)) return null;
   return {
     ledger: "private",
-    category: "transport",
-    categoryLabel: "交通",
+    tag: "交通",
   } as const;
 }
 
@@ -386,7 +385,52 @@ async function runSecretaryWithReply(
       }
     }
 
-    // No pending actions — just reply
+    // No pending actions — check if the secretary hallucinated an action
+    const actionClaimRegex =
+      /(?:已|已經|已幫|幫你|幫)(?:記帳|記了|新增|加入|修改|改|刪除|結清|建立)/;
+    if (actionClaimRegex.test(result.answer)) {
+      // The secretary claims to have done something but didn't call tools.
+      // Retry once with an explicit instruction to use the tool.
+      console.warn("Secretary hallucinated action, retrying with correction", {
+        answer: result.answer.slice(0, 200),
+        toolCallCount: result.toolCallCount,
+      });
+
+      const correctionResult = await runSecretaryLoop(
+        { text: `⚠️ 你剛才說「${result.answer.slice(0, 100)}」，但你沒有實際呼叫工具。請立刻呼叫 record_expense（或其他對應工具）來執行，不要只用文字回覆。` },
+        result.sessionId,
+        user.id,
+        user.couple_id,
+        userName,
+        partnerName,
+        toolCtx,
+        agentDeps,
+      );
+
+      // Process correction result
+      if (correctionResult.pendingActions.length > 0) {
+        for (const action of correctionResult.pendingActions) {
+          const actionRecord = action as Record<string, unknown>;
+          if (actionRecord.type === "create_expense" || actionRecord.type === "update_expense") {
+            const pendingResult = await createAgentPendingAction(
+              dependencies.supabase,
+              actionRecord,
+            );
+            if (pendingResult) {
+              await replyConfirmation(
+                dependencies.lineClient,
+                replyToken,
+                pendingResult.id,
+                correctionResult.answer,
+              );
+              return;
+            }
+          }
+        }
+      }
+    }
+
+    // Fall back to text reply
     await replyText(dependencies.lineClient, replyToken, result.answer);
 
     // Notify partner if needed (e.g., merchant rule changes)
@@ -530,7 +574,7 @@ async function replySearch(
     ? [
         `找到 ${expenses.length} 筆：`,
         ...expenses.map((expense) => {
-          const label = expense.category_label || expense.category;
+          const label = expense.tag;
           return `• ${expense.description} NT$${expense.amount_twd.toLocaleString("en-US")}｜${expense.expense_date}｜${label}`;
         }),
         `看更多：${link}`,
@@ -709,7 +753,7 @@ async function handlePostback(
     const result = await retargetPendingActionById(
       { db: dependencies.supabase, user },
       actionId,
-      { ledger: "private", category: "transport", categoryLabel: "交通" },
+      { ledger: "private", tag: "交通" },
     );
     await replyConfirmation(
       dependencies.lineClient,

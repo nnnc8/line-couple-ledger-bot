@@ -13,6 +13,7 @@ import { z } from "zod";
 const MEMORY_KINDS = [
   "merchant_rule",
   "category_rule",
+  "tag_rule",
   "split_rule",
   "routine",
   "wording_preference",

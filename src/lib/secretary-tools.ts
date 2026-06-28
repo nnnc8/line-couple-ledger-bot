@@ -34,8 +34,7 @@ interface ExpenseRow {
   ledger: "shared" | "private";
   description: string;
   merchant: string | null;
-  category: string;
-  category_label: string;
+  tag: string;
   amount_twd: number;
   paid_by_user_id: string;
   created_by_user_id: string;
@@ -93,7 +92,7 @@ export const secretaryToolDeclarations: FunctionDeclaration[] = [
   },
   {
     name: "get_budget_status",
-    description: "取得當月預算使用狀態。",
+    description: "取得當月預算使用狀態。（已停用）",
     parameters: { type: Type.OBJECT, properties: {} },
   },
   {
@@ -131,8 +130,7 @@ export const secretaryToolDeclarations: FunctionDeclaration[] = [
       properties: {
         description: { type: Type.STRING, description: "支出說明" },
         amount_twd: { type: Type.INTEGER, description: "金額 TWD 整數" },
-        category: { type: Type.STRING, description: "大分類 enum" },
-        category_label: { type: Type.STRING, description: "細分類標籤" },
+        tag: { type: Type.STRING, description: "自由標籤" },
         paid_by: {
           type: Type.STRING,
           enum: ["self", "partner"],
@@ -166,8 +164,7 @@ export const secretaryToolDeclarations: FunctionDeclaration[] = [
               enum: ["shared", "private"],
               description: "改成共同或私人",
             },
-            category: { type: Type.STRING, description: "大分類" },
-            category_label: { type: Type.STRING, description: "細分類" },
+            tag: { type: Type.STRING, description: "標籤" },
             description: { type: Type.STRING, description: "說明" },
             amount_twd: { type: Type.INTEGER, description: "金額" },
             paid_by: {
@@ -210,8 +207,7 @@ export const secretaryToolDeclarations: FunctionDeclaration[] = [
               type: Type.STRING,
               enum: ["shared", "private"],
             },
-            category: { type: Type.STRING },
-            category_label: { type: Type.STRING },
+            tag: { type: Type.STRING },
             paid_by: {
               type: Type.STRING,
               enum: ["self", "partner"],
@@ -239,7 +235,7 @@ export const secretaryToolDeclarations: FunctionDeclaration[] = [
             "budget_warning",
             "duplicate_expense_review",
             "merchant_rule_suggestion",
-            "category_cleanup",
+            "tag_cleanup",
           ],
         },
         title: { type: Type.STRING, description: "任務標題" },
@@ -313,7 +309,7 @@ async function getRecentExpenses(ctx: ToolContext, args: Record<string, unknown>
       ctx.db
         .from("expenses")
         .select(
-          "id, group_id, ledger, description, merchant, category, category_label, amount_twd, paid_by_user_id, created_by_user_id, expense_date, version, deleted_at",
+          "id, group_id, ledger, description, merchant, tag, amount_twd, paid_by_user_id, created_by_user_id, expense_date, version, deleted_at",
         )
         .eq("group_id", ctx.groupId)
         .is("mirror_kind", null)
@@ -330,7 +326,7 @@ async function getRecentExpenses(ctx: ToolContext, args: Record<string, unknown>
       ctx.db
         .from("expenses")
         .select(
-          "id, group_id, ledger, description, merchant, category, category_label, amount_twd, paid_by_user_id, created_by_user_id, expense_date, version, deleted_at",
+          "id, group_id, ledger, description, merchant, tag, amount_twd, paid_by_user_id, created_by_user_id, expense_date, version, deleted_at",
         )
         .eq("ledger", "private")
         .eq("created_by_user_id", ctx.userId)
@@ -366,8 +362,7 @@ async function getRecentExpenses(ctx: ToolContext, args: Record<string, unknown>
       id: e.id,
       description: e.description,
       merchant: e.merchant,
-      category: e.category,
-      category_label: e.category_label,
+      tag: e.tag,
       amount_twd: e.amount_twd,
       ledger: e.ledger,
       expense_date: e.expense_date,
@@ -443,7 +438,7 @@ const updateExpenseParams = z.object({
   updates: z.object({
     ledger: z.enum(["shared", "private"]).optional(),
     category: z.string().optional(),
-    category_label: z.string().optional(),
+    tag: z.string().min(1).max(40).optional(),
     description: z.string().min(1).max(200).optional(),
     amount_twd: z.number().int().positive().optional(),
     paid_by: z.enum(["self", "partner"]).optional(),
@@ -460,7 +455,7 @@ async function proposeUpdateExpense(
   // Verify expense exists and belongs to this group/couple
   const { data: expense, error } = await ctx.db
     .from("expenses")
-    .select("id, description, amount_twd, category, category_label, ledger, paid_by_user_id, expense_date, version")
+    .select("id, description, amount_twd, tag, ledger, paid_by_user_id, expense_date, version")
     .eq("id", params.expense_id)
     .eq("group_id", ctx.groupId)
     .is("deleted_at", null)
@@ -471,8 +466,7 @@ async function proposeUpdateExpense(
   // Build update payload
   const updates: Record<string, unknown> = {};
   if (params.updates.ledger) updates.ledger = params.updates.ledger;
-  if (params.updates.category) updates.category = params.updates.category;
-  if (params.updates.category_label) updates.category_label = params.updates.category_label;
+  if (params.updates.tag) updates.tag = params.updates.tag;
   if (params.updates.description) updates.description = params.updates.description;
   if (params.updates.amount_twd) updates.amount_twd = params.updates.amount_twd;
   if (params.updates.expense_date) updates.expense_date = params.updates.expense_date;
@@ -515,8 +509,7 @@ async function proposeUpdateExpense(
 function fieldLabel(key: string): string {
   const map: Record<string, string> = {
     ledger: "帳本類型",
-    category: "大分類",
-    category_label: "細分類",
+    tag: "標籤",
     description: "說明",
     amount_twd: "金額",
     paid_by_user_id: "付款人",
@@ -538,7 +531,7 @@ const merchantRuleParams = z.object({
   rule: z.object({
     ledger: z.enum(["shared", "private"]).optional(),
     category: z.string().optional(),
-    category_label: z.string().optional(),
+    tag: z.string().optional(),
     paid_by: z.enum(["self", "partner"]).optional(),
   }),
 });
@@ -567,15 +560,14 @@ async function proposeMerchantRule(
   // Create a task for the user to confirm
   const memoryValue: Record<string, unknown> = {};
   if (params.rule.ledger) memoryValue.ledger = params.rule.ledger;
-  if (params.rule.category) memoryValue.category = params.rule.category;
-  if (params.rule.category_label) memoryValue.category_label = params.rule.category_label;
+  if (params.rule.tag) memoryValue.tag = params.rule.tag;
   if (params.rule.paid_by) memoryValue.paid_by = params.rule.paid_by;
 
   // Build user-friendly summary
   const parts: string[] = [];
   if (params.rule.ledger === "private") parts.push("私人帳");
   else if (params.rule.ledger === "shared") parts.push("共同帳");
-  if (params.rule.category_label) parts.push(params.rule.category_label);
+  if (params.rule.tag) parts.push(params.rule.tag);
   if (params.rule.paid_by) {
     parts.push(
       params.rule.paid_by === "self"
@@ -623,7 +615,6 @@ const createTaskParams = z.object({
     "budget_warning",
     "duplicate_expense_review",
     "merchant_rule_suggestion",
-    "category_cleanup",
   ]),
   title: z.string().min(1).max(200),
   summary: z.string().optional(),

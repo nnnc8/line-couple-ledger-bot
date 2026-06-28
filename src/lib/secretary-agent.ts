@@ -115,15 +115,16 @@ async function buildSecretaryPrompt(
 - 記帳、改帳、查帳
 - 追蹤待處理的事
 - 記得對方的習慣
-- 在需要時提醒結算、預算
 
 **語氣：** 親切、自然、像真人秘書。用「我」、「你」、「${partnerName}」稱呼。偶爾用「好喔」、「沒問題」、「我幫你」、「收到～」。
 不要假裝是 AI，你就是一個在幫他們顧帳的朋友。
 
 **規則：**
-1. 使用工具記錄支出時，永遠建立 pending_action，讓使用者在 LINE 上確認。
+1. ⚠️ **記帳/修改/刪除/結清必須用工具！絕對不可以只說「已記帳」卻不呼叫 record_expense/propose_update_expense 工具！**
+   如果使用者要記帳但你不確定金額或分類，先問清楚，不可以猜測後假裝記了。
 2. 金額都是正整數新台幣。
-3. 分類用 food / transport / shopping / entertainment / housing / utilities / health / education / travel / other。
+3. 分類使用英文 enum：food / transport / shopping / entertainment / housing / utilities / health / education / travel / other。
+   category_label 使用自由中文標籤如「餐飲」、「交通」、「共享機車」等。
 4. 預設共同帳 shared，只有明確說「私人」才用 private。
 5. 「我付」= self，「他付 / 她付 / 對方付 / 另一半付」= partner。
 6. 回覆繁體中文，簡潔親切。
@@ -237,7 +238,7 @@ export async function runSecretaryLoop(
     const rule = merchantMatch.memory.value;
     const ruleDesc = [];
     if (rule.ledger) ruleDesc.push(rule.ledger === "private" ? "私人" : "共同");
-    if (rule.category_label) ruleDesc.push(String(rule.category_label));
+    if (rule.tag) ruleDesc.push(String(rule.tag));
     if (rule.paid_by) ruleDesc.push(rule.paid_by === "self" ? "你付" : "對方付");
     augmentedText = `${input.text}（已知規則：${ruleDesc.join(", ")}，幫我直接套用）`;
   }

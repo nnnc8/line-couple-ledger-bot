@@ -1,17 +1,5 @@
 import { z } from "zod";
 
-export const categories = [
-  "food",
-  "transport",
-  "groceries",
-  "household",
-  "entertainment",
-  "shopping",
-  "medical",
-  "travel",
-  "other",
-] as const;
-
 export const parsedIntentBaseSchema = z
   .object({
     intent: z.enum([
@@ -29,7 +17,7 @@ export const parsedIntentBaseSchema = z
     ledger: z.enum(["shared", "private"]).nullable(),
     paidBy: z.enum(["self", "partner"]).nullable(),
     expenseDate: z.iso.date().nullable(),
-    category: z.enum(categories).nullable(),
+    tag: z.string().trim().min(1).max(40).nullable(),
   })
   .strict();
 
@@ -40,7 +28,7 @@ export const parsedExpenseItemSchema = z
     ledger: z.enum(["shared", "private"]),
     paidBy: z.enum(["self", "partner"]),
     expenseDate: z.iso.date(),
-    category: z.enum(categories),
+    tag: z.string().trim().min(1).max(40),
   })
   .strict();
 
@@ -66,7 +54,7 @@ export const parsedIntentSchema = parsedIntentBaseSchema.superRefine(
       "ledger",
       "paidBy",
       "expenseDate",
-      "category",
+      "tag",
     ] as const) {
       if (value[field] === null) {
         context.addIssue({
@@ -94,13 +82,12 @@ export const geminiTextParseSchema = geminiTextParseJsonSchema;
 export type ParsedIntent = z.infer<typeof parsedIntentSchema>;
 export type ParsedExpenseItem = z.infer<typeof parsedExpenseItemSchema>;
 export type TextParseResult = z.infer<typeof textParseSchema>;
-export type Category = (typeof categories)[number];
 export type LedgerType = "shared" | "private";
 export type SplitMethod = "equal" | "exact" | "percentage";
 export type RecurringFrequency = "weekly" | "monthly" | "yearly";
 
 export interface CategoryLearningEntry {
-  category: Category;
+  tag: string;
   description: string;
   merchant?: string | null;
 }
@@ -221,34 +208,21 @@ export function splitPercentage(
   return shares;
 }
 
-export function crossedBudgetThresholds(
-  previousSpentTwd: number,
-  currentSpentTwd: number,
-  limitTwd: number,
-): Array<80 | 100> {
-  if (limitTwd <= 0) return [];
-  return ([80, 100] as const).filter(
-    (threshold) =>
-      previousSpentTwd * 100 < limitTwd * threshold &&
-      currentSpentTwd * 100 >= limitTwd * threshold,
-  );
-}
-
 export function learnCategoryFromHistory(
   current: CategoryLearningEntry,
   history: CategoryLearningEntry[],
-): Category {
-  if (current.category !== "other") return current.category;
+): string {
+  if (current.tag && current.tag !== "其他") return current.tag;
   const currentMerchant = normalizeCategoryText(current.merchant);
   const currentDescription = normalizeCategoryText(current.description);
-  if (!currentMerchant && !currentDescription) return "other";
+  if (!currentMerchant && !currentDescription) return "其他";
 
   const scores = new Map<
-    Category,
+    string,
     { score: number; matches: number; firstIndex: number }
   >();
   history.forEach((entry, index) => {
-    if (entry.category === "other") return;
+    if (!entry.tag || entry.tag === "其他") return;
     const score =
       categoryMatchScore(
         currentMerchant,
@@ -264,19 +238,19 @@ export function learnCategoryFromHistory(
       );
     if (score <= 0) return;
 
-    const existing = scores.get(entry.category) ?? {
+    const existing = scores.get(entry.tag) ?? {
       score: 0,
       matches: 0,
       firstIndex: index,
     };
-    scores.set(entry.category, {
+    scores.set(entry.tag, {
       score: existing.score + score,
       matches: existing.matches + 1,
       firstIndex: Math.min(existing.firstIndex, index),
     });
   });
 
-  let best: [Category, { score: number; matches: number; firstIndex: number }] | null =
+  let best: [string, { score: number; matches: number; firstIndex: number }] | null =
     null;
   for (const entry of scores.entries()) {
     if (
@@ -290,7 +264,7 @@ export function learnCategoryFromHistory(
       best = entry;
     }
   }
-  return best?.[0] ?? "other";
+  return best?.[0] ?? "其他";
 }
 
 export function nextRecurringDate(
