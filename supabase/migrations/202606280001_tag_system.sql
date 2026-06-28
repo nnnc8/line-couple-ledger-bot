@@ -743,24 +743,28 @@ alter table public.assistant_tasks add constraint assistant_tasks_type_check
     'recurring_expense_review'
   ));
 
--- 14. Drop old category columns from expenses
+-- 14. Drop old trigger before dropping columns
+drop trigger if exists expenses_fill_category_label on public.expenses;
+drop function if exists public.fill_expense_category_label();
+
+-- 15. Drop old category columns from expenses
 alter table public.expenses drop column if exists category;
 alter table public.expenses drop column if exists category_label;
 
--- 15. Drop old category columns from budgets
+-- 16. Drop old category columns from budgets
 alter table public.budgets drop column if exists category;
 alter table public.budgets drop column if exists category_label;
 
--- 16. Drop old category columns from recurring_expenses
+-- 17. Drop old category columns from recurring_expenses
 alter table public.recurring_expenses drop column if exists category;
 
--- 17. Drop the expense_category enum type
+-- 18. Drop the expense_category enum type
 drop type if exists public.expense_category;
 
--- 18. Drop canonical_labels table (pure free-form tags now)
+-- 19. Drop canonical_labels table (pure free-form tags now)
 drop table if exists public.canonical_labels;
 
--- 19. Revoke grants on dropped objects (canonical_labels table gone)
+-- 20. Revoke grants on dropped objects (canonical_labels table gone)
 -- Grants on new functions
 revoke all on function public.fill_expense_tag() from public, anon, authenticated;
 revoke all on function public.confirm_pending_action(uuid, text, boolean) from public, anon, authenticated;
