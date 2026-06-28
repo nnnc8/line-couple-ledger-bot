@@ -288,9 +288,11 @@ async function runSecretaryWithReply(
   imageData?: { imageData: string; mimeType: string },
 ): Promise<void> {
 
+  const groupId = await getActiveGroupId(dependencies.supabase, user);
+
   const toolCtx: ToolContext = {
     db: dependencies.supabase,
-    groupId: user.couple_id.toString(),
+    groupId,
     userId: user.id,
     coupleId: user.couple_id,
   };
@@ -308,7 +310,7 @@ async function runSecretaryWithReply(
     .from("secretary_sessions")
     .select("id")
     .eq("couple_id", user.couple_id)
-    .eq("group_id", user.couple_id.toString())
+    .eq("group_id", groupId)
     .order("last_active_at", { ascending: false })
     .limit(1)
     .single();
@@ -395,7 +397,11 @@ async function runSecretaryWithReply(
       });
     }
   } catch (error) {
-    console.error("Secretary loop failed", error);
+    console.error("Secretary loop failed", {
+      message: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack?.slice(0, 500) : undefined,
+      name: error instanceof Error ? error.name : typeof error,
+    });
     await replyText(
       dependencies.lineClient,
       replyToken,
@@ -417,6 +423,35 @@ async function findPartner(
 
   if (error || !data) return null;
   return userRowSchema.parse(data);
+}
+
+async function getActiveGroupId(
+  supabase: SupabaseClient,
+  user: UserRow,
+): Promise<string> {
+  const { data } = await supabase
+    .from("user_preferences")
+    .select("active_group_id")
+    .eq("user_id", user.id)
+    .single();
+
+  if (data) {
+    return z.object({ active_group_id: z.string().uuid() }).parse(data).active_group_id;
+  }
+
+  // Fallback: get any group for this couple
+  const { data: groups } = await supabase
+    .from("groups")
+    .select("id")
+    .eq("couple_id", user.couple_id)
+    .is("archived_at", null)
+    .limit(1);
+
+  if (groups?.length) {
+    return z.object({ id: z.string().uuid() }).parse(groups[0]).id;
+  }
+
+  throw new Error("找不到可用群組");
 }
 
 /**
