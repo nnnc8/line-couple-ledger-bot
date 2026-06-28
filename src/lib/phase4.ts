@@ -3,8 +3,7 @@ export type ExpenseSearchRow = {
   description: string;
   merchant?: string | null;
   notes?: string | null;
-  category?: string | null;
-  category_label?: string | null;
+  tag?: string | null;
   amount_twd: number;
   expense_date: string;
   deleted_at?: string | null;
@@ -14,7 +13,7 @@ export type ExpenseSearchInput = {
   q?: string | null;
   from?: string | null;
   to?: string | null;
-  category?: string | null;
+  tag?: string | null;
   min?: number | null;
   max?: number | null;
   limit?: number | null;
@@ -27,7 +26,7 @@ export function searchExpenseRows<T extends ExpenseSearchRow>(
   const terms = normalize(input.q)
     .split(/\s+/)
     .filter(Boolean);
-  const category = normalize(input.category);
+  const tag = normalize(input.tag);
   const limit = Math.min(Math.max(input.limit ?? 20, 1), 50);
   return rows
     .filter((row) => {
@@ -41,19 +40,15 @@ export function searchExpenseRows<T extends ExpenseSearchRow>(
           row.description,
           row.merchant,
           row.notes,
-          row.category,
-          row.category_label,
+          row.tag,
         ].join(" "),
       );
       if (terms.length && !terms.every((term) => haystack.includes(term)))
         return false;
       if (
-        category &&
-        normalize(`${row.category ?? ""} ${row.category_label ?? ""}`) !==
-          category &&
-        !normalize(`${row.category ?? ""} ${row.category_label ?? ""}`).includes(
-          category,
-        )
+        tag &&
+        normalize(row.tag) !== tag &&
+        !normalize(row.tag).includes(tag)
       )
         return false;
       return true;

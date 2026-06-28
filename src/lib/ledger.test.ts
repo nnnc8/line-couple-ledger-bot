@@ -22,6 +22,7 @@ import {
   accountantFactsMatch,
   buildAccountantSnapshot,
   parseAccountantCommand,
+  safeSuggestionAction,
   type AccountantExpense,
 } from "./accountant";
 import {
@@ -91,11 +92,11 @@ test("parses multiple inline LINE expenses before falling back to Gemini", () =>
       description: item.description,
       amountTwd: item.amountTwd,
       paidBy: item.paidBy,
-      category: item.category,
+      tag: item.tag,
     })),
     [
-      { description: "晚餐 漢堡", amountTwd: 95, paidBy: "self", category: "food" },
-      { description: "越南", amountTwd: 290, paidBy: "partner", category: "food" },
+      { description: "晚餐 漢堡", amountTwd: 95, paidBy: "self", tag: "food" },
+      { description: "越南", amountTwd: 290, paidBy: "partner", tag: "food" },
     ],
   );
 });
@@ -103,8 +104,7 @@ test("parses multiple inline LINE expenses before falling back to Gemini", () =>
 test("routes pending receipt retarget commands before expense parsing", () => {
   assert.deepEqual(parsePendingRetargetCommand("都改成私人帳 交通"), {
     ledger: "private",
-    category: "transport",
-    categoryLabel: "交通",
+    tag: "交通",
   });
   assert.equal(parsePendingRetargetCommand("晚餐 860 我付"), null);
 });
@@ -119,13 +119,12 @@ test("retargets pending shared receipt payloads into private transport expenses"
         amount_twd: 44,
         paid_by_user_id: PARTNER,
         expense_date: "2026-06-21",
-        category: "food",
-        category_label: "餐飲",
+        tag: "餐飲",
         split_method: "equal",
         splits: { [OWNER]: 22, [PARTNER]: 22 },
       },
       OWNER,
-      { ledger: "private", category: "transport", categoryLabel: "交通" },
+      { ledger: "private", tag: "交通" },
     ),
     {
       ledger: "private",
@@ -134,8 +133,7 @@ test("retargets pending shared receipt payloads into private transport expenses"
       amount_twd: 44,
       paid_by_user_id: OWNER,
       expense_date: "2026-06-21",
-      category: "transport",
-      category_label: "交通",
+      tag: "交通",
       split_method: "equal",
     },
   );
@@ -197,8 +195,7 @@ test("neutralizes spreadsheet formulas in CSV exports", () => {
     description: "=HYPERLINK(\"https://evil\")",
     merchant: null,
     notes: null,
-    category: "other",
-    category_label: "其他",
+    tag: "其他",
     mirror_kind: null,
     mirror_source_expense_id: null,
     amount_twd: 1,
@@ -245,17 +242,10 @@ test("validates exact shares and percentage rounding", () => {
   );
 });
 
-test("reports each crossed budget threshold once", () => {
-  assert.deepEqual(crossedBudgetThresholds(790, 810, 1_000), [80]);
-  assert.deepEqual(crossedBudgetThresholds(790, 1_010, 1_000), [80, 100]);
-  assert.deepEqual(crossedBudgetThresholds(810, 900, 1_000), []);
-});
-
 test("accountant snapshot does not leak the partner private ledger", () => {
   const snapshot = buildAccountantSnapshot({
     activeGroupId: GROUP,
     balances: [{ user_id: OWNER, balance_twd: 430 }],
-    budgets: [],
     expenses: [
       accountantExpense("shared", 860, OWNER, "2026-06-01", GROUP),
       accountantExpense("private", 120, OWNER, "2026-06-02", null),
@@ -318,32 +308,17 @@ test("category analytics use free category labels instead of enum categories", (
   ]);
 });
 
-test("category analytics upgrades legacy enum labels from descriptions", () => {
+test("category analytics uses tags directly", () => {
   const ranking = rankCategoryLabels([
-    {
-      ...agentExpense("shared", 5600, OWNER, "2026-06-01", GROUP, "transport"),
-      category: "transport",
-      category_label: "transport",
-      description: "車貸",
-    },
-    {
-      ...agentExpense("shared", 3277, OWNER, "2026-06-02", GROUP, "other"),
-      category: "other",
-      category_label: "other",
-      description: "cube卡費(已扣除加油)",
-    },
-    {
-      ...agentExpense("shared", 105, OWNER, "2026-06-03", GROUP, "transport"),
-      category: "transport",
-      category_label: "transport",
-      description: "停車費",
-    },
+    agentExpense("shared", 5600, OWNER, "2026-06-01", GROUP, "交通"),
+    agentExpense("shared", 3277, OWNER, "2026-06-02", GROUP, "信用卡費"),
+    agentExpense("shared", 105, OWNER, "2026-06-03", GROUP, "停車費"),
   ]);
 
   assert.deepEqual(
     ranking.map((item) => [item.label, item.totalTwd]),
     [
-      ["車貸", 5600],
+      ["交通", 5600],
       ["信用卡費", 3277],
       ["停車費", 105],
     ],
@@ -355,12 +330,11 @@ test("group-aware category fallback keeps food groups coarse and parking specifi
     fallbackCategoryClassification({
       description: "晚餐 漢堡",
       groupName: "吃飽喝足",
-      fallbackCategory: "food",
+      fallbackTag: "food",
       history: [],
     }),
     {
-      category: "food",
-      categoryLabel: "餐飲",
+      tag: "餐飲",
       confidence: 0.85,
       reason: "food group",
     },
@@ -369,12 +343,11 @@ test("group-aware category fallback keeps food groups coarse and parking specifi
     fallbackCategoryClassification({
       description: "阿提斯 停車費",
       groupName: "阿提斯",
-      fallbackCategory: "other",
+      fallbackTag: "other",
       history: [],
     }),
     {
-      category: "transport",
-      categoryLabel: "停車費",
+      tag: "停車費",
       confidence: 0.9,
       reason: "parking",
     },
@@ -389,8 +362,7 @@ test("shared expense private mirror records only the requester split", () => {
       description: "晚餐",
       merchant: null,
       notes: null,
-      category: "food",
-      categoryLabel: "餐飲",
+      tag: "餐飲",
       expenseDate: "2026-06-24",
       splits: { [OWNER]: 300, [PARTNER]: 300 },
       deletedAt: null,
@@ -403,8 +375,7 @@ test("shared expense private mirror records only the requester split", () => {
       description: "晚餐",
       merchant: null,
       notes: null,
-      category: "food",
-      categoryLabel: "餐飲",
+      tag: "餐飲",
       amountTwd: 300,
       paidByUserId: OWNER,
       createdByUserId: OWNER,
@@ -421,8 +392,7 @@ test("shared expense private mirror records only the requester split", () => {
       description: "晚餐",
       merchant: null,
       notes: null,
-      category: "food",
-      categoryLabel: "餐飲",
+      tag: "餐飲",
       expenseDate: "2026-06-24",
       splits: { [OWNER]: 0, [PARTNER]: 600 },
       deletedAt: null,
@@ -449,17 +419,17 @@ test("batch category cleanup only updates accessible current expenses", () => {
   assert.deepEqual(
     safeBatchCategoryUpdates(
       [
-        { expenseId: expenses[0]!.id, expectedVersion: 1, categoryLabel: "高鐵" },
-        { expenseId: expenses[1]!.id, expectedVersion: 2, categoryLabel: "咖啡" },
-        { expenseId: expenses[2]!.id, expectedVersion: 1, categoryLabel: "秘密" },
-        { expenseId: expenses[0]!.id, expectedVersion: 9, categoryLabel: "錯版" },
+        { expenseId: expenses[0]!.id, expectedVersion: 1, tag: "高鐵" },
+        { expenseId: expenses[1]!.id, expectedVersion: 2, tag: "咖啡" },
+        { expenseId: expenses[2]!.id, expectedVersion: 1, tag: "秘密" },
+        { expenseId: expenses[0]!.id, expectedVersion: 9, tag: "錯版" },
       ],
       expenses,
       { activeGroupId: GROUP, userId: OWNER },
     ),
     [
-      { expenseId: expenses[0]!.id, expectedVersion: 1, categoryLabel: "高鐵" },
-      { expenseId: expenses[1]!.id, expectedVersion: 2, categoryLabel: "咖啡" },
+      { expenseId: expenses[0]!.id, expectedVersion: 1, tag: "高鐵" },
+      { expenseId: expenses[1]!.id, expectedVersion: 2, tag: "咖啡" },
     ],
   );
 });
@@ -468,7 +438,6 @@ test("rejects accountant reports whose facts do not match the ledger snapshot", 
   const snapshot = buildAccountantSnapshot({
     activeGroupId: GROUP,
     balances: [{ user_id: OWNER, balance_twd: 430 }],
-    budgets: [],
     expenses: [accountantExpense("shared", 860, OWNER, "2026-06-01", GROUP)],
     month: "2026-06",
     scope: "shared",
@@ -489,7 +458,6 @@ test("only safe accountant suggestions can become pending actions", () => {
   const snapshot = buildAccountantSnapshot({
     activeGroupId: GROUP,
     balances: [{ user_id: OWNER, balance_twd: -430 }],
-    budgets: [],
     expenses: [accountantExpense("shared", 860, OWNER, "2026-06-01", GROUP)],
     month: "2026-06",
     scope: "shared",
@@ -509,14 +477,14 @@ test("only safe accountant suggestions can become pending actions", () => {
 test("learns an other category from matching historical merchants and descriptions", () => {
   assert.equal(
     learnCategoryFromHistory(
-      { category: "other", description: "晚餐", merchant: "高鐵便當" },
+      { tag: "其他", description: "晚餐", merchant: "高鐵便當" },
       [
-        { category: "food", description: "晚餐", merchant: "高鐵便當" },
-        { category: "transport", description: "高鐵", merchant: "台灣高鐵" },
-        { category: "food", description: "午餐", merchant: "高鐵便當" },
+        { tag: "餐飲", description: "晚餐", merchant: "高鐵便當" },
+        { tag: "交通", description: "高鐵", merchant: "台灣高鐵" },
+        { tag: "餐飲", description: "午餐", merchant: "高鐵便當" },
       ],
     ),
-    "food",
+    "餐飲",
   );
 });
 
@@ -590,8 +558,7 @@ test("receipt OCR items become pending expense inputs", () => {
         description: "ENQ-8622",
         merchant: "ENQ-8622",
         notes: "由 LINE 圖片辨識建立",
-        category: "transport",
-        categoryLabel: "車資",
+        tag: "車資",
         amountTwd: 42,
         paidBy: "self",
         expenseDate: "2026-06-06",
@@ -606,8 +573,7 @@ test("receipt OCR items become pending expense inputs", () => {
         description: "行程費",
         merchant: null,
         notes: "由 LINE 圖片辨識建立",
-        category: "transport",
-        categoryLabel: "車資",
+        tag: "車資",
         amountTwd: 31,
         paidBy: "self",
         expenseDate: "2026-06-25",
@@ -654,15 +620,14 @@ test("retargets batch pending payloads into private transport expenses", () => {
             amount_twd: 44,
             paid_by_user_id: PARTNER,
             expense_date: "2026-06-21",
-            category: "food",
-            category_label: "餐飲",
+            tag: "餐飲",
             split_method: "equal",
             splits: { [OWNER]: 22, [PARTNER]: 22 },
           },
         ],
       },
       OWNER,
-      { ledger: "private", category: "transport", categoryLabel: "交通" },
+      { ledger: "private", tag: "交通" },
     ),
     {
       items: [
@@ -673,8 +638,7 @@ test("retargets batch pending payloads into private transport expenses", () => {
           amount_twd: 44,
           paid_by_user_id: OWNER,
           expense_date: "2026-06-21",
-          category: "transport",
-          category_label: "交通",
+          tag: "交通",
           split_method: "equal",
         },
       ],
@@ -746,7 +710,7 @@ test("rejects malformed Gemini structured output", () => {
       ledger: "shared",
       paidBy: "self",
       expenseDate: "not-a-date",
-      category: "food",
+      tag: "餐飲",
     }).success,
     false,
   );
@@ -758,7 +722,7 @@ test("rejects malformed Gemini structured output", () => {
       ledger: "shared",
       paidBy: "self",
       expenseDate: "2026-99-99",
-      category: "food",
+      tag: "餐飲",
     }).success,
     false,
   );
@@ -780,7 +744,7 @@ test("accepts natural language parser output with multiple expenses and group hi
         ledger: "shared",
         paidBy: "self",
         expenseDate: "2026-06-24",
-        category: "food",
+        tag: "餐飲",
       },
       {
         description: "越南料理",
@@ -788,7 +752,7 @@ test("accepts natural language parser output with multiple expenses and group hi
         ledger: "shared",
         paidBy: "partner",
         expenseDate: "2026-06-24",
-        category: "food",
+        tag: "餐飲",
       },
     ],
   });
@@ -930,17 +894,16 @@ function agentExpense(
   createdByUserId: string,
   expenseDate: string,
   groupId: string | null,
-  categoryLabel: string,
+  tag: string,
   version = 1,
 ): AgentExpense {
   return {
     id: `00000000-0000-4000-8000-${String(amountTwd + version).padStart(12, "0")}`,
     group_id: groupId,
     ledger,
-    description: `${categoryLabel}-${amountTwd}`,
+    description: `${tag}-${amountTwd}`,
     merchant: null,
-    category: "other",
-    category_label: categoryLabel,
+    tag,
     amount_twd: amountTwd,
     paid_by_user_id: createdByUserId,
     created_by_user_id: createdByUserId,
@@ -956,17 +919,16 @@ function appExpense(
   createdByUserId: string,
   expenseDate: string,
   groupId: string | null,
-  categoryLabel: string,
+  tag: string,
 ): AppExpense {
   return {
     id: `10000000-0000-4000-8000-${String(amountTwd).padStart(12, "0")}`,
     group_id: groupId,
     ledger,
-    description: categoryLabel,
+    description: tag,
     merchant: null,
     notes: null,
-    category: ledger === "shared" ? "food" : "other",
-    category_label: categoryLabel,
+    tag,
     mirror_kind: null,
     mirror_source_expense_id: null,
     amount_twd: amountTwd,
@@ -1110,8 +1072,7 @@ function singleResultFor(table: string) {
         description: "停車費",
         amount_twd: 105,
         expense_date: "2026-06-25",
-        category: "transport",
-        category_label: "停車費",
+        tag: "停車費",
       },
       error: null,
     };
@@ -1184,80 +1145,6 @@ async function withServerEnv(run: () => Promise<void>) {
   }
 }
 
-test("calculates lineal projections and category overrun warnings", () => {
-  const expenses: AppExpense[] = [
-    {
-      id: "e1",
-      group_id: GROUP,
-      ledger: "shared",
-      description: "外食",
-      merchant: null,
-      notes: null,
-      category: "food",
-      category_label: "外食",
-      amount_twd: 1000,
-      paid_by_user_id: OWNER,
-      created_by_user_id: OWNER,
-      expense_date: "2026-06-10",
-      split_method: "equal",
-      version: 1,
-      deleted_at: null,
-      created_at: "2026-06-10T12:00:00Z",
-      mirror_kind: null,
-      mirror_source_expense_id: null,
-      expense_splits: [],
-      receipts: [],
-    },
-    {
-      id: "e2",
-      group_id: GROUP,
-      ledger: "shared",
-      description: "捷運",
-      merchant: null,
-      notes: null,
-      category: "transport",
-      category_label: "交通",
-      amount_twd: 500,
-      paid_by_user_id: OWNER,
-      created_by_user_id: OWNER,
-      expense_date: "2026-06-10",
-      split_method: "equal",
-      version: 1,
-      deleted_at: null,
-      created_at: "2026-06-10T12:00:00Z",
-      mirror_kind: null,
-      mirror_source_expense_id: null,
-      expense_splits: [],
-      receipts: [],
-    }
-  ];
-
-  // Test case 1: days elapsed < 4 -> returns null
-  const resultNull = buildProjection(expenses, "2026-06", "2026-06-03", []);
-  assert.equal(resultNull, null);
-
-  // Test case 2: 10 days elapsed in a 30-day month (June)
-  // Total TWD = 1500. Average per day = 150. Projected for 30 days = 4500.
-  const resultProj = buildProjection(expenses, "2026-06", "2026-06-10", [
-    { category: null, limit_twd: 4000 }, // Total budget
-    { category: "food", limit_twd: 2500 } // Food budget
-  ]);
-
-  assert.ok(resultProj !== null);
-  assert.equal(resultProj.daysElapsed, 10);
-  assert.equal(resultProj.daysTotal, 30);
-  assert.equal(resultProj.spentSoFar, 1500);
-  assert.equal(resultProj.projectedTotal, 4500); // (1500 / 10) * 30 = 4500
-
-  // Category projections check
-  const foodProj = resultProj.categoryProjections.find((cp) => cp.category === "food");
-  assert.ok(foodProj);
-  assert.equal(foodProj.spentSoFar, 1000);
-  assert.equal(foodProj.projectedTotal, 3000); // (1000 / 10) * 30 = 3000
-  assert.equal(foodProj.budget, 2500);
-  assert.equal(foodProj.projectedOverrun, 500); // 3000 - 2500 = 500
-});
-
 test("bank csv parser and matcher", () => {
   const csv = [
     "交易日期,摘要,支出金額,存入金額",
@@ -1283,46 +1170,6 @@ test("bank csv parser and matcher", () => {
   assert.equal(matches[1]?.matchedExpenseId, undefined);
 });
 
-test("balance contributions highlight outstanding shared expenses", () => {
-  const userId = "00000000-0000-4000-8000-000000000001";
-  const partnerId = "00000000-0000-4000-8000-000000000002";
-  const suggestions = balanceContributions(
-    [
-      {
-        id: "e1",
-        description: "高鐵",
-        amount_twd: 3600,
-        expense_date: "2026-06-20",
-        paid_by_user_id: userId,
-        deleted_at: null,
-        ledger: "shared",
-        expense_splits: [
-          { user_id: userId, amount_twd: 1800 },
-          { user_id: partnerId, amount_twd: 1800 },
-        ],
-      },
-      {
-        id: "e2",
-        description: "晚餐",
-        amount_twd: 800,
-        expense_date: "2026-06-18",
-        paid_by_user_id: partnerId,
-        deleted_at: null,
-        ledger: "shared",
-        expense_splits: [
-          { user_id: userId, amount_twd: 400 },
-          { user_id: partnerId, amount_twd: 400 },
-        ],
-      },
-    ],
-    userId,
-    1400,
-  );
-  assert.equal(suggestions.length, 1);
-  assert.equal(suggestions[0]?.description, "高鐵");
-  assert.equal(suggestions[0]?.amountTwd, 1800);
-});
-
 test("phase 4 search filters chinese expense text and ranges", () => {
   const results = searchExpenseRows(
     [
@@ -1331,8 +1178,7 @@ test("phase 4 search filters chinese expense text and ranges", () => {
         description: "台中高鐵",
         merchant: "高鐵",
         notes: null,
-        category: "transport",
-        category_label: "高鐵",
+        tag: "高鐵",
         amount_twd: 1455,
         expense_date: "2026-06-20",
         deleted_at: null,
@@ -1342,8 +1188,7 @@ test("phase 4 search filters chinese expense text and ranges", () => {
         description: "晚餐",
         merchant: "餐廳",
         notes: null,
-        category: "food",
-        category_label: "餐飲",
+        tag: "餐飲",
         amount_twd: 800,
         expense_date: "2026-06-21",
         deleted_at: null,
@@ -1353,8 +1198,7 @@ test("phase 4 search filters chinese expense text and ranges", () => {
         description: "台中高鐵",
         merchant: null,
         notes: null,
-        category: "transport",
-        category_label: "高鐵",
+        tag: "高鐵",
         amount_twd: 3000,
         expense_date: "2026-07-01",
         deleted_at: null,
@@ -1364,7 +1208,7 @@ test("phase 4 search filters chinese expense text and ranges", () => {
       q: "台中 高鐵",
       from: "2026-06-01",
       to: "2026-06-30",
-      category: "高鐵",
+      tag: "高鐵",
       min: 500,
       max: 2000,
       limit: 10,
@@ -1422,8 +1266,7 @@ test("write tools: record_expense returns pending_action with expense", async ()
       amount_twd: 860,
       paid_by: "self",
       ledger: "shared",
-      category: "food",
-      category_label: "餐飲",
+      tag: "餐飲",
     },
     ctx,
   );
@@ -1510,33 +1353,6 @@ test("write tools: settle_debt returns message when user does not owe", async ()
 
   const res = result as { message: string };
   assert.ok(res.message.includes("不需要結清"));
-});
-
-test("write tools: set_budget returns pending_action", async () => {
-  const { executeTool } = await import("./accountant-tools");
-
-  const ctx = {
-    db: {} as unknown as import("@supabase/supabase-js").SupabaseClient,
-    groupId: "group-1",
-    userId: "user-1",
-    coupleId: 1,
-  };
-
-  const result = await executeTool(
-    "set_budget",
-    { limit_twd: 10000, category: "food", category_label: "餐飲" },
-    ctx,
-  );
-
-  const res = result as {
-    pending_action: { type: string; limitTwd: number; category: string };
-    message: string;
-  };
-
-  assert.equal(res.pending_action.type, "set_budget");
-  assert.equal(res.pending_action.limitTwd, 10000);
-  assert.equal(res.pending_action.category, "food");
-  assert.ok(res.message.includes("10000"));
 });
 
 test("write tools: record_expense validates required params", async () => {
@@ -1667,8 +1483,7 @@ test("secretary: createMemory stores merchant_rule", async () => {
     key: "uber",
     value: {
       ledger: "private",
-      category: "transport",
-      category_label: "交通",
+      tag: "交通",
     },
     source: "line",
   });
@@ -1687,8 +1502,7 @@ test("secretary: getRecentExpenses filters by ledger", async () => {
       ledger: "shared",
       description: "晚餐",
       merchant: null,
-      category: "food",
-      category_label: "餐飲",
+      tag: "餐飲",
       amount_twd: 860,
       paid_by_user_id: "user-1",
       created_by_user_id: "user-1",

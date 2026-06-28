@@ -353,7 +353,7 @@ export async function loadBootstrap(context: ServerContext) {
     db
       .from("recurring_expenses")
       .select(
-        "id, group_id, ledger, description, category, amount_twd, frequency, next_run_date, active",
+        "id, group_id, ledger, description, tag, amount_twd, frequency, next_run_date, active",
       )
       .eq("couple_id", user.couple_id)
       .order("next_run_date"),
@@ -2478,7 +2478,7 @@ export async function runDailyJobs(request: Request) {
           amount_twd: Number(row.amount_twd),
           paid_by_user_id: row.paid_by_user_id,
           expense_date: row.next_run_date,
-          tag: row.category,
+          tag: row.tag,
           split_method: row.split_method,
           splits: row.splits,
         },
@@ -3266,7 +3266,7 @@ export async function searchExpenses(
   const rows = z
     .array(expenseSchema)
     .parse([...(sharedResult.data ?? []), ...(privateResult.data ?? [])]);
-  const expenses = searchExpenseRows(rows, { ...parsed, category: parsed.tag });
+  const expenses = searchExpenseRows(rows, { ...parsed, tag: parsed.tag });
   return { expenses, count: expenses.length };
 }
 

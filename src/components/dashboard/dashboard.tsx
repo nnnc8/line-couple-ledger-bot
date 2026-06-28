@@ -44,14 +44,14 @@ export function Dashboard({
     .filter(([, v]) => v > 0)
     .sort((a, b) => b[1] - a[1])
     .map(([key, value]) => ({
-      key,
+      tag: key,
       label: key,
       value,
       color: tagColor(key),
     }));
   const categoryRows = (analytics?.categories.length ?? 0)
     ? analytics!.categories.map((c) => ({
-        key: c.tag,
+        tag: c.tag,
         label: c.tag,
         value: c.totalTwd,
         color: tagColor(c.tag),
