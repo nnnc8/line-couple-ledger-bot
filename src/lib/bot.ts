@@ -336,55 +336,38 @@ async function runSecretaryWithReply(
       agentDeps,
     );
 
-    // If there are pending actions, create them and send confirmation UI
+    // If there are pending actions, write them straight to the DB and confirm them
     if (result.pendingActions.length > 0) {
+      const serverContext = {
+        env: serverEnvironment(),
+        db: dependencies.supabase,
+        user: {
+          id: user.id,
+          couple_id: user.couple_id,
+          line_user_id: user.line_user_id,
+          role: user.role,
+        },
+      };
       for (const action of result.pendingActions) {
         const actionRecord = action as Record<string, unknown>;
-        if (actionRecord.type === "create_expense" || actionRecord.type === "update_expense") {
-          const pendingResult = await createAgentPendingAction(
-            dependencies.supabase,
-            user,
-            actionRecord,
-          );
-          if (pendingResult) {
-            await replyConfirmation(
-              dependencies.lineClient,
-              replyToken,
-              pendingResult.id,
-              result.answer,
-            );
-            // Notify partner
-            if (result.notifyPartner && result.partnerMessage && partner) {
-              await notifyPartner(dependencies.lineClient, dependencies.supabase, {
-                targetUserId: partner.id,
-                message: result.partnerMessage,
-              });
-            }
-            return;
-          }
-        } else if (actionRecord.type === "settle") {
-          const pendingResult = await createAgentPendingAction(
-            dependencies.supabase,
-            user,
-            actionRecord,
-          );
-          if (pendingResult) {
-            await replyConfirmation(
-              dependencies.lineClient,
-              replyToken,
-              pendingResult.id,
-              result.answer,
-            );
-            if (result.notifyPartner && partner) {
-              await notifyPartner(dependencies.lineClient, dependencies.supabase, {
-                targetUserId: partner.id,
-                message: `對方提出結清：NT$${actionRecord.amountTwd ?? "?"}`,
-              });
-            }
-            return;
-          }
+        const pendingResult = await createAgentPendingAction(
+          dependencies.supabase,
+          user,
+          actionRecord,
+        );
+        if (pendingResult) {
+          await confirmAction(serverContext, pendingResult.id, true);
         }
       }
+      await replyText(dependencies.lineClient, replyToken, result.answer);
+      // Notify partner
+      if (result.notifyPartner && result.partnerMessage && partner) {
+        await notifyPartner(dependencies.lineClient, dependencies.supabase, {
+          targetUserId: partner.id,
+          message: result.partnerMessage,
+        });
+      }
+      return;
     }
 
     // No pending actions — check if the secretary hallucinated an action
@@ -411,25 +394,36 @@ async function runSecretaryWithReply(
 
       // Process correction result
       if (correctionResult.pendingActions.length > 0) {
+        const serverContext = {
+          env: serverEnvironment(),
+          db: dependencies.supabase,
+          user: {
+            id: user.id,
+            couple_id: user.couple_id,
+            line_user_id: user.line_user_id,
+            role: user.role,
+          },
+        };
         for (const action of correctionResult.pendingActions) {
           const actionRecord = action as Record<string, unknown>;
-          if (actionRecord.type === "create_expense" || actionRecord.type === "update_expense") {
-            const pendingResult = await createAgentPendingAction(
-              dependencies.supabase,
-              user,
-              actionRecord,
-            );
-            if (pendingResult) {
-              await replyConfirmation(
-                dependencies.lineClient,
-                replyToken,
-                pendingResult.id,
-                correctionResult.answer,
-              );
-              return;
-            }
+          const pendingResult = await createAgentPendingAction(
+            dependencies.supabase,
+            user,
+            actionRecord,
+          );
+          if (pendingResult) {
+            await confirmAction(serverContext, pendingResult.id, true);
           }
         }
+        await replyText(dependencies.lineClient, replyToken, correctionResult.answer);
+        // Notify partner
+        if (correctionResult.notifyPartner && correctionResult.partnerMessage && partner) {
+          await notifyPartner(dependencies.lineClient, dependencies.supabase, {
+            targetUserId: partner.id,
+            message: correctionResult.partnerMessage,
+          });
+        }
+        return;
       }
     }
 
