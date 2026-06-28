@@ -2553,6 +2553,9 @@ export async function runDailyJobs(request: Request) {
 }
 
 async function runProactiveInsightsScan(db: SupabaseClient, today: string) {
+  // Disabled: user does not want proactive insight reminders
+  if (Date.now() > 0) return 0;
+
   const month = today.slice(0, 7);
   const last7Start = shiftDate(today, -6);
   const prev7Start = shiftDate(today, -13);
