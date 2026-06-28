@@ -3,11 +3,9 @@
 import * as React from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Select } from "@/components/ui/select";
 import { Empty } from "@/components/ui/empty";
 import { Search, Trash2 } from "lucide-react";
 import { ExpenseList } from "@/components/dashboard/dashboard";
-import { categoryList } from "@/lib/categories";
 import { dateFormat } from "@/lib/format";
 import type { Expense, User } from "@/lib/types";
 
@@ -27,7 +25,6 @@ export function HistorySection({
   onReceipt,
 }: HistorySectionProps) {
   const [query, setQuery] = React.useState("");
-  const [category, setCategory] = React.useState("all");
   const [showDeleted, setShowDeleted] = React.useState(false);
 
   const filtered = React.useMemo(() => {
@@ -36,13 +33,12 @@ export function HistorySection({
       .filter((e) =>
         showDeleted ? !!e.deleted_at : !e.deleted_at,
       )
-      .filter((e) => category === "all" || e.category === category)
       .filter((e) => {
         if (!q) return true;
         return `${e.description} ${e.merchant ?? ""}`.toLowerCase().includes(q);
       })
       .sort((a, b) => b.expense_date.localeCompare(a.expense_date));
-  }, [expenses, query, category, showDeleted]);
+  }, [expenses, query, showDeleted]);
 
   const groups: Array<{ date: string; items: Expense[] }> = [];
   for (const e of filtered) {
@@ -65,16 +61,6 @@ export function HistorySection({
           />
         </div>
         <div className="flex gap-2">
-          <Select
-            value={category}
-            onValueChange={setCategory}
-            size="md"
-            className="flex-1"
-            options={[
-              { value: "all", label: "全部分類" },
-              ...categoryList.map((c) => ({ value: c.key, label: `${c.emoji} ${c.label}` })),
-            ]}
-          />
           <Button
             variant={showDeleted ? "primary" : "outline"}
             className="h-11 px-3 text-[13px]"

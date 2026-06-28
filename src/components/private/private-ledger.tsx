@@ -8,7 +8,7 @@ import { Inbox } from "lucide-react";
 import { HistorySection } from "@/components/history/history-section";
 import { useCategoryAnalytics } from "@/hooks/use-analytics";
 import { donutGradient, money } from "@/lib/format";
-import { categoryList } from "@/lib/categories";
+import { tagColor } from "@/lib/categories";
 import type { Bootstrap, Expense } from "@/lib/types";
 
 type Range = "this_month" | "six_months" | "all";
@@ -48,19 +48,14 @@ export function PrivateLedger({
       key,
       label: key,
       value,
-      color:
-        categoryList.find((c) => c.label === key)?.color ??
-        categoryList.find((c) => c.key === key)?.color ??
-        "#64748b",
+      color: tagColor(key),
     }));
   const categoryRows = (analytics?.categories.length ?? 0)
     ? analytics!.categories.map((c) => ({
-        key: c.label,
-        label: c.label,
+        key: c.tag,
+        label: c.tag,
         value: c.totalTwd,
-        color:
-          categoryList.find((cat) => cat.label === c.label)?.color ??
-          "#64748b",
+        color: tagColor(c.tag),
       }))
     : fallbackCategories;
   const categoryTotal = analytics?.totalTwd ?? privateDashboard.monthlyTotalTwd;

@@ -3,7 +3,6 @@
 import * as React from "react";
 import { useBootstrap } from "@/hooks/use-bootstrap";
 import { NavBar, type TabKey } from "@/components/layout/nav-bar";
-import { ConfirmDialog } from "@/components/layout/confirm-dialog";
 import { Dashboard } from "@/components/dashboard/dashboard";
 import { HistorySection } from "@/components/history/history-section";
 import { PrivateLedger } from "@/components/private/private-ledger";
@@ -56,13 +55,10 @@ export default function Home() {
     data,
     error,
     busy,
-    proposal,
-    setProposal,
     setError,
     load,
     mutate,
     propose,
-    decide,
   } = useBootstrap();
 
   const [tab, setTab] = React.useState<TabKey>(() => tabFromUrl());
@@ -226,8 +222,6 @@ export default function Home() {
     return <LoadingShell />;
   }
 
-  const unread = data.notifications.filter((n) => !n.read_at).length;
-
   return (
     <main className="mx-auto flex min-h-dvh max-w-[640px] flex-col pb-nav">
       <header className="sticky top-0 z-30 flex items-center justify-between gap-3 bg-background/85 px-4 pb-3 pt-[max(16px,env(safe-area-inset-top))] backdrop-blur-xl">
@@ -280,7 +274,6 @@ export default function Home() {
               onAdd={openAdd}
               onEdit={openEdit}
               onReceipt={openReceiptUrl}
-              onOpenBudgets={() => setTab("settings")}
             />
           )}
           {tab === "history" && (
@@ -315,21 +308,17 @@ export default function Home() {
           {tab === "settings" && (
             <SettingsSection
               data={data}
-              unread={unread}
               onGroup={(body, success) => void mutate("/api/app/groups", body, { success })}
               onRecurring={(body, success) =>
                 void mutate("/api/app/recurring", body, { success })
               }
-              onBudget={(body, success) => void mutate("/api/app/budgets", body, { success })}
-              onRead={() => void mutate("/api/app/notifications/read", {}, { success: "已標示為已讀" })}
-              onPropose={setProposal}
               onBatchCreate={(expenses: ExpenseInput[]) => void propose({ type: "batch_create_expenses", expenses })}
             />
           )}
         </div>
       </div>
 
-      <NavBar tab={tab} onChange={setTab} unread={unread} onAdd={openAdd} />
+      <NavBar tab={tab} onChange={setTab} onAdd={openAdd} />
 
       {/* Add/Edit expense sheet */}
       <Sheet
@@ -369,13 +358,6 @@ export default function Home() {
           }
         />
       </Sheet>
-
-      <ConfirmDialog
-        preview={proposal?.preview ?? null}
-        busy={busy}
-        onConfirm={() => void decide(true)}
-        onCancel={() => void decide(false)}
-      />
     </main>
   );
 }

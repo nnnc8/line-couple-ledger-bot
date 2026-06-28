@@ -8,10 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Select } from "@/components/ui/select";
-import { Progress } from "@/components/ui/progress";
-import { Empty } from "@/components/ui/empty";
 import {
-  Bell,
   ChevronRight,
   Download,
   Plus,
@@ -21,11 +18,10 @@ import {
   Trash2,
   Tag,
   CreditCard,
-  Target,
 } from "lucide-react";
 import type { Bootstrap } from "@/lib/types";
 import type { PendingActionInput, ExpenseInput } from "@/lib/optimistic";
-import { money, dateShort, timeLabel } from "@/lib/format";
+import { money, dateShort } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 interface SettingsProps {
@@ -192,161 +188,6 @@ function QuickAction({
   );
 }
 
-/* ─── Budget editor ─── */
-function BudgetEditor({
-  data,
-  onSave,
-}: {
-  data: Bootstrap;
-  onSave: (body: unknown, success?: string) => void;
-}) {
-  const [scope, setScope] = React.useState("total");
-  const [customLabel, setCustomLabel] = React.useState("");
-  const [limit, setLimit] = React.useState("");
-  const [err, setErr] = React.useState("");
-
-  return (
-    <Card>
-      <CardHeader className="pb-2">
-        <div>
-          <p className="text-[12px] font-medium text-[var(--muted-foreground)]">
-            {data.month} 月預算
-          </p>
-          <CardTitle>本月預算</CardTitle>
-        </div>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        {data.budgets.length > 0 ? (
-          <div className="space-y-3">
-            {data.budgets.map((b) => {
-              const totalBudget = b.category === null;
-              const spent = totalBudget
-                ? data.dashboard.monthlyTotalTwd
-                : b.category_label
-                  ? data.sharedExpenses
-                      .filter(
-                        (e) =>
-                          !e.deleted_at &&
-                          e.expense_date.startsWith(data.month) &&
-                          e.category === b.category &&
-                          e.category_label === b.category_label,
-                      )
-                      .reduce((acc, e) => acc + e.amount_twd, 0)
-                  : (data.dashboard.categoryTotals[b.category!] ?? 0);
-              const pct =
-                Number(b.limit_twd) > 0
-                  ? Math.round((spent / Number(b.limit_twd)) * 100)
-                  : 0;
-              const tone =
-                pct >= 100 ? "danger" : pct >= 80 ? "warn" : "primary";
-              const title = totalBudget
-                ? "📋 群組總預算"
-                : `${categoryEmoji(b.category!)} ${b.category_label ?? categoryLabel(b.category!)}`;
-              return (
-                <div key={b.id} className="space-y-1.5">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-[14px] font-medium">{title}</p>
-                      <p className="text-[12px] text-[var(--muted-foreground)]">
-                        {money(spent)} / {money(Number(b.limit_twd))}
-                      </p>
-                    </div>
-                    <span
-                      className={cn(
-                        "text-[14px] font-bold tabular-nums",
-                        pct >= 100 && "text-destructive",
-                        pct >= 80 && pct < 100 && "text-[#b45309]",
-                      )}
-                    >
-                      {pct}%
-                    </span>
-                  </div>
-                  <Progress value={Math.min(100, pct)} tone={tone} />
-                </div>
-              );
-            })}
-          </div>
-        ) : (
-          <Empty
-            icon={<Target />}
-            title="尚未設定本月預算"
-            className="py-6"
-          />
-        )}
-
-        <Separator />
-
-        <div className="space-y-3">
-          <p className="text-[13px] font-semibold text-foreground/80">
-            新增或調整預算
-          </p>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <Label className="mb-1.5">範圍</Label>
-              <Select
-                value={scope}
-                onValueChange={(v) => setScope(v)}
-                options={[
-                  { value: "total", label: "群組總額" },
-                  ...categoryList.map((c) => ({
-                    value: c.key,
-                    label: `${c.emoji} ${c.label}`,
-                  })),
-                ]}
-              />
-            </div>
-            <div>
-              <Label className="mb-1.5">細分類（選填）</Label>
-              <Input
-                value={customLabel}
-                disabled={scope === "total"}
-                onChange={(e) => setCustomLabel(e.target.value)}
-                placeholder="例如：外食"
-                className="h-11"
-              />
-            </div>
-          </div>
-          <Label htmlFor="limit" className="mb-1.5">上限（TWD）</Label>
-          <Input
-            id="limit"
-            inputMode="numeric"
-            value={limit}
-            onChange={(e) => setLimit(e.target.value)}
-            placeholder="例如：30000"
-          />
-          {err ? <p className="text-[12px] text-destructive">{err}</p> : null}
-          <Button
-            variant="primary"
-            className="w-full"
-            onClick={() => {
-              const v = Number(limit);
-              if (!v || v <= 0) {
-                setErr("請輸入有效金額");
-                return;
-              }
-              setErr("");
-              onSave(
-                {
-                  groupId: data.activeGroupId,
-                  category: scope === "total" ? null : scope,
-                  categoryLabel:
-                    scope === "total" ? null : customLabel.trim() || null,
-                  limitTwd: v,
-                },
-                "預算已儲存",
-              );
-              setLimit("");
-              setCustomLabel("");
-            }}
-          >
-            <Target className="mr-1 size-4" /> 儲存預算
-          </Button>
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
-
 /* ─── Recurring editor ─── */
 function RecurringEditor({
   data,
@@ -471,7 +312,7 @@ function RecurringEditor({
                   description: description.trim(),
                   merchant: null,
                   notes: null,
-                  category: "other",
+                  tag: "其他",
                   amountTwd: Number(amountTwd),
                   paidBy: "self",
                   expenseDate: nextRunDate,
