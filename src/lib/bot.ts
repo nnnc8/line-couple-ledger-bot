@@ -343,6 +343,7 @@ async function runSecretaryWithReply(
         if (actionRecord.type === "create_expense" || actionRecord.type === "update_expense") {
           const pendingResult = await createAgentPendingAction(
             dependencies.supabase,
+            user,
             actionRecord,
           );
           if (pendingResult) {
@@ -364,6 +365,7 @@ async function runSecretaryWithReply(
         } else if (actionRecord.type === "settle") {
           const pendingResult = await createAgentPendingAction(
             dependencies.supabase,
+            user,
             actionRecord,
           );
           if (pendingResult) {
@@ -414,6 +416,7 @@ async function runSecretaryWithReply(
           if (actionRecord.type === "create_expense" || actionRecord.type === "update_expense") {
             const pendingResult = await createAgentPendingAction(
               dependencies.supabase,
+              user,
               actionRecord,
             );
             if (pendingResult) {
@@ -503,6 +506,7 @@ async function getActiveGroupId(
  */
 async function createAgentPendingAction(
   supabase: SupabaseClient,
+  user: UserRow,
   action: Record<string, unknown>,
 ): Promise<{ id: string; expense: Record<string, unknown> } | null> {
   const type = action.type as string;
@@ -515,8 +519,12 @@ async function createAgentPendingAction(
     const { data, error } = await supabase
       .from("pending_actions")
       .insert({
+        couple_id: user.couple_id,
+        group_id: action.groupId as string | null,
+        requested_by_user_id: user.id,
         action_type: "create_expense",
         payload: { expense, splits },
+        source_event_id: `line:${crypto.randomUUID()}`,
         expires_at: expiresAt,
       })
       .select("id")
@@ -531,12 +539,16 @@ async function createAgentPendingAction(
     const { data, error } = await supabase
       .from("pending_actions")
       .insert({
+        couple_id: user.couple_id,
+        group_id: action.groupId as string | null,
+        requested_by_user_id: user.id,
         action_type: "settle",
         payload: {
           groupId: action.groupId,
           userId: action.userId,
           amountTwd: action.amountTwd,
         },
+        source_event_id: `line:${crypto.randomUUID()}`,
         expires_at: expiresAt,
       })
       .select("id")
