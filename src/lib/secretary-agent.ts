@@ -295,10 +295,9 @@ export async function runSecretaryLoop(
     );
 
     if (functionCalls.length > 0) {
-      messages.push({
-        role: "model",
-        parts: functionCalls.map((fc) => ({ functionCall: fc.functionCall })),
-      });
+      // Preserve full parts including thoughtSignature — required by Gemini thinking models.
+      // Stripping thoughtSignature causes INVALID_ARGUMENT on the next request.
+      messages.push({ role: "model", parts });
 
       const functionResponses: Part[] = [];
 
