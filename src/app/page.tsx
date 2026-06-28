@@ -312,6 +312,7 @@ export default function Home() {
               onRecurring={(body, success) =>
                 void mutate("/api/app/recurring", body, { success })
               }
+              onPropose={() => {}}
               onBatchCreate={(expenses: ExpenseInput[]) => void propose({ type: "batch_create_expenses", expenses })}
             />
           )}

@@ -15,7 +15,6 @@ import {
   expensesCsv,
   receiptExpenseInputs,
   retargetPendingActionPayload,
-  buildProjection,
   type AppExpense,
   type ServerContext,
 } from "./app-server";
@@ -23,7 +22,6 @@ import {
   accountantFactsMatch,
   buildAccountantSnapshot,
   parseAccountantCommand,
-  safeSuggestionAction,
   type AccountantExpense,
 } from "./accountant";
 import {
@@ -39,12 +37,10 @@ import {
   splitBootstrapExpenses,
 } from "./category-agent";
 import { detectReceiptMime, signSession, verifySession } from "./security";
-import { balanceContributions } from "./balance-detail";
 import { matchTransactions, parseBankCsvWithMeta } from "./bank-csv";
 import { searchExpenseRows, shouldSendInsight } from "./phase4";
 import {
   calculateBalances,
-  crossedBudgetThresholds,
   geminiIntentJsonSchema,
   geminiTextParseSchema,
   learnCategoryFromHistory,
@@ -916,8 +912,7 @@ function accountantExpense(
     description: `${ledger}-${amountTwd}`,
     merchant: null,
     notes: null,
-    category: ledger === "shared" ? "food" : "other",
-    category_label: ledger === "shared" ? "餐飲" : "其他",
+    tag: ledger === "shared" ? "餐飲" : "其他",
     amount_twd: amountTwd,
     paid_by_user_id: createdByUserId,
     created_by_user_id: createdByUserId,
