@@ -8,6 +8,7 @@ import { HistorySection } from "@/components/history/history-section";
 import { PrivateLedger } from "@/components/private/private-ledger";
 import { SettingsSection } from "@/components/settings/settings-section";
 import { ExpenseForm } from "@/components/expense/expense-form";
+import { ConfirmDialog } from "@/components/layout/confirm-dialog";
 import { Sheet } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import type { Expense } from "@/lib/types";
@@ -22,7 +23,7 @@ declare global {
     liff?: {
       init(input: { liffId: string }): Promise<void>;
       isLoggedIn(): boolean;
-      login(): void;
+      login(input?: { redirectUri?: string }): void;
       getIDToken(): string | null;
       isInClient(): boolean;
       closeWindow(): void;
@@ -46,19 +47,17 @@ function tabFromUrl(): TabKey {
   return TAB_KEYS.includes(v as TabKey) ? (v as TabKey) : "dashboard";
 }
 
-function inviteFromUrl(): string | undefined {
-  return urlParam("invite")?.slice(0, 200);
-}
-
 export default function Home() {
   const {
     data,
     error,
     busy,
+    proposal,
     setError,
     load,
     mutate,
     propose,
+    decide,
   } = useBootstrap();
 
   const [tab, setTab] = React.useState<TabKey>(() => tabFromUrl());
@@ -83,16 +82,14 @@ export default function Home() {
     }
     try {
       await window.liff.init({ liffId });
-      if (!window.liff.isLoggedIn()) return window.liff.login();
+      if (!window.liff.isLoggedIn()) {
+        return window.liff.login({
+          redirectUri: window.location.origin + window.location.pathname,
+        });
+      }
       const idToken = window.liff.getIDToken();
       if (!idToken) throw new Error("LINE 未提供登入憑證");
-      const invite = inviteFromUrl();
-      await api("/api/app/session", { idToken, ...(invite ? { invite } : {}) });
-      if (invite) {
-        const url = new URL(window.location.href);
-        url.searchParams.delete("invite");
-        history.replaceState(null, "", `${url.pathname}${url.search}`);
-      }
+      await api("/api/app/session", { idToken });
       const ok = await load();
       if (!ok) throw new Error("無法讀取帳本");
     } catch (reason) {
@@ -359,6 +356,21 @@ export default function Home() {
           }
         />
       </Sheet>
+
+      <ConfirmDialog
+        preview={proposal ? proposal.preview : null}
+        busy={busy}
+        onConfirm={() => {
+          void decide(true).then((res) => {
+            if (res?.result === "confirmed") {
+              toast.success("已完成");
+            }
+          });
+        }}
+        onCancel={() => {
+          void decide(false);
+        }}
+      />
     </main>
   );
 }

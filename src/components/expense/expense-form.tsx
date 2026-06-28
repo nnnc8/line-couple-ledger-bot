@@ -193,7 +193,7 @@ export function ExpenseForm({
           value={state.amount}
           onChange={(e) => patch("amount", e.target.value)}
           placeholder="0"
-          aria-label="金額"
+          aria-label="金額（TWD）"
           className="w-full border-0 border-b-2 border-[var(--border)] bg-transparent py-2 text-center text-[40px] font-extrabold tracking-tight placeholder:text-[var(--muted-foreground)]/40 focus:border-accent focus:outline-none focus:ring-0"
         />
       </div>

@@ -7,7 +7,7 @@ export function proxy(request: NextRequest) {
     "default-src 'self'",
     "base-uri 'self'",
     "object-src 'none'",
-    "frame-ancestors 'self'",
+    "frame-ancestors 'self' https://liff.line.me https://*.line.me https://*.line-apps.com",
     "form-action 'self'",
     `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'${development ? " 'unsafe-eval'" : ""} https://static.line-scdn.net`,
     // ponytail: React chart geometry uses style attributes; no user HTML is rendered.

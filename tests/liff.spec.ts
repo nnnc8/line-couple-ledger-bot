@@ -61,8 +61,8 @@ test.beforeEach(async ({ page }) => {
         totalTwd: 1060,
         count: 2,
         categories: [
-          { label: "晚餐", totalTwd: 860, count: 1, percent: 81 },
-          { label: "捷運", totalTwd: 200, count: 1, percent: 19 },
+          { tag: "晚餐", totalTwd: 860, count: 1, percent: 81 },
+          { tag: "捷運", totalTwd: 200, count: 1, percent: 19 },
         ],
       },
     }),
@@ -94,7 +94,7 @@ test("mobile dashboard, history, and confirmed expense flow", async ({
   await page.getByRole("button", { name: "預覽並確認" }).click();
   await expect(page.getByRole("dialog")).toContainText("晚餐 NT$860");
   await page.getByRole("dialog").getByRole("button", { name: "確認" }).click();
-  await expect(page.getByRole("status")).toContainText("已完成");
+  await expect(page.getByText("已完成")).toBeVisible();
 });
 
 test("dashboard fallback keeps free category labels and centered add button", async ({
@@ -110,8 +110,8 @@ test("dashboard fallback keeps free category labels and centered add button", as
   await expect(page.getByText("transport", { exact: true })).toHaveCount(0);
 
   const centerOffset = await page
-    .locator(".bottom-nav")
-    .getByRole("button", { name: "新增", exact: true })
+    .locator("nav")
+    .getByRole("button", { name: /新增/ })
     .evaluate((button) => {
       const rect = button.getBoundingClientRect();
       return Math.abs(rect.left + rect.width / 2 - window.innerWidth / 2);
@@ -119,34 +119,23 @@ test("dashboard fallback keeps free category labels and centered add button", as
   expect(centerOffset).toBeLessThan(3);
 });
 
-test("passes invite code from LIFF link into session creation", async ({
-  page,
-}) => {
-  await page.goto("/?invite=test-setup-code");
-  await expect(page.getByText("另一半欠你 NT$430")).toBeVisible();
-  expect(sessionBodies).toContainEqual({
-    idToken: "test-id-token",
-    invite: "test-setup-code",
-  });
-});
 
 function bootstrap() {
   const expense = {
     id: "00000000-0000-4000-8000-000000000010",
     group_id: GROUP,
-    ledger: "shared",
+    ledger: "shared" as const,
     description: "晚餐",
     merchant: "小吃店",
     notes: null,
-    category: "food",
-    category_label: "晚餐",
+    tag: "晚餐",
     mirror_kind: null,
     mirror_source_expense_id: null,
     amount_twd: 860,
     paid_by_user_id: OWNER,
     created_by_user_id: OWNER,
     expense_date: "2026-06-22",
-    split_method: "equal",
+    split_method: "equal" as const,
     version: 1,
     deleted_at: null,
     created_at: "2026-06-22T12:00:00Z",
@@ -160,12 +149,12 @@ function bootstrap() {
     ...expense,
     id: "00000000-0000-4000-8000-000000000011",
     group_id: null,
-    ledger: "private",
-    category_label: "餐飲",
+    ledger: "private" as const,
+    tag: "餐飲",
     amount_twd: 430,
     paid_by_user_id: OWNER,
     created_by_user_id: OWNER,
-    mirror_kind: "shared_share",
+    mirror_kind: "shared_share" as const,
     mirror_source_expense_id: expense.id,
     expense_splits: [{ user_id: OWNER, amount_twd: 430 }],
   };
