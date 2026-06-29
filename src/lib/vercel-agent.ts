@@ -128,7 +128,7 @@ export async function runVercelAgent(
     messages: coreMessages,
     tools: {
       record_expense: {
-        description: "記帳。直接寫入一筆支出，不需使用者再按確認。",
+        description: "記帳。直接寫入一筆支出，不需使用者再按確認。**重要規則：** 當用戶說「私人」、「自己」、「我自己的」時，ledger 必須是 \"private\"；只有用戶說「共同」、「一起」、「分攤」時才是 \"shared\"。tag 必須是中文標籤（如「餐飲」、「交通」、「共享機車」），不可省略。",
         parameters: recordExpenseSchema,
         execute: async (args: any) => {
           toolCallCount++;

@@ -338,6 +338,7 @@ async function runSecretaryWithReply(
     console.error("[SECRETARY] result.answer:", result.answer);
     console.error("[SECRETARY] result.pendingActions.length:", result.pendingActions.length);
     console.error("[SECRETARY] result.notifyPartner:", result.notifyPartner);
+    console.error("[SECRETARY] pendingActions:", JSON.stringify(result.pendingActions, null, 2).slice(0, 3000));
 
     // If there are pending actions, write them straight to the DB and confirm them
     if (result.pendingActions.length > 0) {

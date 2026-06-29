@@ -696,18 +696,25 @@ async function recordExpense(
     split_method: params.split_method,
   };
 
+  const splits =
+    params.ledger === "private"
+      ? undefined
+      : params.split_method === "equal"
+        ? (() => {
+            if (!partnerId) return undefined;
+            return [
+              { user_id: ctx.userId, amount_twd: Math.ceil(params.amount_twd / 2) },
+              { user_id: partnerId, amount_twd: Math.floor(params.amount_twd / 2) },
+            ];
+          })()
+        : undefined;
+
   const action = {
     type: "create_expense" as const,
     groupId: ctx.groupId,
     userId: ctx.userId,
     expense: expenseRow,
-    splits:
-      params.split_method === "equal"
-        ? [
-            { user_id: ctx.userId, amount_twd: Math.ceil(params.amount_twd / 2) },
-            { user_id: partnerId!, amount_twd: Math.floor(params.amount_twd / 2) },
-          ]
-        : undefined,
+    splits,
   };
 
   return {

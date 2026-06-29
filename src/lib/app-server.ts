@@ -1763,7 +1763,10 @@ export async function confirmAction(
       p_confirm: confirm,
     });
   }
-  if (result.error) throw new Error("confirm action failed");
+  if (result.error) {
+    console.error("[CONFIRM_ACTION] result.error:", JSON.stringify(result.error));
+    throw new Error("confirm action failed");
+  }
   const value = z
     .object({
       result: z.enum([
