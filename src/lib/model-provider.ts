@@ -1,4 +1,4 @@
-import { google } from "@ai-sdk/google";
+import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { openai } from "@ai-sdk/openai";
 import { anthropic } from "@ai-sdk/anthropic";
 
@@ -13,7 +13,7 @@ import { anthropic } from "@ai-sdk/anthropic";
  *   AGENT_MODEL=model-id (e.g. "gemini-3.1-flash-lite", "gpt-4o-mini", "claude-haiku-4-20250514")
  *
  * API Keys:
- *   GEMINI_API_KEY (for Google)
+ *   GEMINI_API_KEY or GOOGLE_GENERATIVE_AI_API_KEY (for Google, dual-fallback supported)
  *   OPENAI_API_KEY (for OpenAI)
  *   ANTHROPIC_API_KEY (for Anthropic)
  */
@@ -29,6 +29,10 @@ function detectProvider(modelId: string): Provider {
   }
   return "google";
 }
+
+const google = createGoogleGenerativeAI({
+  apiKey: process.env.GEMINI_API_KEY || process.env.GOOGLE_GENERATIVE_AI_API_KEY,
+});
 
 export function getModel(modelId?: string) {
   const id = modelId || process.env.AGENT_MODEL || "gemini-3.1-flash-lite";
