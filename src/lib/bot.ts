@@ -335,6 +335,10 @@ async function runSecretaryWithReply(
       agentDeps,
     );
 
+    console.log("[SECRETARY] result.answer:", result.answer);
+    console.log("[SECRETARY] result.pendingActions.length:", result.pendingActions.length);
+    console.log("[SECRETARY] result.notifyPartner:", result.notifyPartner);
+
     // If there are pending actions, write them straight to the DB and confirm them
     if (result.pendingActions.length > 0) {
       const serverContext = {
@@ -354,8 +358,10 @@ async function runSecretaryWithReply(
           user,
           actionRecord,
         );
+        console.log("[SECRETARY] createAgentPendingAction result:", pendingResult);
         if (pendingResult) {
-          await confirmAction(serverContext, pendingResult.id, true);
+          const confirmResult = await confirmAction(serverContext, pendingResult.id, true);
+          console.log("[SECRETARY] confirmAction result:", confirmResult);
         }
       }
       await replyText(dependencies.lineClient, replyToken, result.answer);
