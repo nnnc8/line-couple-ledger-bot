@@ -59,13 +59,14 @@ import {
   type CsvBank,
 } from "./bank-csv";
 import { searchExpenseRows, shouldSendInsight } from "./phase4";
+import { getModel } from "./model-provider";
 
 export const SESSION_COOKIE = "couple_ledger_session";
 const SESSION_SECONDS = 60 * 60 * 24 * 7;
 const ACTION_SECONDS = 60 * 5;
 const RECEIPT_LIMIT = 10 * 1024 * 1024;
 const MODEL = "gemini-3.1-flash-lite";
-const AGENT_MODEL = "gemini-2.0-flash";
+const AGENT_MODEL = "gemini-3.1-flash-lite";
 const SESSION_EXPIRE_MS = 2 * 60 * 60 * 1_000;
 const EXPENSE_SELECT =
   "id, group_id, ledger, description, merchant, notes, tag, mirror_kind, mirror_source_expense_id, amount_twd, paid_by_user_id, created_by_user_id, expense_date, split_method, version, deleted_at, created_at, expense_splits(user_id, amount_twd), receipts(id, status)";
@@ -793,7 +794,7 @@ export async function generateAccountantReport(
   );
   try {
     const response = await generateObject({
-      model: google(MODEL),
+      model: getModel(MODEL),
       system: "你是台灣情侶帳本的會計師。只能根據提供的 snapshot 分析。facts 必須逐字等於 snapshot.facts；不能自行改金額、改權限或假設不存在的帳務。可給建議，但所有改帳都只是待確認草稿。你只能根據提供的 snapshot 資料中出現的 merchant 或 description 進行字面推論，絕對禁止憑空捏造 snapshot 中沒有明確指出的具體事件、活動或情境（例如捏造出去某個商圈逛街、參加某種生日聚會、出遊等）。如果資料中沒有明確的商家或備註，僅能說明『主要來自大額支出』，不得虛構原因！",
       messages: [{ role: "user", content: JSON.stringify(accountantPrompt(input.question, snapshot)) }],
       temperature: 0.2,
@@ -1048,7 +1049,7 @@ async function answerWithGemini(
   };
   try {
     const response = await generateObject({
-      model: google(MODEL),
+      model: getModel(MODEL),
       system: "你是帳務專用 AI 會計師的回覆層。只能根據提供的工具結果回答；不能新增金額、不能假設不存在的帳務、不能要求使用者打開 LIFF 才知道答案。facts 必須逐字等於輸入 facts。若有操作建議，只能描述需使用者確認。",
       messages: [{
         role: "user",
@@ -2095,7 +2096,7 @@ export async function processReceipt(
     const mimeType = detectReceiptMime(bytes);
     if (!mimeType) throw new HttpError(400, "收據格式不正確");
     const response = await generateObject({
-      model: google(MODEL),
+      model: getModel(MODEL),
       messages: [
         {
           role: "user",
@@ -3026,7 +3027,7 @@ export async function agentChat(context: ServerContext, input: unknown) {
   }
 
   const result = await generateText({
-    model: google(AGENT_MODEL),
+    model: getModel(AGENT_MODEL),
     system:
       "你是台灣情侶帳本的 AI 會計師。你有工具可以查詢帳務資料。" +
       "根據使用者的問題，自己決定需要查什麼資料，用工具查詢後再回答。" +
@@ -3161,7 +3162,7 @@ export async function transcribeAudio(
   mimeType: string,
 ): Promise<string> {
   const response = await generateText({
-    model: google(AGENT_MODEL),
+    model: getModel(AGENT_MODEL),
     messages: [
       {
         role: "user",

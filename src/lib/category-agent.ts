@@ -1,6 +1,7 @@
-import { google } from "@ai-sdk/google";
 import { generateText, generateObject } from "ai";
 import { z } from "zod";
+
+import { getModel } from "./model-provider";
 
 export const categoryClassificationSchema = z
   .object({
@@ -112,7 +113,7 @@ export async function classifyExpenseCategory(
   if (!gemini) return fallback;
   try {
     const response = await generateObject({
-      model: google("gemini-3.1-flash-lite"),
+      model: getModel("gemini-3.1-flash-lite"),
       system: "你是帳務分類器。輸出 tag（自由繁體中文標籤，1 到 40 字）。tag 可參考歷史標籤但也可以是新的簡短標籤。",
       messages: [{
         role: "user",

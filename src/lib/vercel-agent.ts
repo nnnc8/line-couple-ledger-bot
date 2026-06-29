@@ -1,11 +1,9 @@
-import { google } from "@ai-sdk/google";
 import { generateText } from "ai";
 import { z } from "zod";
 
 import { executeSecretaryTool } from "./secretary-tools";
 import type { ToolContext } from "./accountant-tools";
-
-const AGENT_MODEL = process.env.AGENT_MODEL || "gemini-2.0-flash";
+import { getModel } from "./model-provider";
 
 /* ─── Zod Schemas for Tools ─── */
 
@@ -125,7 +123,7 @@ export async function runVercelAgent(
   const coreMessages = mapMessages(messages);
 
   const result = await generateText({
-    model: google(AGENT_MODEL),
+    model: getModel(),
     system: systemInstruction,
     messages: coreMessages,
     maxSteps: 8,
