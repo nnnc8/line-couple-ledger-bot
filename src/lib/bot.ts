@@ -515,6 +515,20 @@ async function createAgentPendingAction(
     const expense = action.expense as Record<string, unknown>;
     const splits = action.splits as Array<{ user_id: string; amount_twd: number }> | undefined;
 
+    const flatPayload = {
+      group_id: expense.group_id ?? action.groupId ?? null,
+      ledger: expense.ledger,
+      description: expense.description,
+      merchant: expense.merchant ?? null,
+      notes: expense.notes ?? null,
+      tag: expense.tag ?? "其他",
+      amount_twd: expense.amount_twd,
+      paid_by_user_id: expense.paid_by_user_id,
+      expense_date: expense.expense_date,
+      split_method: expense.split_method,
+      splits: splits ?? null,
+    };
+
     const { data, error } = await supabase
       .from("pending_actions")
       .insert({
@@ -522,7 +536,7 @@ async function createAgentPendingAction(
         group_id: action.groupId as string | null,
         requested_by_user_id: user.id,
         action_type: "create_expense",
-        payload: { expense, splits },
+        payload: flatPayload,
         source_event_id: `line:${crypto.randomUUID()}`,
         expires_at: expiresAt,
       })
