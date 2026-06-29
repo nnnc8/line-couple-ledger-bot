@@ -126,7 +126,6 @@ export async function runVercelAgent(
     model: getModel(),
     system: systemInstruction,
     messages: coreMessages,
-    maxSteps: 8,
     tools: {
       record_expense: {
         description: "記帳。直接寫入一筆支出，不需使用者再按確認。",
@@ -221,6 +220,7 @@ export async function runVercelAgent(
         },
       },
     },
+    stopWhen: (({ steps }: any) => steps.length >= 8) as any,
   } as any);
 
   let answer = result.text || "處理完成。";

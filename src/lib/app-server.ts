@@ -3035,7 +3035,6 @@ export async function agentChat(context: ServerContext, input: unknown) {
       "你只能讀取資料，不能修改帳務。如果使用者要改帳，告訴他到 LIFF 操作。" +
       "不要捏造數字，所有數字都必須來自工具查詢結果。",
     messages: coreMessages,
-    maxSteps: 8,
     temperature: 0.3,
     tools: {
       query_expenses: {
@@ -3111,6 +3110,7 @@ export async function agentChat(context: ServerContext, input: unknown) {
         execute: async (args: any) => executeTool("analyze_spending", args, toolCtx),
       },
     },
+    stopWhen: ({ steps }: any) => steps.length >= 8,
   } as any);
 
   let toolCallCount = 0;
