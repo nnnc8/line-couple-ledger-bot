@@ -8,11 +8,10 @@ import { HistorySection } from "@/components/history/history-section";
 import { PrivateLedger } from "@/components/private/private-ledger";
 import { SettingsSection } from "@/components/settings/settings-section";
 import { ExpenseForm } from "@/components/expense/expense-form";
-import { ConfirmDialog } from "@/components/layout/confirm-dialog";
 import { Sheet } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import type { Expense } from "@/lib/types";
-import type { ExpenseInput } from "@/lib/optimistic";
+import type { PendingActionInput } from "@/lib/optimistic";
 import { api } from "@/lib/api";
 import { toast } from "sonner";
 
@@ -52,12 +51,10 @@ export default function Home() {
     data,
     error,
     busy,
-    proposal,
     setError,
     load,
     mutate,
     propose,
-    decide,
   } = useBootstrap();
 
   const [tab, setTab] = React.useState<TabKey>(() => tabFromUrl());
@@ -195,6 +192,17 @@ export default function Home() {
     sessionStorage.removeItem("receiptDraft");
   }
 
+  function runAction(
+    body: PendingActionInput,
+    options: { success?: string; onSuccess?: () => void } = {},
+  ) {
+    void propose(body).then(({ success }) => {
+      if (!success) return;
+      toast.success(options.success ?? "已完成");
+      options.onSuccess?.();
+    });
+  }
+
   React.useEffect(() => {
     if (!error) return;
     toast.error(error, { duration: 4000 });
@@ -262,11 +270,14 @@ export default function Home() {
             <Dashboard
               data={data}
               onSettle={(amount) =>
-                void propose({
-                  type: "settle",
-                  groupId: data.activeGroupId,
-                  amountTwd: amount,
-                })
+                runAction(
+                  {
+                    type: "settle",
+                    groupId: data.activeGroupId,
+                    amountTwd: amount,
+                  },
+                  { success: "已結清" },
+                )
               }
               onAdd={openAdd}
               onEdit={openEdit}
@@ -279,11 +290,14 @@ export default function Home() {
               users={data.users}
               onEdit={openEdit}
               onDelete={(expense) =>
-                void propose({
-                  type: expense.deleted_at ? "restore_expense" : "delete_expense",
-                  expenseId: expense.id,
-                  expectedVersion: expense.version,
-                })
+                runAction(
+                  {
+                    type: expense.deleted_at ? "restore_expense" : "delete_expense",
+                    expenseId: expense.id,
+                    expectedVersion: expense.version,
+                  },
+                  { success: expense.deleted_at ? "已復原" : "已刪除" },
+                )
               }
               onReceipt={openReceiptUrl}
             />
@@ -293,11 +307,14 @@ export default function Home() {
               data={data}
               onEdit={openEdit}
               onDelete={(expense) =>
-                void propose({
-                  type: expense.deleted_at ? "restore_expense" : "delete_expense",
-                  expenseId: expense.id,
-                  expectedVersion: expense.version,
-                })
+                runAction(
+                  {
+                    type: expense.deleted_at ? "restore_expense" : "delete_expense",
+                    expenseId: expense.id,
+                    expectedVersion: expense.version,
+                  },
+                  { success: expense.deleted_at ? "已復原" : "已刪除" },
+                )
               }
               onReceipt={openReceiptUrl}
             />
@@ -309,8 +326,6 @@ export default function Home() {
               onRecurring={(body, success) =>
                 void mutate("/api/app/recurring", body, { success })
               }
-              onPropose={() => {}}
-              onBatchCreate={(expenses: ExpenseInput[]) => void propose({ type: "batch_create_expenses", expenses })}
             />
           )}
         </div>
@@ -333,22 +348,22 @@ export default function Home() {
           editExpense={editExpense}
           onExit={closeExpense}
           onSubmit={(body) => {
-            void propose(body).then(({ success }) => {
-              if (success) closeExpense();
+            runAction(body, {
+              success: editExpense ? "已更新" : "已記帳",
+              onSuccess: closeExpense,
             });
           }}
           onDelete={
             editExpense
-              ? () => {
-                  if (!confirm("確定要刪除這筆支出嗎？")) return;
-                  void propose({
-                    type: "delete_expense",
-                    expenseId: editExpense.id,
-                    expectedVersion: editExpense.version,
-                  }).then(({ success }) => {
-                    if (success) closeExpense();
-                  });
-                }
+              ? () =>
+                  runAction(
+                    {
+                      type: "delete_expense",
+                      expenseId: editExpense.id,
+                      expectedVersion: editExpense.version,
+                    },
+                    { success: "已刪除", onSuccess: closeExpense },
+                  )
               : undefined
           }
           onReceipt={async (file) =>
@@ -356,21 +371,6 @@ export default function Home() {
           }
         />
       </Sheet>
-
-      <ConfirmDialog
-        preview={proposal ? proposal.preview : null}
-        busy={busy}
-        onConfirm={() => {
-          void decide(true).then((res) => {
-            if (res?.result === "confirmed") {
-              toast.success("已完成");
-            }
-          });
-        }}
-        onCancel={() => {
-          void decide(false);
-        }}
-      />
     </main>
   );
 }

@@ -1,11 +1,17 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
 import { type FunctionDeclaration, Type } from "@google/genai";
+import { buildCreateExpenseAction, buildSettleAction } from "./pending-action-builders";
+import { HttpError } from "./http-error";
 
 import {
   detectDuplicateAgentExpenses,
   type AgentExpense,
 } from "./ledger-agent";
+import {
+  LedgerQueryService,
+  type LedgerVisibleExpense,
+} from "./ledger-query";
 
 export interface ToolContext {
   db: SupabaseClient;
@@ -13,6 +19,8 @@ export interface ToolContext {
   userId: string;
   coupleId: number;
 }
+
+const ledgerQueryService = new LedgerQueryService();
 
 interface ExpenseSummary {
   total: number;
@@ -549,68 +557,22 @@ interface FilterOpts {
   type?: "shared" | "private" | "all";
 }
 
-const expenseQuerySchema = z.object({
-  id: z.string().uuid(),
-  description: z.string(),
-  merchant: z.string().nullable(),
-  tag: z.string(),
-  amount_twd: z.coerce.number().int(),
-  paid_by_user_id: z.string().uuid(),
-  expense_date: z.string(),
-  ledger: z.enum(["shared", "private"]),
-});
-
-type ToolExpense = z.infer<typeof expenseQuerySchema>;
+type ToolExpense = LedgerVisibleExpense;
 
 async function loadFilteredExpenses(
   ctx: ToolContext,
   opts: FilterOpts,
 ): Promise<ToolExpense[]> {
-  const queries: Promise<{ data: unknown[] | null; error: unknown }>[] = [];
-  const ledgerType = opts.type ?? "all";
-
-  if (ledgerType !== "private") {
-    let q = ctx.db
-      .from("expenses")
-      .select(
-        "id, description, merchant, tag, amount_twd, paid_by_user_id, expense_date, ledger",
-      )
-      .eq("group_id", ctx.groupId)
-      .is("deleted_at", null)
-      .is("mirror_kind", null);
-    if (opts.dateFrom) q = q.gte("expense_date", opts.dateFrom);
-    if (opts.dateTo) q = q.lt("expense_date", opts.dateTo);
-    if (opts.tag) q = q.eq("tag", opts.tag);
-    if (opts.member === "me") q = q.eq("paid_by_user_id", ctx.userId);
-    else if (opts.member === "partner")
-      q = q.neq("paid_by_user_id", ctx.userId);
-    q = q.order("expense_date", { ascending: false }).limit(500);
-    queries.push(q as unknown as Promise<{ data: unknown[] | null; error: unknown }>);
-  }
-
-  if (ledgerType !== "shared") {
-    let q = ctx.db
-      .from("expenses")
-      .select(
-        "id, description, merchant, tag, amount_twd, paid_by_user_id, expense_date, ledger",
-      )
-      .eq("ledger", "private")
-      .eq("created_by_user_id", ctx.userId)
-      .is("deleted_at", null)
-      .is("mirror_kind", null);
-    if (opts.dateFrom) q = q.gte("expense_date", opts.dateFrom);
-    if (opts.dateTo) q = q.lt("expense_date", opts.dateTo);
-    if (opts.tag) q = q.eq("tag", opts.tag);
-    q = q.order("expense_date", { ascending: false }).limit(500);
-    queries.push(q as unknown as Promise<{ data: unknown[] | null; error: unknown }>);
-  }
-
-  const results = await Promise.all(queries);
-  const rows = results.flatMap((r) =>
-    r.error ? [] : z.array(expenseQuerySchema).parse(r.data ?? []),
-  );
-
-  return rows;
+  return ledgerQueryService.listAccessibleExpenses(ctx.db, {
+    groupId: ctx.groupId,
+    userId: ctx.userId,
+    dateFrom: opts.dateFrom,
+    dateTo: opts.dateTo,
+    tag: opts.tag,
+    member: opts.member,
+    type: opts.type,
+    limitPerLedger: 500,
+  });
 }
 
 function summarize(expenses: ToolExpense[]): ExpenseSummary {
@@ -667,101 +629,40 @@ async function recordExpense(
   params: z.infer<typeof recordExpenseParams>,
   ctx: ToolContext,
 ) {
-  const today = taipeiToday();
-  const expenseDate = params.expense_date || today;
-
-  const { data: partnerRow } = await ctx.db
-    .from("group_members")
-    .select("user_id")
-    .eq("group_id", ctx.groupId)
-    .neq("user_id", ctx.userId)
-    .single();
-
-  const partnerId = partnerRow?.user_id as string | undefined;
-
-  const paidBy = params.paid_by === "self" ? ctx.userId : partnerId;
-  if (!paidBy) return { error: "找不到對方用戶" };
-
-  const expenseRow = {
-    group_id: ctx.groupId,
-    ledger: params.ledger,
-    description: params.description,
-    merchant: params.merchant ?? null,
-    notes: params.notes ?? null,
-    tag: params.tag ?? "其他",
-    amount_twd: params.amount_twd,
-    paid_by_user_id: paidBy,
-    created_by_user_id: ctx.userId,
-    expense_date: expenseDate,
-    split_method: params.split_method,
-  };
-
-  const splits =
-    params.ledger === "private"
-      ? undefined
-      : params.split_method === "equal"
-        ? (() => {
-            if (!partnerId) return undefined;
-            return [
-              { user_id: ctx.userId, amount_twd: Math.ceil(params.amount_twd / 2) },
-              { user_id: partnerId, amount_twd: Math.floor(params.amount_twd / 2) },
-            ];
-          })()
-        : undefined;
-
-  const action = {
-    type: "create_expense" as const,
-    groupId: ctx.groupId,
-    userId: ctx.userId,
-    expense: expenseRow,
-    splits,
-  };
-
-  return {
-    pending_action: action,
-    message: `已為您建立一筆 ${params.ledger === "private" ? "私人" : "共同"}帳支出：${params.description} NT$${params.amount_twd}（${params.paid_by === "self" ? "你付的" : "對方付的"}），請確認。`,
-  };
+  try {
+    const action = await buildCreateExpenseAction(ctx, params);
+    return {
+      pending_action: action,
+      message: `已為您記下一筆 ${params.ledger === "private" ? "私人" : "共同"}帳支出：${params.description} NT$${params.amount_twd}（${params.paid_by === "self" ? "你付的" : "對方付的"}）。`,
+    };
+  } catch (error) {
+    return {
+      error: error instanceof Error ? error.message : "建立支出失敗",
+    };
+  }
 }
 
 async function settleDebt(
   params: z.infer<typeof settleDebtParams>,
   ctx: ToolContext,
 ) {
-  const result = await ctx.db.rpc("group_balances", {
-    p_group_id: ctx.groupId,
-  });
-  if (result.error) return { error: "查詢餘額失敗" };
-
-  const balances = z
-    .array(z.object({ user_id: z.string(), balance_twd: z.number() }))
-    .parse(result.data ?? []);
-
-  const mine = balances.find((b) => b.user_id === ctx.userId)?.balance_twd ?? 0;
-
-  if (mine >= 0) {
+  try {
+    const action = await buildSettleAction(ctx, params.amount_twd);
     return {
-      message: `目前你不需要結清（你的餘額為 NT$${mine}）。對方欠你 NT$${Math.abs(mine)}。`,
+      pending_action: action,
+      message: `已為您建立結清：你欠另一半 NT$${params.amount_twd}。`,
+    };
+  } catch (error) {
+    if (error instanceof HttpError) {
+      if (error.message.includes("不需要結清")) {
+        return { message: error.message };
+      }
+      return { error: error.message };
+    }
+    return {
+      error: error instanceof Error ? error.message : "建立結清失敗",
     };
   }
-
-  const maxSettle = Math.abs(mine);
-  if (params.amount_twd > maxSettle) {
-    return {
-      error: `結清金額 NT$${params.amount_twd} 超過你欠的 NT$${maxSettle}，請調整。`,
-    };
-  }
-
-  const action = {
-    type: "settle" as const,
-    groupId: ctx.groupId,
-    userId: ctx.userId,
-    amountTwd: params.amount_twd,
-  };
-
-  return {
-    pending_action: action,
-    message: `已為您建立結清：你欠另一半 NT$${params.amount_twd}，請確認。`,
-  };
 }
 
 async function analyzeSpending(

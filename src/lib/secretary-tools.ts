@@ -13,11 +13,9 @@ import { type FunctionDeclaration, Type } from "@google/genai";
 
 import { executeTool as executeAccountantTool } from "./accountant-tools";
 import type { ToolContext } from "./accountant-tools";
-import { createTask, getOpenTasks } from "./secretary-tasks";
-import {
-  matchMerchantRule,
-  getMemories,
-} from "./secretary-memory";
+import { RuleService } from "./rule-service";
+import { TaskService } from "./task-service";
+import { buildUpdateExpenseAction } from "./pending-action-builders";
 
 /* ─── Types ─── */
 
@@ -97,7 +95,7 @@ export const secretaryToolDeclarations: FunctionDeclaration[] = [
   },
   {
     name: "get_open_tasks",
-    description: "查詢目前待處理的秘書任務（待確認、待分類等）。",
+    description: "查詢目前待處理的秘書任務（待分類、待補資料等）。",
     parameters: {
       type: Type.OBJECT,
       properties: {
@@ -124,7 +122,7 @@ export const secretaryToolDeclarations: FunctionDeclaration[] = [
   {
     name: "record_expense",
     description:
-      "記帳。建立一筆待確認的支出。使用者需在 LINE 點選確認後才正式寫入。",
+      "記帳。直接建立一筆支出並寫入帳本。",
     parameters: {
       type: Type.OBJECT,
       properties: {
@@ -150,7 +148,7 @@ export const secretaryToolDeclarations: FunctionDeclaration[] = [
   {
     name: "propose_update_expense",
     description:
-      "修改最近一筆支出。用於「剛剛那筆改私人」、「上一筆改分類」等情境。只提出待確認修改。",
+      "修改最近一筆支出。用於「剛剛那筆改私人」、「上一筆改分類」等情境，直接套用修改。",
     parameters: {
       type: Type.OBJECT,
       properties: {
@@ -181,7 +179,7 @@ export const secretaryToolDeclarations: FunctionDeclaration[] = [
   },
   {
     name: "propose_settlement",
-    description: "建議結清。建立一筆待確認的結清 pending action。",
+    description: "建議結清。直接建立結清。",
     parameters: {
       type: Type.OBJECT,
       properties: {
@@ -194,7 +192,7 @@ export const secretaryToolDeclarations: FunctionDeclaration[] = [
   {
     name: "propose_merchant_rule",
     description:
-      "建議建立商家規則。例如「之後 Uber 都私人交通」。先產生確認任務，使用者確認後才寫入 memory。",
+      "直接建立商家規則。例如「之後 Uber 都私人交通」。",
     parameters: {
       type: Type.OBJECT,
       properties: {
@@ -230,11 +228,9 @@ export const secretaryToolDeclarations: FunctionDeclaration[] = [
         type: {
           type: Type.STRING,
           enum: [
-            "confirm_expense",
             "fix_uncertain_receipt",
             "budget_warning",
             "duplicate_expense_review",
-            "merchant_rule_suggestion",
             "tag_cleanup",
           ],
         },
@@ -376,7 +372,7 @@ async function getRecentExpenses(ctx: ToolContext, args: Record<string, unknown>
 
 async function getOpenTasksTool(ctx: ToolContext, args: Record<string, unknown>) {
   const limit = z.number().int().min(1).max(20).default(10).parse(args.limit ?? 10);
-  const tasks = await getOpenTasks(ctx.db, {
+  const tasks = await new TaskService(ctx.db).listOpenTasks({
     coupleId: ctx.coupleId,
     groupId: ctx.groupId,
     limit,
@@ -403,7 +399,7 @@ async function getUserMemories(ctx: ToolContext, args: Record<string, unknown>) 
     .optional()
     .parse(args.kind);
 
-  const memories = await getMemories(ctx.db, {
+  const memories = await new RuleService(ctx.db).listMemories({
     coupleId: ctx.coupleId,
     groupId: ctx.groupId,
     userId: ctx.userId,
@@ -434,7 +430,7 @@ async function recordExpense(ctx: ToolContext, args: Record<string, unknown>) {
 /* ─── propose_update_expense ─── */
 
 const updateExpenseParams = z.object({
-  expense_id: z.string().uuid(),
+  expense_id: z.string(),
   updates: z.object({
     ledger: z.enum(["shared", "private"]).optional(),
     category: z.string().optional(),
@@ -450,60 +446,30 @@ async function proposeUpdateExpense(
   ctx: ToolContext,
   args: Record<string, unknown>,
 ) {
-  const params = updateExpenseParams.parse(args);
+  try {
+    const params = updateExpenseParams.parse(args);
+    const action = await buildUpdateExpenseAction(ctx, params.expense_id, params.updates);
 
-  // Verify expense exists and belongs to this group/couple
-  const { data: expense, error } = await ctx.db
-    .from("expenses")
-    .select("id, description, amount_twd, tag, ledger, paid_by_user_id, expense_date, version")
-    .eq("id", params.expense_id)
-    .eq("group_id", ctx.groupId)
-    .is("deleted_at", null)
-    .single();
+    const changedFields = Object.keys(action.updates)
+      .map((k) => fieldLabel(k))
+      .filter(Boolean)
+      .join("、");
 
-  if (error || !expense) return { error: "找不到這筆支出" };
-
-  // Build update payload
-  const updates: Record<string, unknown> = {};
-  if (params.updates.ledger) updates.ledger = params.updates.ledger;
-  if (params.updates.tag) updates.tag = params.updates.tag;
-  if (params.updates.description) updates.description = params.updates.description;
-  if (params.updates.amount_twd) updates.amount_twd = params.updates.amount_twd;
-  if (params.updates.expense_date) updates.expense_date = params.updates.expense_date;
-
-  // Handle paid_by → paid_by_user_id
-  if (params.updates.paid_by) {
-    const partnerResult = await ctx.db
-      .from("group_members")
-      .select("user_id")
-      .eq("group_id", ctx.groupId)
-      .neq("user_id", ctx.userId)
+    const { data: expense } = await ctx.db
+      .from("expenses")
+      .select("description")
+      .eq("id", params.expense_id)
       .single();
 
-    updates.paid_by_user_id =
-      params.updates.paid_by === "self"
-        ? ctx.userId
-        : partnerResult.data?.user_id ?? ctx.userId;
+    return {
+      pending_action: action,
+      message: `已為你修改：${expense?.description ?? "支出"}（${changedFields}）。`,
+    };
+  } catch (error) {
+    return {
+      error: error instanceof Error ? error.message : "修改支出失敗",
+    };
   }
-
-  const pendingAction = {
-    type: "update_expense" as const,
-    expenseId: params.expense_id,
-    expectedVersion: (expense as Record<string, unknown>).version as number,
-    groupId: ctx.groupId,
-    userId: ctx.userId,
-    updates,
-  };
-
-  const changedFields = Object.keys(updates)
-    .map((k) => fieldLabel(k as keyof typeof updates))
-    .filter(Boolean)
-    .join("、");
-
-  return {
-    pending_action: pendingAction,
-    message: `已為你提出修改：${(expense as Record<string, unknown>).description as string}（${changedFields}），請確認。`,
-  };
 }
 
 function fieldLabel(key: string): string {
@@ -541,68 +507,25 @@ async function proposeMerchantRule(
   args: Record<string, unknown>,
 ) {
   const params = merchantRuleParams.parse(args);
-
-  // Check if a similar rule already exists
-  const existing = await matchMerchantRule(ctx.db, {
+  const result = await new RuleService(ctx.db).createMerchantRule({
     coupleId: ctx.coupleId,
     groupId: ctx.groupId,
+    userId: ctx.userId,
     merchant: params.merchant,
-    minConfidence: 0.5,
-  });
-
-  if (existing) {
-    return {
-      message: `已有關於「${params.merchant}」的規則：${JSON.stringify(existing.memory.value)}。要更新嗎？`,
-      existing_memory_id: existing.memory.id,
-    };
-  }
-
-  // Create a task for the user to confirm
-  const memoryValue: Record<string, unknown> = {};
-  if (params.rule.ledger) memoryValue.ledger = params.rule.ledger;
-  if (params.rule.tag) memoryValue.tag = params.rule.tag;
-  if (params.rule.paid_by) memoryValue.paid_by = params.rule.paid_by;
-
-  // Build user-friendly summary
-  const parts: string[] = [];
-  if (params.rule.ledger === "private") parts.push("私人帳");
-  else if (params.rule.ledger === "shared") parts.push("共同帳");
-  if (params.rule.tag) parts.push(params.rule.tag);
-  if (params.rule.paid_by) {
-    parts.push(
-      params.rule.paid_by === "self"
-        ? "你付"
-        : "對方付",
-    );
-  }
-
-  const title = `商家規則建議：${params.merchant} → ${parts.join(" / ") || "記帳"}`;
-
-  const taskId = await createTask(ctx.db, {
-    coupleId: ctx.coupleId,
-    groupId: ctx.groupId,
-    ownerUserId: ctx.userId,
-    type: "merchant_rule_suggestion",
-    title,
-    summary: `之後「${params.merchant}」預設為 ${parts.join(" / ") || "記帳"}。要套用這個規則嗎？`,
-    payload: {
-      merchant: params.merchant,
-      rule: memoryValue,
-      memoryValue,
-      suggestedBy: ctx.userId,
+    rule: {
+      ledger: params.rule.ledger,
+      category: params.rule.category,
+      tag: params.rule.tag,
+      paidBy: params.rule.paid_by,
     },
-    priority: "low",
+    scope: "group",
     source: "line",
   });
 
   return {
-    task_id: taskId,
-    message: `我記住了：之後「${params.merchant}」預設為 ${parts.join(" / ") || "目前設定"}。已幫你建立一個規則確認。[確認套用] [先不要]`,
-    pending_memory: {
-      kind: "merchant_rule",
-      key: params.merchant,
-      value: memoryValue,
-    },
+    memory_id: result.memoryId,
+    message: result.message,
+    memory: result.memory,
   };
 }
 
@@ -610,11 +533,10 @@ async function proposeMerchantRule(
 
 const createTaskParams = z.object({
   type: z.enum([
-    "confirm_expense",
     "fix_uncertain_receipt",
     "budget_warning",
     "duplicate_expense_review",
-    "merchant_rule_suggestion",
+    "tag_cleanup",
   ]),
   title: z.string().min(1).max(200),
   summary: z.string().optional(),
@@ -627,10 +549,10 @@ async function createSecretaryTask(
 ) {
   const params = createTaskParams.parse(args);
 
-  const taskId = await createTask(ctx.db, {
+  const result = await new TaskService(ctx.db).createSecretaryTask({
     coupleId: ctx.coupleId,
     groupId: ctx.groupId,
-    ownerUserId: ctx.userId,
+    userId: ctx.userId,
     type: params.type,
     title: params.title,
     summary: params.summary,
@@ -639,7 +561,7 @@ async function createSecretaryTask(
   });
 
   return {
-    task_id: taskId,
-    message: `已建立任務：${params.title}`,
+    task_id: result.taskId,
+    message: result.message,
   };
 }

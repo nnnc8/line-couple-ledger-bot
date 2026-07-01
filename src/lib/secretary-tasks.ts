@@ -9,7 +9,6 @@ import { z } from "zod";
 /* ─── Consts ─── */
 
 const ASSISTANT_TASK_TYPES = [
-  "confirm_expense",
   "fix_uncertain_receipt",
   "review_unmatched_bank_items",
   "settlement_suggestion",
@@ -26,6 +25,10 @@ const DEFAULT_TASK_EXPIRY_DAYS = 7;
 /* ─── Types ─── */
 
 export type AssistantTaskType = (typeof ASSISTANT_TASK_TYPES)[number];
+
+const DEFAULT_VISIBLE_TASK_TYPES = ASSISTANT_TASK_TYPES.filter(
+  (type) => type !== "merchant_rule_suggestion",
+) as AssistantTaskType[];
 
 export interface AssistantTask {
   id: string;
@@ -131,14 +134,16 @@ export async function getOpenTasks(
     .order("priority", { ascending: false })
     .order("created_at", { ascending: false });
 
+  const visibleTypes = options.types ?? DEFAULT_VISIBLE_TASK_TYPES;
+
   if (options.groupId) {
     query = query.eq("group_id", options.groupId);
   }
   if (options.userId) {
     query = query.eq("owner_user_id", options.userId);
   }
-  if (options.types?.length) {
-    query = query.in("type", options.types);
+  if (visibleTypes.length) {
+    query = query.in("type", visibleTypes);
   }
   if (options.limit) {
     query = query.limit(options.limit);

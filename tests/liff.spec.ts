@@ -28,17 +28,9 @@ test.beforeEach(async ({ page }) => {
     sessionCreated = true;
     return route.fulfill({ json: { user: { id: OWNER, role: "owner" } } });
   });
-  await page.route("**/api/app/actions/confirm", (route) =>
-    route.fulfill({
-      json: { result: "confirmed", action_type: "create_expense" },
-    }),
-  );
   await page.route("**/api/app/actions", (route) =>
     route.fulfill({
-      json: {
-        actionId: "00000000-0000-4000-8000-000000000099",
-        preview: "新增 共同生活\n晚餐 NT$860\n平均分帳",
-      },
+      json: { result: "confirmed", action_type: "create_expense" },
     }),
   );
   await page.route("**/api/app/groups", (route) =>
@@ -72,7 +64,7 @@ test.beforeEach(async ({ page }) => {
   );
 });
 
-test("mobile dashboard, history, and confirmed expense flow", async ({
+test("mobile dashboard, history, and direct expense flow", async ({
   page,
 }) => {
   await page.goto("/");
@@ -91,10 +83,9 @@ test("mobile dashboard, history, and confirmed expense flow", async ({
   await page.getByRole("button", { name: /新增/ }).click();
   await page.getByLabel("說明").fill("晚餐");
   await page.getByLabel("金額（TWD）").fill("860");
-  await page.getByRole("button", { name: "預覽並確認" }).click();
-  await expect(page.getByRole("dialog")).toContainText("晚餐 NT$860");
-  await page.getByRole("dialog").getByRole("button", { name: "確認" }).click();
-  await expect(page.getByText("已完成")).toBeVisible();
+  await page.getByRole("button", { name: "直接記帳" }).click();
+  await expect(page.getByText("已記帳")).toBeVisible();
+  await expect(page.getByLabel("說明")).toHaveCount(0);
 });
 
 test("dashboard fallback keeps free category labels and centered add button", async ({
@@ -270,7 +261,7 @@ function accountantReport(title: string) {
     suggestions: [
       {
         title: "可結清目前餘額",
-        body: "確認後會建立結清草稿。",
+        body: "可直接建立結清。",
         actionInput: { type: "settle", groupId: GROUP, amountTwd: 430 },
       },
     ],

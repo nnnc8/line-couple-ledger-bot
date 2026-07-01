@@ -3,15 +3,23 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
 
 import {
-  confirmAction,
-  retargetPendingActionById,
-  retargetPendingActions,
-  searchExpenses,
   serverEnvironment,
-  transcribeAudio,
-} from "./app-server";
-import { runSecretaryLoop, type SecretaryResult } from "./secretary-agent";
+  serverDatabase,
+} from "./server-runtime";
+import {
+  taipeiToday,
+  receiptExpenseInputs,
+} from "./ledger-shared";
+import {
+  pendingActionService,
+  ledgerQueryService,
+  agentChatService,
+  receiptService,
+} from "./services";
+import { processUploadedLineReceipt } from "./receipt-service";
+import { runSecretaryLoop } from "./secretary-agent";
 import { notifyPartner } from "./secretary-push";
+import { SecretaryService } from "./secretary-service";
 import type { ToolContext } from "./accountant-tools";
 import type { AgentDeps } from "./agent-loop";
 import {
@@ -22,7 +30,7 @@ import { safeSecretEqual } from "./security";
 export { safeSecretEqual } from "./security";
 
 const MAX_MESSAGE_LENGTH = 500;
-const PENDING_ACTION_TTL_MS = 5 * 60 * 1000;
+const secretaryService = new SecretaryService();
 
 const userRowSchema = z.object({
   id: z.string().uuid(),
@@ -40,29 +48,40 @@ const actionResultSchema = z.object({
     "not_found",
     "already_done",
   ]),
-  action_type: z
-    .enum([
-      "create_expense",
-      "update_expense",
-      "delete_expense",
-      "restore_expense",
-      "settle",
-      "batch_create_expenses",
-      "batch_update_expenses",
-    ])
-    .nullable()
-    .optional(),
+  action_type: z.string().nullable().optional(),
   created_count: z.number().int().optional(),
 });
 
 type UserRow = z.infer<typeof userRowSchema>;
+type ActionResult = z.infer<typeof actionResultSchema>;
 
 interface BotDependencies {
   lineClient: Pick<LineBotClient, "replyMessage" | "getMessageContent" | "pushMessage">;
   supabase: SupabaseClient;
-  gemini: any;
+  gemini: AgentDeps["gemini"];
   setupCode: string;
   onImage?: (input: { messageId: string; eventId: string; lineUserId: string }) => void;
+}
+
+export function actionResultMessage(result: ActionResult): string {
+  const messages: Record<ActionResult["result"], string> = {
+    confirmed:
+      result.action_type === "batch_create_expenses"
+        ? `已記帳 ${result.created_count ?? "這批"} 筆。`
+        : result.action_type === "create_expense"
+          ? "已記帳。"
+          : result.action_type === "batch_update_expenses"
+            ? "分類整理已套用。"
+            : result.action_type === "delete_expense"
+              ? "已刪除。"
+              : "已結清。",
+    cancelled: "已取消。",
+    expired: "操作已過期，請重新操作。",
+    stale: "帳目已變動，請重新操作。",
+    not_found: "找不到這個操作。",
+    already_done: "這個操作已處理。",
+  };
+  return messages[result.result];
 }
 
 export async function handleLineEvent(
@@ -75,7 +94,11 @@ export async function handleLineEvent(
 
   try {
     if (event.type === "postback") {
-      await handlePostback(event, userId, replyToken, dependencies);
+      await replyText(
+        dependencies.lineClient,
+        replyToken,
+        "這個操作已停用，請重新記帳或到圖形化帳本編輯。",
+      );
       return;
     }
     if (event.type !== "message") return;
@@ -255,16 +278,24 @@ async function handleText(
   // Pending retarget command
   const retarget = parsePendingRetargetCommand(text);
   if (retarget) {
-    const result = await retargetPendingActions(
+    const result = await pendingActionService.retargetActions(
       { db: dependencies.supabase, user },
       retarget,
     );
+    const serverContext = {
+      env: serverEnvironment(),
+      db: dependencies.supabase,
+      user,
+    };
+    for (const actionId of result.actionIds) {
+      await pendingActionService.confirm(serverContext, actionId, true);
+    }
     await replyText(
       dependencies.lineClient,
       replyToken,
       result.count
-        ? `已把 ${result.count} 筆待確認收據改成私人帳｜交通。請按原本那則訊息的確認。`
-        : "沒有找到還有效的待確認收據，請重新傳照片或手動新增。",
+        ? `已把 ${result.count} 筆收據改成私人帳｜交通，並直接入帳。`
+        : "沒有找到還有效的收據草稿，請重新傳照片或手動新增。",
     );
     return;
   }
@@ -275,7 +306,7 @@ async function handleText(
 
 /**
  * Route user message through the Secretary Agent Loop.
- * If the secretary produces pending actions, send confirmation UI.
+ * Secretary write actions are auto-confirmed immediately.
  * If the secretary needs to notify the partner, push a LINE message.
  */
 async function runSecretaryWithReply(
@@ -319,128 +350,50 @@ async function runSecretaryWithReply(
     const userName = user.role === "owner" ? "你" : "你";
     const partnerName = partner ? `${partner.role === "owner" ? "另一半" : "另一半"}` : "另一半";
 
-    const input = {
-      text,
-      ...(imageData ? { imageData: imageData.imageData, mimeType: imageData.mimeType } : {}),
+    const serverContext = {
+      env: serverEnvironment(),
+      db: dependencies.supabase,
+      user: {
+        id: user.id,
+        couple_id: user.couple_id,
+        line_user_id: user.line_user_id,
+        role: user.role,
+      },
     };
-
-    const result: SecretaryResult = await runSecretaryLoop(
-      input,
+    const workflowResult = await secretaryService.run({
+      initialInput: {
+        text,
+        ...(imageData ? { imageData: imageData.imageData, mimeType: imageData.mimeType } : {}),
+      },
       sessionId,
-      user.id,
-      user.couple_id,
-      userName,
-      partnerName,
-      toolCtx,
-      agentDeps,
-    );
-
-    console.error("[SECRETARY] result.answer:", result.answer);
-    console.error("[SECRETARY] result.pendingActions.length:", result.pendingActions.length);
-    console.error("[SECRETARY] result.notifyPartner:", result.notifyPartner);
-    console.error("[SECRETARY] pendingActions:", JSON.stringify(result.pendingActions, null, 2).slice(0, 3000));
-
-    // If there are pending actions, write them straight to the DB and confirm them
-    if (result.pendingActions.length > 0) {
-      const serverContext = {
-        env: serverEnvironment(),
-        db: dependencies.supabase,
-        user: {
-          id: user.id,
-          couple_id: user.couple_id,
-          line_user_id: user.line_user_id,
-          role: user.role,
-        },
-      };
-      for (const action of result.pendingActions) {
-        const actionRecord = action as Record<string, unknown>;
-        const pendingResult = await createAgentPendingAction(
-          dependencies.supabase,
-          user,
-          actionRecord,
-        );
-        console.log("[SECRETARY] createAgentPendingAction result:", pendingResult);
-        if (pendingResult) {
-          const confirmResult = await confirmAction(serverContext, pendingResult.id, true);
-          console.log("[SECRETARY] confirmAction result:", confirmResult);
-        }
-      }
-      await replyText(dependencies.lineClient, replyToken, result.answer);
-      // Notify partner
-      if (result.notifyPartner && result.partnerMessage && partner) {
-        await notifyPartner(dependencies.lineClient, dependencies.supabase, {
-          targetUserId: partner.id,
-          message: result.partnerMessage,
-        });
-      }
+      runLoop: (input, currentSessionId) =>
+        runSecretaryLoop(
+          input,
+          currentSessionId,
+          user.id,
+          user.couple_id,
+          userName,
+          partnerName,
+          toolCtx,
+          agentDeps,
+        ),
+      executeAction: async (action) =>
+        actionResultSchema.parse(await pendingActionService.executeAgentAction(serverContext, action)),
+    });
+    if (workflowResult.actionFailure) {
+      await replyText(
+        dependencies.lineClient,
+        replyToken,
+        actionResultMessage(workflowResult.actionFailure),
+      );
       return;
     }
 
-    // No pending actions — check if the secretary hallucinated an action
-    const actionClaimRegex =
-      /(?:已|已經|已幫|幫你|幫)(?:記帳|記了|新增|加入|修改|改|刪除|結清|建立)/;
-    if (actionClaimRegex.test(result.answer)) {
-      // The secretary claims to have done something but didn't call tools.
-      // Retry once with an explicit instruction to use the tool.
-      console.warn("Secretary hallucinated action, retrying with correction", {
-        answer: result.answer.slice(0, 200),
-        toolCallCount: result.toolCallCount,
-      });
-
-      const correctionResult = await runSecretaryLoop(
-        { text: `⚠️ 你剛才說「${result.answer.slice(0, 100)}」，但你沒有實際呼叫工具。請立刻呼叫 record_expense（或其他對應工具）來執行，不要只用文字回覆。` },
-        result.sessionId,
-        user.id,
-        user.couple_id,
-        userName,
-        partnerName,
-        toolCtx,
-        agentDeps,
-      );
-
-      // Process correction result
-      if (correctionResult.pendingActions.length > 0) {
-        const serverContext = {
-          env: serverEnvironment(),
-          db: dependencies.supabase,
-          user: {
-            id: user.id,
-            couple_id: user.couple_id,
-            line_user_id: user.line_user_id,
-            role: user.role,
-          },
-        };
-        for (const action of correctionResult.pendingActions) {
-          const actionRecord = action as Record<string, unknown>;
-          const pendingResult = await createAgentPendingAction(
-            dependencies.supabase,
-            user,
-            actionRecord,
-          );
-          if (pendingResult) {
-            await confirmAction(serverContext, pendingResult.id, true);
-          }
-        }
-        await replyText(dependencies.lineClient, replyToken, correctionResult.answer);
-        // Notify partner
-        if (correctionResult.notifyPartner && correctionResult.partnerMessage && partner) {
-          await notifyPartner(dependencies.lineClient, dependencies.supabase, {
-            targetUserId: partner.id,
-            message: correctionResult.partnerMessage,
-          });
-        }
-        return;
-      }
-    }
-
-    // Fall back to text reply
-    await replyText(dependencies.lineClient, replyToken, result.answer);
-
-    // Notify partner if needed (e.g., merchant rule changes)
-    if (result.notifyPartner && result.partnerMessage && partner) {
+    await replyText(dependencies.lineClient, replyToken, workflowResult.reply);
+    if (workflowResult.notifyPartner && workflowResult.partnerMessage && partner) {
       await notifyPartner(dependencies.lineClient, dependencies.supabase, {
         targetUserId: partner.id,
-        message: result.partnerMessage,
+        message: workflowResult.partnerMessage,
       });
     }
   } catch (error) {
@@ -501,81 +454,6 @@ async function getActiveGroupId(
   throw new Error("找不到可用群組");
 }
 
-/**
- * Create a pending action for agent-created expenses/settlements.
- */
-async function createAgentPendingAction(
-  supabase: SupabaseClient,
-  user: UserRow,
-  action: Record<string, unknown>,
-): Promise<{ id: string; expense: Record<string, unknown> } | null> {
-  const type = action.type as string;
-  const expiresAt = new Date(Date.now() + PENDING_ACTION_TTL_MS).toISOString();
-
-  if (type === "create_expense") {
-    const expense = action.expense as Record<string, unknown>;
-    const splits = action.splits as Array<{ user_id: string; amount_twd: number }> | undefined;
-
-    const flatPayload = {
-      group_id: expense.group_id ?? action.groupId ?? null,
-      ledger: expense.ledger,
-      description: expense.description,
-      merchant: expense.merchant ?? null,
-      notes: expense.notes ?? null,
-      tag: expense.tag ?? "其他",
-      amount_twd: expense.amount_twd,
-      paid_by_user_id: expense.paid_by_user_id,
-      expense_date: expense.expense_date,
-      split_method: expense.split_method,
-      splits: splits ?? null,
-    };
-
-    const { data, error } = await supabase
-      .from("pending_actions")
-      .insert({
-        couple_id: user.couple_id,
-        group_id: action.groupId as string | null,
-        requested_by_user_id: user.id,
-        action_type: "create_expense",
-        payload: flatPayload,
-        source_event_id: `line:${crypto.randomUUID()}`,
-        expires_at: expiresAt,
-      })
-      .select("id")
-      .single();
-
-    if (error || !data) return null;
-
-    return { id: data.id, expense };
-  }
-
-  if (type === "settle") {
-    const { data, error } = await supabase
-      .from("pending_actions")
-      .insert({
-        couple_id: user.couple_id,
-        group_id: action.groupId as string | null,
-        requested_by_user_id: user.id,
-        action_type: "settle",
-        payload: {
-          groupId: action.groupId,
-          userId: action.userId,
-          amountTwd: action.amountTwd,
-        },
-        source_event_id: `line:${crypto.randomUUID()}`,
-        expires_at: expiresAt,
-      })
-      .select("id")
-      .single();
-
-    if (error || !data) return null;
-
-    return { id: data.id, expense: { description: "結清", amount_twd: action.amountTwd } };
-  }
-
-  return null;
-}
-
 function parseSearchCommand(text: string): string | null {
   const match = text.trim().match(/^(?:\/?搜尋|搜)\s+(.+)$/);
   const query = match?.[1]?.trim();
@@ -590,8 +468,8 @@ async function replySearch(
 ) {
   const env = serverEnvironment();
   const params = new URLSearchParams({ q: query, limit: "5" });
-  const result = await searchExpenses(
-    { env, db: dependencies.supabase, user },
+  const result = await ledgerQueryService.searchExpenses(
+    { db: dependencies.supabase, user },
     params,
   );
   const expenses = result.expenses.slice(0, 5);
@@ -629,7 +507,7 @@ async function handleAudioMessage(
       chunks.push(buffer);
     }
     const bytes = Buffer.concat(chunks);
-    const text = await transcribeAudio(bytes, "audio/x-m4a");
+    const text = await agentChatService.transcribeAudio(bytes, "audio/x-m4a");
     if (!text) {
       await replyText(dependencies.lineClient, replyToken, "沒聽清楚，可以再說一次或打字嗎？");
       return;
@@ -755,106 +633,6 @@ async function joinCouple(
   await replyText(dependencies.lineClient, replyToken, message);
 }
 
-async function handlePostback(
-  event: webhook.PostbackEvent,
-  lineUserId: string,
-  replyToken: string,
-  dependencies: BotDependencies,
-): Promise<void> {
-  const parameters = new URLSearchParams(event.postback.data);
-  const actionId = parameters.get("id");
-  const actionIds = parameters.get("ids")?.split(",").filter(Boolean) ?? [];
-  const decision = parameters.get("decision");
-  const edit = parameters.get("edit");
-  if (edit === "private_transport") {
-    if (!actionId || !z.string().uuid().safeParse(actionId).success) {
-      await replyText(dependencies.lineClient, replyToken, "這個操作無效。");
-      return;
-    }
-    const user = await findUser(dependencies.supabase, lineUserId);
-    if (!user) {
-      await replyText(dependencies.lineClient, replyToken, "請先加入帳本。");
-      return;
-    }
-    const result = await retargetPendingActionById(
-      { db: dependencies.supabase, user },
-      actionId,
-      { ledger: "private", tag: "交通" },
-    );
-    await replyConfirmation(
-      dependencies.lineClient,
-      replyToken,
-      actionId,
-      `已改成私人帳｜交通，共 ${result.count} 筆。\n確認後入帳。`,
-    );
-    return;
-  }
-  if (
-    !["confirm", "cancel"].includes(decision ?? "") ||
-    (!actionId && !actionIds.length) ||
-    (actionId && !z.string().uuid().safeParse(actionId).success) ||
-    actionIds.some((id) => !z.string().uuid().safeParse(id).success)
-  ) {
-    await replyText(dependencies.lineClient, replyToken, "這個操作無效。");
-    return;
-  }
-  if (actionIds.length) {
-    const results = [];
-    for (const id of actionIds) {
-      results.push(
-        await confirmOneAction(id, decision === "confirm", lineUserId, dependencies),
-      );
-    }
-    const confirmed = results.filter((result) => result.result === "confirmed").length;
-    await replyText(
-      dependencies.lineClient,
-      replyToken,
-      decision === "confirm"
-        ? confirmed === results.length
-          ? `已記帳 ${confirmed} 筆。`
-          : `已記帳 ${confirmed} 筆，${results.length - confirmed} 筆未完成。`
-        : "已取消。",
-    );
-    return;
-  }
-  const result = await confirmOneAction(actionId!, decision === "confirm", lineUserId, dependencies);
-  const messages: Record<typeof result.result, string> = {
-    confirmed:
-      result.action_type === "batch_create_expenses"
-        ? `已記帳 ${result.created_count ?? "這批"} 筆。`
-        : result.action_type === "create_expense"
-        ? "已記帳。"
-        : result.action_type === "batch_update_expenses"
-          ? "分類整理已套用。"
-        : result.action_type === "delete_expense"
-          ? "已刪除。"
-          : "已結清。",
-    cancelled: "已取消。",
-    expired: "確認已過期，請重新操作。",
-    stale: "帳目已變動，請重新操作。",
-    not_found: "找不到這個操作。",
-    already_done: "這個操作已處理。",
-  };
-  await replyText(dependencies.lineClient, replyToken, messages[result.result]);
-}
-
-async function confirmOneAction(
-  actionId: string,
-  confirm: boolean,
-  lineUserId: string,
-  dependencies: BotDependencies,
-) {
-  const user = await findUser(dependencies.supabase, lineUserId);
-  if (!user) return { result: "not_found", action_type: null } as const;
-  return actionResultSchema.parse(
-    await confirmAction(
-      { env: serverEnvironment(), db: dependencies.supabase, user },
-      actionId,
-      confirm,
-    ),
-  );
-}
-
 async function findUser(
   supabase: SupabaseClient,
   lineUserId: string,
@@ -879,46 +657,42 @@ async function replyText(
   });
 }
 
-async function replyConfirmation(
-  lineClient: Pick<LineBotClient, "replyMessage">,
-  replyToken: string,
-  actionId: string,
-  text: string,
-): Promise<void> {
+export async function processLineReceipt(
+  lineClient: Pick<LineBotClient, "getMessageContent" | "pushMessage">,
+  input: { messageId: string; eventId: string; lineUserId: string },
+) {
   const env = serverEnvironment();
-  const message: messagingApi.TextMessage = {
-    type: "text",
-    text,
-    quickReply: {
-      items: [
-        {
-          type: "action",
-          action: {
-            type: "postback",
-            label: "✓ 確認",
-            data: `decision=confirm&id=${actionId}`,
-            displayText: "確認",
-          },
-        },
-        {
-          type: "action",
-          action: {
-            type: "uri",
-            label: "✏️ 去 LIFF 改",
-            uri: `${env.APP_URL}/?tab=history`,
-          },
-        },
-        {
-          type: "action",
-          action: {
-            type: "postback",
-            label: "取消",
-            data: `decision=cancel&id=${actionId}`,
-            displayText: "取消",
-          },
-        },
-      ],
-    },
-  };
-  await lineClient.replyMessage({ replyToken, messages: [message] });
+  const db = serverDatabase(env);
+  const userResult = await db
+    .from("users")
+    .select("id, couple_id, line_user_id, role")
+    .eq("line_user_id", input.lineUserId)
+    .maybeSingle();
+  const user = userRowSchema.nullable().parse(userResult.data);
+  if (userResult.error || !user) return;
+  const existing = await db
+    .from("receipts")
+    .select("id")
+    .eq("source_event_id", input.eventId)
+    .maybeSingle();
+  if (existing.data) return;
+  const preference = await db
+    .from("user_preferences")
+    .select("active_group_id")
+    .eq("user_id", user.id)
+    .single();
+  if (preference.error) throw new Error("active group lookup failed");
+  const context = { env, db, user };
+  await processUploadedLineReceipt({
+    receiptService,
+    context,
+    lineClient,
+    activeGroupId: preference.data.active_group_id,
+    messageId: input.messageId,
+    eventId: input.eventId,
+    today: taipeiToday(),
+    buildExpenseInputs: receiptExpenseInputs,
+    proposeBatchCreateExpenses: (inputs, idempotencyKey) =>
+      pendingActionService.proposeBatchCreateExpenses(context, inputs, idempotencyKey),
+  });
 }

@@ -4,8 +4,7 @@ import { createClient } from "@supabase/supabase-js";
 import { after, NextResponse } from "next/server";
 import { z } from "zod";
 
-import { handleLineEvent } from "@/lib/bot";
-import { processLineReceipt } from "@/lib/app-server";
+import { handleLineEvent, processLineReceipt } from "@/lib/bot";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

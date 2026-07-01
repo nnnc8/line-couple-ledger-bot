@@ -320,12 +320,12 @@ export function fallbackAccountantReport(
     findings,
     suggestions: settle
       ? [
-          {
-            title: "可結清目前餘額",
-            body: `目前差額 NT$${Math.abs(snapshot.facts.balanceTwd)}，確認後會建立結清草稿。`,
-            actionInput: settle,
-          },
-        ]
+        {
+          title: "可結清目前餘額",
+          body: `目前差額 NT$${Math.abs(snapshot.facts.balanceTwd)}，可直接建立結清。`,
+          actionInput: settle,
+        },
+      ]
       : [],
     source: "fallback",
   };

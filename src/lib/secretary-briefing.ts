@@ -11,7 +11,7 @@ import { GoogleGenAI } from "@google/genai";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { LineBotClient } from "@line/bot-sdk";
 
-import { getOpenTasks, formatTaskList } from "./secretary-tasks";
+import { TaskService } from "./task-service";
 
 export interface BriefingResult {
   tasksFound: number;
@@ -31,7 +31,8 @@ export async function sendSecretaryBriefing(
     lineClient?: Pick<LineBotClient, "pushMessage">;
   },
 ): Promise<BriefingResult> {
-  const tasks = await getOpenTasks(options.supabase, {
+  const taskService = new TaskService(options.supabase);
+  const tasks = await taskService.listOpenTasks({
     coupleId: options.coupleId,
     groupId: options.groupId,
     limit: 5,
@@ -41,7 +42,7 @@ export async function sendSecretaryBriefing(
     return { tasksFound: 0, messagesSent: 0, summary: "沒有待處理任務" };
   }
 
-  const taskListText = formatTaskList(tasks, "今天有這些事要處理：");
+  const taskListText = taskService.formatTaskList(tasks, "今天有這些事要處理：");
 
   // Get both users in this couple
   const { data: users } = await options.supabase

@@ -5,22 +5,20 @@ import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Select } from "@/components/ui/select";
 import {
   ChevronRight,
   Download,
   Plus,
-  RefreshCw,
   Pause,
   Play,
-  Trash2,
   Tag,
   CreditCard,
+  RefreshCw,
+  Trash2,
 } from "lucide-react";
 import type { Bootstrap } from "@/lib/types";
-import type { PendingActionInput, ExpenseInput } from "@/lib/optimistic";
 import { money, dateShort } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
@@ -28,12 +26,6 @@ interface SettingsProps {
   data: Bootstrap;
   onGroup: (body: unknown, success?: string) => void;
   onRecurring: (body: unknown, success?: string) => void;
-  onPropose: (proposal: {
-    actionId: string;
-    preview: string;
-    action?: PendingActionInput;
-  }) => void;
-  onBatchCreate: (expenses: ExpenseInput[]) => void;
 }
 
 export function SettingsSection({
@@ -253,14 +245,12 @@ function RecurringEditor({
                   variant="ghost"
                   size="icon-sm"
                   className="text-destructive"
-                  onClick={() => {
-                    if (confirm("確定要刪除嗎？")) {
-                      onSave(
-                        { operation: "delete", id: item.id },
-                        "週期支出已刪除",
-                      );
-                    }
-                  }}
+                  onClick={() =>
+                    onSave(
+                      { operation: "delete", id: item.id },
+                      "週期支出已刪除",
+                    )
+                  }
                 >
                   <Trash2 className="size-3.5" />
                 </Button>

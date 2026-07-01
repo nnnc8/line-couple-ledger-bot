@@ -5,13 +5,7 @@ import type { Bootstrap } from "@/lib/types";
 import { applyOptimistic, type PendingActionInput } from "@/lib/optimistic";
 import { api, get } from "@/lib/api";
 
-interface Proposal {
-  actionId: string;
-  preview: string;
-  action?: PendingActionInput;
-}
-
-interface DecideResult {
+interface ActionResult {
   result: string;
   actionType?: string;
   createdCount?: number;
@@ -21,7 +15,6 @@ export function useBootstrap() {
   const [data, setData] = useState<Bootstrap | null>(null);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
-  const [proposal, setProposal] = useState<Proposal | null>(null);
 
   const load = useCallback(async () => {
     const result = await get<Bootstrap>("/api/app/bootstrap");
@@ -63,76 +56,27 @@ export function useBootstrap() {
 
   const propose = useCallback(async (body: PendingActionInput) => {
     setBusy(true);
+    const snapshot = data;
     try {
-      const result = (await api("/api/app/actions", body)) as unknown as Proposal;
-      setProposal({ ...result, action: body });
-      return { success: true };
+      if (snapshot) {
+        setData(applyOptimistic(snapshot, body) as Bootstrap);
+      }
+      const result = (await api("/api/app/actions", body)) as unknown as ActionResult;
+      setError("");
+      await load();
+      return { success: true, result };
     } catch (reason) {
+      if (snapshot) setData(snapshot);
       setError(reason instanceof Error ? reason.message : "操作失敗");
       return { success: false };
     } finally {
       setBusy(false);
     }
-  }, []);
-
-  const proposeExternal = useCallback(
-    (preview: Proposal) => {
-      setProposal(preview);
-    },
-    [],
-  );
-
-  const decide = useCallback(
-    async (confirm: boolean): Promise<DecideResult | null> => {
-      if (!proposal) return null;
-      const current = proposal;
-      setProposal(null);
-      setBusy(true);
-      if (!confirm) {
-        try {
-          await api("/api/app/actions/confirm", {
-            actionId: current.actionId,
-            confirm: false,
-          });
-          setError("");
-          return { result: "cancelled" };
-        } catch (reason) {
-          setError(reason instanceof Error ? reason.message : "操作失敗");
-          return null;
-        } finally {
-          setBusy(false);
-        }
-      }
-      const snapshot = data;
-      if (snapshot && current.action) {
-        setData(applyOptimistic(snapshot, current.action) as Bootstrap);
-      }
-      try {
-        const result = (await api("/api/app/actions/confirm", {
-          actionId: current.actionId,
-          confirm: true,
-        })) as unknown as DecideResult;
-        if (result.result === "confirmed") {
-          await load();
-          return result;
-        }
-        if (snapshot) setData(snapshot);
-        return result;
-      } catch (reason) {
-        if (snapshot) setData(snapshot);
-        setError(reason instanceof Error ? reason.message : "操作失敗");
-        return null;
-      } finally {
-        setBusy(false);
-      }
-    },
-    [proposal, data, load],
-  );
+  }, [data, load]);
 
   const reset = useCallback(() => {
     setData(null);
     setError("");
-    setProposal(null);
   }, []);
 
   useEffect(() => {
@@ -145,14 +89,11 @@ export function useBootstrap() {
     data,
     error,
     busy,
-    proposal,
-    setProposal: proposeExternal,
     setError,
     load,
     reload,
     mutate,
     propose,
-    decide,
     reset,
   };
 }

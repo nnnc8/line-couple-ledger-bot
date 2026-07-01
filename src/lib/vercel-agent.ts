@@ -4,6 +4,10 @@ import { z } from "zod";
 import { executeSecretaryTool } from "./secretary-tools";
 import type { ToolContext } from "./accountant-tools";
 import { getModel } from "./model-provider";
+import {
+  SecretaryWorkflowService,
+  type SecretaryWorkflowResult as VercelAgentResult,
+} from "./secretary-workflow-service";
 
 /* ─── Zod Schemas for Tools ─── */
 
@@ -45,11 +49,9 @@ const proposeMerchantRuleSchema = z.object({
 
 const createTaskSchema = z.object({
   type: z.enum([
-    "confirm_expense",
     "fix_uncertain_receipt",
     "budget_warning",
     "duplicate_expense_review",
-    "merchant_rule_suggestion",
     "tag_cleanup",
   ]).describe("任務類型"),
   title: z.string().describe("任務標題"),
@@ -100,25 +102,14 @@ export function mapMessages(messages: any[]): any[] {
   });
 }
 
-export interface VercelAgentResult {
-  answer: string;
-  toolCallCount: number;
-  pendingActions: any[];
-  newTasks: string[];
-  notifyPartner: boolean;
-  partnerMessage: string | null;
-}
-
 export async function runVercelAgent(
   messages: any[],
   systemInstruction: string,
   ctx: ToolContext,
 ): Promise<VercelAgentResult> {
-  const pendingActions: any[] = [];
-  const newTasks: string[] = [];
-  let notifyPartner = false;
-  let partnerMessage: string | null = null;
-  let toolCallCount = 0;
+  const workflow = new SecretaryWorkflowService({
+    executeTool: executeSecretaryTool,
+  });
 
   const coreMessages = mapMessages(messages);
 
@@ -131,119 +122,75 @@ export async function runVercelAgent(
         description: "記帳。直接寫入一筆支出，不需使用者再按確認。**重要規則：** 當用戶說「私人」、「自己」、「我自己的」時，ledger 必須是 \"private\"；只有用戶說「共同」、「一起」、「分攤」時才是 \"shared\"。tag 必須是中文標籤（如「餐飲」、「交通」、「共享機車」），不可省略。",
         parameters: recordExpenseSchema,
         execute: async (args: any) => {
-          toolCallCount++;
-          const res = (await executeSecretaryTool("record_expense", args, ctx)) as any;
-          if (res?.pending_action) pendingActions.push(res.pending_action);
-          return res;
+          return workflow.executeTool("record_expense", args, ctx);
         },
       },
       propose_update_expense: {
         description: "修改最近一筆支出。用於「剛剛那筆改私人」、「上一筆改分類」等情境。",
         parameters: proposeUpdateExpenseSchema,
         execute: async (args: any) => {
-          toolCallCount++;
-          notifyPartner = true;
-          const res = (await executeSecretaryTool("propose_update_expense", args, ctx)) as any;
-          if (res?.pending_action) pendingActions.push(res.pending_action);
-          return res;
+          return workflow.executeTool("propose_update_expense", args, ctx);
         },
       },
       propose_settlement: {
         description: "建議或建立結清。直接寫入，不需使用者再按確認。",
         parameters: proposeSettlementSchema,
         execute: async (args: any) => {
-          toolCallCount++;
-          notifyPartner = true;
-          const res = (await executeSecretaryTool("propose_settlement", args, ctx)) as any;
-          if (res?.pending_action) pendingActions.push(res.pending_action);
-          return res;
+          return workflow.executeTool("propose_settlement", args, ctx);
         },
       },
       propose_merchant_rule: {
         description: "建立商家自動套用規則（如之後 Uber 都私人交通）。",
         parameters: proposeMerchantRuleSchema,
         execute: async (args: any) => {
-          toolCallCount++;
-          const res = (await executeSecretaryTool("propose_merchant_rule", args, ctx)) as any;
-          if (res?.pending_action) pendingActions.push(res.pending_action);
-          return res;
+          return workflow.executeTool("propose_merchant_rule", args, ctx);
         },
       },
       create_task: {
         description: "建立一筆秘書待辦任務。",
         parameters: createTaskSchema,
         execute: async (args: any) => {
-          toolCallCount++;
-          const res = (await executeSecretaryTool("create_task", args, ctx)) as any;
-          if (res?.task_id) newTasks.push(String(res.task_id));
-          return res;
+          return workflow.executeTool("create_task", args, ctx);
         },
       },
       query_expenses: {
         description: "自由查帳。不指定 limit 只回聚合摘要。有 limit 才回明細（最多 20 筆）。",
         parameters: queryExpensesSchema,
         execute: async (args: any) => {
-          toolCallCount++;
-          return executeSecretaryTool("query_expenses", args, ctx);
+          return workflow.executeTool("query_expenses", args, ctx);
         },
       },
       get_recent_expenses: {
         description: "查最近 N 筆支出（含共同與私人）。用於「剛剛那筆」、「上一筆」等指代查詢。",
         parameters: getRecentExpensesSchema,
         execute: async (args: any) => {
-          toolCallCount++;
-          return executeSecretaryTool("get_recent_expenses", args, ctx);
+          return workflow.executeTool("get_recent_expenses", args, ctx);
         },
       },
       get_balance_summary: {
         description: "查詢目前誰欠誰多少，含 breakdown。",
         parameters: getBalanceSummarySchema,
         execute: async () => {
-          toolCallCount++;
-          return executeSecretaryTool("get_balance_summary", {}, ctx);
+          return workflow.executeTool("get_balance_summary", {}, ctx);
         },
       },
       get_open_tasks: {
         description: "查詢目前待處理的秘書任務。",
         parameters: getOpenTasksSchema,
         execute: async (args: any) => {
-          toolCallCount++;
-          return executeSecretaryTool("get_open_tasks", args, ctx);
+          return workflow.executeTool("get_open_tasks", args, ctx);
         },
       },
       get_user_memories: {
         description: "查詢已儲存的使用者偏好與規則。",
         parameters: getUserMemoriesSchema,
         execute: async (args: any) => {
-          toolCallCount++;
-          return executeSecretaryTool("get_user_memories", args, ctx);
+          return workflow.executeTool("get_user_memories", args, ctx);
         },
       },
     },
     stopWhen: (({ steps }: any) => steps.length >= 8) as any,
   } as any);
 
-  let answer = result.text || "處理完成。";
-
-  // Parse [通知另一半] tag if present
-  const notifyTag = "[通知另一半]";
-  if (answer.includes(notifyTag)) {
-    notifyPartner = true;
-    answer = answer.replace(notifyTag, "").trim();
-  } else {
-    notifyPartner = false;
-  }
-
-  if (notifyPartner) {
-    partnerMessage = answer.slice(0, 200);
-  }
-
-  return {
-    answer,
-    toolCallCount,
-    pendingActions,
-    newTasks,
-    notifyPartner,
-    partnerMessage,
-  };
+  return workflow.finish(result.text || "處理完成。");
 }

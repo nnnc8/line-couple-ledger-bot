@@ -1,31 +1,27 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
+import { HttpError } from "@/lib/http-error";
 import {
-  HttpError,
   assertSameOrigin,
-  changeGroup,
-  checkExpenseInSettlements,
-  confirmAction,
-  categoryAnalytics,
-  categoryExpenses,
-  createCategoryCleanup,
-  createReceiptUpload,
   createSession,
-  expensesCsv,
-  importBankCsv,
-  loadBootstrap,
-  processReceipt,
-  proposeAction,
-  receiptDetails,
-  receiptUrl,
   requireContext,
-  saveRecurring,
-  searchExpenses,
   serverEnvironment,
   sessionCookie,
-  suggestCategoryUpdates,
-} from "@/lib/app-server";
+} from "@/lib/server-runtime";
+import {
+  changeGroup,
+  createReceiptUpload,
+  importBankCsv,
+  processReceipt,
+  receiptDetails,
+  receiptUrl,
+  saveRecurring,
+  pendingActionService,
+  ledgerQueryService,
+  accountantService,
+} from "@/lib/services";
+import { expensesCsv } from "@/lib/ledger-query";
 import { getOpenTasks } from "@/lib/secretary-tasks";
 
 export const runtime = "nodejs";
@@ -39,9 +35,9 @@ export async function GET(request: Request, route: RouteContext) {
   try {
     const path = (await route.params).path;
     const context = await requireContext(request);
-    if (path[0] === "bootstrap") return json(await loadBootstrap(context));
+    if (path[0] === "bootstrap") return json(await ledgerQueryService.loadBootstrap(context));
     if (path[0] === "export") {
-      const data = await loadBootstrap(context);
+      const data = await ledgerQueryService.loadBootstrap(context);
       return new Response(expensesCsv(data.expenses, data.users), {
         headers: {
           "content-type": "text/csv; charset=utf-8",
@@ -57,16 +53,16 @@ export async function GET(request: Request, route: RouteContext) {
       return json(await receiptDetails(context, path[1]));
     }
     if (path[0] === "analytics" && path[1] === "categories") {
-      return json(await categoryAnalytics(context, new URL(request.url).searchParams));
+      return json(await accountantService.categoryAnalytics(context, new URL(request.url).searchParams));
     }
     if (path[0] === "analytics" && path[1] === "expenses") {
-      return json(await categoryExpenses(context, new URL(request.url).searchParams));
+      return json(await ledgerQueryService.categoryExpenses(context, new URL(request.url).searchParams));
     }
     if (path[0] === "expenses" && path[1] === "search") {
-      return json(await searchExpenses(context, new URL(request.url).searchParams));
+      return json(await ledgerQueryService.searchExpenses(context, new URL(request.url).searchParams));
     }
     if (path[0] === "expenses" && path[1] && path[2] === "check-settlement") {
-      return json(await checkExpenseInSettlements(context, path[1]));
+      return json(await ledgerQueryService.checkExpenseInSettlements(context, path[1]));
     }
     if (path[0] === "secretary" && path[1] === "tasks") {
       const tasks = await getOpenTasks(context.db, {
@@ -106,13 +102,7 @@ export async function POST(request: Request, route: RouteContext) {
     const context = await requireContext(request);
     if (path[0] === "actions" && path.length === 1) {
       const key = request.headers.get("idempotency-key")?.slice(0, 100);
-      return json(await proposeAction(context, body, key));
-    }
-    if (path[0] === "actions" && path[1] === "confirm") {
-      const input = z
-        .object({ actionId: z.string().uuid(), confirm: z.boolean() })
-        .parse(body);
-      return json(await confirmAction(context, input.actionId, input.confirm));
+      return json(await pendingActionService.proposeAction(context, body, { source: "liff", idempotencyKey: key }));
     }
     if (path[0] === "groups") return json(await changeGroup(context, body));
     if (path[0] === "recurring")
@@ -123,10 +113,15 @@ export async function POST(request: Request, route: RouteContext) {
       return json({ extraction: await processReceipt(context, path[1]) });
     if (path[0] === "categories" && path[1] === "cleanup") {
       const key = request.headers.get("idempotency-key")?.slice(0, 100);
-      return json(await createCategoryCleanup(context, body, key));
+      return json(await accountantService.createCategoryCleanup(
+        context,
+        body,
+        key,
+        (action) => pendingActionService.execute(context, action)
+      ));
     }
     if (path[0] === "categories" && path[1] === "suggest") {
-      return json(await suggestCategoryUpdates(context, body));
+      return json(await accountantService.suggestCategoryUpdates(context, body));
     }
     if (path[0] === "bank" && path[1] === "import") {
       return json(await importBankCsv(context, body));

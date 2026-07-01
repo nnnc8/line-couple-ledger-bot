@@ -377,7 +377,7 @@ export function ExpenseForm({
         onClick={submit}
         className="font-bold"
       >
-        {editExpense ? "預覽修改" : "預覽並確認"}
+        {editExpense ? "直接更新" : "直接記帳"}
       </Button>
 
       {editExpense && onDelete ? (
