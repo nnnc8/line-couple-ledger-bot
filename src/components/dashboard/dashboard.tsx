@@ -17,7 +17,6 @@ interface DashboardProps {
   onSettle: (amount: number) => void;
   onAdd: () => void;
   onEdit: (expense: Expense) => void;
-  onReceipt?: (id: string) => void;
 }
 
 type Range = "this_month" | "six_months" | "all";
@@ -27,7 +26,6 @@ export function Dashboard({
   onSettle,
   onAdd,
   onEdit,
-  onReceipt,
 }: DashboardProps) {
   const [range, setRange] = React.useState<Range>("this_month");
   const [partial, setPartial] = React.useState("");
@@ -234,7 +232,6 @@ export function Dashboard({
         expenses={data.dashboard.recent}
         users={data.users}
         onEdit={onEdit}
-        onReceipt={onReceipt}
         monthFilter={selectedMonth}
         tagFilter={selectedCategory}
       />
@@ -313,14 +310,12 @@ function RecentTransactions({
   expenses,
   users,
   onEdit,
-  onReceipt,
   monthFilter,
   tagFilter,
 }: {
   expenses: Expense[];
   users: User[];
   onEdit: (e: Expense) => void;
-  onReceipt?: (id: string) => void;
   monthFilter: string | null;
   tagFilter: string | null;
 }) {
@@ -357,7 +352,6 @@ function RecentTransactions({
             expenses={filtered}
             users={users}
             onEdit={onEdit}
-            onReceipt={onReceipt}
           />
         ) : (
           <Empty
@@ -375,12 +369,10 @@ export function ExpenseList({
   expenses,
   users,
   onEdit,
-  onReceipt,
 }: {
   expenses: Expense[];
   users: User[];
   onEdit?: (e: Expense) => void;
-  onReceipt?: (id: string) => void;
 }) {
   return (
     <div className="divide-y divide-[var(--border)]">
@@ -428,19 +420,6 @@ export function ExpenseList({
               <span className="text-[14px] font-bold tabular-nums">
                 {money(expense.amount_twd)}
               </span>
-              {expense.receipts[0] && onReceipt ? (
-                <button
-                  type="button"
-                  aria-label="收據"
-                  className="flex size-7 items-center justify-center rounded-md text-[var(--muted-foreground)] hover:bg-muted"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onReceipt?.(expense.receipts[0]!.id);
-                  }}
-                >
-                  🧾
-                </button>
-              ) : null}
             </div>
           </button>
         );

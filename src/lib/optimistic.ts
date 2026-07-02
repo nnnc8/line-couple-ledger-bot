@@ -17,7 +17,6 @@ export type OptimisticExpense = {
   split_method: "equal" | "exact" | "percentage";
   version: number;
   deleted_at: string | null;
-  receipts: Array<{ id: string; status: string }>;
   expense_splits: Array<{ user_id: string; amount_twd: number }>;
   _optimistic?: boolean;
 };
@@ -54,7 +53,6 @@ export type ExpenseInput = {
   splitMethod: "equal" | "exact" | "percentage";
   selfValue?: number | null;
   partnerValue?: number | null;
-  receiptId?: string | null;
 };
 
 export type PendingActionInput =
@@ -188,7 +186,6 @@ function buildExpenseFromInput(
     split_method: input.splitMethod,
     version,
     deleted_at: null,
-    receipts: input.receiptId ? [{ id: input.receiptId, status: "ready" }] : [],
     expense_splits: splits,
   };
 }

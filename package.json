@@ -10,8 +10,14 @@
     "build": "next build",
     "lint": "eslint .",
     "test": "tsx --test src/lib/ledger.test.ts",
+    "test:tx": "tsx --test src/lib/pending-action.tx.test.ts src/lib/pending-action.pg.test.ts",
+    "test:smoke": "tsx --test src/lib/live-smoke.test.ts",
+    "test:all": "tsx --test src/lib/ledger.test.ts src/lib/pending-action.tx.test.ts src/lib/pending-action.pg.test.ts src/lib/live-smoke.test.ts",
     "test:e2e": "playwright test",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "smoke:local": "tsx scripts/live-smoke/pending-action.ts",
+    "smoke:recurring": "tsx scripts/live-smoke/recurring.ts",
+    "smoke:cron": "tsx scripts/live-smoke/cron.ts"
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^4.0.1",

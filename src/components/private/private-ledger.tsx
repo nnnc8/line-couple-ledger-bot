@@ -17,14 +17,12 @@ interface PrivateLedgerProps {
   data: Bootstrap;
   onEdit: (expense: Expense) => void;
   onDelete: (expense: Expense) => void;
-  onReceipt?: (id: string) => void;
 }
 
 export function PrivateLedger({
   data,
   onEdit,
   onDelete,
-  onReceipt,
 }: PrivateLedgerProps) {
   const [range, setRange] = React.useState<Range>("this_month");
   const privateExpenses =
@@ -160,7 +158,7 @@ export function PrivateLedger({
         users={data.users}
         onEdit={onEdit}
         onDelete={onDelete}
-        onReceipt={onReceipt}
+
       />
     </div>
   );

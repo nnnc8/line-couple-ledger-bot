@@ -51,31 +51,6 @@ export function verifySession(
   }
 }
 
-export function detectReceiptMime(bytes: Uint8Array): string | null {
-  const buffer = Buffer.from(bytes);
-  if (buffer.subarray(0, 3).equals(Buffer.from([0xff, 0xd8, 0xff])))
-    return "image/jpeg";
-  if (
-    buffer
-      .subarray(0, 8)
-      .equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))
-  )
-    return "image/png";
-  if (
-    buffer.subarray(0, 4).toString() === "RIFF" &&
-    buffer.subarray(8, 12).toString() === "WEBP"
-  )
-    return "image/webp";
-  const brand = buffer.subarray(8, 12).toString();
-  if (
-    buffer.subarray(4, 8).toString() === "ftyp" &&
-    ["heic", "heix", "heif", "hevc", "mif1"].includes(brand)
-  ) {
-    return brand === "heif" || brand === "mif1" ? "image/heif" : "image/heic";
-  }
-  return null;
-}
-
 function signature(payload: string, secret: string): string {
   return createHmac("sha256", secret).update(payload).digest("base64url");
 }

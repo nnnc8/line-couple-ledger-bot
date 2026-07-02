@@ -171,44 +171,7 @@ export async function applyPendingActionPlanTx(
       await insertMulti(client, "public.expense_splits", columns, rows);
     }
 
-    // update_receipts
-    if (plan.update_receipts && plan.update_receipts.length > 0) {
-      for (const item of plan.update_receipts) {
-        const res = await client.query(
-          `UPDATE public.receipts
-           SET expense_id = $1, group_id = $2, updated_at = NOW()
-           WHERE id = $3`,
-          [
-            item.expense_id ? String(item.expense_id) : null,
-            item.group_id ? String(item.group_id) : null,
-            item.id,
-          ]
-        );
-        if (res.rowCount === 0) {
-          throw new TransactionStaleError("Receipt update stale: id not found");
-        }
-      }
-    }
 
-    // soft_delete_receipts_by_expense
-    if (plan.soft_delete_receipts_by_expense && plan.soft_delete_receipts_by_expense.length > 0) {
-      await client.query(
-        `UPDATE public.receipts
-         SET deleted_at = NOW(), updated_at = NOW()
-         WHERE expense_id = ANY($1::uuid[])`,
-        [plan.soft_delete_receipts_by_expense]
-      );
-    }
-
-    // restore_receipts_by_expense
-    if (plan.restore_receipts_by_expense && plan.restore_receipts_by_expense.length > 0) {
-      await client.query(
-        `UPDATE public.receipts
-         SET deleted_at = NULL, updated_at = NOW()
-         WHERE expense_id = ANY($1::uuid[])`,
-        [plan.restore_receipts_by_expense]
-      );
-    }
 
     // insert_settlements
     if (plan.insert_settlements && plan.insert_settlements.length > 0) {

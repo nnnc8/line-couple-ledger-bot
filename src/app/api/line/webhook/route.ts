@@ -9,13 +9,10 @@ import { handleLineEvent } from "@/lib/line-webhook-service";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const envSchema = z.object({
+import { envSchema as sharedEnvSchema } from "@/lib/server-runtime";
+
+export const envSchema = sharedEnvSchema.extend({
   LINE_CHANNEL_SECRET: z.string().min(1),
-  LINE_CHANNEL_ACCESS_TOKEN: z.string().min(1),
-  GEMINI_API_KEY: z.string().min(1),
-  SUPABASE_URL: z.url(),
-  SUPABASE_SECRET_KEY: z.string().min(1),
-  COUPLE_SETUP_CODE: z.string().min(20),
 });
 
 const callbackSchema = z.object({

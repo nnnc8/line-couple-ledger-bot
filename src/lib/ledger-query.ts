@@ -4,6 +4,7 @@ import { splitBootstrapExpenses } from "./category-agent";
 import { filterAgentExpenses, type AgentTimeRange } from "./ledger-agent";
 import { searchExpenseRows } from "./phase4";
 import { HttpError } from "./http-error";
+import { loadGroupBalances } from "./balance-loader";
 
 export const ledgerVisibleExpenseSchema = z.object({
   id: z.string().uuid(),
@@ -35,7 +36,7 @@ const SELECT_FIELDS =
   "id, description, merchant, notes, tag, amount_twd, paid_by_user_id, expense_date, ledger, deleted_at";
 
 const EXPENSE_SELECT =
-  "id, group_id, ledger, description, merchant, notes, tag, mirror_kind, mirror_source_expense_id, amount_twd, paid_by_user_id, created_by_user_id, expense_date, split_method, version, deleted_at, created_at, expense_splits(user_id, amount_twd), receipts(id, status)";
+  "id, group_id, ledger, description, merchant, notes, tag, mirror_kind, mirror_source_expense_id, amount_twd, paid_by_user_id, created_by_user_id, expense_date, split_method, version, deleted_at, created_at, expense_splits(user_id, amount_twd)";
 
 const userSchema = z.object({
   id: z.string().uuid(),
@@ -53,10 +54,6 @@ const groupSchema = z.object({
 const splitSchema = z.object({
   user_id: z.string().uuid(),
   amount_twd: z.coerce.number().int(),
-});
-const receiptRowSchema = z.object({
-  id: z.string().uuid(),
-  status: z.string(),
 });
 const expenseSchema = z.object({
   id: z.string().uuid(),
@@ -77,7 +74,6 @@ const expenseSchema = z.object({
   deleted_at: z.string().nullable(),
   created_at: z.string(),
   expense_splits: z.array(splitSchema),
-  receipts: z.array(receiptRowSchema).default([]),
 });
 
 export type AppUser = z.infer<typeof userSchema>;
@@ -135,11 +131,6 @@ type QueryExpensesItem = {
   date: string;
   ledger: "shared" | "private";
 };
-
-const balanceRowSchema = z.object({
-  user_id: z.string().uuid(),
-  balance_twd: z.coerce.number().int(),
-});
 
 const balanceSummarySchema = z.object({
   my_balance: z.number().int(),
@@ -238,15 +229,16 @@ export class LedgerQueryService {
   async balanceSummary(
     context: { db: SupabaseClient; groupId: string; userId: string },
   ): Promise<BalanceSummary | { error: string }> {
-    const result = await context.db.rpc("group_balances", {
-      p_group_id: context.groupId,
-    });
-    if (result.error) return { error: "balance lookup failed" };
-    const balances = z.array(balanceRowSchema).parse(result.data);
-    const me = balances.find((row) => row.user_id === context.userId);
-    const partner = balances.find((row) => row.user_id !== context.userId);
-    const myBalance = me?.balance_twd ?? 0;
-    const partnerBalance = partner?.balance_twd ?? 0;
+    let balances: Array<{ userId: string; balanceTwd: number }>;
+    try {
+      balances = await loadGroupBalances(context.db, context.groupId);
+    } catch {
+      return { error: "balance lookup failed" };
+    }
+    const me = balances.find((row) => row.userId === context.userId);
+    const partner = balances.find((row) => row.userId !== context.userId);
+    const myBalance = me?.balanceTwd ?? 0;
+    const partnerBalance = partner?.balanceTwd ?? 0;
     const summary =
       myBalance > 0
         ? `另一半欠你 NT$${myBalance}`
@@ -465,7 +457,12 @@ export class LedgerQueryService {
         .gte("expense_date", `${sixMonthsAgo}-01`)
         .order("expense_date", { ascending: false })
         .limit(300),
-      db.rpc("group_balances", { p_group_id: activeGroupId }),
+      loadGroupBalances(db, activeGroupId)
+        .then((data) => ({ data, error: null as null }))
+        .catch((error: unknown) => ({
+          data: null as Array<{ userId: string; balanceTwd: number }> | null,
+          error: error instanceof Error ? error : new Error(String(error)),
+        })),
       db
         .from("recurring_expenses")
         .select(
@@ -501,14 +498,10 @@ export class LedgerQueryService {
     );
     const activeShared = sharedExpenses.filter((expense) => !expense.deleted_at);
     const activePrivate = privateExpenses.filter((expense) => !expense.deleted_at);
-    const balances = z
-      .array(
-        z.object({
-          user_id: z.string().uuid(),
-          balance_twd: z.coerce.number().int(),
-        }),
-      )
-      .parse(balancesResult.data);
+    const balances = (balancesResult.data ?? []).map((row) => ({
+      user_id: row.userId,
+      balance_twd: row.balanceTwd,
+    }));
     return {
       today: taipeiToday(),
       month,
@@ -622,7 +615,6 @@ export class LedgerQueryService {
           tag: expense.tag,
           paid_by_user_id: expense.paid_by_user_id,
           version: expense.version,
-          receipts: full?.receipts ?? [],
         };
       }),
     };

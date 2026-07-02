@@ -14,7 +14,6 @@ interface HistorySectionProps {
   users: User[];
   onEdit: (expense: Expense) => void;
   onDelete: (expense: Expense) => void;
-  onReceipt?: (id: string) => void;
 }
 
 export function HistorySection({
@@ -22,7 +21,6 @@ export function HistorySection({
   users,
   onEdit,
   onDelete,
-  onReceipt,
 }: HistorySectionProps) {
   const [query, setQuery] = React.useState("");
   const [showDeleted, setShowDeleted] = React.useState(false);
@@ -83,7 +81,7 @@ export function HistorySection({
                   expenses={group.items}
                   users={users}
                   onEdit={onEdit}
-                  onReceipt={onReceipt}
+
                 />
                 {showDeleted && (
                   <div className="flex flex-wrap justify-end gap-1 pt-2">

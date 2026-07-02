@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select } from "@/components/ui/select";
 import { Segmented } from "@/components/ui/segmented";
-import { Camera, Check, Loader2, Trash2 } from "lucide-react";
+import { Trash2 } from "lucide-react";
 import { tagPreset, tagColor } from "@/lib/categories";
 import type { Bootstrap, Expense } from "@/lib/types";
 import type { PendingActionInput } from "@/lib/optimistic";
@@ -24,12 +24,6 @@ interface ExpenseFormProps {
   onSubmit: (body: PendingActionInput) => void;
   onDelete?: () => void;
   onExit: () => void;
-  onReceipt?: (
-    file: File,
-  ) => Promise<{
-    receiptId: string;
-    extraction: { merchant: string | null; expenseDate: string | null; amountTwd: number | null };
-  }>;
 }
 
 interface FormState {
@@ -44,7 +38,6 @@ interface FormState {
   splitMethod: SplitMethod;
   selfValue: string;
   partnerValue: string;
-  receiptId: string | null;
 }
 
 function deriveInitial(data: Bootstrap, editing: Expense | null): FormState {
@@ -71,7 +64,6 @@ function deriveInitial(data: Bootstrap, editing: Expense | null): FormState {
         editing.split_method === "percentage"
           ? String(Math.round((theirs / editing.amount_twd) * 10000) / 100)
           : String(theirs),
-      receiptId: editing.receipts[0]?.id ?? null,
     };
   }
   return {
@@ -86,7 +78,6 @@ function deriveInitial(data: Bootstrap, editing: Expense | null): FormState {
     splitMethod: "equal",
     selfValue: "",
     partnerValue: "",
-    receiptId: null,
   };
 }
 
@@ -96,36 +87,14 @@ export function ExpenseForm({
   editExpense,
   onSubmit,
   onDelete,
-  onReceipt,
 }: ExpenseFormProps) {
   const [state, setState] = React.useState<FormState>(() =>
     deriveInitial(data, editExpense),
   );
-  const [ocr, setOcr] = React.useState(false);
   const [err, setErr] = React.useState("");
 
   function patch<K extends keyof FormState>(key: K, value: FormState[K]) {
     setState((s) => ({ ...s, [key]: value }));
-  }
-
-  async function scan(file?: File) {
-    if (!file || !onReceipt) return;
-    setOcr(true);
-    setErr("");
-    try {
-      const r = await onReceipt(file);
-      patch("receiptId", r.receiptId);
-      if (r.extraction.merchant) {
-        patch("merchant", r.extraction.merchant);
-        if (!state.description) patch("description", r.extraction.merchant);
-      }
-      if (r.extraction.expenseDate) patch("expenseDate", r.extraction.expenseDate);
-      if (r.extraction.amountTwd) patch("amount", String(r.extraction.amountTwd));
-    } catch (reason) {
-      setErr(reason instanceof Error ? reason.message : "收據辨識失敗");
-    } finally {
-      setOcr(false);
-    }
   }
 
   function submit() {
@@ -157,7 +126,6 @@ export function ExpenseForm({
       splitMethod: state.splitMethod,
       selfValue: state.selfValue ? Number(state.selfValue) : null,
       partnerValue: state.partnerValue ? Number(state.partnerValue) : null,
-      receiptId: state.receiptId,
     };
 
     if (editExpense) {
@@ -189,35 +157,6 @@ export function ExpenseForm({
         />
       </div>
 
-      {/* Receipt */}
-      {onReceipt && (
-        <label className="relative flex cursor-pointer flex-col items-center gap-1.5 rounded-2xl border-2 border-dashed border-[var(--border)] bg-muted/30 p-5 text-center transition hover:border-accent hover:bg-accent-soft">
-          <input
-            type="file"
-            accept="image/jpeg,image/png,image/webp,image/heic,image/heif"
-            capture="environment"
-            className="absolute inset-0 cursor-pointer opacity-0"
-            onChange={(e) => void scan(e.target.files?.[0])}
-          />
-          {ocr ? (
-            <Loader2 className="size-7 animate-spin text-[var(--muted-foreground)]" />
-          ) : state.receiptId ? (
-            <Check className="size-7 text-[var(--success)]" />
-          ) : (
-            <Camera className="size-7 text-[var(--muted-foreground)]" />
-          )}
-          <span className="text-[14px] font-semibold">
-            {ocr
-              ? "辨識中…"
-              : state.receiptId
-                ? "收據已辨識，可重選"
-                : "拍攝或選擇收據"}
-          </span>
-          <span className="text-[12px] text-[var(--muted-foreground)]">
-            自動填入商家、日期與總額
-          </span>
-        </label>
-      )}
 
       {/* Ledger toggle */}
       <div>
@@ -366,7 +305,7 @@ export function ExpenseForm({
       <Button
         variant="primary"
         size="block"
-        disabled={busy || ocr}
+        disabled={busy}
         onClick={submit}
         className="font-bold"
       >
@@ -377,7 +316,7 @@ export function ExpenseForm({
         <Button
           variant="outline"
           size="block"
-          disabled={busy || ocr}
+          disabled={busy}
           className="border-destructive/30 text-destructive hover:bg-destructive/10"
           onClick={onDelete}
         >

@@ -3,6 +3,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { ToolContext } from "./accountant-tools";
 import { RuleService } from "./rule-service";
 import { TaskService } from "./task-service";
+import { loadGroupBalances } from "./balance-loader";
 
 const PROMPT_BODY = `你的任務是幫他們管理共同帳務：
 - 記帳、改帳、查帳
@@ -51,13 +52,15 @@ export class SecretaryPromptService {
     this.getBalances =
       input.getBalances ??
       (async (groupId) => {
-        const result = await input.db.rpc("group_balances", {
-          p_group_id: groupId,
-        });
-        if (result.error || !result.data) {
+        try {
+          const rows = await loadGroupBalances(input.db, groupId);
+          return rows.map((row) => ({
+            user_id: row.userId,
+            balance_twd: row.balanceTwd,
+          }));
+        } catch {
           return [];
         }
-        return result.data as BalanceRow[];
       });
   }
 

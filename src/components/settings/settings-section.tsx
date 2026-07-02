@@ -309,7 +309,6 @@ function RecurringEditor({
                   splitMethod: "equal",
                   selfValue: null,
                   partnerValue: null,
-                  receiptId: null,
                   frequency,
                   nextRunDate,
                   endDate: null,

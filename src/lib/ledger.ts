@@ -92,30 +92,6 @@ export interface CategoryLearningEntry {
   merchant?: string | null;
 }
 
-const receiptLineItemSchema = z
-  .object({
-    merchant: z.string().trim().min(1).max(100).nullable(),
-    expenseDate: z.iso.date().nullable(),
-    amountTwd: z.number().int().positive().max(100_000_000).nullable(),
-    description: z.string().trim().min(1).max(100).nullable().default(null),
-  })
-  .strict();
-
-export const receiptExtractionSchema = z
-  .object({
-    merchant: z.string().trim().min(1).max(100).nullable(),
-    expenseDate: z.iso.date().nullable(),
-    amountTwd: z.number().int().positive().max(100_000_000).nullable(),
-    confidence: z.number().min(0).max(1),
-    items: z.array(receiptLineItemSchema).max(20).default([]),
-  })
-  .strict();
-
-export const geminiReceiptJsonSchema = Object.fromEntries(
-  Object.entries(z.toJSONSchema(receiptExtractionSchema)).filter(
-    ([key]) => key !== "$schema",
-  ),
-);
 
 export interface LedgerExpense {
   id: string;

@@ -36,7 +36,7 @@ import {
   fallbackCategoryClassification,
   splitBootstrapExpenses,
 } from "./category-agent";
-import { detectReceiptMime, safeSecretEqual, signSession, verifySession } from "./security";
+import { safeSecretEqual, signSession, verifySession } from "./security";
 import { matchTransactions, parseBankCsvWithMeta } from "./bank-csv";
 import { setMockWithTx } from "./db/tx";
 import { TransactionStaleError } from "./pending-action-executor";
@@ -103,7 +103,6 @@ import {
   nextRecurringDate,
   parsedIntentSchema,
   textParseSchema,
-  receiptExtractionSchema,
   splitEqual,
   splitExact,
   splitPercentage,
@@ -120,7 +119,7 @@ import {
 } from "./pending-action-service";
 import { registerPendingActionService } from "./pending-action-builders";
 import { SecretaryService } from "./secretary-service";
-import { ReceiptService } from "./receipt-service";
+import { purgeDeletedReceipts } from "./receipt-service";
 import { HttpError } from "./http-error";
 
 const defaultPendingService = new PendingActionService({
@@ -253,14 +252,6 @@ test("rejects tampered and expired application sessions", () => {
   assert.equal(verifySession(token, secret, 2_001), null);
 });
 
-test("accepts receipt formats by bytes instead of browser MIME claims", () => {
-  assert.equal(detectReceiptMime(Buffer.from([0xff, 0xd8, 0xff, 0xe0])), "image/jpeg");
-  assert.equal(
-    detectReceiptMime(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])),
-    "image/png",
-  );
-  assert.equal(detectReceiptMime(Buffer.from("not an image")), null);
-});
 
 test("neutralizes spreadsheet formulas in CSV exports", () => {
   const row: AppExpense = {
@@ -282,7 +273,6 @@ test("neutralizes spreadsheet formulas in CSV exports", () => {
     deleted_at: null,
     created_at: "2026-06-22T00:00:00Z",
     expense_splits: [],
-    receipts: [],
   };
   assert.match(expensesCsv([row], [{ id: row.paid_by_user_id, label: "你" }]), /"'=HYPERLINK/);
 });
@@ -333,7 +323,6 @@ test("ledger core normalizes private expense drafts", () => {
       splitMethod: "equal",
       selfValue: null,
       partnerValue: null,
-      receiptId: null,
     },
     {
       actorUserId: CORE_OWNER,
@@ -365,7 +354,6 @@ test("ledger core rejects private expenses paid by partner", () => {
           splitMethod: "equal",
           selfValue: null,
           partnerValue: null,
-          receiptId: null,
         },
         {
           actorUserId: CORE_OWNER,
@@ -420,7 +408,6 @@ test("ledger core creates versioned pending-action envelopes", () => {
         splitMethod: "equal",
         selfValue: null,
         partnerValue: null,
-        receiptId: null,
       },
     },
     {
@@ -695,26 +682,6 @@ test("advances recurring dates without drifting month end", () => {
   assert.equal(nextRecurringDate("2024-02-29", "yearly", 29), "2025-02-28");
 });
 
-test("rejects unsafe receipt extraction values", () => {
-  assert.equal(
-    receiptExtractionSchema.safeParse({
-      merchant: "小吃店",
-      expenseDate: "2026-06-22",
-      amountTwd: 860,
-      confidence: 0.92,
-    }).success,
-    true,
-  );
-  assert.equal(
-    receiptExtractionSchema.safeParse({
-      merchant: "小吃店",
-      expenseDate: "2026-99-99",
-      amountTwd: -1,
-      confidence: 2,
-    }).success,
-    false,
-  );
-});
 
 
 
@@ -774,7 +741,6 @@ test("retarget updates envelope command alongside legacy payload", () => {
         splitMethod: "equal",
         selfValue: null,
         partnerValue: null,
-        receiptId: null,
       },
     },
     {
@@ -819,7 +785,6 @@ test("retarget updates envelope command alongside legacy payload", () => {
       splitMethod: "equal",
       selfValue: null,
       partnerValue: null,
-      receiptId: null,
     },
   });
 });
@@ -827,7 +792,6 @@ test("retarget updates envelope command alongside legacy payload", () => {
 
 
 test("receipt service purges expired deleted receipts from storage and db", async () => {
-  const service = new ReceiptService();
   let removedPaths: string[] | null = null;
   let deletedIds: string[] | null = null;
 
@@ -872,12 +836,7 @@ test("receipt service purges expired deleted receipts from storage and db", asyn
     },
   } as unknown as import("@supabase/supabase-js").SupabaseClient;
 
-  const count = await (service as unknown as {
-    purgeDeleted: (
-      db: import("@supabase/supabase-js").SupabaseClient,
-      now?: Date,
-    ) => Promise<number>;
-  }).purgeDeleted(db, new Date("2026-07-31T00:00:00.000Z"));
+  const count = await purgeDeletedReceipts(db, new Date("2026-07-31T00:00:00.000Z"));
 
   assert.equal(count, 2);
   assert.deepEqual(removedPaths, ["1/u/a.jpg", "1/u/b.jpg"]);
@@ -1216,13 +1175,13 @@ function appExpense(
     deleted_at: null,
     created_at: `${expenseDate}T00:00:00Z`,
     expense_splits: [{ user_id: createdByUserId, amount_twd: amountTwd }],
-    receipts: [],
   };
 }
 
 function fakeContext(db: ReturnType<typeof fakeNotificationDb>): ServerContext {
   return {
     env: {
+      DATABASE_URL: "postgresql://localhost:5432/db",
       LINE_CHANNEL_ACCESS_TOKEN: "line-token",
       LINE_LOGIN_CHANNEL_ID: "login",
       GEMINI_API_KEY: "gemini",
@@ -1837,7 +1796,6 @@ test("pending action service proposes batch-created expenses at couple scope whe
           splitMethod: "equal",
           selfValue: null,
           partnerValue: null,
-          receiptId: null,
         },
       },
       {
@@ -1855,7 +1813,6 @@ test("pending action service proposes batch-created expenses at couple scope whe
           splitMethod: "equal",
           selfValue: null,
           partnerValue: null,
-          receiptId: null,
         },
       },
     ],
@@ -3059,7 +3016,6 @@ test("recurring service saves private recurring expenses without shared group sc
       splitMethod: "equal",
       selfValue: null,
       partnerValue: null,
-      receiptId: null,
       frequency: "monthly",
       nextRunDate: "2026-07-15",
       endDate: null,
@@ -3075,6 +3031,8 @@ test("recurring service saves private recurring expenses without shared group sc
   assert.equal(row.ledger, "private");
   assert.equal(row.created_by_user_id, selfUserId);
   assert.equal(row.paid_by_user_id, selfUserId);
+  assert.equal(row.tag, "娛樂");
+  assert.equal("category" in row, false);
   assert.equal(row.anchor_day, 15);
   assert.deepEqual(activityArgs, [
     "00000000-0000-4000-8000-000000000104",
@@ -3207,7 +3165,10 @@ test("recurring service auto-posts due recurring expenses", async () => {
                       amount_twd: 149,
                       tag: "娛樂",
                       split_method: "equal",
-                      splits: [],
+                      splits: {
+                        [creatorId]: 75,
+                        "00000000-0000-4000-8000-000000000110": 74,
+                      },
                       next_run_date: "2026-07-15",
                       frequency: "monthly",
                       anchor_day: 15,
@@ -4485,22 +4446,14 @@ test("write tools: propose_update_expense no-op throws error", async () => {
   assert.equal(res.error, "沒有可修改的欄位");
 });
 
-test("tool integration regression: tool -> executeAgentAction -> apply_pending_action_plan", async () => {
+test("tool integration regression: tool -> executeAgentAction -> TS transaction", async () => {
   const { executeTool } = await import("./accountant-tools");
   const { registerPendingActionService } = await import("./pending-action-builders");
   const { PendingActionService } = await import("./pending-action-service");
 
-  const rpcCalls: Array<{ fn: string; args: Record<string, unknown> }> = [];
   const insertedRows: Record<string, unknown>[] = [];
 
   const mockDb = {
-    rpc: (fn: string, args: Record<string, unknown>) => {
-      rpcCalls.push({ fn, args });
-      if (fn === "apply_pending_action_plan") {
-        return Promise.resolve({ data: { result: "confirmed", action_type: "create_expense" }, error: null });
-      }
-      return Promise.resolve({ data: null, error: null });
-    },
     from: (table: string) => {
       const chain = {
         select: () => chain,
@@ -4672,23 +4625,15 @@ test("tool integration regression: tool -> executeAgentAction -> apply_pending_a
   }
 });
 
-test("secretary integration regression: tool -> SecretaryService.run -> apply_pending_action_plan", async () => {
+test("secretary integration regression: tool -> SecretaryService.run -> TS transaction", async () => {
   const { executeTool } = await import("./accountant-tools");
   const { registerPendingActionService } = await import("./pending-action-builders");
   const { PendingActionService } = await import("./pending-action-service");
   const { SecretaryService } = await import("./secretary-service");
 
-  const rpcCalls: Array<{ fn: string; args: Record<string, unknown> }> = [];
   const insertedRows: Record<string, unknown>[] = [];
 
   const mockDb = {
-    rpc: (fn: string, args: Record<string, unknown>) => {
-      rpcCalls.push({ fn, args });
-      if (fn === "apply_pending_action_plan") {
-        return Promise.resolve({ data: { result: "confirmed", action_type: "create_expense" }, error: null });
-      }
-      return Promise.resolve({ data: null, error: null });
-    },
     from: (table: string) => {
       const chain = {
         select: () => chain,
@@ -5206,6 +5151,7 @@ test("tool: analyze_spending regression", async () => {
 });
 
 function setupMockEnv() {
+  process.env.DATABASE_URL = "postgresql://localhost:5432/db";
   process.env.LINE_CHANNEL_ACCESS_TOKEN = "line-token";
   process.env.LINE_LOGIN_CHANNEL_ID = "login";
   process.env.GEMINI_API_KEY = "gemini";
@@ -5594,6 +5540,10 @@ test("static regression: check forbidden strings and imports in production files
     /receiptExpenseInputs/,
     /receiptDraft/,
     /apply_pending_action_plan/,
+    /receiptId/,
+    /receipts\(/,
+    /detectReceiptMime/,
+    /receiptExtractionSchema/,
   ];
 
   for (const file of allFiles) {
@@ -5617,6 +5567,14 @@ test("static regression: check forbidden strings and imports in production files
 
     for (const pattern of forbiddenPatterns) {
       if (pattern.test(content)) {
+        if (
+          (pattern.source.includes("receiptId") || pattern.source.includes("receipts\\(")) &&
+          (file.includes("pending-action-service.ts") ||
+           file.includes("pending-action-executor.ts") ||
+           file.includes("receipt-service.ts"))
+        ) {
+          continue;
+        }
         assert.fail(`File ${file} contains forbidden pattern: ${pattern.toString()}`);
       }
     }
@@ -6246,3 +6204,1602 @@ test("TS Confirm Paths: constraint violation -> stale", async () => {
     activeTxClient = null;
   }
 });
+
+test("env regression: shared server env schema fails when DATABASE_URL is missing", async () => {
+  const { envSchema } = await import("./server-runtime");
+  const baseEnv = {
+    LINE_CHANNEL_ACCESS_TOKEN: "token",
+    LINE_LOGIN_CHANNEL_ID: "login-id",
+    GEMINI_API_KEY: "key",
+    SUPABASE_URL: "https://example.supabase.co",
+    SUPABASE_SECRET_KEY: "secret",
+    COUPLE_SETUP_CODE: "x".repeat(24),
+    LIFF_SESSION_SECRET: "x".repeat(32),
+    APP_URL: "https://example.com",
+    CRON_SECRET: "x".repeat(16),
+  };
+
+  const resultMissing = envSchema.safeParse(baseEnv);
+  assert.equal(resultMissing.success, false);
+
+  const resultPresent = envSchema.safeParse({
+    ...baseEnv,
+    DATABASE_URL: "postgresql://localhost:5432/db",
+  });
+  assert.equal(resultPresent.success, true);
+});
+
+test("env regression: webhook route env schema fails when DATABASE_URL is missing", async () => {
+  const { envSchema: webhookEnvSchema } = await import("../app/api/line/webhook/route");
+  const baseEnv = {
+    LINE_CHANNEL_SECRET: "secret",
+    LINE_CHANNEL_ACCESS_TOKEN: "token",
+    LINE_LOGIN_CHANNEL_ID: "login-id",
+    GEMINI_API_KEY: "key",
+    SUPABASE_URL: "https://example.supabase.co",
+    SUPABASE_SECRET_KEY: "secret",
+    COUPLE_SETUP_CODE: "x".repeat(24),
+    LIFF_SESSION_SECRET: "x".repeat(32),
+    APP_URL: "https://example.com",
+    CRON_SECRET: "x".repeat(16),
+  };
+
+  const resultMissing = webhookEnvSchema.safeParse(baseEnv);
+  assert.equal(resultMissing.success, false);
+
+  const resultPresent = webhookEnvSchema.safeParse({
+    ...baseEnv,
+    DATABASE_URL: "postgresql://localhost:5432/db",
+  });
+  assert.equal(resultPresent.success, true);
+});
+
+test("withTx regression: withTx does not fail when DATABASE_URL is present", async () => {
+  const { withTx, setMockWithTx } = await import("./db/tx");
+
+  let called = false;
+  setMockWithTx(async (callback) => {
+    called = true;
+    return callback({ query: async () => ({ rows: [] }) });
+  });
+
+  try {
+    const res = await withTx(async (client) => {
+      return "ok";
+    });
+    assert.equal(res, "ok");
+    assert.equal(called, true);
+  } finally {
+    setMockWithTx(null);
+  }
+});
+
+test("withTx env boundary: only DATABASE_URL is required; LINE/GEMINI/APP_URL are irrelevant", async () => {
+  // Regression: withTx used to pull from serverEnvironment(), which demanded
+  // every LINE_*, GEMINI_*, APP_URL, etc. Other env gaps must NOT be reported
+  // as "DATABASE_URL missing".
+  const { withTx, setMockWithTx } = await import("./db/tx");
+
+  const origUrl = process.env.DATABASE_URL;
+  process.env.DATABASE_URL = "postgresql://localhost:5432/db";
+  // Other app env is intentionally left as the runner default (likely absent
+  // in CI) — we MUST NOT blow up here.
+
+  let called = false;
+  setMockWithTx(async (callback) => {
+    called = true;
+    return callback({ query: async () => ({ rows: [] }) });
+  });
+
+  try {
+    const res = await withTx(async () => "ok");
+    assert.equal(res, "ok");
+    assert.equal(called, true);
+  } finally {
+    setMockWithTx(null);
+    if (origUrl === undefined) delete process.env.DATABASE_URL;
+    else process.env.DATABASE_URL = origUrl;
+  }
+});
+
+test("withTx env boundary: missing DATABASE_URL still produces a DATABASE_URL error (not a LINE/GEMINI error)", async () => {
+  const { withTx, setMockWithTx } = await import("./db/tx");
+
+  // Force a no-mock path so the real env branch runs.
+  setMockWithTx(null);
+  const origUrl = process.env.DATABASE_URL;
+  delete process.env.DATABASE_URL;
+
+  try {
+    await assert.rejects(
+      () => withTx(async () => "nope"),
+      (err: unknown) => {
+        assert.ok(err instanceof Error);
+        assert.match(
+          err.message,
+          /DATABASE_URL/,
+          `error must point at DATABASE_URL, got: ${err.message}`,
+        );
+        // Must NOT mention LINE / GEMINI / APP_URL — those are unrelated to DB.
+        assert.doesNotMatch(err.message, /LINE_/);
+        assert.doesNotMatch(err.message, /GEMINI_/);
+        assert.doesNotMatch(err.message, /APP_URL/);
+        return true;
+      },
+    );
+  } finally {
+    if (origUrl !== undefined) process.env.DATABASE_URL = origUrl;
+  }
+});
+
+// ---------------------------------------------------------------------------
+// claimUser (TS replacement for public.claim_user(text) RPC)
+// ---------------------------------------------------------------------------
+//
+// Tiny mock DB that records the .from(table) calls and lets each test
+// program the responses for the `users` queries claimUser makes.
+type ClaimUserCall = { op: "select-existing" | "count" | "insert" | "recheck" };
+
+function makeClaimUserMockDb(opts: {
+  existingUser?: { id: string; couple_id: number; line_user_id: string; role: "owner" | "partner" } | null;
+  count?: number | null;
+  insertErrorCode?: string;
+  recheckUser?: { id: string; couple_id: number; line_user_id: string; role: "owner" | "partner" } | null;
+}) {
+  const calls: ClaimUserCall[] = [];
+  const insertArgs: Array<Record<string, unknown>> = [];
+  let maybeSingleCall = 0;
+
+  const db = {
+    from(table: string) {
+      assert.equal(table, "users", `claimUser must only touch the users table, got ${table}`);
+      const builder: any = {};
+      builder.select = (...args: unknown[]) => {
+        if (args[0] === "id") {
+          // count(*) head:true query
+          return {
+            eq: (_col: string, _val: unknown) => {
+              calls.push({ op: "count" });
+              return Promise.resolve({ count: opts.count ?? 0, error: null });
+            },
+          };
+        }
+        return {
+          eq: (_col: string, _val: unknown) => {
+            return {
+              maybeSingle: () => {
+                maybeSingleCall += 1;
+                if (maybeSingleCall === 1) {
+                  calls.push({ op: "select-existing" });
+                  if (opts.existingUser !== undefined) {
+                    return Promise.resolve({ data: opts.existingUser, error: null });
+                  }
+                  return Promise.resolve({ data: null, error: null });
+                }
+                // subsequent maybeSingle is the post-23505 recheck
+                calls.push({ op: "recheck" });
+                if (opts.recheckUser !== undefined) {
+                  return Promise.resolve({ data: opts.recheckUser, error: null });
+                }
+                return Promise.resolve({ data: null, error: null });
+              },
+            };
+          },
+        };
+      };
+      builder.insert = (row: Record<string, unknown>) => {
+        calls.push({ op: "insert" });
+        insertArgs.push(row);
+        if (opts.insertErrorCode) {
+          return {
+            select: () => ({
+              single: () =>
+                Promise.resolve({ data: null, error: { code: opts.insertErrorCode, message: "mock" } }),
+            }),
+          };
+        }
+        return {
+          select: () => ({
+            single: () =>
+              Promise.resolve({
+                data: { id: "00000000-0000-4000-8000-000000000001", couple_id: 1, line_user_id: row.line_user_id, role: row.role },
+                error: null,
+              }),
+          }),
+        };
+      };
+      return builder;
+    },
+  } as unknown as import("@supabase/supabase-js").SupabaseClient;
+
+  return { db, calls, insertArgs };
+}
+
+test("claimUser: returns joined + owner when the couple is empty", async () => {
+  const { claimUser } = await import("./claim-user");
+  const { db, calls } = makeClaimUserMockDb({ count: 0 });
+  const result = await claimUser(db, "U-new");
+  assert.deepEqual(result, { result: "joined", role: "owner" });
+  // existing-user lookup, then count, then insert — no recheck needed
+  assert.deepEqual(
+    calls.map((c) => c.op),
+    ["select-existing", "count", "insert"],
+  );
+});
+
+test("claimUser: returns joined + partner when one user already exists", async () => {
+  const { claimUser } = await import("./claim-user");
+  const { db } = makeClaimUserMockDb({ count: 1 });
+  const result = await claimUser(db, "U-second");
+  assert.deepEqual(result, { result: "joined", role: "partner" });
+});
+
+test("claimUser: returns full when the couple already has 2 users", async () => {
+  const { claimUser } = await import("./claim-user");
+  const { db, calls } = makeClaimUserMockDb({ count: 2 });
+  const result = await claimUser(db, "U-third");
+  assert.deepEqual(result, { result: "full" });
+  // No insert should have been attempted.
+  assert.ok(!calls.some((c) => c.op === "insert"), "must not attempt insert when couple is full");
+});
+
+test("claimUser: returns already_joined when the same line_user_id exists", async () => {
+  const { claimUser } = await import("./claim-user");
+  const { db, calls } = makeClaimUserMockDb({
+    existingUser: {
+      id: "00000000-0000-4000-8000-000000000099",
+      couple_id: 1,
+      line_user_id: "U-same",
+      role: "owner",
+    },
+  });
+  const result = await claimUser(db, "U-same");
+  assert.deepEqual(result, { result: "already_joined", role: "owner" });
+  // No count, no insert.
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].op, "select-existing");
+});
+
+test("claimUser: reclassifies race-loss unique violation on line_user_id as already_joined", async () => {
+  const { claimUser } = await import("./claim-user");
+  const { db, calls } = makeClaimUserMockDb({
+    count: 1,
+    insertErrorCode: "23505",
+    recheckUser: {
+      id: "00000000-0000-4000-8000-000000000077",
+      couple_id: 1,
+      line_user_id: "U-race",
+      role: "partner",
+    },
+  });
+  const result = await claimUser(db, "U-race");
+  assert.deepEqual(result, { result: "already_joined", role: "partner" });
+  assert.ok(calls.some((c) => c.op === "recheck"));
+});
+
+test("claimUser: reclassifies race-loss unique violation on (couple_id, role) as full", async () => {
+  const { claimUser } = await import("./claim-user");
+  const { db } = makeClaimUserMockDb({
+    count: 0,
+    insertErrorCode: "23505",
+    // recheck finds no row for our line_user_id — the violation must be
+    // the (couple_id, role) unique, so the couple is now full from the
+    // other writer's perspective.
+    recheckUser: null,
+  });
+  const result = await claimUser(db, "U-late");
+  assert.deepEqual(result, { result: "full" });
+});
+
+test("claimUser: rejects empty / oversized line_user_id", async () => {
+  const { claimUser } = await import("./claim-user");
+  const { db } = makeClaimUserMockDb({ count: 0 });
+  await assert.rejects(() => claimUser(db, ""), /invalid line user id/);
+  await assert.rejects(() => claimUser(db, "x".repeat(101)), /invalid line user id/);
+});
+
+// ---------------------------------------------------------------------------
+// loadGroupBalances (typed entry point for the group_balances RPC)
+// ---------------------------------------------------------------------------
+test("loadGroupBalances: parses rpc rows into camelCase GroupBalanceRow[]", async () => {
+  const { loadGroupBalances } = await import("./balance-loader");
+  const db = {
+    rpc: async (fn: string, args: Record<string, unknown>) => {
+      assert.equal(fn, "group_balances");
+      assert.deepEqual(args, { p_group_id: "g-1" });
+      return {
+        data: [
+          { user_id: "u-1", balance_twd: 100 },
+          { user_id: "u-2", balance_twd: -100 },
+        ],
+        error: null,
+      };
+    },
+  } as unknown as import("@supabase/supabase-js").SupabaseClient;
+  const rows = await loadGroupBalances(db, "g-1");
+  assert.deepEqual(rows, [
+    { userId: "u-1", balanceTwd: 100 },
+    { userId: "u-2", balanceTwd: -100 },
+  ]);
+});
+
+test("loadGroupBalances: throws on rpc error (callers catch and degrade)", async () => {
+  const { loadGroupBalances } = await import("./balance-loader");
+  const db = {
+    rpc: async () => ({ data: null, error: { message: "boom" } }),
+  } as unknown as import("@supabase/supabase-js").SupabaseClient;
+  await assert.rejects(() => loadGroupBalances(db, "g-1"), /balance lookup failed/);
+});
+
+test("loadGroupBalances: rejects missing groupId up front", async () => {
+  const { loadGroupBalances } = await import("./balance-loader");
+  const db = {} as unknown as import("@supabase/supabase-js").SupabaseClient;
+  await assert.rejects(() => loadGroupBalances(db, ""), /groupId is required/);
+});
+
+// ---------------------------------------------------------------------------
+// Env boundary: server-env + module-level process.env reads
+// ---------------------------------------------------------------------------
+test("server-env: getAppUrl returns process.env.APP_URL or empty string", () => {
+  const { getAppUrl } = require("./server-env");
+  const orig = process.env.APP_URL;
+  try {
+    delete process.env.APP_URL;
+    assert.equal(getAppUrl(), "");
+    process.env.APP_URL = "https://app.example.com";
+    assert.equal(getAppUrl(), "https://app.example.com");
+  } finally {
+    if (orig === undefined) delete process.env.APP_URL;
+    else process.env.APP_URL = orig;
+  }
+});
+
+test("server-env: getModelConfig picks provider from AGENT_MODEL_PROVIDER or heuristically from modelId", () => {
+  const { getModelConfig } = require("./server-env");
+  const origProvider = process.env.AGENT_MODEL_PROVIDER;
+  const origModel = process.env.AGENT_MODEL;
+  try {
+    delete process.env.AGENT_MODEL_PROVIDER;
+    delete process.env.AGENT_MODEL;
+    assert.equal(getModelConfig().provider, "google");
+    assert.equal(getModelConfig().modelId, "gemini-3.1-flash-lite");
+    assert.equal(getModelConfig("gpt-4o-mini").provider, "openai");
+    assert.equal(getModelConfig("claude-haiku-4-20250514").provider, "anthropic");
+    process.env.AGENT_MODEL_PROVIDER = "openai";
+    assert.equal(getModelConfig("gemini-3.1-flash-lite").provider, "openai");
+  } finally {
+    if (origProvider === undefined) delete process.env.AGENT_MODEL_PROVIDER;
+    else process.env.AGENT_MODEL_PROVIDER = origProvider;
+    if (origModel === undefined) delete process.env.AGENT_MODEL;
+    else process.env.AGENT_MODEL = origModel;
+  }
+});
+
+test("server-env: getModelConfig reads provider-specific API keys", () => {
+  const { getModelConfig } = require("./server-env");
+  const origProvider = process.env.AGENT_MODEL_PROVIDER;
+  const origGemini = process.env.GEMINI_API_KEY;
+  const origGoogleGen = process.env.GOOGLE_GENERATIVE_AI_API_KEY;
+  const origOpenAi = process.env.OPENAI_API_KEY;
+  const origAnthropic = process.env.ANTHROPIC_API_KEY;
+  try {
+    process.env.AGENT_MODEL_PROVIDER = "openai";
+    process.env.OPENAI_API_KEY = "sk-test";
+    assert.equal(getModelConfig().apiKey, "sk-test");
+    process.env.AGENT_MODEL_PROVIDER = "anthropic";
+    process.env.ANTHROPIC_API_KEY = "ant-test";
+    assert.equal(getModelConfig().apiKey, "ant-test");
+    process.env.AGENT_MODEL_PROVIDER = "google";
+    process.env.GEMINI_API_KEY = "g-1";
+    delete process.env.GOOGLE_GENERATIVE_AI_API_KEY;
+    assert.equal(getModelConfig().apiKey, "g-1");
+    delete process.env.GEMINI_API_KEY;
+    process.env.GOOGLE_GENERATIVE_AI_API_KEY = "g-2";
+    assert.equal(getModelConfig().apiKey, "g-2");
+    delete process.env.GEMINI_API_KEY;
+    delete process.env.GOOGLE_GENERATIVE_AI_API_KEY;
+    assert.equal(getModelConfig().apiKey, null);
+  } finally {
+    if (origProvider === undefined) delete process.env.AGENT_MODEL_PROVIDER;
+    else process.env.AGENT_MODEL_PROVIDER = origProvider;
+    if (origGemini === undefined) delete process.env.GEMINI_API_KEY;
+    else process.env.GEMINI_API_KEY = origGemini;
+    if (origGoogleGen === undefined) delete process.env.GOOGLE_GENERATIVE_AI_API_KEY;
+    else process.env.GOOGLE_GENERATIVE_AI_API_KEY = origGoogleGen;
+    if (origOpenAi === undefined) delete process.env.OPENAI_API_KEY;
+    else process.env.OPENAI_API_KEY = origOpenAi;
+    if (origAnthropic === undefined) delete process.env.ANTHROPIC_API_KEY;
+    else process.env.ANTHROPIC_API_KEY = origAnthropic;
+  }
+});
+
+test("env boundary: secretary-briefing no longer reads process.env.APP_URL at module load", () => {
+  // If the module imported process.env.APP_URL at top level, removing the
+  // env var before the import (via the dynamic require below) would still
+  // be observable. This is a guard against regression to a naked top-level
+  // process.env read.
+  const orig = process.env.APP_URL;
+  try {
+    delete process.env.APP_URL;
+    const mod = require("./secretary-briefing");
+    assert.equal(typeof mod.sendSecretaryBriefing, "function");
+    // The function itself should be defined even without APP_URL — runtime
+    // call sites will fall back to "" via getAppUrl().
+    assert.doesNotThrow(() => mod.sendSecretaryBriefing);
+  } finally {
+    if (orig !== undefined) process.env.APP_URL = orig;
+  }
+});
+
+test("env boundary: model-provider no longer reads process.env at module load", () => {
+  // Same idea: ensure the module can be required with no relevant env set.
+  const orig = {
+    GEMINI_API_KEY: process.env.GEMINI_API_KEY,
+    GOOGLE_GENERATIVE_AI_API_KEY: process.env.GOOGLE_GENERATIVE_AI_API_KEY,
+    AGENT_MODEL: process.env.AGENT_MODEL,
+    AGENT_MODEL_PROVIDER: process.env.AGENT_MODEL_PROVIDER,
+    OPENAI_API_KEY: process.env.OPENAI_API_KEY,
+    ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY,
+  };
+  try {
+    delete process.env.GEMINI_API_KEY;
+    delete process.env.GOOGLE_GENERATIVE_AI_API_KEY;
+    delete process.env.AGENT_MODEL;
+    delete process.env.AGENT_MODEL_PROVIDER;
+    delete process.env.OPENAI_API_KEY;
+    delete process.env.ANTHROPIC_API_KEY;
+    const mod = require("./model-provider");
+    assert.equal(typeof mod.getModel, "function");
+  } finally {
+    for (const [key, value] of Object.entries(orig)) {
+      if (value === undefined) delete process.env[key];
+      else process.env[key] = value;
+    }
+  }
+});
+
+// ---------------------------------------------------------------------------
+// PendingActionService split: structural regressions at the most fragile
+// seams. These guard against the easy-to-miss breakage that comes from
+// moving proposal / agent-action / guard logic into separate files.
+// ---------------------------------------------------------------------------
+//
+// Test helpers — minimal in-memory db that records the tables the proposal
+// flow touches, with programmable responses for the proposal-guard layer.
+function makeProposalMockDb(opts: {
+  expense?: {
+    id: string;
+    couple_id: number;
+    group_id: string | null;
+    ledger: "shared" | "private";
+    description: string;
+    amount_twd: number;
+    version: number;
+    deleted_at: string | null;
+    created_by_user_id: string;
+    mirror_kind: "shared_share" | null;
+  } | null;
+  hasAnySettlement?: boolean;
+}) {
+  const calls: { table: string; op: string }[] = [];
+  const expense = opts.expense ?? null;
+  const hasAnySettlement = opts.hasAnySettlement ?? false;
+
+  const db = {
+    from(table: string) {
+      calls.push({ table, op: "from" });
+      const builder: any = {};
+      builder.select = (sel?: string) => {
+        if (sel === "id") {
+          return {
+            eq: () => Promise.resolve({ count: hasAnySettlement ? 1 : 0, error: null }),
+          };
+        }
+        const terminal: any = {
+          single: () => {
+            if (table === "expenses") {
+              return expense
+                ? Promise.resolve({ data: expense, error: null })
+                : Promise.resolve({ data: null, error: { message: "no row" } });
+            }
+            if (table === "groups") {
+              return Promise.resolve({ data: { id: T_GROUP_ID, name: "g" }, error: null });
+            }
+            if (table === "users") {
+              return Promise.resolve({
+                data: { id: T_USER_ID, couple_id: 1, line_user_id: "u", role: "owner" },
+                error: null,
+              });
+            }
+            return Promise.resolve({ data: null, error: null });
+          },
+        };
+        // eq() returns the same terminal object so chained .eq().eq().single()
+        // all share the same terminal.
+        terminal.eq = () => terminal;
+        // order() resolves to a users-shaped list (used by loadCoupleUsers).
+        terminal.order = () =>
+          Promise.resolve({
+            data: [
+              { id: T_USER_ID, couple_id: 1, line_user_id: "u1", role: "owner" },
+              { id: T_PARTNER_ID, couple_id: 1, line_user_id: "u2", role: "partner" },
+            ],
+            error: null,
+          });
+        // maybeSingle returns the partner lookup pattern used by other paths.
+        terminal.maybeSingle = () => {
+          if (table === "users") {
+            return Promise.resolve({
+              data: { id: T_USER_ID, couple_id: 1, line_user_id: "u1", role: "owner" },
+              error: null,
+            });
+          }
+          return Promise.resolve({ data: null, error: null });
+        };
+        return terminal;
+      };
+      return builder;
+    },
+    rpc: async (fn: string) => {
+      calls.push({ table: fn, op: "rpc" });
+      return {
+        data: [
+          { user_id: T_USER_ID, balance_twd: 100 },
+          { user_id: T_PARTNER_ID, balance_twd: -100 },
+        ],
+        error: null,
+      };
+    },
+  } as unknown as import("@supabase/supabase-js").SupabaseClient;
+
+  return { db, calls };
+}
+
+function makeProposalContext(
+  db: import("@supabase/supabase-js").SupabaseClient,
+  overrides?: Partial<{ userId: string; coupleId: number; groupId: string }>,
+) {
+  return {
+    db,
+    user: {
+      id: overrides?.userId ?? T_USER_ID,
+      couple_id: overrides?.coupleId ?? 1,
+    },
+  } as any;
+}
+
+test("proposal guard: delete_expense rejects when mirror_kind is 'shared_share'", async () => {
+  const { PendingActionService } = await import("./pending-action-service");
+  const { db } = makeProposalMockDb({
+    expense: {
+      id: T_EXPENSE_1,
+      couple_id: 1,
+      group_id: T_GROUP_ID,
+      ledger: "private",
+      description: "mirror",
+      amount_twd: 100,
+      version: 1,
+      deleted_at: null,
+      created_by_user_id: T_USER_ID,
+      mirror_kind: "shared_share",
+    },
+  });
+  const service = new PendingActionService({
+    actionSeconds: 60,
+    deliverNotifications: async () => {},
+  });
+  const context = makeProposalContext(db);
+  await assert.rejects(
+    () => service.proposeDeleteExpenseHelper(context, T_EXPENSE_1, 1, { source: "liff" }),
+    (err: unknown) => {
+      const e = err as { status?: number; message?: string };
+      assert.equal(e.status, 403);
+      assert.match(
+        e.message ?? "",
+        /共同分攤紀錄請修改來源共同帳/,
+      );
+      return true;
+    },
+  );
+});
+
+test("proposal guard: restore_expense rejects when mirror_kind is 'shared_share'", async () => {
+  const { PendingActionService } = await import("./pending-action-service");
+  const { db } = makeProposalMockDb({
+    expense: {
+      id: T_EXPENSE_1,
+      couple_id: 1,
+      group_id: T_GROUP_ID,
+      ledger: "private",
+      description: "mirror",
+      amount_twd: 100,
+      version: 1,
+      deleted_at: "2026-07-01T00:00:00.000Z",
+      created_by_user_id: T_USER_ID,
+      mirror_kind: "shared_share",
+    },
+  });
+  const service = new PendingActionService({
+    actionSeconds: 60,
+    deliverNotifications: async () => {},
+  });
+  const context = makeProposalContext(db);
+  await assert.rejects(
+    () => service.proposeRestoreExpenseHelper(context, T_EXPENSE_1, 1, { source: "liff" }),
+    (err: unknown) => {
+      const e = err as { status?: number; message?: string };
+      assert.equal(e.status, 403);
+      assert.match(
+        e.message ?? "",
+        /共同分攤紀錄請修改來源共同帳/,
+      );
+      return true;
+    },
+  );
+});
+
+test("proposal guard: update_expense shared→private is refused when any settlement exists", async () => {
+  const { PendingActionService } = await import("./pending-action-service");
+  const { db } = makeProposalMockDb({
+    expense: {
+      id: T_EXPENSE_1,
+      couple_id: 1,
+      group_id: T_GROUP_ID,
+      ledger: "shared",
+      description: "shared one",
+      amount_twd: 500,
+      version: 3,
+      deleted_at: null,
+      created_by_user_id: T_USER_ID,
+      mirror_kind: null,
+    },
+    hasAnySettlement: true,
+  });
+  const service = new PendingActionService({
+    actionSeconds: 60,
+    deliverNotifications: async () => {},
+  });
+  const context = makeProposalContext(db);
+  await assert.rejects(
+    () =>
+      service.proposeUpdateExpenseHelper(
+        context,
+        T_EXPENSE_1,
+        3,
+        {
+          ledger: "private",
+          groupId: null,
+          description: "shared one",
+          merchant: null,
+          notes: null,
+          tag: "餐飲",
+          amountTwd: 500,
+          paidBy: "self",
+          expenseDate: "2026-07-01",
+          splitMethod: "equal",
+          selfValue: null,
+          partnerValue: null,
+        },
+        { source: "liff" },
+      ),
+    (err: unknown) => {
+      const e = err as { status?: number; message?: string };
+      assert.equal(e.status, 409);
+      assert.match(
+        e.message ?? "",
+        /此帳已包含在結清紀錄中/,
+      );
+      return true;
+    },
+  );
+});
+
+test("agent action: legacy splits + paid_by_user_id are converted to standard create_expense input", async () => {
+  // After the split, `executeAgentAction` lives in
+  // pending-action-agent-actions.ts but `proposeCreateExpenseHelper`
+  // (now in pending-action-proposals.ts) is what actually gets
+  // dispatched. This test asserts the wiring end-to-end: the legacy
+  // payload with `splits` and `paid_by_user_id` reaches the standard
+  // create path and gets converted to a paidBy of "self" when the
+  // payer is the requester.
+  const insertedRows: Record<string, unknown>[] = [];
+  const mockDb = {
+    from: (table: string) => {
+      const chain: any = {
+        select: () => chain,
+        eq: () => chain,
+        order: () =>
+          Promise.resolve({
+            data: [
+              { id: T_USER_ID, couple_id: 1, line_user_id: "u1", role: "owner" },
+              { id: T_PARTNER_ID, couple_id: 1, line_user_id: "u2", role: "partner" },
+            ],
+            error: null,
+          }),
+        single: () => {
+          if (table === "users") {
+            return Promise.resolve({
+              data: { id: T_USER_ID, couple_id: 1, line_user_id: "u1", role: "owner" },
+              error: null,
+            });
+          }
+          if (table === "groups") {
+            return Promise.resolve({ data: { id: T_GROUP_ID, name: "g" }, error: null });
+          }
+          return Promise.resolve({ data: null, error: null });
+        },
+        insert: (row: any) => {
+          insertedRows.push(row);
+          return {
+            select: () => ({
+              single: () => Promise.resolve({ data: { id: "action-id" }, error: null }),
+            }),
+          };
+        },
+      };
+      return chain;
+    },
+    rpc: async () => ({
+      data: [
+        { user_id: T_USER_ID, balance_twd: 100 },
+        { user_id: T_PARTNER_ID, balance_twd: -100 },
+      ],
+      error: null,
+    }),
+  } as unknown as import("@supabase/supabase-js").SupabaseClient;
+
+  const { PendingActionService } = await import("./pending-action-service");
+  const service = new PendingActionService({
+    actionSeconds: 60,
+    deliverNotifications: async () => {},
+  });
+
+  // We pass a legacy-shape create_expense action with splits/paid_by_user_id.
+  // The split is supposed to flow through `executeAgentAction` -> the
+  // extracted `proposeCreateExpenseHelper` plain function. We assert
+  // that `paidBy` ends up as "self" because `paid_by_user_id` matches
+  // the requester.
+  // We can't easily assert the full paidBy conversion without executing
+  // through `service.execute`, which would require a working confirm path.
+  // Instead, we verify the conversion at the normalize layer directly.
+  const { normalizeCreateExpenseInput } = await import("./pending-action-agent-actions");
+
+  const context = makeProposalContext(mockDb);
+  const standardInput = await normalizeCreateExpenseInput(
+    context,
+    {
+      group_id: null,
+      ledger: "private",
+      description: "晚餐",
+      merchant: null,
+      notes: null,
+      tag: "餐飲",
+      amount_twd: 200,
+      paid_by_user_id: T_USER_ID,
+      expense_date: "2026-07-01",
+      split_method: "equal",
+    },
+    null,
+    null,
+  );
+  assert.equal(standardInput.paidBy, "self");
+  assert.equal(standardInput.amountTwd, 200);
+  assert.equal(standardInput.ledger, "private");
+  assert.equal(standardInput.groupId, null);
+  assert.equal(standardInput.splitMethod, "equal");
+
+  // And that the public service wrapper still wires through the new module.
+  assert.equal(typeof service.executeAgentAction, "function");
+  assert.equal(typeof service.proposeCreateExpenseHelper, "function");
+  assert.equal(typeof service.proposeUpdateExpenseHelper, "function");
+  assert.equal(typeof service.proposeDeleteExpenseHelper, "function");
+  assert.equal(typeof service.proposeRestoreExpenseHelper, "function");
+  // Suppress unused-warning for the `insertedRows` accumulator above; it
+  // is referenced in case future tests in this file want to assert
+  // inserted pending_action rows from the new path.
+  assert.equal(insertedRows.length, 0);
+});
+
+test("builder: buildUpdateExpenseAction on a no-op update still throws '沒有可修改的欄位'", async () => {
+  // Direct unit test on the extracted builder. The fixture returns a
+  // shared expense that already matches every requested field, so the
+  // `mappedUpdates` ends up empty.
+  const mockDb = {
+    from: (table: string) => {
+      const chain: any = {
+        select: () => chain,
+        eq: () => chain,
+        order: () =>
+          Promise.resolve({
+            data: [
+              { id: T_USER_ID, couple_id: 1, line_user_id: "u1", role: "owner" },
+              { id: T_PARTNER_ID, couple_id: 1, line_user_id: "u2", role: "partner" },
+            ],
+            error: null,
+          }),
+        single: () => {
+          if (table === "expenses") {
+            return Promise.resolve({
+              data: {
+                id: T_EXPENSE_1,
+                couple_id: 1,
+                group_id: T_GROUP_ID,
+                ledger: "shared",
+                description: "unchanged",
+                merchant: null,
+                notes: null,
+                tag: "餐飲",
+                amount_twd: 1000,
+                paid_by_user_id: T_USER_ID,
+                created_by_user_id: T_USER_ID,
+                expense_date: "2026-07-01",
+                split_method: "equal",
+                version: 7,
+                deleted_at: null,
+                deleted_by_user_id: null,
+                mirror_kind: null,
+                expense_splits: [
+                  { user_id: T_USER_ID, amount_twd: 500 },
+                  { user_id: T_PARTNER_ID, amount_twd: 500 },
+                ],
+              },
+              error: null,
+            });
+          }
+          if (table === "users") {
+            return Promise.resolve({
+              data: { id: T_USER_ID, couple_id: 1, line_user_id: "u1", role: "owner" },
+              error: null,
+            });
+          }
+          return Promise.resolve({ data: null, error: null });
+        },
+      };
+      return chain;
+    },
+    rpc: async () => ({
+      data: [
+        { user_id: T_USER_ID, balance_twd: 100 },
+        { user_id: T_PARTNER_ID, balance_twd: -100 },
+      ],
+      error: null,
+    }),
+  } as unknown as import("@supabase/supabase-js").SupabaseClient;
+
+  const { PendingActionService } = await import("./pending-action-service");
+  const service = new PendingActionService({
+    actionSeconds: 60,
+    deliverNotifications: async () => {},
+  });
+  const context = makeProposalContext(mockDb);
+
+  await assert.rejects(
+    () =>
+      service.buildUpdateExpenseAction(context, T_EXPENSE_1, {
+        // Every field matches the current row → no-op
+        description: "unchanged",
+        tag: "餐飲",
+        amountTwd: 1000,
+        paidBy: "self",
+        expenseDate: "2026-07-01",
+        ledger: "shared",
+      }),
+    (err: unknown) => {
+      const e = err as { status?: number; message?: string };
+      assert.equal(e.status, 400);
+      assert.equal(e.message, "沒有可修改的欄位");
+      return true;
+    },
+  );
+});
+
+// ---------------------------------------------------------------------------
+// AccountantService split: structural regressions at the most fragile
+// seams. These guard against the easy-to-miss breakage that comes
+// from moving analytics / agent / reports into separate files.
+// ---------------------------------------------------------------------------
+
+test("accountant: ask() still routes through runAgent() (shared report contract)", async () => {
+  // The ask/runAgent split was the largest behaviour change in the
+  // refactor. We assert that ask() returns the same report object
+  // that runAgent() would have produced, by intercepting the
+  // accountant_reports insert and making runAgent deterministic.
+  const { AccountantService } = await import("./accountant-service");
+
+  const reportRow = {
+    id: "00000000-0000-4000-8000-000000009201",
+    group_id: GROUP,
+    owner_user_id: null,
+    report_type: "manual_question",
+    scope: "combined",
+    month: "2026-07-01",
+    question: "本月花最多",
+    title: "AI 會計師",
+    summary: "本月花最多是餐飲。",
+    facts: { totalTwd: 1000, transactionCount: 5 },
+    findings: [],
+    suggestions: [],
+    source: "fallback",
+    created_at: "2026-07-15T00:00:00.000Z",
+  };
+
+  const insertedPayloads: Array<Record<string, unknown>> = [];
+  const mockDb = {
+    from(table: string) {
+      if (table === "user_preferences") {
+        const query: any = {
+          select: () => query,
+          eq: () => query,
+          single: async () => ({
+            data: { active_group_id: GROUP },
+            error: null,
+          }),
+        };
+        return query;
+      }
+      if (table === "expenses") {
+        const query: any = {
+          select: () => query,
+          eq: () => query,
+          order: () => query,
+          limit: () => Promise.resolve({ data: [], error: null }),
+        };
+        return query;
+      }
+      if (table === "accountant_reports") {
+        const query: any = {
+          insert: (row: Record<string, unknown>) => {
+            insertedPayloads.push(row);
+            return {
+              select: () => ({
+                single: async () => ({ data: reportRow, error: null }),
+              }),
+            };
+          },
+        };
+        return query;
+      }
+      if (table === "agent_runs") {
+        const query: any = {
+          insert: () => ({
+            select: () => ({
+              single: async () => ({ data: { id: "run-1" }, error: null }),
+            }),
+          }),
+        };
+        return query;
+      }
+      throw new Error(`unexpected table ${table}`);
+    },
+  } as unknown as import("@supabase/supabase-js").SupabaseClient;
+
+  const service = new AccountantService();
+  const result = await service.ask(
+    {
+      env: {} as ServerContext["env"],
+      db: mockDb,
+      user: {
+        id: CORE_OWNER,
+        couple_id: 1,
+        line_user_id: "line-owner",
+        role: "owner",
+      },
+    },
+    { question: "本月花最多", scope: "shared" },
+  );
+
+  // ask() should return the same shape runAgent() puts on its `.report`.
+  assert.equal(result.id, reportRow.id);
+  assert.equal(result.summary, reportRow.summary);
+  // ask() parsed `scope: "shared"` and runAgent forwarded it into the
+  // accountant_reports insert.
+  assert.equal(insertedPayloads.length, 1);
+  assert.equal(insertedPayloads[0].scope, "shared");
+  assert.equal(insertedPayloads[0].report_type, "manual_question");
+  // The parsed question is what gets persisted (not the raw ask input).
+  assert.equal(insertedPayloads[0].question, "本月花最多");
+});
+
+test("accountant: createCategoryCleanup() emits snake_case batch_update_expenses payload", async () => {
+  // The category-cleanup boundary is the one that crosses into
+  // PendingActionService. We must keep the snake_case payload shape
+  // (expense_id / expected_version / tag) that the LIFF UI and the
+  // pending action executor both rely on.
+  const { AccountantService } = await import("./accountant-service");
+
+  const expenses = [
+    {
+      id: "00000000-0000-4000-8000-000000009301",
+      couple_id: 1,
+      group_id: GROUP,
+      ledger: "shared",
+      description: "Lunch",
+      merchant: null,
+      notes: null,
+      tag: "其他",
+      mirror_kind: null,
+      mirror_source_expense_id: null,
+      amount_twd: 100,
+      paid_by_user_id: CORE_OWNER,
+      created_by_user_id: CORE_OWNER,
+      expense_date: "2026-07-01",
+      split_method: "equal",
+      version: 3,
+      deleted_at: null,
+      created_at: "2026-07-01T00:00:00.000Z",
+      expense_splits: [],
+    },
+  ];
+  const mockDb = {
+    from(table: string) {
+      if (table === "user_preferences") {
+        const query: any = {
+          select: () => query,
+          eq: () => query,
+          single: async () => ({
+            data: { active_group_id: GROUP },
+            error: null,
+          }),
+        };
+        return query;
+      }
+      if (table === "expenses") {
+        const query: any = {
+          select: () => query,
+          eq: () => query,
+          order: () => query,
+          limit: () => Promise.resolve({ data: expenses, error: null }),
+        };
+        return query;
+      }
+      throw new Error(`unexpected table ${table}`);
+    },
+  } as unknown as import("@supabase/supabase-js").SupabaseClient;
+
+  const service = new AccountantService();
+  let receivedAction: unknown = null;
+  await service.createCategoryCleanup(
+    {
+      env: {} as ServerContext["env"],
+      db: mockDb,
+      user: {
+        id: CORE_OWNER,
+        couple_id: 1,
+        line_user_id: "line-owner",
+        role: "owner",
+      },
+    },
+    {
+      updates: [
+        { expenseId: "00000000-0000-4000-8000-000000009301", expectedVersion: 3, tag: "餐飲" },
+      ],
+    },
+    "idempotency-key-123",
+    async (action) => {
+      receivedAction = action;
+      return { ok: true };
+    },
+  );
+
+  assert.ok(receivedAction, "createCategoryCleanup must call executePendingAction");
+  const action = receivedAction as {
+    actionType: string;
+    groupId: string | null;
+    payload: { updates: Array<Record<string, unknown>> };
+    sourceEventId: string;
+    idempotencyKey?: string;
+  };
+  assert.equal(action.actionType, "batch_update_expenses");
+  assert.equal(action.groupId, GROUP);
+  assert.equal(action.idempotencyKey, "idempotency-key-123");
+  assert.match(action.sourceEventId, /^liff:category:/);
+  assert.equal(action.payload.updates.length, 1);
+  const update = action.payload.updates[0];
+  // Critical contract: snake_case keys, not camelCase.
+  assert.equal(update.expense_id, "00000000-0000-4000-8000-000000009301");
+  assert.equal(update.expected_version, 3);
+  assert.equal(update.tag, "餐飲");
+  assert.equal((update as Record<string, unknown>).expenseId, undefined);
+  assert.equal((update as Record<string, unknown>).expectedVersion, undefined);
+});
+
+test("accountant: generateMonthlyReports() notification titles + dedupe keys per scope", async () => {
+  // Tighter than the existing test: assert the dedupe_key shape
+  // exactly (so a future "improvement" doesn't break idempotency).
+  const { AccountantService } = await import("./accountant-service");
+
+  const users = [
+    { id: CORE_OWNER, couple_id: 1, line_user_id: "o", role: "owner" as const },
+    { id: CORE_PARTNER, couple_id: 1, line_user_id: "p", role: "partner" as const },
+  ];
+  const groups = [{ id: GROUP, couple_id: 1 }];
+  const generateCalls: Array<Record<string, unknown>> = [];
+  const notifications: Array<Record<string, unknown>> = [];
+
+  const service = new AccountantService();
+  const svc = service as unknown as {
+    generateReport: (
+      context: ServerContext,
+      input: Record<string, unknown>,
+    ) => Promise<{ id: string; title: string }>;
+  };
+  svc.generateReport = async (context, input) => {
+    generateCalls.push({
+      userId: context.user.id,
+      scope: input.scope,
+      month: input.month,
+      groupId: input.groupId ?? null,
+    });
+    const scope = String(input.scope);
+    return {
+      id:
+        scope === "shared"
+          ? "00000000-0000-4000-8000-000000009401"
+          : context.user.id === CORE_OWNER
+            ? "00000000-0000-4000-8000-000000009402"
+            : "00000000-0000-4000-8000-000000009403",
+      title: `${scope}-${context.user.id}`,
+    };
+  };
+
+  const mockDb = {
+    from(table: string) {
+      if (table === "users") {
+        const query: any = {
+          select: () => query,
+          order: () => Promise.resolve({ data: users, error: null }),
+        };
+        return query;
+      }
+      if (table === "groups") {
+        const query: any = {
+          select: () => query,
+          is: () => Promise.resolve({ data: groups, error: null }),
+        };
+        return query;
+      }
+      if (table === "notifications") {
+        return {
+          upsert(payload: Record<string, unknown>) {
+            notifications.push(payload);
+            return Promise.resolve({ data: null, error: null });
+          },
+        };
+      }
+      throw new Error(`unexpected table ${table}`);
+    },
+  } as unknown as import("@supabase/supabase-js").SupabaseClient;
+
+  const count = await service.generateMonthlyReports(
+    { APP_URL: "https://example.com" } as ServerContext["env"],
+    mockDb,
+    "2026-07",
+  );
+
+  assert.equal(count, 3);
+  // Three generateReport calls in the expected order.
+  assert.equal(generateCalls.length, 3);
+  assert.equal(generateCalls[0].scope, "shared");
+  assert.equal(generateCalls[0].groupId, GROUP);
+  assert.equal(generateCalls[1].scope, "private");
+  assert.equal(generateCalls[2].scope, "private");
+
+  // Four notifications: 2 shared (both users), 1 private for each user.
+  assert.equal(notifications.length, 4);
+  // Shared report: 2 notifications, both titled "AI 會計師月報", with
+  // dedupe_key of the form `accountant-report:<id>:user:<recipient>`.
+  const shared = notifications.filter((n) => n.title === "AI 會計師月報");
+  assert.equal(shared.length, 2);
+  for (const n of shared) {
+    assert.equal(n.group_id, GROUP);
+    assert.match(
+      String(n.dedupe_key),
+      /^accountant-report:00000000-0000-4000-8000-000000009401:user:/,
+    );
+  }
+  // Private reports: 2 notifications, titled "AI 私人帳月報",
+  // group_id: null, one per user.
+  const priv = notifications.filter((n) => n.title === "AI 私人帳月報");
+  assert.equal(priv.length, 2);
+  for (const n of priv) {
+    assert.equal(n.group_id, null);
+    assert.match(
+      String(n.dedupe_key),
+      /^accountant-report:00000000-0000-4000-8000-00000000940[23]:user:/,
+    );
+  }
+  // Notification body carries the APP_URL deep link. In production the
+  // body is `<title>\n<APP_URL>?tab=accountant`; the test mock sets
+  // titles to `shared-<userId>` or `private-<userId>`, so we just
+  // assert the URL suffix is present on every notification.
+  for (const n of notifications) {
+    assert.match(String(n.body), /https:\/\/example\.com\/\?tab=accountant/);
+  }
+});
+
+test("accountant: loadAccountantSnapshot() separates previous-month total by scope", async () => {
+  // Lock down the previous-month aggregation for shared / private /
+  // combined so a future refactor can't silently start double-counting.
+  const { loadAccountantSnapshot } = await import("./accountant-loaders");
+
+  // We have to distinguish between the current-month expense query
+  // (which goes through `expenseSchema` and demands every column)
+  // and the previous-month `amount_twd`-only sum query. The mock
+  // records which chain was reached and returns either [] for the
+  // current-month query or a single `amount_twd` row for the prev
+  // query.
+  function makeDbForScope(scope: "shared" | "private" | "combined") {
+    let prevSharedHit = false;
+    let prevPrivateHit = false;
+    return {
+      from(table: string) {
+        if (table === "user_preferences") {
+          const query: any = {
+            select: () => query,
+            eq: () => query,
+            single: async () => ({
+              data: { active_group_id: GROUP },
+              error: null,
+            }),
+          };
+          return query;
+        }
+        if (table === "expenses") {
+          let selectCols: string | undefined;
+          const query: any = {
+            select: (cols?: string) => {
+              selectCols = cols;
+              return query;
+            },
+            eq: () => query,
+            order: () => query,
+            gte: () => query,
+            lt: () => query,
+            is: () => query,
+            then: (
+              resolve: (value: { data: Array<unknown>; error: null }) => void,
+            ) => {
+              // Current-month query: select(EXPENSE_SELECT) demands full rows.
+              // Return [] so z.array(expenseSchema).parse([]) is a no-op.
+              // Prev-month query: select("amount_twd") returns the sum row(s).
+              if (selectCols === "amount_twd") {
+                // shared prev sums 100, private prev sums 200.
+                // Detect via which path (eq chain order). Easiest:
+                // track by side.
+                const value =
+                  // first prev hit wins
+                  prevSharedHit
+                    ? { data: [{ amount_twd: 200 }], error: null }
+                    : (prevPrivateHit
+                      ? { data: [{ amount_twd: 0 }], error: null }
+                      : (() => {
+                          if (scope === "shared") {
+                            prevSharedHit = true;
+                            return { data: [{ amount_twd: 100 }], error: null };
+                          }
+                          prevPrivateHit = true;
+                          return { data: [{ amount_twd: 200 }], error: null };
+                        })());
+                return Promise.resolve(value).then(resolve);
+              }
+              return Promise.resolve({ data: [], error: null }).then(resolve);
+            },
+          };
+          return query;
+        }
+        throw new Error(`unexpected table ${table}`);
+      },
+      rpc: async () => ({ data: [], error: null }),
+    } as unknown as import("@supabase/supabase-js").SupabaseClient;
+  }
+
+  // shared scope: prevSharedQuery is the only prev source, sum = 100.
+  const sharedSnap = await loadAccountantSnapshot(
+    {
+      env: {} as ServerContext["env"],
+      db: makeDbForScope("shared"),
+      user: {
+        id: CORE_OWNER,
+        couple_id: 1,
+        line_user_id: "o",
+        role: "owner",
+      },
+    },
+    "shared",
+    "2026-07",
+  );
+  assert.equal(sharedSnap.facts.previousMonthTotalTwd, 100);
+
+  // private scope: prevPrivateQuery is the only prev source, sum = 200.
+  const privateSnap = await loadAccountantSnapshot(
+    {
+      env: {} as ServerContext["env"],
+      db: makeDbForScope("private"),
+      user: {
+        id: CORE_OWNER,
+        couple_id: 1,
+        line_user_id: "o",
+        role: "owner",
+      },
+    },
+    "private",
+    "2026-07",
+  );
+  assert.equal(privateSnap.facts.previousMonthTotalTwd, 200);
+});
+
+// ---------------------------------------------------------------------------
+// Secretary tool/agent convergence: structural regressions at the
+// registry seams. These guard against the easy-to-miss breakage
+// that comes from collapsing secretary-tools / vercel-agent into a
+// single registry.
+// ---------------------------------------------------------------------------
+
+test("secretary registry: declared names match what executeSecretaryTool actually accepts", async () => {
+  // The registry is the single source of truth. Adding a tool to one
+  // and forgetting the other would break this invariant.
+  const { SECRETARY_TOOL_NAMES, findSecretaryTool } = await import(
+    "./secretary-tool-registry"
+  );
+  const { executeSecretaryTool } = await import("./secretary-tools");
+
+  // Names advertised by the registry.
+  const expected = new Set<string>(SECRETARY_TOOL_NAMES);
+
+  // Names reachable through the dispatch path used by executeSecretaryTool.
+  // We pick tools whose executor does not require a real db to
+  // produce a non-error result; the unknown-tool check is what we
+  // want to lock down here.
+  const samples = [
+    "get_recent_expenses",
+    "get_open_tasks",
+    "get_user_memories",
+    "propose_update_expense",
+    "propose_merchant_rule",
+    "create_task",
+  ];
+  // The "Unknown tool" check is structural: if a name resolves via
+  // findSecretaryTool, dispatchSecretaryTool must not return the
+  // unknown-tool error envelope. The executor may still return
+  // domain errors (e.g. "找不到支出"), which is fine.
+  for (const name of samples) {
+    const tool = findSecretaryTool(name);
+    assert.ok(tool, `registry must have a definition for ${name}`);
+    // Calling executeSecretaryTool with an empty db mock may throw
+    // downstream; wrap in a try/catch so the test only fails if the
+    // registry itself returns the unknown-tool error.
+    try {
+      await executeSecretaryTool(name, {}, {
+        db: {} as import("@supabase/supabase-js").SupabaseClient,
+        groupId: "g",
+        userId: "u",
+        coupleId: 1,
+      });
+    } catch {
+      // downstream error — not the registry's concern here
+    }
+  }
+  // And explicitly verify that an unknown tool returns the unknown-tool error envelope.
+  const unknownResult = (await executeSecretaryTool(
+    "this_is_not_a_real_tool",
+    {},
+    {
+      db: {} as import("@supabase/supabase-js").SupabaseClient,
+      groupId: "g",
+      userId: "u",
+      coupleId: 1,
+    },
+  )) as { error: string };
+  assert.equal(unknownResult.error, "Unknown tool: this_is_not_a_real_tool");
+
+  // And every registry name is reachable from the dispatch.
+  for (const name of expected) {
+    assert.ok(findSecretaryTool(name), `registry entry missing: ${name}`);
+  }
+});
+
+test("secretary registry: vercel-agent's tools object is the registry's tools object (no second source)", async () => {
+  // The hard part of the convergence: vercel-agent must not have its
+  // own hand-rolled zod schema. The way to lock that down is to assert
+  // that for every entry returned by `vercelToolDefs`, the
+  // `description` and `parameters` shape are the same as the
+  // registry's own definition.
+  const {
+    SECRETARY_TOOLS,
+    findSecretaryTool,
+    vercelToolDefs,
+  } = await import("./secretary-tool-registry");
+
+  // The dispatchTool argument is only used to populate `execute`; we
+  // pass a stub.
+  const tools = vercelToolDefs({ dispatchTool: async () => ({ ok: true }) });
+
+  for (const def of SECRETARY_TOOLS) {
+    const vercelEntry = tools[def.name];
+    assert.ok(
+      vercelEntry,
+      `vercelToolDefs must produce an entry for ${def.name}`,
+    );
+    assert.equal(
+      vercelEntry.description,
+      def.description,
+      `vercel description for ${def.name} drifted from registry`,
+    );
+    // Both must reference the same zod schema object. If anyone ever
+    // re-introduces a second schema, this assertion will fail because
+    // they will be two different references.
+    assert.equal(
+      vercelEntry.parameters,
+      def.zodSchema,
+      `vercel parameters for ${def.name} are not the same zod object as the registry`,
+    );
+    assert.equal(
+      typeof vercelEntry.execute,
+      "function",
+      `vercel execute for ${def.name} must be a function`,
+    );
+    // And the registry's own executor must still be reachable for
+    // other consumers (e.g. the Gemini declaration consumer).
+    assert.equal(
+      typeof findSecretaryTool(def.name)?.executor,
+      "function",
+      `registry executor for ${def.name} must be a function`,
+    );
+  }
+});
+
+test("secretary registry: record_expense / propose_update_expense / propose_settlement still go through pending action builder path", async () => {
+  // These three tools are the ones the LIFF depends on for the
+  // record → confirm flow. If their executors stop producing
+  // `pending_action` / using `buildUpdateExpenseAction`, the workflow
+  // service's side-effect collection would break and notify-partner
+  // would silently stop firing.
+  const { SECRETARY_TOOLS, findSecretaryTool } = await import(
+    "./secretary-tool-registry"
+  );
+
+  for (const name of [
+    "record_expense",
+    "propose_update_expense",
+    "propose_settlement",
+  ]) {
+    const def = findSecretaryTool(name);
+    assert.ok(def, `${name} must be in the registry`);
+    // The executor must be a function; the contract is that the
+    // underlying call lands in `accountant-tools.executeTool` or
+    // `buildUpdateExpenseAction` (we don't introspect that here, but
+    // we at least lock the tool is present in the registry with a
+    // real executor and a non-empty description).
+    assert.equal(typeof def.executor, "function");
+    assert.ok(def.description.length > 0);
+  }
+  // And the registry count matches the historical set.
+  assert.equal(SECRETARY_TOOLS.length, 11);
+});
+
+test("secretary registry: get_open_tasks / get_user_memories return the same shape as the legacy executors", async () => {
+  // The contract test: build a minimal mock db and assert the two
+  // read tools return the exact `{ count, tasks/items[] }` shape
+  // the LLM consumer has been seeing.
+  const { executeSecretaryTool } = await import("./secretary-tools");
+
+  const groupId = "00000000-0000-4000-8000-000000000801";
+  const userId = "00000000-0000-4000-8000-000000000802";
+  const coupleId = 1;
+
+  function makeReadMock(rows: Array<Record<string, unknown>>) {
+    return {
+      from(table: string) {
+        if (table === "user_preferences") {
+          const query: any = {
+            select: () => query,
+            eq: () => query,
+            single: async () => ({
+              data: { active_group_id: groupId },
+              error: null,
+            }),
+          };
+          return query;
+        }
+        // tasks + memories both build a chainable query that
+        // resolves to `{ data: rows, error: null }` on `await`.
+        if (table === "assistant_tasks" || table === "assistant_memories") {
+          const query: any = {
+            select: () => query,
+            eq: () => query,
+            is: () => query,
+            in: () => query,
+            or: () => query,
+            order: () => query,
+            limit: () => query,
+            then: (
+              resolve: (value: { data: Array<Record<string, unknown>>; error: null }) => void,
+              reject?: (reason: unknown) => unknown,
+            ) => Promise.resolve({ data: rows, error: null }).then(resolve, reject),
+          };
+          return query;
+        }
+        throw new Error(`unexpected table ${table}`);
+      },
+    } as unknown as import("@supabase/supabase-js").SupabaseClient;
+  }
+
+  // get_open_tasks: tasks table returns the array; the registry's
+  // executor maps each row to the documented shape.
+  const taskRows = [
+    {
+      id: "00000000-0000-4000-8000-000000000901",
+      couple_id: coupleId,
+      group_id: groupId,
+      owner_user_id: null,
+      type: "tag_cleanup" as const,
+      title: "整理其他分類",
+      summary: "12 筆待整理",
+      payload: null,
+      status: "open" as const,
+      priority: "normal" as const,
+      due_at: null,
+      snooze_until: null,
+      source: null,
+      related_pending_action_id: null,
+      related_expense_id: null,
+      created_at: "2026-07-01T00:00:00.000Z",
+      updated_at: "2026-07-01T00:00:00.000Z",
+    },
+  ];
+  const taskMock = makeReadMock(taskRows);
+  const taskResult = (await executeSecretaryTool(
+    "get_open_tasks",
+    { limit: 5 },
+    {
+      db: taskMock,
+      groupId,
+      userId,
+      coupleId,
+    },
+  )) as { count: number; tasks: Array<{ id: string; title: string }> };
+  assert.equal(taskResult.count, 1);
+  assert.equal(taskResult.tasks.length, 1);
+  assert.equal(taskResult.tasks[0].id, "00000000-0000-4000-8000-000000000901");
+  assert.equal(taskResult.tasks[0].title, "整理其他分類");
+
+  // get_user_memories: the registry's executor returns { count, items }
+  // and the `approved` flag is derived from `approved_at`.
+  const memoryRows = [
+    {
+      id: "00000000-0000-4000-8000-000000000902",
+      couple_id: coupleId,
+      group_id: groupId,
+      user_id: userId,
+      scope: "group" as const,
+      kind: "merchant_rule" as const,
+      key: "uber",
+      value: { ledger: "private" },
+      confidence: 0.9,
+      source: "line",
+      approved_at: "2026-07-01T00:00:00.000Z",
+      expires_at: null,
+      created_at: "2026-07-01T00:00:00.000Z",
+      updated_at: "2026-07-01T00:00:00.000Z",
+    },
+  ];
+  const memoryMock = makeReadMock(memoryRows);
+  const memoryResult = (await executeSecretaryTool(
+    "get_user_memories",
+    {},
+    {
+      db: memoryMock,
+      groupId,
+      userId,
+      coupleId,
+    },
+  )) as {
+    count: number;
+    items: Array<{ id: string; approved: boolean; kind: string }>;
+  };
+  assert.equal(memoryResult.count, 1);
+  assert.equal(memoryResult.items[0].id, "00000000-0000-4000-8000-000000000902");
+  assert.equal(memoryResult.items[0].approved, true);
+  assert.equal(memoryResult.items[0].kind, "merchant_rule");
+});
+

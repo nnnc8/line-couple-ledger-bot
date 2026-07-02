@@ -2,11 +2,13 @@ import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
 import { safeSecretEqual, signSession, verifySession } from "./security";
 import { HttpError } from "./http-error";
+import { claimUser } from "./claim-user";
 
 export const SESSION_COOKIE = "couple_ledger_session";
 const SESSION_SECONDS = 60 * 60 * 24 * 7;
 
-const envSchema = z.object({
+export const envSchema = z.object({
+  DATABASE_URL: z.string().min(1),
   LINE_CHANNEL_ACCESS_TOKEN: z.string().min(1),
   LINE_LOGIN_CHANNEL_ID: z.string().min(1),
   GEMINI_API_KEY: z.string().min(1),
@@ -82,19 +84,11 @@ export async function createSession(
     .maybeSingle();
   if (result.error) throw new Error("user lookup failed");
   let user = userSchema.nullable().parse(result.data);
-  if (!user && inviteCode) {
+    if (!user && inviteCode) {
     if (!safeSecretEqual(inviteCode.trim(), env.COUPLE_SETUP_CODE)) {
       throw new HttpError(403, "邀請連結無效");
     }
-    const claim = await db.rpc("claim_user", {
-      p_line_user_id: identity.sub,
-    });
-    if (claim.error) throw new Error("claim_user failed");
-    const claimed = z
-      .object({
-        result: z.enum(["joined", "already_joined", "full"]),
-      })
-      .parse(claim.data);
+    const claimed = await claimUser(db, identity.sub);
     if (claimed.result === "full") {
       throw new HttpError(403, "帳本已綁定兩位使用者");
     }

@@ -15,7 +15,6 @@ export const ledgerExpenseInputSchema = z.object({
   splitMethod: z.enum(["equal", "exact", "percentage"]),
   selfValue: z.number().min(0).nullable().default(null),
   partnerValue: z.number().min(0).nullable().default(null),
-  receiptId: z.string().uuid().nullable().default(null),
 });
 
 export const createExpenseCommandSchema = z.object({
@@ -105,7 +104,6 @@ export interface LedgerExpenseDraft {
   expenseDate: string;
   splitMethod: "equal" | "exact" | "percentage";
   splits: Record<string, number>;
-  receiptId: string | null;
 }
 
 export interface LedgerBalanceRow {
@@ -206,7 +204,6 @@ export class LedgerCommandService {
       expenseDate: expense.expenseDate,
       splitMethod: expense.splitMethod,
       splits,
-      receiptId: expense.receiptId,
     };
   }
 
@@ -276,7 +273,7 @@ export function expenseDraftToLegacyPayload(draft: LedgerExpenseDraft) {
     expense_date: draft.expenseDate,
     split_method: draft.splitMethod,
     splits: draft.splits,
-    receipt_id: draft.receiptId,
+    receipt_id: null,
   };
 }
 

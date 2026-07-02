@@ -265,7 +265,6 @@ export function safeSuggestionAction(
       splitMethod: expense.split_method,
       selfValue: values.selfValue,
       partnerValue: values.partnerValue,
-      receiptId: null,
     },
   };
 }

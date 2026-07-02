@@ -24,7 +24,6 @@ export type Expense = {
   split_method: "equal" | "exact" | "percentage";
   version: number;
   deleted_at: string | null;
-  receipts: Array<{ id: string; status: string }>;
   expense_splits: Array<{ user_id: string; amount_twd: number }>;
   _optimistic?: boolean;
 };

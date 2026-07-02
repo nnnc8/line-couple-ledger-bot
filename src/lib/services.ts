@@ -1,7 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 import { LedgerCommandService } from "./ledger-core";
 import { LedgerQueryService } from "./ledger-query";
-import { ReceiptService } from "./receipt-service";
 import { GroupService } from "./group-service";
 import { RecurringService } from "./recurring-service";
 import { BankImportService } from "./bank-import-service";
@@ -21,7 +20,6 @@ const ACTION_SECONDS = 60 * 5;
 
 export const ledgerCommandService = new LedgerCommandService();
 export const ledgerQueryService = new LedgerQueryService();
-export const receiptService = new ReceiptService();
 export const groupService = new GroupService();
 export const recurringService = new RecurringService();
 export const bankImportService = new BankImportService();

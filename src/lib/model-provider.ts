@@ -2,11 +2,15 @@ import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { openai } from "@ai-sdk/openai";
 import { anthropic } from "@ai-sdk/anthropic";
 
+import { getModelConfig } from "./server-env";
+
 /**
  * Unified model provider resolver.
  *
- * Supports multiple LLM providers through environment variable configuration.
- * Falls back to gemini-3.1-flash-lite when no provider/model is specified.
+ * Public API (`getModel(modelId?)`) is unchanged. The actual env reads
+ * (GEMINI_API_KEY, GOOGLE_GENERATIVE_AI_API_KEY, AGENT_MODEL, etc.) now
+ * live in `server-env.ts` so that no production code other than
+ * `db/tx.ts` touches `process.env` directly.
  *
  * Configuration:
  *   AGENT_MODEL_PROVIDER=google|openai|anthropic
@@ -20,23 +24,8 @@ import { anthropic } from "@ai-sdk/anthropic";
 
 export type Provider = "google" | "openai" | "anthropic";
 
-function detectProvider(modelId: string): Provider {
-  if (modelId.startsWith("gpt-") || modelId.startsWith("o1") || modelId.startsWith("o3")) {
-    return "openai";
-  }
-  if (modelId.startsWith("claude-")) {
-    return "anthropic";
-  }
-  return "google";
-}
-
-const google = createGoogleGenerativeAI({
-  apiKey: process.env.GEMINI_API_KEY || process.env.GOOGLE_GENERATIVE_AI_API_KEY,
-});
-
 export function getModel(modelId?: string) {
-  const id = modelId || process.env.AGENT_MODEL || "gemini-3.1-flash-lite";
-  const provider = (process.env.AGENT_MODEL_PROVIDER as Provider) || detectProvider(id);
+  const { modelId: id, provider } = getModelConfig(modelId);
 
   switch (provider) {
     case "openai":
@@ -45,6 +34,9 @@ export function getModel(modelId?: string) {
       return anthropic(id);
     case "google":
     default:
-      return google(id);
+      // Google's provider factory is built lazily with the resolved key so
+      // that test-time env mutations are honored at each call.
+      const apiKey = getModelConfig(id).apiKey ?? "";
+      return createGoogleGenerativeAI({ apiKey })(id);
   }
 }

@@ -1,6 +1,5 @@
 import type { LineBotClient, webhook } from "@line/bot-sdk";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { z } from "zod";
 
 import { serverEnvironment } from "./server-runtime";
 import { pendingActionService, ledgerQueryService } from "./services";
@@ -20,6 +19,7 @@ import {
   handleLineImageTurn,
   runLineSecretaryTurn,
 } from "./line-secretary-service";
+import { claimUser } from "./claim-user";
 
 const MAX_MESSAGE_LENGTH = 500;
 
@@ -333,13 +333,7 @@ async function joinCouple(
     await replyText(dependencies.lineClient, replyToken, "設定碼不正確。");
     return;
   }
-  const { data, error } = await dependencies.supabase.rpc("claim_user", {
-    p_line_user_id: lineUserId,
-  });
-  if (error) throw new Error("claim_user failed");
-  const result = z
-    .object({ result: z.enum(["joined", "already_joined", "full"]), role: z.string().optional() })
-    .parse(data);
+  const result = await claimUser(dependencies.supabase, lineUserId);
   const message =
     result.result === "full"
       ? "帳本已綁定兩位使用者。"

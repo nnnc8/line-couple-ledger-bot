@@ -11,7 +11,8 @@ import { GoogleGenAI } from "@google/genai";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { LineBotClient } from "@line/bot-sdk";
 
-import { TaskService } from "./task-service";
+import { getTaskService } from "./secretary-tool-registry";
+import { getAppUrl } from "./server-env";
 
 export interface BriefingResult {
   tasksFound: number;
@@ -31,7 +32,7 @@ export async function sendSecretaryBriefing(
     lineClient?: Pick<LineBotClient, "pushMessage">;
   },
 ): Promise<BriefingResult> {
-  const taskService = new TaskService(options.supabase);
+  const taskService = getTaskService(options.supabase);
   const tasks = await taskService.listOpenTasks({
     coupleId: options.coupleId,
     groupId: options.groupId,
@@ -68,7 +69,7 @@ export async function sendSecretaryBriefing(
         messages: [
           {
             type: "text",
-            text: `📋 ${taskListText}\n\n打開 LIFF 查看更多：${process.env.APP_URL ?? ""}`,
+            text: `📋 ${taskListText}\n\n打開 LIFF 查看更多：${getAppUrl()}`,
           },
         ],
       });

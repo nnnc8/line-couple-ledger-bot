@@ -6,6 +6,7 @@ import {
   executeTool,
   type ToolContext,
 } from "./accountant-tools";
+import { loadGroupBalances } from "./balance-loader";
 
 export interface AgentDeps {
   gemini: any;
@@ -33,12 +34,10 @@ const MAX_TOOL_CALLS = 8;
 const MAX_HISTORY = 30;
 
 async function buildSystemPrompt(ctx: ToolContext, today: string): Promise<string> {
-  const balanceResult = await ctx.db.rpc("group_balances", { p_group_id: ctx.groupId });
-
   let balanceInfo = "";
-  if (!balanceResult.error && balanceResult.data) {
-    const balances = balanceResult.data as Array<{ user_id: string; balance_twd: number }>;
-    const myBalance = balances.find((b) => b.user_id === ctx.userId)?.balance_twd ?? 0;
+  try {
+    const balances = await loadGroupBalances(ctx.db, ctx.groupId);
+    const myBalance = balances.find((b) => b.userId === ctx.userId)?.balanceTwd ?? 0;
     if (myBalance > 0) {
       balanceInfo = `\n目前狀態：對方欠你 NT$${myBalance}`;
     } else if (myBalance < 0) {
@@ -46,6 +45,8 @@ async function buildSystemPrompt(ctx: ToolContext, today: string): Promise<strin
     } else {
       balanceInfo = "\n目前狀態：帳務已結清";
     }
+  } catch {
+    // If the balance lookup fails the prompt still works without the line.
   }
 
   return `你是一個情侶記帳系統的 AI 助理。今天是 ${today}。

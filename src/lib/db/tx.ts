@@ -6,7 +6,7 @@ function getPool(): Pool {
   if (!pool) {
     const connectionString = process.env.DATABASE_URL;
     if (!connectionString) {
-      throw new Error("DATABASE_URL is not configured");
+      throw new Error("server not configured / DATABASE_URL missing");
     }
     pool = new Pool({
       connectionString,

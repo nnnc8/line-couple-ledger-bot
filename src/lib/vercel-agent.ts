@@ -1,86 +1,13 @@
 import { generateText } from "ai";
-import { z } from "zod";
 
 import { executeSecretaryTool } from "./secretary-tools";
-import type { ToolContext } from "./accountant-tools";
+import type { ToolContext } from "./secretary-tools";
 import { getModel } from "./model-provider";
+import { vercelToolDefs } from "./secretary-tool-registry";
 import {
   SecretaryWorkflowService,
   type SecretaryWorkflowResult as VercelAgentResult,
 } from "./secretary-workflow-service";
-
-/* ─── Zod Schemas for Tools ─── */
-
-const recordExpenseSchema = z.object({
-  description: z.string().describe("支出說明"),
-  amount_twd: z.number().int().positive().describe("金額 TWD 整數"),
-  tag: z.string().optional().describe("自由標籤"),
-  paid_by: z.enum(["self", "partner"]).describe("誰付的"),
-  ledger: z.enum(["shared", "private"]).optional().describe("共同或私人帳"),
-  expense_date: z.string().optional().describe("YYYY-MM-DD"),
-  merchant: z.string().optional().describe("商家名稱"),
-});
-
-const proposeUpdateExpenseSchema = z.object({
-  expense_id: z.string().uuid().describe("要修改的支出 ID"),
-  updates: z.object({
-    ledger: z.enum(["shared", "private"]).optional().describe("改成共同或私人"),
-    tag: z.string().optional().describe("標籤"),
-    description: z.string().optional().describe("說明"),
-    amount_twd: z.number().int().positive().optional().describe("金額"),
-    paid_by: z.enum(["self", "partner"]).optional().describe("誰付"),
-    expense_date: z.string().optional().describe("日期"),
-  }).describe("要修改的欄位（只傳要改的）"),
-});
-
-const proposeSettlementSchema = z.object({
-  amount_twd: z.number().int().positive().describe("結清金額"),
-  note: z.string().optional().describe("備註"),
-});
-
-const proposeMerchantRuleSchema = z.object({
-  merchant: z.string().describe("商家名稱"),
-  rule: z.object({
-    ledger: z.enum(["shared", "private"]).optional(),
-    tag: z.string().optional(),
-    paid_by: z.enum(["self", "partner"]).optional(),
-  }).describe("規則內容"),
-});
-
-const createTaskSchema = z.object({
-  type: z.enum([
-    "budget_warning",
-    "duplicate_expense_review",
-    "tag_cleanup",
-  ]).describe("任務類型"),
-  title: z.string().describe("任務標題"),
-  summary: z.string().optional().describe("任務摘要"),
-  priority: z.enum(["low", "normal", "high"]).optional().describe("優先級"),
-});
-
-const queryExpensesSchema = z.object({
-  date_from: z.string().optional().describe("起始 YYYY-MM-DD"),
-  date_to: z.string().optional().describe("結束 YYYY-MM-DD"),
-  category: z.string().optional().describe("大分類 enum"),
-  category_label: z.string().optional().describe("細分類 label"),
-  limit: z.number().int().min(1).max(20).optional().describe("回傳筆數上限 1-20"),
-  type: z.enum(["shared", "private", "all"]).optional().describe("帳本類型"),
-});
-
-const getRecentExpensesSchema = z.object({
-  limit: z.number().int().min(1).max(10).optional().describe("筆數，預設 5，最多 10"),
-  ledger: z.enum(["shared", "private", "all"]).optional().describe("預設 all"),
-});
-
-const getBalanceSummarySchema = z.object({});
-
-const getOpenTasksSchema = z.object({
-  limit: z.number().int().optional().describe("回傳筆數上限，預設 10"),
-});
-
-const getUserMemoriesSchema = z.object({
-  kind: z.enum(["merchant_rule", "category_rule", "split_rule", "routine", "wording_preference"]).optional().describe("規則類型，不傳則全部"),
-});
 
 /* ─── Mapper function ─── */
 
@@ -112,82 +39,19 @@ export async function runVercelAgent(
 
   const coreMessages = mapMessages(messages);
 
+  // The tool list (descriptions, parameter shapes, executors) is
+  // defined exactly once, in secretary-tool-registry. This file no
+  // longer hand-rolls zod schemas or per-tool descriptions — that was
+  // the duplication this module previously carried.
+  const tools = vercelToolDefs({
+    dispatchTool: (name, args) => workflow.executeTool(name, args, ctx),
+  });
+
   const result = await generateText({
     model: getModel(),
     system: systemInstruction,
     messages: coreMessages,
-    tools: {
-      record_expense: {
-        description: "記帳。直接寫入一筆支出，不需使用者再按確認。**重要規則：** 當用戶說「私人」、「自己」、「我自己的」時，ledger 必須是 \"private\"；只有用戶說「共同」、「一起」、「分攤」時才是 \"shared\"。tag 必須是中文標籤（如「餐飲」、「交通」、「共享機車」），不可省略。",
-        parameters: recordExpenseSchema,
-        execute: async (args: any) => {
-          return workflow.executeTool("record_expense", args, ctx);
-        },
-      },
-      propose_update_expense: {
-        description: "修改最近一筆支出。用於「剛剛那筆改私人」、「上一筆改分類」等情境。",
-        parameters: proposeUpdateExpenseSchema,
-        execute: async (args: any) => {
-          return workflow.executeTool("propose_update_expense", args, ctx);
-        },
-      },
-      propose_settlement: {
-        description: "建議或建立結清。直接寫入，不需使用者再按確認。",
-        parameters: proposeSettlementSchema,
-        execute: async (args: any) => {
-          return workflow.executeTool("propose_settlement", args, ctx);
-        },
-      },
-      propose_merchant_rule: {
-        description: "建立商家自動套用規則（如之後 Uber 都私人交通）。",
-        parameters: proposeMerchantRuleSchema,
-        execute: async (args: any) => {
-          return workflow.executeTool("propose_merchant_rule", args, ctx);
-        },
-      },
-      create_task: {
-        description: "建立一筆秘書待辦任務。",
-        parameters: createTaskSchema,
-        execute: async (args: any) => {
-          return workflow.executeTool("create_task", args, ctx);
-        },
-      },
-      query_expenses: {
-        description: "自由查帳。不指定 limit 只回聚合摘要。有 limit 才回明細（最多 20 筆）。",
-        parameters: queryExpensesSchema,
-        execute: async (args: any) => {
-          return workflow.executeTool("query_expenses", args, ctx);
-        },
-      },
-      get_recent_expenses: {
-        description: "查最近 N 筆支出（含共同與私人）。用於「剛剛那筆」、「上一筆」等指代查詢。",
-        parameters: getRecentExpensesSchema,
-        execute: async (args: any) => {
-          return workflow.executeTool("get_recent_expenses", args, ctx);
-        },
-      },
-      get_balance_summary: {
-        description: "查詢目前誰欠誰多少，含 breakdown。",
-        parameters: getBalanceSummarySchema,
-        execute: async () => {
-          return workflow.executeTool("get_balance_summary", {}, ctx);
-        },
-      },
-      get_open_tasks: {
-        description: "查詢目前待處理的秘書任務。",
-        parameters: getOpenTasksSchema,
-        execute: async (args: any) => {
-          return workflow.executeTool("get_open_tasks", args, ctx);
-        },
-      },
-      get_user_memories: {
-        description: "查詢已儲存的使用者偏好與規則。",
-        parameters: getUserMemoriesSchema,
-        execute: async (args: any) => {
-          return workflow.executeTool("get_user_memories", args, ctx);
-        },
-      },
-    },
+    tools,
     stopWhen: (({ steps }: any) => steps.length >= 8) as any,
   } as any);
 
