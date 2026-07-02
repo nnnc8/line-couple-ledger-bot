@@ -4,7 +4,7 @@ import { createClient } from "@supabase/supabase-js";
 import { after, NextResponse } from "next/server";
 import { z } from "zod";
 
-import { handleLineEvent, processLineReceipt } from "@/lib/bot";
+import { handleLineEvent } from "@/lib/line-webhook-service";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -64,9 +64,6 @@ export async function POST(request: Request): Promise<Response> {
     ),
     gemini: new GoogleGenAI({ apiKey: environment.data.GEMINI_API_KEY }),
     setupCode: environment.data.COUPLE_SETUP_CODE,
-    onImage: (input: { messageId: string; eventId: string; lineUserId: string }) => {
-      after(() => processLineReceipt(lineClient, input));
-    },
   };
 
   await Promise.allSettled(

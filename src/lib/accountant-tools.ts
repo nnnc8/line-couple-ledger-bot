@@ -4,29 +4,13 @@ import { type FunctionDeclaration, Type } from "@google/genai";
 import { buildCreateExpenseAction, buildSettleAction } from "./pending-action-builders";
 import { HttpError } from "./http-error";
 
-import {
-  detectDuplicateAgentExpenses,
-  type AgentExpense,
-} from "./ledger-agent";
-import {
-  LedgerQueryService,
-  type LedgerVisibleExpense,
-} from "./ledger-query";
+import { accountantService, ledgerQueryService } from "./services";
 
 export interface ToolContext {
   db: SupabaseClient;
   groupId: string;
   userId: string;
   coupleId: number;
-}
-
-const ledgerQueryService = new LedgerQueryService();
-
-interface ExpenseSummary {
-  total: number;
-  count: number;
-  average: number;
-  date_range: { from: string; to: string } | null;
 }
 
 const queryExpensesParams = z.object({
@@ -305,324 +289,82 @@ async function queryExpenses(
   params: z.infer<typeof queryExpensesParams>,
   ctx: ToolContext,
 ) {
-  const expenses = await loadFilteredExpenses(ctx, {
-    dateFrom: params.date_from,
-    dateTo: params.date_to,
-    tag: params.tag,
-    member: params.member,
-    type: params.type,
-  });
-
-  const summary = summarize(expenses);
-
-  if (!params.limit) {
-    return { summary };
-  }
-
-  const sorted =
-    params.sort === "amount_desc"
-      ? [...expenses].sort((a, b) => b.amount_twd - a.amount_twd)
-      : [...expenses].sort((a, b) =>
-          b.expense_date.localeCompare(a.expense_date),
-        );
-
-  return {
-    summary,
-    items: sorted.slice(0, params.limit).map(briefExpense),
-  };
+  return ledgerQueryService.queryExpenses(
+    { db: ctx.db, groupId: ctx.groupId, userId: ctx.userId },
+    {
+      dateFrom: params.date_from,
+      dateTo: params.date_to,
+      tag: params.tag,
+      member: params.member,
+      type: params.type,
+      limit: params.limit,
+      sort: params.sort,
+    },
+  );
 }
 
 async function getBalanceSummary(ctx: ToolContext) {
-  const result = await ctx.db.rpc("group_balances", {
-    p_group_id: ctx.groupId,
+  return ledgerQueryService.balanceSummary({
+    db: ctx.db,
+    groupId: ctx.groupId,
+    userId: ctx.userId,
   });
-  if (result.error) return { error: "balance lookup failed" };
-  const balances = z
-    .array(
-      z.object({
-        user_id: z.string().uuid(),
-        balance_twd: z.coerce.number().int(),
-      }),
-    )
-    .parse(result.data);
-  const me = balances.find((b) => b.user_id === ctx.userId);
-  const partner = balances.find((b) => b.user_id !== ctx.userId);
-  return {
-    my_balance: me?.balance_twd ?? 0,
-    partner_balance: partner?.balance_twd ?? 0,
-    summary:
-      (me?.balance_twd ?? 0) > 0
-        ? `另一半欠你 NT$${me!.balance_twd}`
-        : (me?.balance_twd ?? 0) < 0
-          ? `你欠另一半 NT$${Math.abs(me!.balance_twd)}`
-          : "已結清",
-  };
 }
 
 async function getCategoryBreakdown(
   params: z.infer<typeof categoryBreakdownParams>,
   ctx: ToolContext,
 ) {
-  const expenses = await loadFilteredExpenses(ctx, {
+  return accountantService.categoryBreakdown(ctx, {
     dateFrom: params.date_from,
     dateTo: params.date_to,
   });
-  const totals = new Map<string, { total: number; count: number }>();
-  for (const e of expenses) {
-    const key = e.tag;
-    const current = totals.get(key) ?? { total: 0, count: 0 };
-    current.total += e.amount_twd;
-    current.count += 1;
-    totals.set(key, current);
-  }
-  const grand = expenses.reduce((sum, e) => sum + e.amount_twd, 0);
-  return {
-    total: grand,
-    count: expenses.length,
-    breakdown: [...totals.entries()]
-      .sort((a, b) => b[1].total - a[1].total)
-      .slice(0, 15)
-      .map(([label, data]) => ({
-        label,
-        total: data.total,
-        count: data.count,
-        percent: grand ? Math.round((data.total / grand) * 100) : 0,
-      })),
-  };
 }
 
 async function comparePeriod(
   params: z.infer<typeof comparePeriodParams>,
   ctx: ToolContext,
 ) {
-  const [expA, expB] = await Promise.all([
-    loadFilteredExpenses(ctx, {
-      dateFrom: params.period_a.from,
-      dateTo: params.period_a.to,
-    }),
-    loadFilteredExpenses(ctx, {
-      dateFrom: params.period_b.from,
-      dateTo: params.period_b.to,
-    }),
-  ]);
-
-  const totalA = expA.reduce((s, e) => s + e.amount_twd, 0);
-  const totalB = expB.reduce((s, e) => s + e.amount_twd, 0);
-
-  const aMap = breakdownByKey(expA);
-  const bMap = breakdownByKey(expB);
-  const allKeys = new Set([...aMap.keys(), ...bMap.keys()]);
-  const comparison = [...allKeys]
-    .map((label) => ({
-      label,
-      period_a: aMap.get(label) ?? 0,
-      period_b: bMap.get(label) ?? 0,
-      change: (aMap.get(label) ?? 0) - (bMap.get(label) ?? 0),
-    }))
-    .sort((a, b) => Math.abs(b.change) - Math.abs(a.change))
-    .slice(0, 10);
-
-  return {
-    period_a: { total: totalA, count: expA.length },
-    period_b: { total: totalB, count: expB.length },
-    change_percent: totalB
-      ? Math.round(((totalA - totalB) / totalB) * 100)
-      : null,
-    comparison,
-  };
+  return accountantService.comparePeriods(ctx, {
+    periodA: params.period_a,
+    periodB: params.period_b,
+  });
 }
 
 async function getRecurringList(ctx: ToolContext) {
-  const result = await ctx.db
-    .from("recurring_expenses")
-    .select(
-      "id, description, amount_twd, frequency, next_run_date, active, tag, ledger",
-    )
-    .eq("couple_id", ctx.coupleId)
-    .order("next_run_date");
-  if (result.error) return { error: "recurring lookup failed" };
-  return {
-    items: (result.data ?? []).map((r) => ({
-      description: r.description,
-      amount: Number(r.amount_twd),
-      frequency: r.frequency,
-      next_run: r.next_run_date,
-      active: r.active,
-      tag: r.tag,
-      ledger: r.ledger,
-    })),
-  };
+  return ledgerQueryService.recurringList({
+    db: ctx.db,
+    coupleId: ctx.coupleId,
+  });
 }
 
 async function getAnomalies(
   params: z.infer<typeof anomaliesParams>,
   ctx: ToolContext,
 ) {
-  const expenses = await loadFilteredExpenses(ctx, {
+  return accountantService.anomalies(ctx, {
     dateFrom: params.date_from,
     dateTo: params.date_to,
   });
-  const duplicates = detectDuplicateAgentExpenses(
-    expenses as unknown as AgentExpense[],
-  );
-  return {
-    duplicate_groups: duplicates.slice(0, 5).map((group) =>
-      group.map((e) => ({
-        id: e.id,
-        description: e.description,
-        amount: e.amount_twd,
-        date: e.expense_date,
-      })),
-    ),
-    total_groups: duplicates.length,
-  };
 }
 
 async function getCategoryTrend(
   params: z.infer<typeof categoryTrendParams>,
   ctx: ToolContext,
 ) {
-  const today = taipeiToday();
-  const currentMonth = today.slice(0, 7);
-  const months: string[] = [];
-  for (let i = params.months - 1; i >= 0; i--) {
-    months.push(shiftMonth(currentMonth, -i));
-  }
-  const startDate = `${months[0]}-01`;
-  const endDate = `${shiftMonth(currentMonth, 1)}-01`;
-
-  const expenses = await loadFilteredExpenses(ctx, {
-    dateFrom: startDate,
-    dateTo: endDate,
+  return accountantService.categoryTrend(ctx, {
     tag: params.tag,
+    months: params.months,
   });
-
-  const trend = months.map((m) => {
-    const monthExpenses = expenses.filter((e) =>
-      e.expense_date.startsWith(`${m}-`),
-    );
-    return {
-      month: m,
-      total: monthExpenses.reduce((s, e) => s + e.amount_twd, 0),
-      count: monthExpenses.length,
-    };
-  });
-
-  return { tag: params.tag, trend };
 }
 
 async function predictMonthEnd(
   params: z.infer<typeof predictMonthEndParams>,
   ctx: ToolContext,
 ) {
-  const today = taipeiToday();
-  const month = today.slice(0, 7);
-  const daysElapsed = Number(today.slice(8, 10));
-  const daysTotal = new Date(
-    Number(today.slice(0, 4)),
-    Number(today.slice(5, 7)),
-    0,
-  ).getDate();
-
-  if (daysElapsed < 4) {
-    return {
-      message: "月初資料不足，無法預測",
-      days_elapsed: daysElapsed,
-      days_total: daysTotal,
-    };
-  }
-
-  const expenses = await loadFilteredExpenses(ctx, {
-    dateFrom: `${month}-01`,
-    dateTo: `${shiftMonth(month, 1)}-01`,
+  return accountantService.predictMonthEnd(ctx, {
     tag: params.tag,
   });
-
-  const spentSoFar = expenses.reduce((s, e) => s + e.amount_twd, 0);
-  const projectedTotal = Math.round((spentSoFar / daysElapsed) * daysTotal);
-
-  return {
-    days_elapsed: daysElapsed,
-    days_total: daysTotal,
-    spent_so_far: spentSoFar,
-    projected_total: projectedTotal,
-  };
-}
-
-interface FilterOpts {
-  dateFrom?: string;
-  dateTo?: string;
-  tag?: string;
-  member?: "me" | "partner" | "both";
-  type?: "shared" | "private" | "all";
-}
-
-type ToolExpense = LedgerVisibleExpense;
-
-async function loadFilteredExpenses(
-  ctx: ToolContext,
-  opts: FilterOpts,
-): Promise<ToolExpense[]> {
-  return ledgerQueryService.listAccessibleExpenses(ctx.db, {
-    groupId: ctx.groupId,
-    userId: ctx.userId,
-    dateFrom: opts.dateFrom,
-    dateTo: opts.dateTo,
-    tag: opts.tag,
-    member: opts.member,
-    type: opts.type,
-    limitPerLedger: 500,
-  });
-}
-
-function summarize(expenses: ToolExpense[]): ExpenseSummary {
-  const total = expenses.reduce((s, e) => s + e.amount_twd, 0);
-  const dates = expenses.map((e) => e.expense_date).sort();
-  return {
-    total,
-    count: expenses.length,
-    average: expenses.length ? Math.round(total / expenses.length) : 0,
-    date_range:
-      dates.length > 0
-        ? { from: dates[0]!, to: dates[dates.length - 1]! }
-        : null,
-  };
-}
-
-function briefExpense(e: ToolExpense) {
-  return {
-    id: e.id,
-    description: e.description,
-    merchant: e.merchant,
-    tag: e.tag,
-    amount: e.amount_twd,
-    date: e.expense_date,
-    ledger: e.ledger,
-  };
-}
-
-function breakdownByKey(expenses: ToolExpense[]) {
-  const map = new Map<string, number>();
-  for (const e of expenses) {
-    const label = e.tag;
-    map.set(label, (map.get(label) ?? 0) + e.amount_twd);
-  }
-  return map;
-}
-
-function taipeiToday(): string {
-  return new Intl.DateTimeFormat("en-CA", {
-    timeZone: "Asia/Taipei",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).format(new Date());
-}
-
-function shiftMonth(month: string, offset: number): string {
-  const [year, monthNumber] = month.split("-").map(Number);
-  const date = new Date(Date.UTC(year!, monthNumber! - 1 + offset, 1));
-  return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, "0")}`;
 }
 
 async function recordExpense(
@@ -669,65 +411,8 @@ async function analyzeSpending(
   params: z.infer<typeof analyzeSpendingParams>,
   ctx: ToolContext,
 ) {
-  const today = taipeiToday();
-  const monthStart = today.slice(0, 7) + "-01";
-  const dateFrom = params.date_from ?? monthStart;
-  const dateTo = params.date_to ?? today;
-
-  const [expenses, balanceResult, anomalies] = await Promise.all([
-    loadFilteredExpenses(ctx, { dateFrom, dateTo, type: "shared" }),
-    ctx.db.rpc("group_balances", { p_group_id: ctx.groupId }),
-    detectDuplicateAgentExpenses(
-      await loadFilteredExpenses(ctx, { dateFrom, dateTo, type: "shared" }).then(
-        (expenses) =>
-          expenses.map((e) => ({
-            ...e,
-            group_id: ctx.groupId,
-            created_by_user_id: ctx.userId,
-            version: 1,
-            deleted_at: null,
-          })) as AgentExpense[],
-      ),
-    ),
-  ]);
-
-  const total = expenses.reduce((s, e) => s + e.amount_twd, 0);
-  const byTag = breakdownByKey(expenses);
-
-  const topTags = [...byTag.entries()]
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 5)
-    .map(([label, amount]) => ({
-      label,
-      amount,
-      percent: total > 0 ? Math.round((amount / total) * 100) : 0,
-    }));
-
-  const daysElapsed = Math.max(
-    1,
-    Math.floor(
-      (new Date(dateTo).getTime() - new Date(dateFrom).getTime()) /
-        (1000 * 60 * 60 * 24),
-    ) + 1,
-  );
-  const daysInMonth = new Date(
-    new Date(dateFrom).getFullYear(),
-    new Date(dateFrom).getMonth() + 1,
-    0,
-  ).getDate();
-  const dailyAvg = Math.round(total / daysElapsed);
-  const projected = dailyAvg * daysInMonth;
-
-  return {
-    period: { from: dateFrom, to: dateTo },
-    total,
-    transaction_count: expenses.length,
-    daily_average: dailyAvg,
-    projected_month_end: projected,
-    top_tags: topTags,
-    anomalies: anomalies.length > 0 ? anomalies.slice(0, 3) : undefined,
-    balance: !balanceResult.error
-      ? (balanceResult.data as Array<{ user_id: string; balance_twd: number }>)
-      : undefined,
-  };
+  return accountantService.analyzeSpending(ctx, {
+    dateFrom: params.date_from,
+    dateTo: params.date_to,
+  });
 }

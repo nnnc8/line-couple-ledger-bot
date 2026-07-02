@@ -24,7 +24,7 @@ interface ExpenseFormProps {
   onSubmit: (body: PendingActionInput) => void;
   onDelete?: () => void;
   onExit: () => void;
-  onReceipt: (
+  onReceipt?: (
     file: File,
   ) => Promise<{
     receiptId: string;
@@ -74,28 +74,19 @@ function deriveInitial(data: Bootstrap, editing: Expense | null): FormState {
       receiptId: editing.receipts[0]?.id ?? null,
     };
   }
-  const draft =
-    typeof window !== "undefined"
-      ? (JSON.parse(sessionStorage.getItem("receiptDraft") ?? "null") as {
-          merchant?: string;
-          expense_date?: string;
-          amount_twd?: number;
-          receipt_id?: string;
-        } | null)
-      : null;
   return {
     ledger: "shared",
-    description: draft?.merchant ?? "",
-    merchant: draft?.merchant ?? "",
+    description: "",
+    merchant: "",
     notes: "",
     tag: "",
-    amount: draft?.amount_twd ? String(draft.amount_twd) : "",
+    amount: "",
     paidBy: "self",
-    expenseDate: draft?.expense_date ?? data.today,
+    expenseDate: data.today,
     splitMethod: "equal",
     selfValue: "",
     partnerValue: "",
-    receiptId: draft?.receipt_id ?? null,
+    receiptId: null,
   };
 }
 
@@ -118,7 +109,7 @@ export function ExpenseForm({
   }
 
   async function scan(file?: File) {
-    if (!file) return;
+    if (!file || !onReceipt) return;
     setOcr(true);
     setErr("");
     try {
@@ -199,32 +190,34 @@ export function ExpenseForm({
       </div>
 
       {/* Receipt */}
-      <label className="relative flex cursor-pointer flex-col items-center gap-1.5 rounded-2xl border-2 border-dashed border-[var(--border)] bg-muted/30 p-5 text-center transition hover:border-accent hover:bg-accent-soft">
-        <input
-          type="file"
-          accept="image/jpeg,image/png,image/webp,image/heic,image/heif"
-          capture="environment"
-          className="absolute inset-0 cursor-pointer opacity-0"
-          onChange={(e) => void scan(e.target.files?.[0])}
-        />
-        {ocr ? (
-          <Loader2 className="size-7 animate-spin text-[var(--muted-foreground)]" />
-        ) : state.receiptId ? (
-          <Check className="size-7 text-[var(--success)]" />
-        ) : (
-          <Camera className="size-7 text-[var(--muted-foreground)]" />
-        )}
-        <span className="text-[14px] font-semibold">
-          {ocr
-            ? "辨識中…"
-            : state.receiptId
-              ? "收據已辨識，可重選"
-              : "拍攝或選擇收據"}
-        </span>
-        <span className="text-[12px] text-[var(--muted-foreground)]">
-          自動填入商家、日期與總額
-        </span>
-      </label>
+      {onReceipt && (
+        <label className="relative flex cursor-pointer flex-col items-center gap-1.5 rounded-2xl border-2 border-dashed border-[var(--border)] bg-muted/30 p-5 text-center transition hover:border-accent hover:bg-accent-soft">
+          <input
+            type="file"
+            accept="image/jpeg,image/png,image/webp,image/heic,image/heif"
+            capture="environment"
+            className="absolute inset-0 cursor-pointer opacity-0"
+            onChange={(e) => void scan(e.target.files?.[0])}
+          />
+          {ocr ? (
+            <Loader2 className="size-7 animate-spin text-[var(--muted-foreground)]" />
+          ) : state.receiptId ? (
+            <Check className="size-7 text-[var(--success)]" />
+          ) : (
+            <Camera className="size-7 text-[var(--muted-foreground)]" />
+          )}
+          <span className="text-[14px] font-semibold">
+            {ocr
+              ? "辨識中…"
+              : state.receiptId
+                ? "收據已辨識，可重選"
+                : "拍攝或選擇收據"}
+          </span>
+          <span className="text-[12px] text-[var(--muted-foreground)]">
+            自動填入商家、日期與總額
+          </span>
+        </label>
+      )}
 
       {/* Ledger toggle */}
       <div>

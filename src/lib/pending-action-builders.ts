@@ -14,6 +14,18 @@ function getService(): PendingActionService {
   return pendingActionServiceInstance;
 }
 
+async function getPendingActionContext(ctx: ToolContext) {
+  const userResult = await ctx.db
+    .from("users")
+    .select("id, couple_id, line_user_id, role")
+    .eq("id", ctx.userId)
+    .single();
+  if (userResult.error || !userResult.data) {
+    throw new Error("User lookup failed");
+  }
+  return { db: ctx.db, user: userResult.data };
+}
+
 export async function buildCreateExpenseAction(
   ctx: ToolContext,
   params: {
@@ -29,15 +41,7 @@ export async function buildCreateExpenseAction(
   },
 ) {
   const service = getService();
-  const userResult = await ctx.db
-    .from("users")
-    .select("id, couple_id, line_user_id, role")
-    .eq("id", ctx.userId)
-    .single();
-  if (userResult.error || !userResult.data) {
-    throw new Error("User lookup failed");
-  }
-  const context = { db: ctx.db, user: userResult.data };
+  const context = await getPendingActionContext(ctx);
   return service.buildCreateExpenseAction(context, {
     ledger: params.ledger,
     groupId: ctx.groupId,
@@ -65,15 +69,7 @@ export async function buildUpdateExpenseAction(
   },
 ) {
   const service = getService();
-  const userResult = await ctx.db
-    .from("users")
-    .select("id, couple_id, line_user_id, role")
-    .eq("id", ctx.userId)
-    .single();
-  if (userResult.error || !userResult.data) {
-    throw new Error("User lookup failed");
-  }
-  const context = { db: ctx.db, user: userResult.data };
+  const context = await getPendingActionContext(ctx);
   return service.buildUpdateExpenseAction(context, expenseId, {
     ledger: updates.ledger,
     tag: updates.tag,
@@ -89,14 +85,6 @@ export async function buildSettleAction(
   amountTwd: number,
 ) {
   const service = getService();
-  const userResult = await ctx.db
-    .from("users")
-    .select("id, couple_id, line_user_id, role")
-    .eq("id", ctx.userId)
-    .single();
-  if (userResult.error || !userResult.data) {
-    throw new Error("User lookup failed");
-  }
-  const context = { db: ctx.db, user: userResult.data };
+  const context = await getPendingActionContext(ctx);
   return service.buildSettleAction(context, ctx.groupId, amountTwd);
 }

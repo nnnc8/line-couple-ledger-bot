@@ -7,14 +7,11 @@ import {
   parsePendingRetargetCommand,
   parseFixedIntent,
   parseInlineExpenseItems,
-  safeSecretEqual,
   selectMentionedGroup,
 } from "./bot";
 import {
-  batchCreatePayloadFromActions,
   deliverNotifications,
   expensesCsv,
-  receiptExpenseInputs,
   retargetPendingActionPayload,
   type AppExpense,
   type ServerContext,
@@ -39,8 +36,63 @@ import {
   fallbackCategoryClassification,
   splitBootstrapExpenses,
 } from "./category-agent";
-import { detectReceiptMime, signSession, verifySession } from "./security";
+import { detectReceiptMime, safeSecretEqual, signSession, verifySession } from "./security";
 import { matchTransactions, parseBankCsvWithMeta } from "./bank-csv";
+import { setMockWithTx } from "./db/tx";
+import { TransactionStaleError } from "./pending-action-executor";
+
+export interface FakeTxCall {
+  query: string;
+  params?: any[];
+}
+
+export class FakeTxClient {
+  calls: FakeTxCall[] = [];
+  mockResults: Array<{ pattern: string | RegExp; result: any }> = [];
+
+  async query(sql: string, params?: any[]) {
+    const cleanSql = sql.replace(/\s+/g, " ").trim();
+    this.calls.push({ query: cleanSql, params });
+
+    for (const item of this.mockResults) {
+      if (typeof item.pattern === "string") {
+        if (cleanSql.includes(item.pattern)) {
+          return item.result;
+        }
+      } else if (item.pattern.test(cleanSql)) {
+        return item.result;
+      }
+    }
+    return { rowCount: 1, rows: [] };
+  }
+}
+
+export let activeTxClient: FakeTxClient | null = null;
+export let activeTxError: Error | null = null;
+
+setMockWithTx(async (callback) => {
+  if (activeTxError) {
+    throw activeTxError;
+  }
+  const client = activeTxClient || new FakeTxClient();
+  if (client.mockResults.length === 0) {
+    client.mockResults.push({
+      pattern: /SELECT.*FROM.*pending_actions.*FOR UPDATE/i,
+      result: {
+        rowCount: 1,
+        rows: [
+          {
+            status: "pending",
+            expires_at: "2099-01-01T00:00:00.000Z",
+            action_type: "create_expense",
+          },
+        ],
+      },
+    });
+  }
+  return await callback(client as any);
+});
+
 import { searchExpenseRows, shouldSendInsight } from "./phase4";
 import {
   calculateBalances,
@@ -664,97 +716,7 @@ test("rejects unsafe receipt extraction values", () => {
   );
 });
 
-test("receipt OCR items become pending expense inputs", () => {
-  const inputs = receiptExpenseInputs({
-    activeGroupId: GROUP,
-    receiptId: "00000000-0000-4000-8000-000000000055",
-    today: "2026-06-25",
-    extraction: {
-      merchant: null,
-      expenseDate: null,
-      amountTwd: null,
-      confidence: 0.9,
-      items: [
-        {
-          merchant: "ENQ-8622",
-          description: null,
-          expenseDate: "2026-06-06",
-          amountTwd: 42,
-        },
-        {
-          merchant: null,
-          description: "行程費",
-          expenseDate: null,
-          amountTwd: 31,
-        },
-        {
-          merchant: null,
-          description: null,
-          expenseDate: null,
-          amountTwd: null,
-        },
-      ],
-    },
-  });
 
-  assert.deepEqual(
-    inputs.map((input) => input.expense),
-    [
-      {
-        ledger: "shared",
-        groupId: GROUP,
-        description: "ENQ-8622",
-        merchant: "ENQ-8622",
-        notes: "由 LINE 圖片辨識建立",
-        tag: "車資",
-        amountTwd: 42,
-        paidBy: "self",
-        expenseDate: "2026-06-06",
-        splitMethod: "equal",
-        selfValue: null,
-        partnerValue: null,
-        receiptId: null,
-      },
-      {
-        ledger: "shared",
-        groupId: GROUP,
-        description: "行程費",
-        merchant: null,
-        notes: "由 LINE 圖片辨識建立",
-        tag: "車資",
-        amountTwd: 31,
-        paidBy: "self",
-        expenseDate: "2026-06-25",
-        splitMethod: "equal",
-        selfValue: null,
-        partnerValue: null,
-        receiptId: null,
-      },
-    ],
-  );
-});
-
-test("receipt OCR items can be stored as one batch pending payload", () => {
-  const inputs = receiptExpenseInputs({
-    activeGroupId: GROUP,
-    receiptId: "00000000-0000-4000-8000-000000000055",
-    today: "2026-06-25",
-    extraction: {
-      merchant: null,
-      expenseDate: null,
-      amountTwd: null,
-      confidence: 0.9,
-      items: [
-        { merchant: "ENQ-8622", description: null, expenseDate: "2026-06-06", amountTwd: 42 },
-        { merchant: null, description: "行程費", expenseDate: "2026-06-07", amountTwd: 31 },
-      ],
-    },
-  });
-
-  assert.deepEqual(batchCreatePayloadFromActions(inputs), {
-    items: inputs.map((input) => input.expense),
-  });
-});
 
 test("retargets batch pending payloads into private transport expenses", () => {
   assert.deepEqual(
@@ -862,67 +824,10 @@ test("retarget updates envelope command alongside legacy payload", () => {
   });
 });
 
-test("receipt service blocks access to another user's private receipt", async () => {
-  const service = new ReceiptService({
-    model: "test-model",
-    receiptLimit: 10 * 1024 * 1024,
-  });
-  const db = {
-    from: (table: string) => {
-      assert.equal(table, "receipts");
-      return {
-        select: () => ({
-          eq: () => ({
-            eq: () => ({
-              is: () => ({
-                single: () =>
-                  Promise.resolve({
-                    data: {
-                      storage_path: "x",
-                      owner_user_id: CORE_PARTNER,
-                      group_id: null,
-                      expense_id: null,
-                    },
-                    error: null,
-                  }),
-              }),
-            }),
-          }),
-        }),
-      };
-    },
-    storage: {
-      from: () => ({
-        createSignedUrl: () =>
-          Promise.resolve({
-            data: { signedUrl: "https://example.com" },
-            error: null,
-          }),
-      }),
-    },
-  } as unknown as import("@supabase/supabase-js").SupabaseClient;
 
-  await assert.rejects(
-    () =>
-      service.url(
-        {
-          db,
-          user: { id: CORE_OWNER, couple_id: 1 },
-        },
-        "00000000-0000-4000-8000-000000000099",
-      ),
-    (error: unknown) =>
-      error instanceof HttpError &&
-      error.status === 403 &&
-      error.message === "無權查看私人收據",
-  );
-});
 
 test("receipt service purges expired deleted receipts from storage and db", async () => {
-  const service = new ReceiptService({
-    model: "test-model",
-    receiptLimit: 10 * 1024 * 1024,
-  });
+  const service = new ReceiptService();
   let removedPaths: string[] | null = null;
   let deletedIds: string[] | null = null;
 
@@ -982,144 +887,7 @@ test("receipt service purges expired deleted receipts from storage and db", asyn
   ]);
 });
 
-test("receipt line workflow auto-books recognized expenses and notifies the user", async () => {
-  const receiptModule = await import("./receipt-service");
-  const processUploadedLineReceipt = (receiptModule as { processUploadedLineReceipt?: unknown })
-    .processUploadedLineReceipt;
 
-  assert.equal(typeof processUploadedLineReceipt, "function");
-
-  let uploadedBytes: Uint8Array | null = null;
-  let uploadedGroupId: string | null = null;
-  let proposedKey: string | null = null;
-  let pushedPayload: unknown = null;
-
-  await (processUploadedLineReceipt as (input: {
-    receiptService: {
-      createUploadedReceipt: (
-        context: unknown,
-        input: {
-          groupId: string | null;
-          sourceEventId: string;
-          bytes: Uint8Array;
-        },
-      ) => Promise<{ receiptId: string }>;
-      process: (context: unknown, receiptId: string) => Promise<unknown>;
-    };
-    context: {
-      env: { APP_URL: string };
-      db: unknown;
-      user: {
-        id: string;
-        couple_id: number;
-        line_user_id: string;
-      };
-    };
-    lineClient: {
-      getMessageContent: (
-        messageId: string,
-      ) => Promise<AsyncIterable<Uint8Array | Buffer>> | AsyncIterable<Uint8Array | Buffer>;
-      pushMessage: (payload: unknown) => Promise<unknown>;
-    };
-    activeGroupId: string | null;
-    messageId: string;
-    eventId: string;
-    today: string;
-    buildExpenseInputs: (input: unknown) => Array<{
-      expense: { description: string; amountTwd: number };
-    }>;
-    proposeBatchCreateExpenses: (
-      inputs: Array<{ expense: { description: string; amountTwd: number } }>,
-      idempotencyKey: string,
-    ) => Promise<unknown>;
-  }) => Promise<void>)({
-    receiptService: {
-      createUploadedReceipt: async (_context, input) => {
-        uploadedBytes = input.bytes;
-        uploadedGroupId = input.groupId;
-        assert.equal(input.sourceEventId, "event-1");
-        return {
-          receiptId: "00000000-0000-4000-8000-000000000401",
-        };
-      },
-      process: async (_context, receiptId) => {
-        assert.equal(receiptId, "00000000-0000-4000-8000-000000000401");
-        return {
-          merchant: "共享機車",
-          expenseDate: "2026-07-01",
-          amountTwd: 185,
-          confidence: 0.98,
-          items: [],
-        };
-      },
-    },
-    context: {
-      env: { APP_URL: "https://app.example.com" },
-      db: {},
-      user: {
-        id: CORE_OWNER,
-        couple_id: 1,
-        line_user_id: "line-owner",
-      },
-    },
-    lineClient: {
-      getMessageContent: async function* (messageId: string) {
-        assert.equal(messageId, "message-1");
-        yield Buffer.from([1, 2, 3]);
-        yield Uint8Array.from([4, 5]);
-      },
-      pushMessage: async (payload) => {
-        pushedPayload = payload;
-        return { sentMessages: [] };
-      },
-    },
-    activeGroupId: GROUP,
-    messageId: "message-1",
-    eventId: "event-1",
-    today: "2026-07-01",
-    buildExpenseInputs: (input) => {
-      assert.deepEqual(input, {
-        activeGroupId: GROUP,
-        receiptId: "00000000-0000-4000-8000-000000000401",
-        today: "2026-07-01",
-        extraction: {
-          merchant: "共享機車",
-          expenseDate: "2026-07-01",
-          amountTwd: 185,
-          confidence: 0.98,
-          items: [],
-        },
-      });
-      return [
-        {
-          expense: {
-            description: "共享機車",
-            amountTwd: 185,
-          },
-        },
-      ];
-    },
-    proposeBatchCreateExpenses: async (_inputs, idempotencyKey) => {
-      proposedKey = idempotencyKey;
-    },
-  });
-
-  assert.deepEqual([...uploadedBytes ?? []], [1, 2, 3, 4, 5]);
-  assert.equal(uploadedGroupId, GROUP);
-  assert.equal(
-    proposedKey,
-    "receipt-batch:00000000-0000-4000-8000-000000000401",
-  );
-  assert.deepEqual(pushedPayload, {
-    to: "line-owner",
-    messages: [
-      {
-        type: "text",
-        text: "收據辨識完成，已直接記帳：共享機車 NT$185。如需修正可到圖形化帳本編輯。",
-      },
-    ],
-  });
-});
 
 test("calculates who owes whom and applies settlements", () => {
   const expenses: LedgerExpense[] = [
@@ -1875,637 +1643,70 @@ test("write tools: record_expense keeps private expenses out of shared group pay
       expense: { group_id: string | null; paid_by_user_id: string };
       splits: Record<string, number>;
     };
+    message: string;
   };
 
   assert.equal(res.pending_action.expense.group_id, null);
   assert.equal(res.pending_action.expense.paid_by_user_id, "user-1");
   assert.deepEqual(res.pending_action.splits, { "user-1": 185 });
+  assert.ok(res.message.includes("185"));
+  assert.equal(res.message.includes("請確認"), false);
 });
 
-test("pending action service keeps private agent expenses out of pending group scope", async () => {
-  const insertedRows: Record<string, unknown>[] = [];
-  const rpcCalls: Array<{ fn: string; args: Record<string, unknown> }> = [];
-  const expenseUpdates: Array<{
-    value: Record<string, unknown>;
-    filters: Array<{ field: string; value: unknown }>;
-  }> = [];
-  let notificationsDelivered = 0;
+test("write tools: record_expense rejects exact split method", async () => {
+  const { executeTool } = await import("./accountant-tools");
 
-  const db = {
-    rpc: async (fn: string, args: Record<string, unknown>) => {
-      rpcCalls.push({ fn, args });
-      return {
-        data: { result: "confirmed", action_type: "create_expense" },
-        error: null,
-      };
-    },
-    from(table: string) {
-      if (table === "pending_actions") {
-        let inserted: Record<string, unknown> | null = null;
-        const query = {
-          insert(value: Record<string, unknown>) {
-            inserted = value;
-            return query;
-          },
-          select() {
-            return query;
-          },
-          eq() {
-            return query;
-          },
-          single: async () => {
-            if (inserted) {
-              insertedRows.push(inserted);
-              return {
-                data: { id: "00000000-0000-4000-8000-000000000321" },
-                error: null,
-              };
-            }
-            return {
-              data:
-                {
-                  id: "00000000-0000-4000-8000-000000000321",
-                  couple_id: 1,
-                  action_type: "create_expense",
-                  payload: insertedRows[0]?.payload ?? {},
-                  group_id: insertedRows[0]?.group_id ?? null,
-                  status: "pending",
-                  expires_at: "2099-01-01T00:00:00.000Z",
-                },
-              error: null,
-            };
-          },
-          maybeSingle: async () => ({
-            data: {
-              id: "00000000-0000-4000-8000-000000000321",
-              couple_id: 1,
-              action_type: "create_expense",
-              payload: insertedRows[0]?.payload ?? {},
-              group_id: insertedRows[0]?.group_id ?? null,
-              status: "pending",
-              expires_at: "2099-01-01T00:00:00.000Z",
-            },
-            error: null,
+  const mockDb = {
+    from: (table: string) => ({
+      select: () => ({
+        eq: () => ({
+          neq: () => ({
+            single: () => Promise.resolve({ data: { user_id: "partner-123" }, error: null }),
           }),
-        };
-        return query;
-      }
-      if (table === "expenses") {
-        let value: Record<string, unknown> | null = null;
-        const filters: Array<{ field: string; value: unknown }> = [];
-        const query = {
-          update(nextValue: Record<string, unknown>) {
-            value = nextValue;
-            return query;
-          },
-          eq(field: string, filterValue: unknown) {
-            filters.push({ field, value: filterValue });
-            return query;
-          },
-          then(
-            resolve: (value: { data: null; error: null }) => unknown,
-            reject?: (reason: unknown) => unknown,
-          ) {
-            expenseUpdates.push({ value: value ?? {}, filters });
-            return Promise.resolve({ data: null, error: null }).then(resolve, reject);
-          },
-        };
-        return query;
-      }
-      if (table === "users") {
-        const query = {
-          select() {
-            return query;
-          },
-          eq() {
-            return query;
-          },
-          order() {
-            return query;
-          },
-          then(
-            resolve: (value: { data: Array<Record<string, unknown>>; error: null }) => unknown,
-            reject?: (reason: unknown) => unknown,
-          ) {
-            return Promise.resolve({
+          single: () =>
+            Promise.resolve({
+              data: { id: "user-1", couple_id: 1, line_user_id: "line-1", role: "owner" },
+              error: null,
+            }),
+          order: () =>
+            Promise.resolve({
               data: [
-                {
-                  id: CORE_OWNER,
-                  couple_id: 1,
-                  line_user_id: "line-owner",
-                  role: "owner",
-                },
-                {
-                  id: CORE_PARTNER,
-                  couple_id: 1,
-                  line_user_id: "line-partner",
-                  role: "partner",
-                },
+                { id: "user-1", couple_id: 1, line_user_id: "line-1", role: "owner" },
+                { id: "partner-123", couple_id: 1, line_user_id: "line-2", role: "partner" },
               ],
               error: null,
-            }).then(resolve, reject);
-          },
-        };
-        return query;
-      }
-      if (table === "settlements") {
-        const query = {
-          select() {
-            return query;
-          },
-          eq() {
-            return query;
-          },
-          then(
-            resolve: (value: { count: number; error: null }) => unknown,
-            reject?: (reason: unknown) => unknown,
-          ) {
-            return Promise.resolve({ count: 0, error: null }).then(resolve, reject);
-          },
-        };
-        return query;
-      }
-      if (table === "settlements") {
-        const query = {
-          select() {
-            return query;
-          },
-          eq() {
-            return query;
-          },
-          then(
-            resolve: (value: { count: number; error: null }) => unknown,
-            reject?: (reason: unknown) => unknown,
-          ) {
-            return Promise.resolve({ count: 0, error: null }).then(resolve, reject);
-          },
-        };
-        return query;
-      }
-      if (table === "settlements") {
-        const query = {
-          select() {
-            return query;
-          },
-          eq() {
-            return query;
-          },
-          then(
-            resolve: (value: { count: number; error: null }) => unknown,
-            reject?: (reason: unknown) => unknown,
-          ) {
-            return Promise.resolve({ count: 0, error: null }).then(resolve, reject);
-          },
-        };
-        return query;
-      }
-      if (table === "settlements") {
-        const query = {
-          select() {
-            return query;
-          },
-          eq() {
-            return query;
-          },
-          then(
-            resolve: (value: { count: number; error: null }) => unknown,
-            reject?: (reason: unknown) => unknown,
-          ) {
-            return Promise.resolve({ count: 0, error: null }).then(resolve, reject);
-          },
-        };
-        return query;
-      }
-      throw new Error(`unexpected table ${table}`);
-    },
+            }),
+        }),
+      }),
+    }),
   } as unknown as import("@supabase/supabase-js").SupabaseClient;
 
-  const service = new PendingActionService({
-    deliverNotifications: async () => {
-      notificationsDelivered += 1;
-    },
-  });
-
-  const result = await service.executeAgentAction(
-    {
-      db,
-      user: {
-        id: CORE_OWNER,
-        couple_id: 1,
-        line_user_id: "line-owner",
-        role: "owner",
-      },
-    },
-    {
-      type: "create_expense",
-      groupId: GROUP,
-      expense: {
-        group_id: null,
-        ledger: "private",
-        description: "共享機車",
-        merchant: null,
-        notes: null,
-        tag: "共享機車",
-        amount_twd: 185,
-        paid_by_user_id: CORE_OWNER,
-        expense_date: "2026-06-30",
-        split_method: "equal",
-      },
-      splits: { [CORE_OWNER]: 185 },
-    },
-  );
-
-  assert.equal(result.result, "confirmed");
-  assert.equal(insertedRows.length, 1);
-  assert.equal(insertedRows[0]?.group_id, null);
-  assert.equal(rpcCalls[0]?.fn, "apply_pending_action_plan");
-  assert.equal(notificationsDelivered, 1);
-  assert.equal(expenseUpdates.length, 1);
-  assert.partialDeepStrictEqual(insertedRows[0]?.payload, {
-    group_id: null,
-    ledger: "private",
-    paid_by_user_id: CORE_OWNER,
-    splits: { [CORE_OWNER]: 185 },
-  });
-  const createPlan = (rpcCalls[0]?.args.p_plan ?? {}) as {
-    insert_expenses?: unknown[];
+  const ctx = {
+    db: mockDb,
+    groupId: "group-1",
+    userId: "user-1",
+    coupleId: 1,
   };
-  assert.equal(
-    Array.isArray(createPlan.insert_expenses),
-    true,
-  );
-  assert.partialDeepStrictEqual(rpcCalls[0]?.args.p_plan, {
-    insert_expenses: [
-      {
-        group_id: null,
-        ledger: "private",
-        paid_by_user_id: CORE_OWNER,
-      },
-    ],
-    insert_expense_splits: [
-      {
-        user_id: CORE_OWNER,
-        amount_twd: 185,
-      },
-    ],
-  });
-});
 
-test("pending action service auto-confirms secretary expense updates", async () => {
-  const insertedRows: Record<string, unknown>[] = [];
-  const rpcCalls: Array<{ fn: string; args: Record<string, unknown> }> = [];
-
-  const db = {
-    rpc: async (fn: string, args: Record<string, unknown>) => {
-      rpcCalls.push({ fn, args });
-      return {
-        data: { result: "confirmed", action_type: "update_expense" },
-        error: null,
-      };
-    },
-    from(table: string) {
-      if (table === "pending_actions") {
-        let inserted: Record<string, unknown> | null = null;
-        const query = {
-          insert(value: Record<string, unknown>) {
-            inserted = value;
-            return query;
-          },
-          select() {
-            return query;
-          },
-          eq() {
-            return query;
-          },
-          single: async () => {
-            if (inserted) {
-              insertedRows.push(inserted);
-              return {
-                data: { id: "00000000-0000-4000-8000-000000000322" },
-                error: null,
-              };
-            }
-            return {
-              data:
-                {
-                  id: "00000000-0000-4000-8000-000000000322",
-                  couple_id: 1,
-                  action_type: "update_expense",
-                  payload: insertedRows[0]?.payload ?? {},
-                  group_id: insertedRows[0]?.group_id ?? null,
-                  status: "pending",
-                  expires_at: "2099-01-01T00:00:00.000Z",
-                },
-              error: null,
-            };
-          },
-          maybeSingle: async () => ({
-            data: {
-              id: "00000000-0000-4000-8000-000000000322",
-              couple_id: 1,
-              action_type: "update_expense",
-              payload: insertedRows[0]?.payload ?? {},
-              group_id: insertedRows[0]?.group_id ?? null,
-              status: "pending",
-              expires_at: "2099-01-01T00:00:00.000Z",
-            },
-            error: null,
-          }),
-        };
-        return query;
-      }
-      if (table === "expenses") {
-        let updateValue: Record<string, unknown> | null = null;
-        const query = {
-          select() {
-            return query;
-          },
-          eq() {
-            return query;
-          },
-          single: async () => {
-            if (updateValue) return { data: null, error: null };
-            return {
-              data: {
-                id: "00000000-0000-4000-8000-000000000188",
-                couple_id: 1,
-                group_id: GROUP,
-                ledger: "shared",
-                description: "共享機車",
-                merchant: null,
-                notes: null,
-                tag: "車資",
-                amount_twd: 185,
-                paid_by_user_id: CORE_PARTNER,
-                expense_date: "2026-06-30",
-                split_method: "equal",
-                version: 3,
-                created_by_user_id: CORE_OWNER,
-                deleted_at: null,
-                deleted_by_user_id: null,
-                mirror_kind: null,
-                expense_splits: [
-                  { user_id: CORE_OWNER, amount_twd: 92 },
-                  { user_id: CORE_PARTNER, amount_twd: 93 },
-                ],
-              },
-              error: null,
-            };
-          },
-          update(value: Record<string, unknown>) {
-            updateValue = value;
-            return query;
-          },
-          then(
-            resolve: (value: { data: null; error: null }) => unknown,
-            reject?: (reason: unknown) => unknown,
-          ) {
-            return Promise.resolve({ data: null, error: null }).then(resolve, reject);
-          },
-        };
-        return query;
-      }
-      if (table === "users") {
-        const query = {
-          select() {
-            return query;
-          },
-          eq() {
-            return query;
-          },
-          order() {
-            return query;
-          },
-          then(
-            resolve: (value: { data: Array<Record<string, unknown>>; error: null }) => unknown,
-            reject?: (reason: unknown) => unknown,
-          ) {
-            return Promise.resolve({
-              data: [
-                {
-                  id: CORE_OWNER,
-                  couple_id: 1,
-                  line_user_id: "line-owner",
-                  role: "owner",
-                },
-                {
-                  id: CORE_PARTNER,
-                  couple_id: 1,
-                  line_user_id: "line-partner",
-                  role: "partner",
-                },
-              ],
-              error: null,
-            }).then(resolve, reject);
-          },
-        };
-        return query;
-      }
-      if (table === "settlements") {
-        const query = {
-          select() {
-            return query;
-          },
-          eq() {
-            return query;
-          },
-          then(
-            resolve: (value: { count: number; error: null }) => unknown,
-            reject?: (reason: unknown) => unknown,
-          ) {
-            return Promise.resolve({ count: 0, error: null }).then(resolve, reject);
-          },
-        };
-        return query;
-      }
-      throw new Error(`unexpected table ${table}`);
-    },
-  } as unknown as import("@supabase/supabase-js").SupabaseClient;
-
-  const service = new PendingActionService();
-  const result = await service.executeAgentAction(
+  const result = await executeTool(
+    "record_expense",
     {
-      db,
-      user: {
-        id: CORE_OWNER,
-        couple_id: 1,
-        line_user_id: "line-owner",
-        role: "owner",
-      },
+      description: "晚餐",
+      amount_twd: 860,
+      paid_by: "self",
+      ledger: "shared",
+      tag: "餐飲",
+      split_method: "exact",
     },
-    {
-      type: "update_expense",
-      expenseId: "00000000-0000-4000-8000-000000000188",
-      expectedVersion: 3,
-      groupId: GROUP,
-      updates: {
-        ledger: "private",
-        tag: "交通",
-        paid_by_user_id: CORE_OWNER,
-      },
-    },
+    ctx,
   );
 
-  assert.equal(result.result, "confirmed");
-  assert.equal(rpcCalls[0]?.fn, "apply_pending_action_plan");
-  assert.partialDeepStrictEqual(insertedRows[0], {
-    action_type: "update_expense",
-    group_id: null,
-  });
-  assert.partialDeepStrictEqual(insertedRows[0]?.payload, {
-    expense_id: "00000000-0000-4000-8000-000000000188",
-    expected_version: 3,
-    group_id: null,
-    ledger: "private",
-    tag: "交通",
-    paid_by_user_id: CORE_OWNER,
-    splits: { [CORE_OWNER]: 185 },
-  });
-  assert.partialDeepStrictEqual(rpcCalls[0]?.args.p_plan, {
-    update_expenses: [
-      {
-        id: "00000000-0000-4000-8000-000000000188",
-        group_id: null,
-        ledger: "private",
-        tag: "交通",
-        paid_by_user_id: CORE_OWNER,
-      },
-    ],
-    delete_expense_splits: ["00000000-0000-4000-8000-000000000188"],
-    insert_expense_splits: [
-      {
-        expense_id: "00000000-0000-4000-8000-000000000188",
-        user_id: CORE_OWNER,
-        amount_twd: 185,
-      },
-    ],
-  });
+  const res = result as { error: string };
+  assert.equal(res.error, "AI 記帳目前只支援平均分攤");
 });
 
-test("pending action service confirms batch-created expenses through the TS plan helper", async () => {
-  const rpcCalls: Array<{ fn: string; args: Record<string, unknown> }> = [];
 
-  const db = {
-    rpc: async (fn: string, args: Record<string, unknown>) => {
-      rpcCalls.push({ fn, args });
-      return {
-        data: { result: "confirmed", action_type: "batch_create_expenses" },
-        error: null,
-      };
-    },
-    from(table: string) {
-      if (table === "pending_actions") {
-        const query = {
-          select() {
-            return query;
-          },
-          eq() {
-            return query;
-          },
-          maybeSingle: async () => ({
-            data: {
-              id: "00000000-0000-4000-8000-000000000401",
-              couple_id: 1,
-              group_id: null,
-              action_type: "batch_create_expenses",
-              payload: {
-                items: [
-                  {
-                    group_id: null,
-                    ledger: "private",
-                    description: "共享機車",
-                    merchant: null,
-                    notes: null,
-                    tag: "交通",
-                    amount_twd: 185,
-                    paid_by_user_id: CORE_OWNER,
-                    expense_date: "2026-06-30",
-                    split_method: "equal",
-                    splits: { [CORE_OWNER]: 185 },
-                  },
-                ],
-              },
-              status: "pending",
-              expires_at: "2099-01-01T00:00:00.000Z",
-            },
-            error: null,
-          }),
-        };
-        return query;
-      }
-      if (table === "users") {
-        const query = {
-          select() {
-            return query;
-          },
-          eq() {
-            return query;
-          },
-          order() {
-            return query;
-          },
-          then(
-            resolve: (value: { data: Array<Record<string, unknown>>; error: null }) => unknown,
-            reject?: (reason: unknown) => unknown,
-          ) {
-            return Promise.resolve({
-              data: [
-                {
-                  id: CORE_OWNER,
-                  couple_id: 1,
-                  line_user_id: "line-owner",
-                  role: "owner",
-                },
-                {
-                  id: CORE_PARTNER,
-                  couple_id: 1,
-                  line_user_id: "line-partner",
-                  role: "partner",
-                },
-              ],
-              error: null,
-            }).then(resolve, reject);
-          },
-        };
-        return query;
-      }
-      throw new Error(`unexpected table ${table}`);
-    },
-  } as unknown as import("@supabase/supabase-js").SupabaseClient;
 
-  const service = new PendingActionService();
-  const result = await service.confirm(
-    {
-      db,
-      user: {
-        id: CORE_OWNER,
-        couple_id: 1,
-        line_user_id: "line-owner",
-        role: "owner",
-      },
-    },
-    "00000000-0000-4000-8000-000000000401",
-    true,
-  );
-
-  assert.equal(result.result, "confirmed");
-  assert.equal(rpcCalls[0]?.fn, "apply_pending_action_plan");
-  assert.partialDeepStrictEqual(rpcCalls[0]?.args.p_plan, {
-    insert_expenses: [
-      {
-        group_id: null,
-        ledger: "private",
-        description: "共享機車",
-      },
-    ],
-    insert_expense_splits: [
-      {
-        user_id: CORE_OWNER,
-        amount_twd: 185,
-      },
-    ],
-  });
-});
 
 test("pending action service proposes batch-created expenses at couple scope when groups differ", async () => {
   const service = new PendingActionService();
@@ -2808,149 +2009,6 @@ test("pending action service proposes settlement from current group balances", a
   });
 });
 
-test("pending action service confirms batch category updates through the TS plan helper", async () => {
-  const rpcCalls: Array<{ fn: string; args: Record<string, unknown> }> = [];
-
-  const db = {
-    rpc: async (fn: string, args: Record<string, unknown>) => {
-      rpcCalls.push({ fn, args });
-      return {
-        data: { result: "confirmed", action_type: "batch_update_expenses" },
-        error: null,
-      };
-    },
-    from(table: string) {
-      if (table === "pending_actions") {
-        const query = {
-          select() {
-            return query;
-          },
-          eq() {
-            return query;
-          },
-          maybeSingle: async () => ({
-            data: {
-              id: "00000000-0000-4000-8000-000000000402",
-              couple_id: 1,
-              group_id: GROUP,
-              action_type: "batch_update_expenses",
-              payload: {
-                updates: [
-                  {
-                    expense_id: "00000000-0000-4000-8000-000000000289",
-                    expected_version: 3,
-                    tag: "交通",
-                  },
-                ],
-              },
-              status: "pending",
-              expires_at: "2099-01-01T00:00:00.000Z",
-            },
-            error: null,
-          }),
-        };
-        return query;
-      }
-      if (table === "expenses") {
-        const query = {
-          select() {
-            return query;
-          },
-          eq() {
-            return query;
-          },
-          single: async () => ({
-            data: {
-              id: "00000000-0000-4000-8000-000000000289",
-              couple_id: 1,
-              group_id: GROUP,
-              ledger: "shared",
-              description: "共享機車",
-              merchant: null,
-              notes: null,
-              tag: "車資",
-              amount_twd: 185,
-              paid_by_user_id: CORE_OWNER,
-              created_by_user_id: CORE_OWNER,
-              expense_date: "2026-06-30",
-              split_method: "equal",
-              version: 3,
-              deleted_at: null,
-              mirror_kind: null,
-            },
-            error: null,
-          }),
-        };
-        return query;
-      }
-      if (table === "users") {
-        const query = {
-          select() {
-            return query;
-          },
-          eq() {
-            return query;
-          },
-          order() {
-            return query;
-          },
-          then(
-            resolve: (value: { data: Array<Record<string, unknown>>; error: null }) => unknown,
-            reject?: (reason: unknown) => unknown,
-          ) {
-            return Promise.resolve({
-              data: [
-                {
-                  id: CORE_OWNER,
-                  couple_id: 1,
-                  line_user_id: "line-owner",
-                  role: "owner",
-                },
-                {
-                  id: CORE_PARTNER,
-                  couple_id: 1,
-                  line_user_id: "line-partner",
-                  role: "partner",
-                },
-              ],
-              error: null,
-            }).then(resolve, reject);
-          },
-        };
-        return query;
-      }
-      throw new Error(`unexpected table ${table}`);
-    },
-  } as unknown as import("@supabase/supabase-js").SupabaseClient;
-
-  const service = new PendingActionService();
-  const result = await service.confirm(
-    {
-      db,
-      user: {
-        id: CORE_OWNER,
-        couple_id: 1,
-        line_user_id: "line-owner",
-        role: "owner",
-      },
-    },
-    "00000000-0000-4000-8000-000000000402",
-    true,
-  );
-
-  assert.equal(result.result, "confirmed");
-  assert.equal(rpcCalls[0]?.fn, "apply_pending_action_plan");
-  assert.partialDeepStrictEqual(rpcCalls[0]?.args.p_plan, {
-    update_expenses: [
-      {
-        id: "00000000-0000-4000-8000-000000000289",
-        group_id: GROUP,
-        ledger: "shared",
-        tag: "交通",
-      },
-    ],
-  });
-});
 
 test("actionResultMessage never treats stale auto-confirm as success", () => {
   assert.equal(
@@ -3461,9 +2519,9 @@ test("secretary: createTask returns uuid", async () => {
   const id = await createTask(mockDb, {
     coupleId: 1,
     groupId: "00000000-0000-4000-8000-000000000002",
-    type: "fix_uncertain_receipt",
-    title: "補齊全聯收據欄位",
-    summary: "這筆收據缺金額",
+    type: "review_unmatched_bank_items",
+    title: "審查未匹配的銀行項目",
+    summary: "這筆交易缺對應發票",
     source: "line",
   });
 
@@ -4542,23 +3600,24 @@ test("bank import service rejects CSV files with no parsed rows", async () => {
   );
 });
 
-test("secretary: getRecentExpenses filters by ledger", async () => {
+test("secretary: getRecentExpenses filters by ledger through ledgerQueryService", async () => {
   const { executeSecretaryTool } = await import("./secretary-tools");
 
   const sharedData = [
     {
-      id: "e1",
-      group_id: "g1",
+      id: "00000000-0000-4000-8000-000000000501",
+      group_id: "00000000-0000-4000-8000-000000000502",
       ledger: "shared",
       description: "晚餐",
       merchant: null,
       tag: "餐飲",
       amount_twd: 860,
-      paid_by_user_id: "user-1",
-      created_by_user_id: "user-1",
+      paid_by_user_id: "00000000-0000-4000-8000-000000000503",
+      created_by_user_id: "00000000-0000-4000-8000-000000000503",
       expense_date: "2026-06-27",
       version: 1,
       deleted_at: null,
+      created_at: "2026-06-27T10:00:00Z",
     },
   ];
 
@@ -4582,8 +3641,8 @@ test("secretary: getRecentExpenses filters by ledger", async () => {
 
   const ctx = {
     db: mockDb,
-    groupId: "g1",
-    userId: "user-1",
+    groupId: "00000000-0000-4000-8000-000000000502",
+    userId: "00000000-0000-4000-8000-000000000503",
     coupleId: 1,
   };
 
@@ -4595,6 +3654,594 @@ test("secretary: getRecentExpenses filters by ledger", async () => {
 
   assert.equal(result.count, 1);
   assert.equal(result.items[0].description, "晚餐");
+});
+
+test("read tools: get_recent_expenses merges shared+private, sorts by created_at desc, dedupes and skips deleted", async () => {
+  const { executeSecretaryTool } = await import("./secretary-tools");
+
+  const sharedId = "00000000-0000-4000-8000-000000000601";
+  const privateId = "00000000-0000-4000-8000-000000000602";
+  const duplicateId = "00000000-0000-4000-8000-000000000603";
+  const deletedId = "00000000-0000-4000-8000-000000000604";
+  const groupId = "00000000-0000-4000-8000-000000000605";
+  const userId = "00000000-0000-4000-8000-000000000606";
+  const partnerId = "00000000-0000-4000-8000-000000000607";
+
+  const sharedRows = [
+    {
+      id: sharedId,
+      group_id: groupId,
+      ledger: "shared",
+      description: "shared-old",
+      merchant: null,
+      tag: "餐飲",
+      amount_twd: 200,
+      paid_by_user_id: userId,
+      created_by_user_id: userId,
+      expense_date: "2026-06-20",
+      version: 1,
+      deleted_at: null,
+      created_at: "2026-06-20T10:00:00Z",
+    },
+    {
+      id: duplicateId,
+      group_id: groupId,
+      ledger: "shared",
+      description: "duplicate",
+      merchant: null,
+      tag: "餐飲",
+      amount_twd: 100,
+      paid_by_user_id: userId,
+      created_by_user_id: userId,
+      expense_date: "2026-06-22",
+      version: 1,
+      deleted_at: null,
+      created_at: "2026-06-22T10:00:00Z",
+    },
+    {
+      id: deletedId,
+      group_id: groupId,
+      ledger: "shared",
+      description: "deleted-row",
+      merchant: null,
+      tag: "餐飲",
+      amount_twd: 50,
+      paid_by_user_id: userId,
+      created_by_user_id: userId,
+      expense_date: "2026-06-25",
+      version: 1,
+      deleted_at: "2026-06-26T00:00:00Z",
+      created_at: "2026-06-25T10:00:00Z",
+    },
+  ];
+
+  const privateRows = [
+    {
+      id: privateId,
+      group_id: null,
+      ledger: "private",
+      description: "private-new",
+      merchant: null,
+      tag: "咖啡",
+      amount_twd: 120,
+      paid_by_user_id: userId,
+      created_by_user_id: userId,
+      expense_date: "2026-06-27",
+      version: 1,
+      deleted_at: null,
+      created_at: "2026-06-27T10:00:00Z",
+    },
+    {
+      id: duplicateId,
+      group_id: null,
+      ledger: "private",
+      description: "duplicate-private",
+      merchant: null,
+      tag: "咖啡",
+      amount_twd: 100,
+      paid_by_user_id: userId,
+      created_by_user_id: userId,
+      expense_date: "2026-06-22",
+      version: 1,
+      deleted_at: null,
+      created_at: "2026-06-22T10:00:00Z",
+    },
+  ];
+
+  const ledgerHits: string[] = [];
+
+  const mockDb = {
+    from: (table: string) => {
+      assert.equal(table, "expenses");
+      const query = {
+        select: () => query,
+        eq: (field: string, value: string) => {
+          if (field === "group_id") ledgerHits.push("shared");
+          if (field === "created_by_user_id") ledgerHits.push("private");
+          return query;
+        },
+        is: () => query,
+        order: () => query,
+        limit: () => {
+          if (ledgerHits[ledgerHits.length - 1] === "shared") {
+            return Promise.resolve({ data: sharedRows, error: null });
+          }
+          return Promise.resolve({ data: privateRows, error: null });
+        },
+      };
+      return query;
+    },
+  } as unknown as import("@supabase/supabase-js").SupabaseClient;
+
+  const ctx = {
+    db: mockDb,
+    groupId,
+    userId,
+    coupleId: 1,
+  };
+
+  const result = (await executeSecretaryTool(
+    "get_recent_expenses",
+    { limit: 5 },
+    ctx,
+  )) as {
+    count: number;
+    items: Array<{
+      id: string;
+      description: string;
+      ledger: "shared" | "private";
+      paid_by: "self" | "partner";
+    }>;
+  };
+
+  assert.equal(ledgerHits.includes("shared"), true);
+  assert.equal(ledgerHits.includes("private"), true);
+  assert.equal(result.count, 3);
+  assert.equal(result.items[0].id, privateId);
+  assert.equal(result.items[0].ledger, "private");
+  assert.equal(result.items[0].paid_by, "self");
+  assert.equal(result.items[1].id, duplicateId);
+  assert.equal(result.items[2].id, sharedId);
+  assert.equal(result.items[2].ledger, "shared");
+  const ids = result.items.map((item) => item.id);
+  assert.equal(ids.filter((id) => id === duplicateId).length, 1);
+  assert.equal(ids.includes(deletedId), false);
+});
+
+test("read tools: get_recent_expenses marks partner-paid rows", async () => {
+  const { executeSecretaryTool } = await import("./secretary-tools");
+
+  const partnerPaidId = "00000000-0000-4000-8000-000000000701";
+  const groupId = "00000000-0000-4000-8000-000000000702";
+  const userId = "00000000-0000-4000-8000-000000000703";
+  const partnerId = "00000000-0000-4000-8000-000000000704";
+
+  const sharedRows = [
+    {
+      id: partnerPaidId,
+      group_id: groupId,
+      ledger: "shared",
+      description: "對方付的",
+      merchant: null,
+      tag: "餐飲",
+      amount_twd: 500,
+      paid_by_user_id: partnerId,
+      created_by_user_id: partnerId,
+      expense_date: "2026-06-27",
+      version: 1,
+      deleted_at: null,
+      created_at: "2026-06-27T10:00:00Z",
+    },
+  ];
+
+  const callCount = { value: 0 };
+  const makeChain = () => {
+    const chain: Record<string, unknown> = {};
+    const resolve = () => {
+      callCount.value += 1;
+      return Promise.resolve({
+        data: callCount.value === 1 ? sharedRows : [],
+        error: null,
+      });
+    };
+    chain.select = () => chain;
+    chain.eq = () => chain;
+    chain.is = () => chain;
+    chain.order = () => chain;
+    chain.limit = () => resolve();
+    return chain;
+  };
+  const mockDb = {
+    from: () => makeChain(),
+  } as unknown as import("@supabase/supabase-js").SupabaseClient;
+
+  const ctx = {
+    db: mockDb,
+    groupId,
+    userId,
+    coupleId: 1,
+  };
+
+  const result = (await executeSecretaryTool(
+    "get_recent_expenses",
+    { limit: 1 },
+    ctx,
+  )) as { items: Array<{ paid_by: "self" | "partner" }> };
+
+  assert.equal(result.items[0].paid_by, "partner");
+});
+
+test("read tools: query_expenses returns only summary when no limit", async () => {
+  const { executeTool } = await import("./accountant-tools");
+
+  const sharedRows = [
+    {
+      id: "00000000-0000-4000-8000-000000000801",
+      description: "早餐",
+      merchant: null,
+      notes: null,
+      tag: "餐飲",
+      amount_twd: 80,
+      paid_by_user_id: "00000000-0000-4000-8000-000000000810",
+      expense_date: "2026-06-25",
+      ledger: "shared",
+      deleted_at: null,
+    },
+    {
+      id: "00000000-0000-4000-8000-000000000802",
+      description: "晚餐",
+      merchant: null,
+      notes: null,
+      tag: "餐飲",
+      amount_twd: 320,
+      paid_by_user_id: "00000000-0000-4000-8000-000000000810",
+      expense_date: "2026-06-26",
+      ledger: "shared",
+      deleted_at: null,
+    },
+  ];
+
+  const privateRows = [
+    {
+      id: "00000000-0000-4000-8000-000000000803",
+      description: "私房咖啡",
+      merchant: null,
+      notes: null,
+      tag: "咖啡",
+      amount_twd: 150,
+      paid_by_user_id: "00000000-0000-4000-8000-000000000810",
+      expense_date: "2026-06-24",
+      ledger: "private",
+      deleted_at: null,
+    },
+  ];
+
+  const callCount = { value: 0 };
+  const makeChain = () => {
+    const chain: Record<string, unknown> = {};
+    const resolve = () => {
+      callCount.value += 1;
+      const data = callCount.value === 1 ? sharedRows : privateRows;
+      return Promise.resolve({ data, error: null });
+    };
+    chain.select = () => chain;
+    chain.eq = () => chain;
+    chain.neq = () => chain;
+    chain.is = () => chain;
+    chain.gte = () => chain;
+    chain.lt = () => chain;
+    chain.order = () => chain;
+    chain.limit = () => resolve();
+    return chain;
+  };
+  const mockDb = {
+    from: () => makeChain(),
+  } as unknown as import("@supabase/supabase-js").SupabaseClient;
+
+  const ctx = {
+    db: mockDb,
+    groupId: "00000000-0000-4000-8000-000000000811",
+    userId: "00000000-0000-4000-8000-000000000810",
+    coupleId: 1,
+  };
+
+  const result = (await executeTool("query_expenses", {}, ctx)) as {
+    summary: { total: number; count: number; average: number; date_range: { from: string; to: string } | null };
+    items?: unknown;
+  };
+
+  assert.equal(result.summary.total, 550);
+  assert.equal(result.summary.count, 3);
+  assert.equal(result.summary.average, 183);
+  assert.deepEqual(result.summary.date_range, { from: "2026-06-24", to: "2026-06-26" });
+  assert.equal(result.items, undefined);
+});
+
+test("read tools: query_expenses with limit+amount_desc returns sorted items", async () => {
+  const { executeTool } = await import("./accountant-tools");
+
+  const sharedRows = [
+    {
+      id: "00000000-0000-4000-8000-000000000901",
+      description: "小筆",
+      merchant: null,
+      notes: null,
+      tag: "餐飲",
+      amount_twd: 60,
+      paid_by_user_id: "00000000-0000-4000-8000-000000000910",
+      expense_date: "2026-06-20",
+      ledger: "shared",
+      deleted_at: null,
+    },
+    {
+      id: "00000000-0000-4000-8000-000000000902",
+      description: "大筆",
+      merchant: null,
+      notes: null,
+      tag: "餐飲",
+      amount_twd: 1200,
+      paid_by_user_id: "00000000-0000-4000-8000-000000000910",
+      expense_date: "2026-06-10",
+      ledger: "shared",
+      deleted_at: null,
+    },
+    {
+      id: "00000000-0000-4000-8000-000000000903",
+      description: "中筆",
+      merchant: null,
+      notes: null,
+      tag: "餐飲",
+      amount_twd: 500,
+      paid_by_user_id: "00000000-0000-4000-8000-000000000910",
+      expense_date: "2026-06-15",
+      ledger: "shared",
+      deleted_at: null,
+    },
+  ];
+
+  const callCount = { value: 0 };
+  const makeChain = () => {
+    const chain: Record<string, unknown> = {};
+    const resolve = () => {
+      callCount.value += 1;
+      return Promise.resolve({
+        data: callCount.value === 1 ? sharedRows : [],
+        error: null,
+      });
+    };
+    chain.select = () => chain;
+    chain.eq = () => chain;
+    chain.neq = () => chain;
+    chain.is = () => chain;
+    chain.gte = () => chain;
+    chain.lt = () => chain;
+    chain.order = () => chain;
+    chain.limit = () => resolve();
+    return chain;
+  };
+  const mockDb = {
+    from: () => makeChain(),
+  } as unknown as import("@supabase/supabase-js").SupabaseClient;
+
+  const ctx = {
+    db: mockDb,
+    groupId: "00000000-0000-4000-8000-000000000911",
+    userId: "00000000-0000-4000-8000-000000000910",
+    coupleId: 1,
+  };
+
+  const result = (await executeTool(
+    "query_expenses",
+    { limit: 3, sort: "amount_desc" },
+    ctx,
+  )) as {
+    items: Array<{ id: string; amount: number; date: string }>;
+  };
+
+  assert.equal(result.items.length, 3);
+  assert.equal(result.items[0].id, "00000000-0000-4000-8000-000000000902");
+  assert.equal(result.items[0].amount, 1200);
+  assert.equal(result.items[1].amount, 500);
+  assert.equal(result.items[2].amount, 60);
+});
+
+test("read tools: get_balance_summary maps positive balance to partner owes me", async () => {
+  const { executeTool } = await import("./accountant-tools");
+
+  const userId = "00000000-0000-4000-8000-000000001001";
+  const partnerId = "00000000-0000-4000-8000-000000001002";
+
+  const mockDb = {
+    rpc: (fn: string, args: Record<string, unknown>) => {
+      assert.equal(fn, "group_balances");
+      assert.deepEqual(args, { p_group_id: "00000000-0000-4000-8000-000000001003" });
+      return Promise.resolve({
+        data: [
+          { user_id: userId, balance_twd: 250 },
+          { user_id: partnerId, balance_twd: -250 },
+        ],
+        error: null,
+      });
+    },
+  } as unknown as import("@supabase/supabase-js").SupabaseClient;
+
+  const ctx = {
+    db: mockDb,
+    groupId: "00000000-0000-4000-8000-000000001003",
+    userId,
+    coupleId: 1,
+  };
+
+  const result = (await executeTool("get_balance_summary", {}, ctx)) as {
+    my_balance: number;
+    partner_balance: number;
+    summary: string;
+  };
+
+  assert.equal(result.my_balance, 250);
+  assert.equal(result.partner_balance, -250);
+  assert.equal(result.summary, "另一半欠你 NT$250");
+});
+
+test("read tools: get_balance_summary maps negative balance to I owe partner", async () => {
+  const { executeTool } = await import("./accountant-tools");
+
+  const userId = "00000000-0000-4000-8000-000000001011";
+  const partnerId = "00000000-0000-4000-8000-000000001012";
+
+  const mockDb = {
+    rpc: () =>
+      Promise.resolve({
+        data: [
+          { user_id: userId, balance_twd: -180 },
+          { user_id: partnerId, balance_twd: 180 },
+        ],
+        error: null,
+      }),
+  } as unknown as import("@supabase/supabase-js").SupabaseClient;
+
+  const ctx = {
+    db: mockDb,
+    groupId: "00000000-0000-4000-8000-000000001013",
+    userId,
+    coupleId: 1,
+  };
+
+  const result = (await executeTool("get_balance_summary", {}, ctx)) as {
+    my_balance: number;
+    partner_balance: number;
+    summary: string;
+  };
+
+  assert.equal(result.my_balance, -180);
+  assert.equal(result.partner_balance, 180);
+  assert.equal(result.summary, "你欠另一半 NT$180");
+});
+
+test("read tools: get_balance_summary returns settled message when both are zero", async () => {
+  const { executeTool } = await import("./accountant-tools");
+
+  const userId = "00000000-0000-4000-8000-000000001021";
+  const partnerId = "00000000-0000-4000-8000-000000001022";
+
+  const mockDb = {
+    rpc: () =>
+      Promise.resolve({
+        data: [
+          { user_id: userId, balance_twd: 0 },
+          { user_id: partnerId, balance_twd: 0 },
+        ],
+        error: null,
+      }),
+  } as unknown as import("@supabase/supabase-js").SupabaseClient;
+
+  const ctx = {
+    db: mockDb,
+    groupId: "00000000-0000-4000-8000-000000001023",
+    userId,
+    coupleId: 1,
+  };
+
+  const result = (await executeTool("get_balance_summary", {}, ctx)) as {
+    my_balance: number;
+    partner_balance: number;
+    summary: string;
+  };
+
+  assert.equal(result.my_balance, 0);
+  assert.equal(result.partner_balance, 0);
+  assert.equal(result.summary, "已結清");
+});
+
+test("read tools: get_recurring_list maps couple-scoped rows to tool contract", async () => {
+  const { executeTool } = await import("./accountant-tools");
+
+  const coupleId = 7;
+  const captured: Array<{ table: string; coupleId: number; order: string }> = [];
+
+  const mockDb = {
+    from: (table: string) => {
+      assert.equal(table, "recurring_expenses");
+      const query = {
+        select: () => query,
+        eq: (_field: string, value: number) => {
+          captured.push({ table, coupleId: value, order: "" });
+          return query;
+        },
+        order: (column: string) => {
+          captured[captured.length - 1]!.order = column;
+          return Promise.resolve({
+            data: [
+              {
+                id: "r1",
+                description: "Netflix",
+                amount_twd: 390,
+                frequency: "monthly",
+                next_run_date: "2026-07-01",
+                active: true,
+                tag: "訂閱",
+                ledger: "shared",
+              },
+              {
+                id: "r2",
+                description: "健身房",
+                amount_twd: 1200,
+                frequency: "monthly",
+                next_run_date: "2026-07-05",
+                active: false,
+                tag: "其他",
+                ledger: "private",
+              },
+            ],
+            error: null,
+          });
+        },
+      };
+      return query;
+    },
+  } as unknown as import("@supabase/supabase-js").SupabaseClient;
+
+  const ctx = {
+    db: mockDb,
+    groupId: "00000000-0000-4000-8000-000000001031",
+    userId: "00000000-0000-4000-8000-000000001032",
+    coupleId,
+  };
+
+  const result = (await executeTool("get_recurring_list", {}, ctx)) as {
+    items: Array<{
+      description: string;
+      amount: number;
+      frequency: string;
+      next_run: string;
+      active: boolean;
+      tag: string;
+      ledger: "shared" | "private";
+    }>;
+  };
+
+  assert.equal(captured.length, 1);
+  assert.equal(captured[0]!.coupleId, coupleId);
+  assert.equal(captured[0]!.order, "next_run_date");
+  assert.equal(result.items.length, 2);
+  assert.deepEqual(result.items[0], {
+    description: "Netflix",
+    amount: 390,
+    frequency: "monthly",
+    next_run: "2026-07-01",
+    active: true,
+    tag: "訂閱",
+    ledger: "shared",
+  });
+  assert.deepEqual(result.items[1], {
+    description: "健身房",
+    amount: 1200,
+    frequency: "monthly",
+    next_run: "2026-07-05",
+    active: false,
+    tag: "其他",
+    ledger: "private",
+  });
 });
 
 test("secretary service retries hallucinated writes and applies corrected pending actions", async () => {
@@ -4689,7 +4336,7 @@ test("write tools: propose_update_expense returns pending_action updates", async
                 notes: null,
                 tag: "其他",
                 amount_twd: 1000,
-                paid_by_user_id: "user-1",
+                paid_by_user_id: "partner-123",
                 created_by_user_id: "user-1",
                 expense_date: "2026-07-01",
                 split_method: "equal",
@@ -4743,6 +4390,7 @@ test("write tools: propose_update_expense returns pending_action updates", async
       type: string;
       expenseId: string;
       expectedVersion: number;
+      groupId: string | null;
       updates: Record<string, unknown>;
     };
     message: string;
@@ -4750,12 +4398,94 @@ test("write tools: propose_update_expense returns pending_action updates", async
 
   assert.equal(res.pending_action.type, "update_expense");
   assert.equal(res.pending_action.expectedVersion, 5);
+  assert.equal(res.pending_action.groupId, null);
   assert.equal(res.pending_action.updates.ledger, "private");
   assert.equal(res.pending_action.updates.paid_by_user_id, "user-1");
   assert.ok(res.message.includes("晚餐"));
 });
 
-test("secretary integration regression: tool -> SecretaryService -> apply_pending_action_plan", async () => {
+test("write tools: propose_update_expense no-op throws error", async () => {
+  const { executeSecretaryTool } = await import("./secretary-tools");
+  const { registerPendingActionService } = await import("./pending-action-builders");
+  const { PendingActionService } = await import("./pending-action-service");
+
+  const mockDb = {
+    from: (table: string) => {
+      const chain = {
+        select: () => chain,
+        eq: () => chain,
+        neq: () => chain,
+        order: () => Promise.resolve({
+          data: [
+            { id: "user-1", couple_id: 1, line_user_id: "line-1", role: "owner" },
+            { id: "partner-123", couple_id: 1, line_user_id: "line-2", role: "partner" },
+          ],
+          error: null,
+        }),
+        single: () => {
+          if (table === "expenses") {
+            return Promise.resolve({
+              data: {
+                id: "00000000-0000-0000-0000-000000000001",
+                couple_id: 1,
+                group_id: "group-1",
+                ledger: "shared",
+                description: "晚餐",
+                merchant: null,
+                notes: null,
+                tag: "其他",
+                amount_twd: 1000,
+                paid_by_user_id: "user-1",
+                created_by_user_id: "user-1",
+                expense_date: "2026-07-01",
+                split_method: "equal",
+                version: 5,
+                deleted_at: null,
+                expense_splits: [],
+              },
+              error: null,
+            });
+          }
+          if (table === "users") {
+            return Promise.resolve({
+              data: { id: "user-1", couple_id: 1, line_user_id: "line-user-1", role: "owner" },
+              error: null,
+            });
+          }
+          return Promise.resolve({ data: { user_id: "partner-123" }, error: null });
+        },
+      };
+      return chain;
+    },
+  } as unknown as import("@supabase/supabase-js").SupabaseClient;
+
+  const pendingService = new PendingActionService({
+    actionSeconds: 60,
+    deliverNotifications: async () => {},
+  });
+  registerPendingActionService(pendingService);
+
+  const ctx = {
+    db: mockDb,
+    groupId: "group-1",
+    userId: "user-1",
+    coupleId: 1,
+  };
+
+  const result = await executeSecretaryTool(
+    "propose_update_expense",
+    {
+      expense_id: "00000000-0000-0000-0000-000000000001",
+      updates: {},
+    },
+    ctx,
+  );
+
+  const res = result as { error: string };
+  assert.equal(res.error, "沒有可修改的欄位");
+});
+
+test("tool integration regression: tool -> executeAgentAction -> apply_pending_action_plan", async () => {
   const { executeTool } = await import("./accountant-tools");
   const { registerPendingActionService } = await import("./pending-action-builders");
   const { PendingActionService } = await import("./pending-action-service");
@@ -4904,20 +4634,1615 @@ test("secretary integration regression: tool -> SecretaryService -> apply_pendin
       role: "owner" as const,
     },
   };
-  const execResult = await pendingService.executeAgentAction(
-    serverContext,
-    res.pending_action,
+
+  const fakeTx = new FakeTxClient();
+  fakeTx.mockResults.push({
+    pattern: /SELECT.*FROM.*pending_actions.*FOR UPDATE/i,
+    result: {
+      rowCount: 1,
+      rows: [
+        {
+          status: "pending",
+          expires_at: new Date(Date.now() + 3600000).toISOString(),
+          action_type: "create_expense",
+        },
+      ],
+    },
+  });
+  activeTxClient = fakeTx;
+
+  try {
+    const execResult = await pendingService.executeAgentAction(
+      serverContext,
+      res.pending_action,
+    );
+
+    assert.equal(execResult.result, "confirmed");
+    assert.equal(insertedRows.length, 1);
+    assert.equal(insertedRows[0]?.group_id, null);
+
+    // Validate the new SQL transaction execution
+    const insertCall = fakeTx.calls.find((c) => c.query.includes("INSERT INTO public.expenses"));
+    assert.ok(insertCall);
+    assert.equal(insertCall.params?.[3], "private"); // ledger
+    assert.equal(insertCall.params?.[2], null); // group_id
+    assert.equal(insertCall.params?.[8], 185); // amount_twd
+  } finally {
+    activeTxClient = null;
+  }
+});
+
+test("secretary integration regression: tool -> SecretaryService.run -> apply_pending_action_plan", async () => {
+  const { executeTool } = await import("./accountant-tools");
+  const { registerPendingActionService } = await import("./pending-action-builders");
+  const { PendingActionService } = await import("./pending-action-service");
+  const { SecretaryService } = await import("./secretary-service");
+
+  const rpcCalls: Array<{ fn: string; args: Record<string, unknown> }> = [];
+  const insertedRows: Record<string, unknown>[] = [];
+
+  const mockDb = {
+    rpc: (fn: string, args: Record<string, unknown>) => {
+      rpcCalls.push({ fn, args });
+      if (fn === "apply_pending_action_plan") {
+        return Promise.resolve({ data: { result: "confirmed", action_type: "create_expense" }, error: null });
+      }
+      return Promise.resolve({ data: null, error: null });
+    },
+    from: (table: string) => {
+      const chain = {
+        select: () => chain,
+        eq: () => chain,
+        neq: () => chain,
+        update: () => chain,
+        order: () => Promise.resolve({
+          data: [
+            { id: "user-1", couple_id: 1, line_user_id: "line-user-1", role: "owner" },
+            { id: "partner-123", couple_id: 1, line_user_id: "line-partner", role: "partner" },
+          ],
+          error: null,
+        }),
+        single: () => {
+          if (table === "users") {
+            return Promise.resolve({
+              data: { id: "user-1", couple_id: 1, line_user_id: "line-user-1", role: "owner" },
+              error: null,
+            });
+          }
+          if (table === "pending_actions") {
+            return Promise.resolve({
+              data: {
+                action_type: "create_expense",
+                payload: {
+                  tag: "交通",
+                },
+                group_id: null,
+              },
+              error: null,
+            });
+          }
+          return Promise.resolve({ data: { user_id: "partner-123" }, error: null });
+        },
+        maybeSingle: () => Promise.resolve({
+          data: {
+            id: "action-id-123",
+            couple_id: 1,
+            group_id: null,
+            action_type: "create_expense",
+            payload: {
+              kind: "ledger_command",
+              version: 1,
+              command: {
+                type: "create_expense",
+                expense: {
+                  group_id: null,
+                  ledger: "private",
+                  description: "共享機車",
+                  merchant: null,
+                  notes: null,
+                  tag: "交通",
+                  amount_twd: 185,
+                  paid_by_user_id: "user-1",
+                  expense_date: "2026-07-01",
+                  split_method: "equal",
+                },
+              },
+              metadata: {
+                source: "line",
+                actorUserId: "user-1",
+                idempotencyKey: null,
+              },
+              ledger: "private",
+              amount_twd: 185,
+              paid_by_user_id: "user-1",
+              description: "共享機車",
+              merchant: null,
+              notes: null,
+              tag: "交通",
+              expense_date: "2026-07-01",
+              split_method: "equal",
+              splits: { "user-1": 185 },
+            },
+            status: "pending",
+            expires_at: new Date(Date.now() + 3600000).toISOString(),
+          },
+          error: null,
+        }),
+        insert: (row: any) => {
+          insertedRows.push(row);
+          return {
+            select: () => ({
+              single: () => Promise.resolve({ data: { id: "action-id-123" }, error: null }),
+            }),
+          };
+        },
+      };
+      return chain;
+    },
+  } as unknown as import("@supabase/supabase-js").SupabaseClient;
+
+  const pendingService = new PendingActionService({
+    actionSeconds: 60,
+    deliverNotifications: async () => {},
+  });
+  registerPendingActionService(pendingService);
+
+  const ctx = {
+    db: mockDb,
+    groupId: "group-1",
+    userId: "user-1",
+    coupleId: 1,
+  };
+
+  // 1. Run tool to get the pending_action
+  const toolResult = await executeTool(
+    "record_expense",
+    {
+      description: "共享機車",
+      amount_twd: 185,
+      paid_by: "self",
+      ledger: "private",
+      tag: "交通",
+    },
+    ctx,
   );
 
-  assert.equal(execResult.result, "confirmed");
+  const res = toolResult as any;
+
+  assert.equal(res.pending_action.type, "create_expense");
+  assert.equal(res.pending_action.expense.group_id, null);
+
+  // 2. Execute through SecretaryService.run
+  const secretaryService = new SecretaryService();
+  const serverContext = {
+    db: mockDb,
+    user: {
+      id: "user-1",
+      couple_id: 1,
+      line_user_id: "line-user-1",
+      role: "owner" as const,
+    },
+  };
+
+  const fakeTx = new FakeTxClient();
+  fakeTx.mockResults.push({
+    pattern: /SELECT.*FROM.*pending_actions.*FOR UPDATE/i,
+    result: {
+      rowCount: 1,
+      rows: [
+        {
+          status: "pending",
+          expires_at: new Date(Date.now() + 3600000).toISOString(),
+          action_type: "create_expense",
+        },
+      ],
+    },
+  });
+  activeTxClient = fakeTx;
+
+  let secretaryResult;
+  try {
+    secretaryResult = await secretaryService.run({
+      initialInput: { text: "共享機車 185" },
+      sessionId: "session-1",
+      runLoop: async (input, sessionId) => {
+        return {
+          answer: "已經幫你記帳了：共享機車 185 元。",
+          toolCallCount: 1,
+          pendingActions: [res.pending_action],
+          sessionId: "session-1",
+          newTasks: [],
+          notifyPartner: false,
+          partnerMessage: null,
+        };
+      },
+      executeAction: async (action) => {
+        return pendingService.executeAgentAction(serverContext, action);
+      },
+    });
+  } finally {
+    activeTxClient = null;
+  }
+
+  assert.equal(secretaryResult.reply, "已經幫你記帳了：共享機車 185 元。");
+  assert.equal(secretaryResult.actionFailure, null);
   assert.equal(insertedRows.length, 1);
   assert.equal(insertedRows[0]?.group_id, null);
-  assert.equal(rpcCalls.length, 1);
-  assert.equal(rpcCalls[0]?.fn, "apply_pending_action_plan");
 
-  const plan = rpcCalls[0]?.args.p_plan as any;
-  assert.ok(plan.insert_expenses);
-  assert.equal(plan.insert_expenses[0].ledger, "private");
-  assert.equal(plan.insert_expenses[0].group_id, null);
-  assert.equal(plan.insert_expenses[0].amount_twd, 185);
+  // Validate the new SQL transaction execution
+  const insertCall = fakeTx.calls.find((c) => c.query.includes("INSERT INTO public.expenses"));
+  assert.ok(insertCall);
+  assert.equal(insertCall.params?.[3], "private"); // ledger
+  assert.equal(insertCall.params?.[2], null); // group_id
+  assert.equal(insertCall.params?.[8], 185); // amount_twd
+});
+
+function createMockDbForTools(
+  sharedRows: any[],
+  privateRows: any[] = [],
+  rpcMock?: (fn: string, args: any) => any,
+) {
+  const makeChain = () => {
+    let isPrivate = false;
+    let dateFrom: string | undefined = undefined;
+    let dateTo: string | undefined = undefined;
+    let tagFilter: string | undefined = undefined;
+    const chain: any = {
+      select: () => chain,
+      eq: (field: string, value: any) => {
+        if (field === "ledger" && value === "private") {
+          isPrivate = true;
+        } else if (field === "tag") {
+          tagFilter = value;
+        }
+        return chain;
+      },
+      neq: () => chain,
+      is: () => chain,
+      gte: (field: string, value: any) => {
+        if (field === "expense_date") dateFrom = value;
+        return chain;
+      },
+      lt: (field: string, value: any) => {
+        if (field === "expense_date") dateTo = value;
+        return chain;
+      },
+      order: () => chain,
+      limit: () => {
+        let data = isPrivate ? privateRows : sharedRows;
+        if (dateFrom) data = data.filter((r) => r.expense_date >= dateFrom!);
+        if (dateTo) data = data.filter((r) => r.expense_date < dateTo!);
+        if (tagFilter) data = data.filter((r) => r.tag === tagFilter);
+        return Promise.resolve({ data, error: null });
+      },
+      then: (onfulfilled: any) => {
+        let data = isPrivate ? privateRows : sharedRows;
+        if (dateFrom) data = data.filter((r) => r.expense_date >= dateFrom!);
+        if (dateTo) data = data.filter((r) => r.expense_date < dateTo!);
+        if (tagFilter) data = data.filter((r) => r.tag === tagFilter);
+        return Promise.resolve({ data, error: null }).then(onfulfilled);
+      },
+    };
+    return chain;
+  };
+
+  return {
+    from: () => makeChain(),
+    rpc: rpcMock || (() => Promise.resolve({ data: [], error: null })),
+  } as unknown as import("@supabase/supabase-js").SupabaseClient;
+}
+
+const T_GROUP_ID = "00000000-0000-4000-8000-000000000001";
+const T_USER_ID = "00000000-0000-4000-8000-000000000002";
+const T_PARTNER_ID = "00000000-0000-4000-8000-000000000003";
+
+const T_EXPENSE_1 = "00000000-0000-4000-8000-000000000010";
+const T_EXPENSE_2 = "00000000-0000-4000-8000-000000000020";
+const T_EXPENSE_3 = "00000000-0000-4000-8000-000000000030";
+const T_EXPENSE_4 = "00000000-0000-4000-8000-000000000040";
+
+test("tool: get_category_breakdown regression", async () => {
+  const { executeTool } = await import("./accountant-tools");
+  const sharedRows = [
+    { id: T_EXPENSE_1, description: "Lunch", merchant: null, notes: null, tag: "Food", amount_twd: 100, expense_date: "2026-07-01", ledger: "shared" as const, paid_by_user_id: T_USER_ID, created_by_user_id: T_USER_ID },
+    { id: T_EXPENSE_2, description: "Dinner", merchant: null, notes: null, tag: "Food", amount_twd: 200, expense_date: "2026-07-02", ledger: "shared" as const, paid_by_user_id: T_USER_ID, created_by_user_id: T_USER_ID },
+    { id: T_EXPENSE_3, description: "Rent", merchant: null, notes: null, tag: "Rent", amount_twd: 700, expense_date: "2026-07-03", ledger: "shared" as const, paid_by_user_id: T_PARTNER_ID, created_by_user_id: T_PARTNER_ID },
+  ];
+  const ctx = {
+    db: createMockDbForTools(sharedRows, []),
+    groupId: T_GROUP_ID,
+    userId: T_USER_ID,
+    coupleId: 1,
+  };
+  const result = await executeTool("get_category_breakdown", { date_from: "2026-07-01", date_to: "2026-07-10" }, ctx) as any;
+  
+  assert.equal(result.total, 1000);
+  assert.equal(result.count, 3);
+  assert.equal(result.breakdown.length, 2);
+  assert.equal(result.breakdown[0].label, "Rent");
+  assert.equal(result.breakdown[0].total, 700);
+  assert.equal(result.breakdown[0].percent, 70);
+  assert.equal(result.breakdown[1].label, "Food");
+  assert.equal(result.breakdown[1].total, 300);
+  assert.equal(result.breakdown[1].percent, 30);
+});
+
+test("tool: compare_period regression", async () => {
+  const { executeTool } = await import("./accountant-tools");
+  const sharedRows = [
+    // Period A: 2026-07-01 to 2026-07-10
+    { id: T_EXPENSE_1, description: "Lunch", merchant: null, notes: null, tag: "Food", amount_twd: 500, expense_date: "2026-07-05", ledger: "shared" as const, paid_by_user_id: T_USER_ID, created_by_user_id: T_USER_ID },
+    { id: T_EXPENSE_2, description: "Rent", merchant: null, notes: null, tag: "Rent", amount_twd: 1000, expense_date: "2026-07-05", ledger: "shared" as const, paid_by_user_id: T_USER_ID, created_by_user_id: T_USER_ID },
+    // Period B: 2026-06-01 to 2026-06-10
+    { id: T_EXPENSE_3, description: "Lunch Old", merchant: null, notes: null, tag: "Food", amount_twd: 300, expense_date: "2026-06-05", ledger: "shared" as const, paid_by_user_id: T_USER_ID, created_by_user_id: T_USER_ID },
+    { id: T_EXPENSE_4, description: "Rent Old", merchant: null, notes: null, tag: "Rent", amount_twd: 1200, expense_date: "2026-06-05", ledger: "shared" as const, paid_by_user_id: T_USER_ID, created_by_user_id: T_USER_ID },
+  ];
+  const ctx = {
+    db: createMockDbForTools(sharedRows, []),
+    groupId: T_GROUP_ID,
+    userId: T_USER_ID,
+    coupleId: 1,
+  };
+  const result = await executeTool("compare_period", {
+    period_a: { from: "2026-07-01", to: "2026-07-10" },
+    period_b: { from: "2026-06-01", to: "2026-06-10" },
+  }, ctx) as any;
+
+  assert.equal(result.period_a.total, 1500);
+  assert.equal(result.period_a.count, 2);
+  assert.equal(result.period_b.total, 1500);
+  assert.equal(result.period_b.count, 2);
+  assert.equal(result.change_percent, 0);
+  
+  assert.equal(result.comparison.length, 2);
+  assert.equal(Math.abs(result.comparison[0].change), 200);
+  assert.equal(Math.abs(result.comparison[1].change), 200);
+});
+
+test("tool: get_anomalies regression", async () => {
+  const { executeTool } = await import("./accountant-tools");
+  const sharedRows = [
+    { id: T_EXPENSE_1, description: "Lunch", merchant: null, notes: null, tag: "Food", amount_twd: 120, expense_date: "2026-07-01", ledger: "shared" as const, paid_by_user_id: T_USER_ID, created_by_user_id: T_USER_ID },
+    { id: T_EXPENSE_2, description: "Lunch", merchant: null, notes: null, tag: "Food", amount_twd: 120, expense_date: "2026-07-01", ledger: "shared" as const, paid_by_user_id: T_USER_ID, created_by_user_id: T_USER_ID },
+    { id: T_EXPENSE_3, description: "Dinner", merchant: null, notes: null, tag: "Food", amount_twd: 300, expense_date: "2026-07-02", ledger: "shared" as const, paid_by_user_id: T_USER_ID, created_by_user_id: T_USER_ID },
+  ];
+  const ctx = {
+    db: createMockDbForTools(sharedRows, []),
+    groupId: T_GROUP_ID,
+    userId: T_USER_ID,
+    coupleId: 1,
+  };
+  const result = await executeTool("get_anomalies", { date_from: "2026-07-01", date_to: "2026-07-10" }, ctx) as any;
+
+  assert.equal(result.total_groups, 1);
+  assert.equal(result.duplicate_groups.length, 1);
+  assert.equal(result.duplicate_groups[0].length, 2);
+  assert.equal(result.duplicate_groups[0][0].description, "Lunch");
+  assert.equal(result.duplicate_groups[0][0].amount, 120);
+});
+
+test("tool: get_category_trend regression", async () => {
+  const { executeTool } = await import("./accountant-tools");
+  const todayStr = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Taipei",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date());
+  const currentMonth = todayStr.slice(0, 7);
+  
+  const [year, monthNumber] = currentMonth.split("-").map(Number);
+  const prevDate = new Date(Date.UTC(year!, monthNumber! - 2, 1));
+  const prevMonth = `${prevDate.getUTCFullYear()}-${String(prevDate.getUTCMonth() + 1).padStart(2, "0")}`;
+
+  const sharedRows = [
+    { id: T_EXPENSE_1, description: "Lunch", merchant: null, notes: null, tag: "Food", amount_twd: 150, expense_date: `${currentMonth}-05`, ledger: "shared" as const, paid_by_user_id: T_USER_ID, created_by_user_id: T_USER_ID },
+    { id: T_EXPENSE_2, description: "Lunch Old", merchant: null, notes: null, tag: "Food", amount_twd: 250, expense_date: `${prevMonth}-10`, ledger: "shared" as const, paid_by_user_id: T_USER_ID, created_by_user_id: T_USER_ID },
+  ];
+  const ctx = {
+    db: createMockDbForTools(sharedRows, []),
+    groupId: T_GROUP_ID,
+    userId: T_USER_ID,
+    coupleId: 1,
+  };
+
+  const result = await executeTool("get_category_trend", { tag: "Food", months: 2 }, ctx) as any;
+
+  assert.equal(result.tag, "Food");
+  assert.equal(result.trend.length, 2);
+  assert.equal(result.trend[0].month, prevMonth);
+  assert.equal(result.trend[0].total, 250);
+  assert.equal(result.trend[0].count, 1);
+  assert.equal(result.trend[1].month, currentMonth);
+  assert.equal(result.trend[1].total, 150);
+  assert.equal(result.trend[1].count, 1);
+});
+
+test("tool: predict_month_end regression - insufficient data guard", async () => {
+  const { executeTool } = await import("./accountant-tools");
+  const OriginalDate = global.Date;
+  const fixedDate = new OriginalDate("2026-07-02T12:00:00+08:00");
+  global.Date = class extends OriginalDate {
+    constructor(...args: any[]) {
+      if (args.length === 0) {
+        super(fixedDate.getTime());
+      } else {
+        // @ts-ignore
+        super(...args);
+      }
+    }
+    static now() {
+      return fixedDate.getTime();
+    }
+  } as any;
+
+  try {
+    const ctx = {
+      db: createMockDbForTools([], []),
+      groupId: T_GROUP_ID,
+      userId: T_USER_ID,
+      coupleId: 1,
+    };
+    const result = await executeTool("predict_month_end", {}, ctx) as any;
+    assert.equal(result.message, "月初資料不足，無法預測");
+    assert.equal(result.days_elapsed, 2);
+    assert.equal(result.days_total, 31);
+  } finally {
+    global.Date = OriginalDate;
+  }
+});
+
+test("tool: predict_month_end regression - normal prediction", async () => {
+  const { executeTool } = await import("./accountant-tools");
+  const OriginalDate = global.Date;
+  const fixedDate = new OriginalDate("2026-07-10T12:00:00+08:00");
+  global.Date = class extends OriginalDate {
+    constructor(...args: any[]) {
+      if (args.length === 0) {
+        super(fixedDate.getTime());
+      } else {
+        // @ts-ignore
+        super(...args);
+      }
+    }
+    static now() {
+      return fixedDate.getTime();
+    }
+  } as any;
+
+  try {
+    const sharedRows = [
+      { id: T_EXPENSE_1, description: "Lunch", merchant: null, notes: null, tag: "Food", amount_twd: 1000, expense_date: "2026-07-05", ledger: "shared" as const, paid_by_user_id: T_USER_ID, created_by_user_id: T_USER_ID },
+    ];
+    const ctx = {
+      db: createMockDbForTools(sharedRows, []),
+      groupId: T_GROUP_ID,
+      userId: T_USER_ID,
+      coupleId: 1,
+    };
+    const result = await executeTool("predict_month_end", { tag: "Food" }, ctx) as any;
+    assert.equal(result.days_elapsed, 10);
+    assert.equal(result.days_total, 31);
+    assert.equal(result.spent_so_far, 1000);
+    assert.equal(result.projected_total, 3100);
+  } finally {
+    global.Date = OriginalDate;
+  }
+});
+
+test("tool: analyze_spending regression", async () => {
+  const { executeTool } = await import("./accountant-tools");
+  const OriginalDate = global.Date;
+  const fixedDate = new OriginalDate("2026-07-10T12:00:00+08:00");
+  global.Date = class extends OriginalDate {
+    constructor(...args: any[]) {
+      if (args.length === 0) {
+        super(fixedDate.getTime());
+      } else {
+        // @ts-ignore
+        super(...args);
+      }
+    }
+    static now() {
+      return fixedDate.getTime();
+    }
+  } as any;
+
+  try {
+    const sharedRows = [
+      { id: T_EXPENSE_1, tag: "Food", amount_twd: 300, expense_date: "2026-07-05", ledger: "shared" as const, paid_by_user_id: T_USER_ID, created_by_user_id: T_USER_ID, description: "Lunch", merchant: null, notes: null },
+      { id: T_EXPENSE_2, tag: "Food", amount_twd: 300, expense_date: "2026-07-05", ledger: "shared" as const, paid_by_user_id: T_USER_ID, created_by_user_id: T_USER_ID, description: "Lunch", merchant: null, notes: null },
+      { id: T_EXPENSE_3, tag: "Rent", amount_twd: 1000, expense_date: "2026-07-05", ledger: "shared" as const, paid_by_user_id: T_PARTNER_ID, created_by_user_id: T_PARTNER_ID, description: "Rent", merchant: null, notes: null },
+    ];
+    const privateRows = [
+      { id: T_EXPENSE_4, tag: "Secret", amount_twd: 9999, expense_date: "2026-07-05", ledger: "private" as const, paid_by_user_id: T_USER_ID, created_by_user_id: T_USER_ID, description: "Secret", merchant: null, notes: null },
+    ];
+
+    const rpcMock = (fn: string, args: any) => {
+      assert.equal(fn, "group_balances");
+      assert.equal(args.p_group_id, T_GROUP_ID);
+      return Promise.resolve({
+        data: [
+          { user_id: T_USER_ID, balance_twd: 100 },
+          { user_id: T_PARTNER_ID, balance_twd: -100 },
+        ],
+        error: null,
+      });
+    };
+
+    const ctx = {
+      db: createMockDbForTools(sharedRows, privateRows, rpcMock),
+      groupId: T_GROUP_ID,
+      userId: T_USER_ID,
+      coupleId: 1,
+    };
+
+    const result = await executeTool("analyze_spending", { date_from: "2026-07-01", date_to: "2026-07-10" }, ctx) as any;
+
+    assert.equal(result.total, 1600);
+    assert.equal(result.transaction_count, 3);
+    assert.equal(result.daily_average, 160);
+    assert.equal(result.projected_month_end, 160 * 31);
+    
+    assert.equal(result.top_tags.length, 2);
+    assert.equal(result.top_tags[0].label, "Rent");
+    assert.equal(result.top_tags[0].amount, 1000);
+    assert.equal(result.top_tags[0].percent, 63);
+    assert.equal(result.top_tags[1].label, "Food");
+    assert.equal(result.top_tags[1].amount, 600);
+    assert.equal(result.top_tags[1].percent, 38);
+
+    assert.equal(result.anomalies.length, 1);
+    assert.equal(result.anomalies[0].length, 2);
+    assert.equal(result.anomalies[0][0].id, T_EXPENSE_1);
+
+    assert.deepEqual(result.balance, [
+      { user_id: T_USER_ID, balance_twd: 100 },
+      { user_id: T_PARTNER_ID, balance_twd: -100 },
+    ]);
+  } finally {
+    global.Date = OriginalDate;
+  }
+});
+
+function setupMockEnv() {
+  process.env.LINE_CHANNEL_ACCESS_TOKEN = "line-token";
+  process.env.LINE_LOGIN_CHANNEL_ID = "login";
+  process.env.GEMINI_API_KEY = "gemini";
+  process.env.SUPABASE_URL = "https://example.supabase.co";
+  process.env.SUPABASE_SECRET_KEY = "secret";
+  process.env.COUPLE_SETUP_CODE = "x".repeat(24);
+  process.env.LIFF_SESSION_SECRET = "x".repeat(32);
+  process.env.APP_URL = "https://app.example.com";
+  process.env.CRON_SECRET = "x".repeat(16);
+}
+
+function createMockDbForSecretary(tableData: Record<string, any>) {
+  const chain = (tableName: string) => {
+    const subChain: any = {
+      select: () => subChain,
+      eq: () => subChain,
+      neq: () => subChain,
+      order: () => subChain,
+      limit: () => subChain,
+      single: () => {
+        return Promise.resolve({ data: tableData[tableName], error: null });
+      },
+      maybeSingle: () => {
+        return Promise.resolve({ data: tableData[tableName], error: null });
+      },
+    };
+    return subChain;
+  };
+  return {
+    from: (name: string) => chain(name),
+  } as any;
+}
+
+test("runLineSecretaryTurn replies actionResultMessage on action failure", async () => {
+  setupMockEnv();
+  const { runLineSecretaryTurn } = await import("./line-secretary-service");
+  const { SecretaryService } = await import("./secretary-service");
+
+  const originalRun = SecretaryService.prototype.run;
+  SecretaryService.prototype.run = async () => {
+    return {
+      reply: "ignored",
+      notifyPartner: false,
+      partnerMessage: null,
+      actionFailure: {
+        result: "stale",
+        action_type: "create_expense",
+      },
+    };
+  };
+
+  try {
+    let repliedText = "";
+    let pushCalled = false;
+    const dependencies = {
+      lineClient: {
+        replyMessage: async () => {},
+        getMessageContent: async () => ({} as any),
+        pushMessage: async () => {
+          pushCalled = true;
+        },
+      },
+      supabase: createMockDbForSecretary({
+        user_preferences: { active_group_id: "00000000-0000-4000-8000-000000000001" },
+        users: { id: "00000000-0000-4000-8000-000000000003", couple_id: 1, role: "partner", line_user_id: "line-partner" },
+        secretary_sessions: null,
+      }),
+      gemini: {} as any,
+    };
+
+    const user = {
+      id: "user-id",
+      couple_id: 1,
+      role: "owner" as const,
+      line_user_id: "line-user-id",
+    };
+
+    await runLineSecretaryTurn({
+      text: "hello",
+      user,
+      dependencies,
+      reply: async (text) => {
+        repliedText = text;
+      },
+    });
+
+    assert.equal(repliedText, "帳目已變動，請重新操作。");
+    assert.equal(pushCalled, false);
+  } finally {
+    SecretaryService.prototype.run = originalRun;
+  }
+});
+
+test("runLineSecretaryTurn replies success and notifies partner when requested", async () => {
+  setupMockEnv();
+  const { runLineSecretaryTurn } = await import("./line-secretary-service");
+  const { SecretaryService } = await import("./secretary-service");
+
+  const originalRun = SecretaryService.prototype.run;
+  SecretaryService.prototype.run = async () => {
+    return {
+      reply: "Here is your coffee.",
+      notifyPartner: true,
+      partnerMessage: "Partner got coffee",
+      actionFailure: null,
+    };
+  };
+
+  try {
+    let repliedText = "";
+    let pushTarget = "";
+    let pushMsg = "";
+
+    const dependencies = {
+      lineClient: {
+        replyMessage: async () => {},
+        getMessageContent: async () => ({} as any),
+        pushMessage: async (params: any) => {
+          pushTarget = params.to;
+          pushMsg = params.messages[0].text;
+        },
+      },
+      supabase: createMockDbForSecretary({
+        user_preferences: { active_group_id: "00000000-0000-4000-8000-000000000001" },
+        users: { id: "00000000-0000-4000-8000-000000000003", couple_id: 1, role: "partner", line_user_id: "line-partner" },
+        secretary_sessions: null,
+      }),
+      gemini: {} as any,
+    };
+
+    const user = {
+      id: "user-id",
+      couple_id: 1,
+      role: "owner" as const,
+      line_user_id: "line-user-id",
+    };
+
+    await runLineSecretaryTurn({
+      text: "hello",
+      user,
+      dependencies,
+      reply: async (text) => {
+        repliedText = text;
+      },
+    });
+
+    assert.equal(repliedText, "Here is your coffee.");
+    assert.equal(pushTarget, "line-partner");
+    assert.equal(pushMsg, "📋 Partner got coffee");
+  } finally {
+    SecretaryService.prototype.run = originalRun;
+  }
+});
+
+test("handleLineAudioTurn prefixes transcript into assistant reply", async () => {
+  setupMockEnv();
+  const { handleLineAudioTurn } = await import("./line-secretary-service");
+  const { SecretaryService } = await import("./secretary-service");
+  const { agentChatService } = await import("./services");
+
+  const originalRun = SecretaryService.prototype.run;
+  SecretaryService.prototype.run = async () => {
+    return {
+      reply: "Understood, logged it.",
+      notifyPartner: false,
+      partnerMessage: null,
+      actionFailure: null,
+    };
+  };
+
+  const originalTranscribe = agentChatService.transcribeAudio;
+  agentChatService.transcribeAudio = async () => "buy coffee";
+
+  try {
+    let repliedText = "";
+    const dependencies = {
+      lineClient: {
+        replyMessage: async () => {},
+        getMessageContent: async (id: string) => {
+          assert.equal(id, "msg-123");
+          return [Buffer.from("fake audio")] as any;
+        },
+        pushMessage: async () => {},
+      },
+      supabase: createMockDbForSecretary({
+        user_preferences: { active_group_id: "00000000-0000-4000-8000-000000000001" },
+        users: { id: "00000000-0000-4000-8000-000000000003", couple_id: 1, role: "partner", line_user_id: "line-partner" },
+        secretary_sessions: null,
+      }),
+      gemini: {} as any,
+    };
+
+    const user = {
+      id: "user-id",
+      couple_id: 1,
+      role: "owner" as const,
+      line_user_id: "line-user-id",
+    };
+
+    await handleLineAudioTurn({
+      messageId: "msg-123",
+      user,
+      dependencies,
+      reply: async (text) => {
+        repliedText = text;
+      },
+    });
+
+    assert.equal(repliedText, "聽到：「buy coffee」\nUnderstood, logged it.");
+
+    // Oversize case
+    let sizeRep = "";
+    const dependenciesOversize = {
+      ...dependencies,
+      lineClient: {
+        ...dependencies.lineClient,
+        getMessageContent: async () => {
+          return [Buffer.alloc(11 * 1024 * 1024)] as any;
+        },
+      },
+    };
+    await handleLineAudioTurn({
+      messageId: "msg-123",
+      user,
+      dependencies: dependenciesOversize,
+      reply: async (text) => {
+        sizeRep = text;
+      },
+    });
+    assert.equal(sizeRep, "語音訊息太大，請傳短一點的語音。");
+
+  } finally {
+    SecretaryService.prototype.run = originalRun;
+    agentChatService.transcribeAudio = originalTranscribe;
+  }
+});
+
+test("handleLineImageTurn detects mime and sends fixed vision prompt", async () => {
+  setupMockEnv();
+  const { handleLineImageTurn } = await import("./line-secretary-service");
+  const { SecretaryService } = await import("./secretary-service");
+
+  let receivedPrompt = "";
+  let receivedMime = "";
+  let receivedBase64 = "";
+
+  const originalRun = SecretaryService.prototype.run;
+  SecretaryService.prototype.run = async (args: any) => {
+    receivedPrompt = args.initialInput.text;
+    receivedBase64 = args.initialInput.imageData;
+    receivedMime = args.initialInput.mimeType;
+    return {
+      reply: "Vision processed",
+      notifyPartner: false,
+      partnerMessage: null,
+      actionFailure: null,
+    };
+  };
+
+  try {
+    const pngHeader = Buffer.from([0x89, 0x50, 0x4e, 0x47]);
+    const dependencies = {
+      lineClient: {
+        replyMessage: async () => {},
+        getMessageContent: async () => [pngHeader] as any,
+        pushMessage: async () => {},
+      },
+      supabase: createMockDbForSecretary({
+        user_preferences: { active_group_id: "00000000-0000-4000-8000-000000000001" },
+        users: { id: "00000000-0000-4000-8000-000000000003", couple_id: 1, role: "partner", line_user_id: "line-partner" },
+        secretary_sessions: null,
+      }),
+      gemini: {} as any,
+    };
+
+    const user = {
+      id: "user-id",
+      couple_id: 1,
+      role: "owner" as const,
+      line_user_id: "line-user-id",
+    };
+
+    let replied = "";
+    await handleLineImageTurn({
+      messageId: "msg-img",
+      user,
+      dependencies,
+      reply: async (text) => {
+        replied = text;
+      },
+    });
+
+    assert.equal(replied, "Vision processed");
+    assert.equal(receivedMime, "image/png");
+    assert.equal(receivedBase64, pngHeader.toString("base64"));
+    assert.ok(receivedPrompt.includes("這是一張收據或發票照片"));
+
+  } finally {
+    SecretaryService.prototype.run = originalRun;
+  }
+});
+
+test("route regression: /api/app/receipts/* endpoints are not found", async () => {
+  setupMockEnv();
+  const routeModule = await import("../app/api/app/[...path]/route");
+  
+  const token = signSession(
+    {
+      userId: "00000000-0000-4000-8000-000000000001",
+      lineUserId: "line-owner",
+      expiresAt: Math.floor(Date.now() / 1000) + 1000,
+    },
+    "x".repeat(32),
+  );
+
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async (url, init) => {
+    if (typeof url === "string" && url.includes("/rest/v1/users")) {
+      return new Response(
+        JSON.stringify({
+          id: "00000000-0000-4000-8000-000000000001",
+          couple_id: 1,
+          line_user_id: "line-owner",
+          role: "owner",
+        }),
+        { status: 200, headers: { "content-type": "application/json" } }
+      );
+    }
+    return originalFetch(url, init);
+  };
+
+  try {
+    const req = new Request("https://app.example.com/api/app/receipts/upload", {
+      method: "POST",
+      body: JSON.stringify({}),
+      headers: {
+        "cookie": `couple_ledger_session=${token}`,
+        "x-forwarded-host": "app.example.com",
+        "origin": "https://app.example.com",
+      },
+    });
+    const res = await routeModule.POST(req, {
+      params: Promise.resolve({ path: ["receipts", "upload"] }),
+    });
+    assert.equal(res.status, 404);
+    
+    const reqGet = new Request("https://app.example.com/api/app/receipts/123/url", {
+      method: "GET",
+      headers: {
+        "cookie": `couple_ledger_session=${token}`,
+      },
+    });
+    const resGet = await routeModule.GET(reqGet, {
+      params: Promise.resolve({ path: ["receipts", "123", "url"] }),
+    });
+    assert.equal(resGet.status, 404);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("static regression: check forbidden strings and imports in production files", async () => {
+  const fs = await import("node:fs");
+  const path = await import("node:path");
+
+  function walk(dir: string, fileList: string[] = []): string[] {
+    const files = fs.readdirSync(dir);
+    for (const file of files) {
+      const filepath = path.join(dir, file);
+      const stat = fs.statSync(filepath);
+      if (stat.isDirectory()) {
+        walk(filepath, fileList);
+      } else {
+        fileList.push(filepath);
+      }
+    }
+    return fileList;
+  }
+
+  const srcDir = path.resolve(__dirname, "..");
+  const allFiles = walk(srcDir);
+
+  const forbiddenPatterns = [
+    /fix_uncertain_receipt/,
+    /processUploadedLineReceipt/,
+    /receiptExpenseInputs/,
+    /receiptDraft/,
+    /apply_pending_action_plan/,
+  ];
+
+  for (const file of allFiles) {
+    if (
+      file.includes(".test.ts") ||
+      file.includes(".spec.ts") ||
+      file.includes("migrations") ||
+      file.includes("node_modules") ||
+      file.includes(".next")
+    ) {
+      continue;
+    }
+
+    const content = fs.readFileSync(file, "utf8");
+
+    // Check imports from bot.ts
+    const botImportRegex = /from\s+["'](@\/lib\/bot|\.\/bot)["']/;
+    if (botImportRegex.test(content)) {
+      assert.fail(`File ${file} contains legacy import from bot.ts`);
+    }
+
+    for (const pattern of forbiddenPatterns) {
+      if (pattern.test(content)) {
+        assert.fail(`File ${file} contains forbidden pattern: ${pattern.toString()}`);
+      }
+    }
+  }
+});
+
+test("LINE regression: image message routes to handleLineImageTurn", async () => {
+  setupMockEnv();
+  const { handleLineEvent } = await import("./line-webhook-service");
+  const { SecretaryService } = await import("./secretary-service");
+
+  let imageTurnCalled = false;
+  const originalRun = SecretaryService.prototype.run;
+  SecretaryService.prototype.run = async () => {
+    imageTurnCalled = true;
+    return {
+      reply: "Vision reply",
+      notifyPartner: false,
+      partnerMessage: null,
+      actionFailure: null,
+    };
+  };
+
+  try {
+    let repliedText = "";
+    const dependencies = {
+      lineClient: {
+        replyMessage: async (params: any) => {
+          repliedText = params.messages[0].text;
+        },
+        getMessageContent: async () => [Buffer.from([0x89, 0x50, 0x4e, 0x47])] as any,
+        pushMessage: async () => {},
+      },
+      supabase: createMockDbForSecretary({
+        user_preferences: { active_group_id: "00000000-0000-4000-8000-000000000001" },
+        users: { id: "00000000-0000-4000-8000-000000000003", couple_id: 1, role: "partner", line_user_id: "line-partner" },
+        secretary_sessions: null,
+      }),
+      gemini: {} as any,
+      setupCode: "couple-setup-code",
+    };
+
+    await handleLineEvent(
+      {
+        type: "message",
+        webhookEventId: "evt-123",
+        deliveryContext: { isRedelivery: false },
+        timestamp: Date.now(),
+        source: { type: "user", userId: "line-owner" },
+        replyToken: "reply-123",
+        message: { type: "image", id: "msg-img-123" },
+      } as any,
+      dependencies as any,
+    );
+
+    assert.ok(imageTurnCalled);
+    assert.equal(repliedText, "Vision reply");
+  } finally {
+    SecretaryService.prototype.run = originalRun;
+  }
+});
+
+function createMockDbConfirm(opts: {
+  actionId?: string;
+  actionType?: string;
+  payload?: any;
+  status?: string;
+  expiresAt?: string;
+  expenseId?: string;
+  expenseGroupId?: string | null;
+  expenseLedger?: string;
+  expenseVersion?: number;
+  activeGroupId?: string;
+  groupBalances?: { [userId: string]: number };
+}) {
+  return {
+    from: (table: string) => {
+      const chain: any = {
+        select: () => chain,
+        eq: () => chain,
+        update: () => chain,
+        order: () => chain,
+        is: () => chain,
+        single: () => {
+          if (table === "user_preferences") {
+            return Promise.resolve({
+              data: { active_group_id: opts.activeGroupId || GROUP },
+              error: null
+            });
+          }
+          if (table === "groups") {
+            return Promise.resolve({
+              data: { id: opts.expenseGroupId !== undefined ? opts.expenseGroupId : GROUP },
+              error: null
+            });
+          }
+          if (table === "pending_actions") {
+            return chain.maybeSingle();
+          }
+          if (table === "expenses") {
+            return Promise.resolve({
+              data: {
+                id: opts.expenseId || "00000000-0000-4000-8000-000000000188",
+                couple_id: 1,
+                group_id: opts.expenseGroupId !== undefined ? opts.expenseGroupId : null,
+                ledger: opts.expenseLedger || "shared",
+                description: "Test Expense",
+                merchant: null,
+                notes: null,
+                tag: "餐飲",
+                amount_twd: 100,
+                paid_by_user_id: CORE_OWNER,
+                expense_date: "2026-07-01",
+                split_method: "equal",
+                version: opts.expenseVersion || 3,
+                created_by_user_id: CORE_OWNER,
+                deleted_at: null,
+                deleted_by_user_id: null,
+                mirror_kind: null,
+                expense_splits: []
+              },
+              error: null
+            });
+          }
+          return Promise.resolve({ data: null, error: null });
+        },
+        maybeSingle: () => {
+          if (opts.status === "not_found") {
+            return Promise.resolve({ data: null, error: null });
+          }
+          return Promise.resolve({
+            data: {
+              id: opts.actionId || "00000000-0000-4000-8000-000000000401",
+              couple_id: 1,
+              group_id: opts.expenseGroupId !== undefined ? opts.expenseGroupId : null,
+              action_type: opts.actionType || "create_expense",
+              payload: opts.payload || {},
+              status: opts.status || "pending",
+              expires_at: opts.expiresAt || "2099-01-01T00:00:00.000Z"
+            },
+            error: null
+          });
+        },
+        then: (resolve: any) => {
+          if (table === "users") {
+            return resolve({
+              data: [
+                { id: CORE_OWNER, couple_id: 1, role: "owner", line_user_id: "line-owner" },
+                { id: CORE_PARTNER, couple_id: 1, role: "partner", line_user_id: "line-partner" }
+              ],
+              error: null
+            });
+          }
+          if (table === "expenses") {
+            const balanceVal = opts.groupBalances?.[CORE_OWNER] ?? 0;
+            if (balanceVal !== 0) {
+              const paidBy = balanceVal < 0 ? CORE_PARTNER : CORE_OWNER;
+              const amount = Math.abs(balanceVal) * 2;
+              return resolve({
+                data: [
+                  {
+                    id: "00000000-0000-4000-8000-000000000099",
+                    ledger: "shared",
+                    amount_twd: amount,
+                    paid_by_user_id: paidBy,
+                    created_by_user_id: paidBy,
+                    expense_date: "2026-07-01",
+                    deleted_at: null,
+                    expense_splits: [
+                      { user_id: CORE_OWNER, amount_twd: amount / 2 },
+                      { user_id: CORE_PARTNER, amount_twd: amount / 2 }
+                    ]
+                  }
+                ],
+                error: null
+              });
+            }
+            return resolve({ data: [], error: null });
+          }
+          if (table === "settlements") {
+            return resolve({ data: [], error: null });
+          }
+          return resolve({ data: [], error: null });
+        }
+      };
+      return chain;
+    }
+  } as any;
+}
+
+test("TS Confirm Paths: create_expense confirm success", async () => {
+  const service = new PendingActionService();
+  const fakeTx = new FakeTxClient();
+  fakeTx.mockResults.push({
+    pattern: /SELECT.*FROM.*pending_actions.*FOR UPDATE/i,
+    result: {
+      rowCount: 1,
+      rows: [{ status: "pending", expires_at: "2099-01-01T00:00:00.000Z", action_type: "create_expense" }]
+    }
+  });
+  activeTxClient = fakeTx;
+
+  try {
+    const mockDb = createMockDbConfirm({
+      actionId: "00000000-0000-4000-8000-000000000401",
+      actionType: "create_expense",
+      payload: {
+        kind: "ledger_command",
+        version: 1,
+        command: {
+          type: "create_expense",
+          expense: {
+            group_id: null,
+            ledger: "private",
+            description: "Test Expense",
+            merchant: null,
+            notes: null,
+            tag: "餐飲",
+            amount_twd: 100,
+            paid_by_user_id: CORE_OWNER,
+            expense_date: "2026-07-01",
+            split_method: "equal"
+          }
+        },
+        metadata: { source: "line", actorUserId: CORE_OWNER, idempotencyKey: null },
+        ledger: "private",
+        description: "Test Expense",
+        tag: "餐飲",
+        amount_twd: 100,
+        paid_by_user_id: CORE_OWNER,
+        expense_date: "2026-07-01",
+        split_method: "equal",
+        splits: { [CORE_OWNER]: 100 }
+      }
+    });
+
+    const result = await service.confirm(
+      { db: mockDb, user: { id: CORE_OWNER, couple_id: 1, line_user_id: "line-owner", role: "owner" } },
+      "00000000-0000-4000-8000-000000000401",
+      true
+    );
+
+    assert.equal(result.result, "confirmed");
+    const selectForUpdate = fakeTx.calls.find(c => c.query.includes("FOR UPDATE"));
+    assert.ok(selectForUpdate);
+    const insertExpense = fakeTx.calls.find(c => c.query.includes("INSERT INTO public.expenses"));
+    assert.ok(insertExpense);
+    assert.equal(insertExpense.params?.[4], "Test Expense");
+    assert.equal(insertExpense.params?.[8], 100);
+  } finally {
+    activeTxClient = null;
+  }
+});
+
+test("TS Confirm Paths: update_expense version mismatch -> stale", async () => {
+  const service = new PendingActionService();
+  const fakeTx = new FakeTxClient();
+  fakeTx.mockResults.push({
+    pattern: /SELECT.*FROM.*pending_actions.*FOR UPDATE/i,
+    result: {
+      rowCount: 1,
+      rows: [{ status: "pending", expires_at: "2099-01-01T00:00:00.000Z", action_type: "update_expense" }]
+    }
+  });
+  fakeTx.mockResults.push({
+    pattern: /UPDATE public.expenses/i,
+    result: { rowCount: 0 }
+  });
+  activeTxClient = fakeTx;
+
+  try {
+    const mockDb = createMockDbConfirm({
+      actionId: "00000000-0000-4000-8000-000000000401",
+      actionType: "update_expense",
+      expenseId: "00000000-0000-4000-8000-000000000188",
+      expenseVersion: 3,
+      payload: {
+        expense_id: "00000000-0000-4000-8000-000000000188",
+        expected_version: 3,
+        group_id: null,
+        ledger: "private",
+        tag: "餐飲",
+        paid_by_user_id: CORE_OWNER,
+        splits: { [CORE_OWNER]: 100 }
+      }
+    });
+
+    const result = await service.confirm(
+      { db: mockDb, user: { id: CORE_OWNER, couple_id: 1, line_user_id: "line-owner", role: "owner" } },
+      "00000000-0000-4000-8000-000000000401",
+      true
+    );
+
+    assert.equal(result.result, "stale");
+  } finally {
+    activeTxClient = null;
+  }
+});
+
+test("TS Confirm Paths: delete_expense / restore_expense success", async () => {
+  const service = new PendingActionService();
+  const fakeTx = new FakeTxClient();
+  fakeTx.mockResults.push({
+    pattern: /SELECT.*FROM.*pending_actions.*FOR UPDATE/i,
+    result: {
+      rowCount: 1,
+      rows: [{ status: "pending", expires_at: "2099-01-01T00:00:00.000Z", action_type: "delete_expense" }]
+    }
+  });
+  activeTxClient = fakeTx;
+
+  try {
+    const mockDb = createMockDbConfirm({
+      actionId: "00000000-0000-4000-8000-000000000401",
+      actionType: "delete_expense",
+      expenseId: "00000000-0000-4000-8000-000000000188",
+      expenseVersion: 3,
+      payload: {
+        expense_id: "00000000-0000-4000-8000-000000000188",
+        expected_version: 3
+      }
+    });
+
+    const result = await service.confirm(
+      { db: mockDb, user: { id: CORE_OWNER, couple_id: 1, line_user_id: "line-owner", role: "owner" } },
+      "00000000-0000-4000-8000-000000000401",
+      true
+    );
+
+    assert.equal(result.result, "confirmed");
+    const updateCall = fakeTx.calls.find(c => c.query.includes("UPDATE public.expenses"));
+    assert.ok(updateCall);
+    assert.ok(updateCall.query.includes("deleted_at ="));
+  } finally {
+    activeTxClient = null;
+  }
+});
+
+test("TS Confirm Paths: settle success", async () => {
+  const service = new PendingActionService();
+  const fakeTx = new FakeTxClient();
+  fakeTx.mockResults.push({
+    pattern: /SELECT.*FROM.*pending_actions.*FOR UPDATE/i,
+    result: {
+      rowCount: 1,
+      rows: [{ status: "pending", expires_at: "2099-01-01T00:00:00.000Z", action_type: "settle" }]
+    }
+  });
+  activeTxClient = fakeTx;
+
+  try {
+    const mockDb = createMockDbConfirm({
+      actionId: "00000000-0000-4000-8000-000000000401",
+      actionType: "settle",
+      activeGroupId: GROUP,
+      groupBalances: { [CORE_OWNER]: -500 },
+      payload: {
+        kind: "ledger_command",
+        version: 1,
+        command: {
+          type: "settle_debt",
+          settlement: {
+            group_id: null,
+            from_user_id: CORE_OWNER,
+            to_user_id: CORE_PARTNER,
+            amount_twd: 500
+          }
+        },
+        metadata: { source: "line", actorUserId: CORE_OWNER, idempotencyKey: null },
+        group_id: null,
+        from_user_id: CORE_OWNER,
+        to_user_id: CORE_PARTNER,
+        amount_twd: 500
+      }
+    });
+
+    const result = await service.confirm(
+      { db: mockDb, user: { id: CORE_OWNER, couple_id: 1, line_user_id: "line-owner", role: "owner" } },
+      "00000000-0000-4000-8000-000000000401",
+      true
+    );
+
+    assert.equal(result.result, "confirmed");
+    const insertSettlement = fakeTx.calls.find(c => c.query.includes("INSERT INTO public.settlements"));
+    assert.ok(insertSettlement);
+    assert.equal(insertSettlement.params?.[5], 500);
+  } finally {
+    activeTxClient = null;
+  }
+});
+
+test("TS Confirm Paths: batch_create_expenses success", async () => {
+  const service = new PendingActionService();
+  const fakeTx = new FakeTxClient();
+  fakeTx.mockResults.push({
+    pattern: /SELECT.*FROM.*pending_actions.*FOR UPDATE/i,
+    result: {
+      rowCount: 1,
+      rows: [{ status: "pending", expires_at: "2099-01-01T00:00:00.000Z", action_type: "batch_create_expenses" }]
+    }
+  });
+  activeTxClient = fakeTx;
+
+  try {
+    const mockDb = createMockDbConfirm({
+      actionId: "00000000-0000-4000-8000-000000000401",
+      actionType: "batch_create_expenses",
+      payload: {
+        items: [
+          {
+            group_id: null,
+            ledger: "private",
+            description: "Batch 1",
+            merchant: null,
+            notes: null,
+            tag: "餐飲",
+            amount_twd: 150,
+            paid_by_user_id: CORE_OWNER,
+            expense_date: "2026-07-01",
+            split_method: "equal",
+            splits: { [CORE_OWNER]: 150 }
+          }
+        ]
+      }
+    });
+
+    const result = await service.confirm(
+      { db: mockDb, user: { id: CORE_OWNER, couple_id: 1, line_user_id: "line-owner", role: "owner" } },
+      "00000000-0000-4000-8000-000000000401",
+      true
+    );
+
+    assert.equal(result.result, "confirmed");
+    assert.equal((result as any).created_count, 1);
+    const insertExpense = fakeTx.calls.find(c => c.query.includes("INSERT INTO public.expenses"));
+    assert.ok(insertExpense);
+  } finally {
+    activeTxClient = null;
+  }
+});
+
+test("TS Confirm Paths: batch_update_expenses success", async () => {
+  const service = new PendingActionService();
+  const fakeTx = new FakeTxClient();
+  fakeTx.mockResults.push({
+    pattern: /SELECT.*FROM.*pending_actions.*FOR UPDATE/i,
+    result: {
+      rowCount: 1,
+      rows: [{ status: "pending", expires_at: "2099-01-01T00:00:00.000Z", action_type: "batch_update_expenses" }]
+    }
+  });
+  activeTxClient = fakeTx;
+
+  try {
+    const mockDb = createMockDbConfirm({
+      actionId: "00000000-0000-4000-8000-000000000401",
+      actionType: "batch_update_expenses",
+      expenseId: "00000000-0000-4000-8000-000000000188",
+      expenseGroupId: GROUP, // MATCH group_id!
+      expenseVersion: 3,
+      payload: {
+        updates: [
+          {
+            expense_id: "00000000-0000-4000-8000-000000000188",
+            expected_version: 3,
+            tag: "交通"
+          }
+        ]
+      }
+    });
+
+    const result = await service.confirm(
+      { db: mockDb, user: { id: CORE_OWNER, couple_id: 1, line_user_id: "line-owner", role: "owner" } },
+      "00000000-0000-4000-8000-000000000401",
+      true
+    );
+
+    assert.equal(result.result, "confirmed");
+    const updateCall = fakeTx.calls.find(c => c.query.includes("UPDATE public.expenses"));
+    assert.ok(updateCall);
+    assert.ok(updateCall.query.includes("tag ="));
+  } finally {
+    activeTxClient = null;
+  }
+});
+
+test("TS Confirm Paths: already_done / expired / not_found", async () => {
+  const service = new PendingActionService();
+
+  // Case 1: not_found
+  const fakeTxNotFound = new FakeTxClient();
+  fakeTxNotFound.mockResults.push({
+    pattern: /SELECT.*FROM.*pending_actions.*FOR UPDATE/i,
+    result: { rowCount: 0, rows: [] }
+  });
+  activeTxClient = fakeTxNotFound;
+
+  try {
+    const mockDb = createMockDbConfirm({
+      status: "not_found"
+    });
+
+    const result = await service.confirm(
+      { db: mockDb, user: { id: CORE_OWNER, couple_id: 1, line_user_id: "line-owner", role: "owner" } },
+      "00000000-0000-4000-8000-000000000401",
+      true
+    );
+    assert.equal(result.result, "not_found");
+  } finally {
+    activeTxClient = null;
+  }
+
+  // Case 2: already_done
+  const fakeTxAlreadyDone = new FakeTxClient();
+  fakeTxAlreadyDone.mockResults.push({
+    pattern: /SELECT.*FROM.*pending_actions.*FOR UPDATE/i,
+    result: {
+      rowCount: 1,
+      rows: [{ status: "confirmed", expires_at: "2099-01-01T00:00:00.000Z", action_type: "create_expense" }]
+    }
+  });
+  activeTxClient = fakeTxAlreadyDone;
+
+  try {
+    const mockDb = createMockDbConfirm({
+      status: "confirmed",
+      actionType: "create_expense"
+    });
+
+    const result = await service.confirm(
+      { db: mockDb, user: { id: CORE_OWNER, couple_id: 1, line_user_id: "line-owner", role: "owner" } },
+      "00000000-0000-4000-8000-000000000401",
+      true
+    );
+    assert.equal(result.result, "already_done");
+  } finally {
+    activeTxClient = null;
+  }
+
+  // Case 3: expired
+  const fakeTxExpired = new FakeTxClient();
+  fakeTxExpired.mockResults.push({
+    pattern: /SELECT.*FROM.*pending_actions.*FOR UPDATE/i,
+    result: {
+      rowCount: 1,
+      rows: [{ status: "pending", expires_at: "1970-01-01T00:00:00.000Z", action_type: "create_expense" }]
+    }
+  });
+  activeTxClient = fakeTxExpired;
+
+  try {
+    const mockDb = createMockDbConfirm({
+      status: "pending",
+      expiresAt: "1970-01-01T00:00:00.000Z",
+      actionType: "create_expense"
+    });
+
+    const result = await service.confirm(
+      { db: mockDb, user: { id: CORE_OWNER, couple_id: 1, line_user_id: "line-owner", role: "owner" } },
+      "00000000-0000-4000-8000-000000000401",
+      true
+    );
+    assert.equal(result.result, "expired");
+  } finally {
+    activeTxClient = null;
+  }
+});
+
+test("TS Confirm Paths: constraint violation -> stale", async () => {
+  const service = new PendingActionService();
+  const fakeTx = new FakeTxClient();
+  fakeTx.mockResults.push({
+    pattern: /SELECT.*FROM.*pending_actions.*FOR UPDATE/i,
+    result: {
+      rowCount: 1,
+      rows: [{ status: "pending", expires_at: "2099-01-01T00:00:00.000Z", action_type: "create_expense" }]
+    }
+  });
+  fakeTx.mockResults.push({
+    pattern: /INSERT INTO public.expenses/i,
+    result: Promise.reject(Object.assign(new Error("Unique violation"), { code: "23505" }))
+  });
+  activeTxClient = fakeTx;
+
+  try {
+    const mockDb = createMockDbConfirm({
+      actionId: "00000000-0000-4000-8000-000000000401",
+      actionType: "create_expense",
+      payload: {
+        kind: "ledger_command",
+        version: 1,
+        command: {
+          type: "create_expense",
+          expense: {
+            group_id: null,
+            ledger: "private",
+            description: "Test Expense",
+            merchant: null,
+            notes: null,
+            tag: "餐飲",
+            amount_twd: 100,
+            paid_by_user_id: CORE_OWNER,
+            expense_date: "2026-07-01",
+            split_method: "equal"
+          }
+        },
+        metadata: { source: "line", actorUserId: CORE_OWNER, idempotencyKey: null },
+        ledger: "private",
+        description: "Test Expense",
+        tag: "餐飲",
+        amount_twd: 100,
+        paid_by_user_id: CORE_OWNER,
+        expense_date: "2026-07-01",
+        split_method: "equal",
+        splits: { [CORE_OWNER]: 100 }
+      }
+    });
+
+    const result = await service.confirm(
+      { db: mockDb, user: { id: CORE_OWNER, couple_id: 1, line_user_id: "line-owner", role: "owner" } },
+      "00000000-0000-4000-8000-000000000401",
+      true
+    );
+
+    assert.equal(result.result, "stale");
+  } finally {
+    activeTxClient = null;
+  }
 });

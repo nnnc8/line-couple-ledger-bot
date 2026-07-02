@@ -17,7 +17,7 @@ interface PrivateLedgerProps {
   data: Bootstrap;
   onEdit: (expense: Expense) => void;
   onDelete: (expense: Expense) => void;
-  onReceipt: (id: string) => void;
+  onReceipt?: (id: string) => void;
 }
 
 export function PrivateLedger({

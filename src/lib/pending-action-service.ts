@@ -1,5 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { taipeiToday } from "./ledger-shared";
+import { withTx } from "./db/tx";
+import { applyPendingActionPlanTx, TransactionStaleError } from "./pending-action-executor";
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
@@ -138,7 +140,7 @@ const pendingSettlementRowSchema = z.object({
   amount_twd: z.number().int(),
 });
 
-interface PendingActionPlan {
+export interface PendingActionPlan {
   insert_expenses?: Array<Record<string, unknown>>;
   update_expenses?: Array<Record<string, unknown>>;
   delete_expense_splits?: string[];
@@ -293,7 +295,7 @@ export class PendingActionService {
       .eq("status", "pending")
       .gt("expires_at", new Date().toISOString())
       .single();
-    if (action.error) throw new HttpError(404, "找不到收據草稿");
+    if (action.error) throw new HttpError(404, "找不到待確認草稿");
     const row = z
       .object({
         id: z.string(),
@@ -302,7 +304,7 @@ export class PendingActionService {
       })
       .parse(action.data);
     if (!["create_expense", "batch_create_expenses"].includes(row.action_type)) {
-      throw new HttpError(400, "這個收據草稿不能改帳本");
+      throw new HttpError(400, "這個待確認草稿不能改帳本");
     }
     const payload = this.retargetPayload(row.payload, context.user.id, parsed);
     const update = await context.db
@@ -511,20 +513,25 @@ export class PendingActionService {
       throw error;
     }
 
-    const result = await context.db.rpc("apply_pending_action_plan", {
-      p_action_id: id,
-      p_plan: plan,
-    });
-    if (result.error) {
-      console.error("[CONFIRM_ACTION] result.error:", JSON.stringify(result.error));
-      throw new Error("confirm action failed");
+    let value: ActionResult;
+    try {
+      value = await withTx(async (client) => {
+        return await applyPendingActionPlanTx(
+          client,
+          id,
+          context.user.id,
+          plan,
+          new Date().toISOString()
+        );
+      });
+    } catch (error) {
+      if (error instanceof TransactionStaleError) {
+        value = { result: "stale", action_type: action.action_type };
+      } else {
+        console.error("[CONFIRM_ACTION] Transaction failed:", error);
+        throw error;
+      }
     }
-    const value = actionResultSchema.parse({
-      ...(typeof result.data === "object" && result.data ? result.data : {}),
-      ...(action.action_type === "batch_create_expenses"
-        ? { created_count: plan.insert_expenses?.length ?? 0 }
-        : {}),
-    });
     if (value.result === "confirmed") {
       if (["create_expense", "update_expense"].includes(action.action_type)) {
         await this.applyConfirmedActionSideEffects(context, id);
@@ -1776,40 +1783,46 @@ export class PendingActionService {
       splitMethod?: "equal" | "exact" | "percentage";
     },
   ) {
-    const today = taipeiToday();
-    const expenseDate = params.expenseDate || today;
+    if (params.splitMethod === "exact" || params.splitMethod === "percentage") {
+      throw new HttpError(400, "AI 記帳目前只支援平均分攤");
+    }
+
     const users = await this.loadCoupleUsers(context);
     const partner = users.find((u) => u.id !== context.user.id);
     if (params.ledger === "shared" && !partner) {
       throw new HttpError(409, "找不到對方用戶");
     }
+    const partnerUserId = partner?.id ?? null;
 
-    const partnerId = partner?.id ?? null;
-    const splits = params.ledger === "private"
-      ? { [context.user.id]: params.amountTwd }
-      : {
-          [context.user.id]: params.paidBy === "self" ? Math.ceil(params.amountTwd / 2) : params.amountTwd - Math.ceil(params.amountTwd / 2),
-          [partnerId!]: params.paidBy === "self" ? params.amountTwd - Math.ceil(params.amountTwd / 2) : Math.ceil(params.amountTwd / 2),
-        };
-
-    const expense = {
-      group_id: params.ledger === "private" ? null : params.groupId,
+    const expenseInput = {
       ledger: params.ledger,
+      groupId: params.ledger === "private" ? null : params.groupId,
       description: params.description,
       merchant: params.merchant ?? null,
       notes: params.notes ?? null,
-      tag: params.tag ?? "其他",
-      amount_twd: params.amountTwd,
-      paid_by_user_id: params.paidBy === "self" ? context.user.id : partnerId!,
-      expense_date: expenseDate,
-      split_method: params.splitMethod ?? "equal",
+      tag: params.tag || "其他",
+      amountTwd: params.amountTwd,
+      paidBy: params.paidBy,
+      expenseDate: params.expenseDate || taipeiToday(),
+      splitMethod: "equal" as const,
+      selfValue: null,
+      partnerValue: null,
+      receiptId: null,
     };
+
+    const draft = this.ledgerCommandService.buildExpenseDraft(expenseInput, {
+      actorUserId: context.user.id,
+      partnerUserId,
+    });
+
+    const legacyPayload = expenseDraftToLegacyPayload(draft);
+    const { splits, receipt_id, ...expenseFields } = legacyPayload;
 
     return {
       type: "create_expense" as const,
-      groupId: params.groupId,
+      groupId: draft.groupId,
       userId: context.user.id,
-      expense,
+      expense: expenseFields,
       splits,
     };
   }
@@ -1826,27 +1839,74 @@ export class PendingActionService {
       expenseDate?: string;
     },
   ) {
-    const expense = await this.loadExpense(context, expenseId);
+    const mapped: Record<string, any> = {};
+    const ledger = updates.ledger;
+    const tag = updates.tag;
+    const description = updates.description;
+    const amountTwd = updates.amountTwd !== undefined ? updates.amountTwd : (updates as any).amount_twd;
+    const expenseDate = updates.expenseDate !== undefined ? updates.expenseDate : (updates as any).expense_date;
+    const paidBy = updates.paidBy !== undefined ? updates.paidBy : (updates as any).paid_by;
+
+    if (ledger !== undefined) mapped.ledger = ledger;
+    if (tag !== undefined) mapped.tag = tag;
+    if (description !== undefined) mapped.description = description;
+    if (amountTwd !== undefined) mapped.amount_twd = amountTwd;
+    if (expenseDate !== undefined) mapped.expense_date = expenseDate;
+    if (paidBy !== undefined) {
+      if (paidBy === "self") {
+        mapped.paid_by_user_id = context.user.id;
+      } else {
+        const users = await this.loadCoupleUsers(context);
+        const partner = users.find((u) => u.id !== context.user.id);
+        mapped.paid_by_user_id = partner?.id ?? context.user.id;
+      }
+    }
+
+    const { standardInput, current } = await this.normalizeUpdateExpenseInput(
+      context,
+      expenseId,
+      mapped,
+      undefined,
+    );
+
     const users = await this.loadCoupleUsers(context);
     const partner = users.find((u) => u.id !== context.user.id);
+    const partnerUserId = partner?.id ?? null;
+
+    const draft = this.ledgerCommandService.buildExpenseDraft(standardInput, {
+      actorUserId: context.user.id,
+      partnerUserId,
+    });
 
     const mappedUpdates: Record<string, unknown> = {};
-    if (updates.ledger) mappedUpdates.ledger = updates.ledger;
-    if (updates.tag) mappedUpdates.tag = updates.tag;
-    if (updates.description) mappedUpdates.description = updates.description;
-    if (updates.amountTwd) mappedUpdates.amount_twd = updates.amountTwd;
-    if (updates.expenseDate) mappedUpdates.expense_date = updates.expenseDate;
-    if (updates.paidBy) {
-      mappedUpdates.paid_by_user_id = updates.paidBy === "self"
-        ? context.user.id
-        : partner?.id ?? context.user.id;
+    if (draft.ledger !== current.ledger) {
+      mappedUpdates.ledger = draft.ledger;
+    }
+    if (draft.tag !== current.tag) {
+      mappedUpdates.tag = draft.tag;
+    }
+    if (draft.description !== current.description) {
+      mappedUpdates.description = draft.description;
+    }
+    if (draft.amountTwd !== current.amount_twd) {
+      mappedUpdates.amount_twd = draft.amountTwd;
+    }
+    if (draft.paidByUserId !== current.paid_by_user_id) {
+      mappedUpdates.paid_by_user_id = draft.paidByUserId;
+    }
+    if (draft.expenseDate !== current.expense_date) {
+      mappedUpdates.expense_date = draft.expenseDate;
+    }
+
+    if (Object.keys(mappedUpdates).length === 0) {
+      throw new HttpError(400, "沒有可修改的欄位");
     }
 
     return {
       type: "update_expense" as const,
       expenseId,
-      expectedVersion: expense.version,
-      groupId: expense.group_id,
+      expectedVersion: current.version,
+      groupId: draft.groupId,
       userId: context.user.id,
       updates: mappedUpdates,
     };
@@ -1858,16 +1918,20 @@ export class PendingActionService {
     amountTwd: number,
   ) {
     const balances = await this.loadSettlementBalanceRows(context, groupId);
-    const me = balances.find((b) => b.userId === context.user.id);
-    const myBalance = me?.balanceTwd ?? 0;
-
-    if (myBalance >= 0) {
-      throw new HttpError(400, "目前你不需要結清（沒有欠對方錢）。");
-    }
-
-    const debt = Math.abs(myBalance);
-    if (amountTwd > debt) {
-      throw new HttpError(400, `結清金額 NT$${amountTwd} 大於未結清金額 NT$${debt}。`);
+    try {
+      this.ledgerCommandService.buildSettlementDraft(
+        {
+          type: "settle",
+          groupId,
+          amountTwd,
+        },
+        {
+          balances,
+          actorUserId: context.user.id,
+        },
+      );
+    } catch (error) {
+      throw new HttpError(400, error instanceof Error ? error.message : "結清驗證失敗");
     }
 
     return {

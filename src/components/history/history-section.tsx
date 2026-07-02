@@ -14,7 +14,7 @@ interface HistorySectionProps {
   users: User[];
   onEdit: (expense: Expense) => void;
   onDelete: (expense: Expense) => void;
-  onReceipt: (id: string) => void;
+  onReceipt?: (id: string) => void;
 }
 
 export function HistorySection({

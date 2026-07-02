@@ -109,20 +109,6 @@ export default function Home() {
   React.useEffect(() => {
     if (!data) return;
     const params = new URLSearchParams(window.location.search);
-    const receiptId = params.get("receipt");
-    if (receiptId) {
-      void fetch(`/api/app/receipts/${receiptId}`)
-        .then((res) => res.json())
-        .then((receipt) => {
-          sessionStorage.setItem("receiptDraft", JSON.stringify(receipt));
-          sessionStorage.removeItem("editExpense");
-          history.replaceState(null, "", "/");
-          setEditExpense(null);
-          setExpenseOpen(true);
-        })
-        .catch(() => setError("無法讀取收據"));
-      return;
-    }
     const editId = params.get("edit");
     if (editId) {
       const expense =
@@ -130,66 +116,29 @@ export default function Home() {
         data.sharedExpenses.find((e) => e.id === editId) ??
         data.privateExpenses.find((e) => e.id === editId);
       if (expense) {
-        sessionStorage.removeItem("receiptDraft");
         history.replaceState(null, "", "/");
         // eslint-disable-next-line react-hooks/set-state-in-effect
         setEditExpense(expense);
         setExpenseOpen(true);
       }
     }
-  }, [data, setError]);
-
-  async function uploadReceipt(
-    file: File,
-    groupId: string,
-  ): Promise<{ receiptId: string; extraction: { merchant: string | null; expenseDate: string | null; amountTwd: number | null } }> {
-    if (file.size > 10 * 1024 * 1024) throw new Error("收據不可超過 10 MB");
-    const mimeType = receiptMime(file);
-    if (!mimeType) throw new Error("只接受 JPEG、PNG、WebP 或 HEIC 收據");
-    const created = (await api("/api/app/receipts/upload", {
-      name: file.name,
-      mimeType,
-      sizeBytes: file.size,
-      groupId,
-    })) as unknown as { receiptId: string; signedUrl: string };
-    const uploaded = await fetch(created.signedUrl, {
-      method: "PUT",
-      headers: { "content-type": mimeType, "x-upsert": "false" },
-      body: file,
-    });
-    if (!uploaded.ok) throw new Error("收據上傳失敗");
-    const result = (await api(`/api/app/receipts/${created.receiptId}/process`, {})) as unknown as {
-      extraction: { merchant: string | null; expenseDate: string | null; amountTwd: number | null };
-    };
-    return { receiptId: created.receiptId, extraction: result.extraction };
-  }
-
-  async function openReceiptUrl(id: string) {
-    try {
-      const r = (await api(`/api/app/receipts/${id}/url`, {})) as unknown as { url: string };
-      window.open(r.url, "_blank", "noopener,noreferrer");
-    } catch {
-      toast.error("無法開啟收據");
-    }
-  }
+  }, [data]);
 
   function openAdd() {
     setEditExpense(null);
     sessionStorage.removeItem("editExpense");
-    sessionStorage.removeItem("receiptDraft");
     setExpenseOpen(true);
   }
 
-  function openEdit(expense: Expense) {
+  const openEdit = React.useCallback((expense: Expense) => {
     setEditExpense(expense);
     setExpenseOpen(true);
-  }
+  }, []);
 
   function closeExpense() {
     setExpenseOpen(false);
     setEditExpense(null);
     sessionStorage.removeItem("editExpense");
-    sessionStorage.removeItem("receiptDraft");
   }
 
   function runAction(
@@ -281,7 +230,6 @@ export default function Home() {
               }
               onAdd={openAdd}
               onEdit={openEdit}
-              onReceipt={openReceiptUrl}
             />
           )}
           {tab === "history" && (
@@ -299,7 +247,6 @@ export default function Home() {
                   { success: expense.deleted_at ? "已復原" : "已刪除" },
                 )
               }
-              onReceipt={openReceiptUrl}
             />
           )}
           {tab === "private" && (
@@ -316,7 +263,6 @@ export default function Home() {
                   { success: expense.deleted_at ? "已復原" : "已刪除" },
                 )
               }
-              onReceipt={openReceiptUrl}
             />
           )}
           {tab === "settings" && (
@@ -366,9 +312,6 @@ export default function Home() {
                   )
               : undefined
           }
-          onReceipt={async (file) =>
-            uploadReceipt(file, data.activeGroupId)
-          }
         />
       </Sheet>
     </main>
@@ -388,12 +331,7 @@ function titleFor(tab: TabKey): string {
   }
 }
 
-function receiptMime(file: File): string | null {
-  if (["image/jpeg", "image/png", "image/webp", "image/heic", "image/heif"].includes(file.type))
-    return file.type;
-  const ext = file.name.toLowerCase().split(".").pop();
-  return ext === "heic" ? "image/heic" : ext === "heif" ? "image/heif" : null;
-}
+
 
 function LoadingShell() {
   return (

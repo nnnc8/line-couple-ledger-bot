@@ -17,16 +17,11 @@ import {
 } from "./ledger-shared";
 import { type ServerContext } from "./server-runtime";
 
-const MODEL = "gemini-3.1-flash-lite";
-const RECEIPT_LIMIT = 10 * 1024 * 1024;
 const ACTION_SECONDS = 60 * 5;
 
 export const ledgerCommandService = new LedgerCommandService();
 export const ledgerQueryService = new LedgerQueryService();
-export const receiptService = new ReceiptService({
-  model: MODEL,
-  receiptLimit: RECEIPT_LIMIT,
-});
+export const receiptService = new ReceiptService();
 export const groupService = new GroupService();
 export const recurringService = new RecurringService();
 export const bankImportService = new BankImportService();
@@ -93,32 +88,7 @@ export async function saveRecurring(context: ServerContext, input: unknown) {
   );
 }
 
-export async function createReceiptUpload(
-  context: ServerContext,
-  input: unknown,
-) {
-  return receiptService.createUpload(context, input, (groupId) =>
-    requireGroup(context, groupId).then(() => undefined),
-  );
-}
 
-export async function processReceipt(
-  context: ServerContext,
-  receiptId: string,
-) {
-  return receiptService.process(context, receiptId);
-}
-
-export async function receiptUrl(context: ServerContext, receiptId: string) {
-  return receiptService.url(context, receiptId);
-}
-
-export async function receiptDetails(
-  context: ServerContext,
-  receiptId: string,
-) {
-  return receiptService.details(context, receiptId);
-}
 
 export async function importBankCsv(context: ServerContext, input: unknown) {
   const preference = await context.db

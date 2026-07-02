@@ -102,7 +102,265 @@ const categoryExpensesInputSchema = z.object({
   limit: z.coerce.number().int().min(1).max(50).default(20),
 });
 
+const queryExpensesInputSchema = z.object({
+  dateFrom: z.string().optional(),
+  dateTo: z.string().optional(),
+  tag: z.string().optional(),
+  member: z.enum(["me", "partner", "both"]).optional(),
+  type: z.enum(["shared", "private", "all"]).optional(),
+  limit: z.number().int().min(1).max(20).optional(),
+  sort: z.enum(["date_desc", "amount_desc"]).optional(),
+});
+
+const recentExpensesInputSchema = z.object({
+  limit: z.number().int().min(1).max(10).default(5),
+  ledger: z.enum(["shared", "private", "all"]).default("all"),
+});
+
+const queryExpensesSummarySchema = z.object({
+  total: z.number().int(),
+  count: z.number().int(),
+  average: z.number().int(),
+  date_range: z
+    .object({ from: z.string(), to: z.string() })
+    .nullable(),
+});
+
+type QueryExpensesItem = {
+  id: string;
+  description: string;
+  merchant: string | null;
+  tag: string;
+  amount: number;
+  date: string;
+  ledger: "shared" | "private";
+};
+
+const balanceRowSchema = z.object({
+  user_id: z.string().uuid(),
+  balance_twd: z.coerce.number().int(),
+});
+
+const balanceSummarySchema = z.object({
+  my_balance: z.number().int(),
+  partner_balance: z.number().int(),
+  summary: z.string(),
+});
+
+const recurringItemSchema = z.object({
+  description: z.string(),
+  amount: z.number(),
+  frequency: z.string(),
+  next_run: z.string(),
+  active: z.boolean(),
+  tag: z.string(),
+  ledger: z.enum(["shared", "private"]),
+});
+
+const recurringListResultSchema = z.object({
+  items: z.array(recurringItemSchema),
+});
+
+const recentExpenseItemSchema = z.object({
+  id: z.string().uuid(),
+  description: z.string(),
+  merchant: z.string().nullable(),
+  tag: z.string(),
+  amount_twd: z.number().int(),
+  ledger: z.enum(["shared", "private"]),
+  expense_date: z.string(),
+  paid_by: z.enum(["self", "partner"]),
+  version: z.number().int(),
+});
+
+const recentExpensesResultSchema = z.object({
+  count: z.number().int(),
+  items: z.array(recentExpenseItemSchema),
+});
+
+export type QueryExpensesInput = z.input<typeof queryExpensesInputSchema>;
+export type QueryExpensesSummary = z.infer<typeof queryExpensesSummarySchema>;
+export type { QueryExpensesItem };
+export type BalanceSummary = z.infer<typeof balanceSummarySchema>;
+export type RecurringListResult = z.infer<typeof recurringListResultSchema>;
+export type RecurringItem = z.infer<typeof recurringItemSchema>;
+export type RecentExpensesInput = z.input<typeof recentExpensesInputSchema>;
+export type RecentExpensesResult = z.infer<typeof recentExpensesResultSchema>;
+export type RecentExpenseItem = z.infer<typeof recentExpenseItemSchema>;
+
+const RECENT_SELECT =
+  "id, group_id, ledger, description, merchant, tag, amount_twd, paid_by_user_id, created_by_user_id, expense_date, version, deleted_at, created_at";
+
+const RECURRING_SELECT =
+  "id, description, amount_twd, frequency, next_run_date, active, tag, ledger";
+
 export class LedgerQueryService {
+  async queryExpenses(
+    context: { db: SupabaseClient; groupId: string; userId: string },
+    rawInput: QueryExpensesInput,
+  ): Promise<
+    | { summary: QueryExpensesSummary; items?: QueryExpensesItem[] }
+    | { error: string }
+  > {
+    const input = queryExpensesInputSchema.parse(rawInput);
+    const expenses = await this.listAccessibleExpenses(context.db, {
+      groupId: context.groupId,
+      userId: context.userId,
+      dateFrom: input.dateFrom,
+      dateTo: input.dateTo,
+      tag: input.tag,
+      member: input.member,
+      type: input.type,
+      limitPerLedger: 500,
+    });
+    const summary = summarizeExpenses(expenses);
+    if (!input.limit) {
+      return { summary };
+    }
+    const sorted =
+      input.sort === "amount_desc"
+        ? [...expenses].sort((a, b) => b.amount_twd - a.amount_twd)
+        : [...expenses].sort((a, b) =>
+            b.expense_date.localeCompare(a.expense_date),
+          );
+    const items = sorted.slice(0, input.limit).map((expense) => ({
+      id: expense.id,
+      description: expense.description,
+      merchant: expense.merchant,
+      tag: expense.tag,
+      amount: expense.amount_twd,
+      date: expense.expense_date,
+      ledger: expense.ledger,
+    }));
+    return { summary, items };
+  }
+
+  async balanceSummary(
+    context: { db: SupabaseClient; groupId: string; userId: string },
+  ): Promise<BalanceSummary | { error: string }> {
+    const result = await context.db.rpc("group_balances", {
+      p_group_id: context.groupId,
+    });
+    if (result.error) return { error: "balance lookup failed" };
+    const balances = z.array(balanceRowSchema).parse(result.data);
+    const me = balances.find((row) => row.user_id === context.userId);
+    const partner = balances.find((row) => row.user_id !== context.userId);
+    const myBalance = me?.balance_twd ?? 0;
+    const partnerBalance = partner?.balance_twd ?? 0;
+    const summary =
+      myBalance > 0
+        ? `另一半欠你 NT$${myBalance}`
+        : myBalance < 0
+          ? `你欠另一半 NT$${Math.abs(myBalance)}`
+          : "已結清";
+    return balanceSummarySchema.parse({
+      my_balance: myBalance,
+      partner_balance: partnerBalance,
+      summary,
+    });
+  }
+
+  async recentExpenses(
+    context: { db: SupabaseClient; groupId: string; userId: string },
+    rawInput: RecentExpensesInput,
+  ): Promise<RecentExpensesResult> {
+    const input = recentExpensesInputSchema.parse(rawInput);
+    const queries: Promise<{ data: unknown[] | null; error: unknown }>[] = [];
+
+    if (input.ledger !== "private") {
+      queries.push(
+        context.db
+          .from("expenses")
+          .select(RECENT_SELECT)
+          .eq("group_id", context.groupId)
+          .is("mirror_kind", null)
+          .order("created_at", { ascending: false })
+          .limit(input.limit) as unknown as Promise<{
+          data: unknown[] | null;
+          error: unknown;
+        }>,
+      );
+    }
+
+    if (input.ledger !== "shared") {
+      queries.push(
+        context.db
+          .from("expenses")
+          .select(RECENT_SELECT)
+          .eq("ledger", "private")
+          .eq("created_by_user_id", context.userId)
+          .is("mirror_kind", null)
+          .order("created_at", { ascending: false })
+          .limit(input.limit) as unknown as Promise<{
+          data: unknown[] | null;
+          error: unknown;
+        }>,
+      );
+    }
+
+    const results = await Promise.all(queries);
+    const rows = results.flatMap((result) =>
+      result.error ? [] : (result.data as Array<Record<string, unknown>>),
+    );
+
+    const seen = new Set<string>();
+    const unique = rows.filter((row) => {
+      const id = String(row.id);
+      const deletedAt = row.deleted_at as string | null | undefined;
+      if (!id || deletedAt || seen.has(id)) return false;
+      seen.add(id);
+      return true;
+    });
+
+    const sorted = unique
+      .sort((a, b) => {
+        const left = String(a.created_at ?? "");
+        const right = String(b.created_at ?? "");
+        if (right === left) return 0;
+        return right.localeCompare(left);
+      })
+      .slice(0, input.limit);
+
+    const items = sorted.map((row) => ({
+      id: String(row.id),
+      description: String(row.description ?? ""),
+      merchant: (row.merchant as string | null) ?? null,
+      tag: String(row.tag ?? ""),
+      amount_twd: Number(row.amount_twd ?? 0),
+      ledger: row.ledger === "private" ? "private" : "shared",
+      expense_date: String(row.expense_date ?? ""),
+      paid_by:
+        String(row.paid_by_user_id ?? "") === context.userId ? "self" : "partner",
+      version: Number(row.version ?? 0),
+    }));
+
+    return recentExpensesResultSchema.parse({
+      count: items.length,
+      items,
+    });
+  }
+
+  async recurringList(
+    context: { db: SupabaseClient; coupleId: number },
+  ): Promise<RecurringListResult | { error: string }> {
+    const result = await context.db
+      .from("recurring_expenses")
+      .select(RECURRING_SELECT)
+      .eq("couple_id", context.coupleId)
+      .order("next_run_date");
+    if (result.error) return { error: "recurring lookup failed" };
+    const items = (result.data ?? []).map((row) => ({
+      description: String(row.description ?? ""),
+      amount: Number(row.amount_twd ?? 0),
+      frequency: String(row.frequency ?? ""),
+      next_run: String(row.next_run_date ?? ""),
+      active: Boolean(row.active),
+      tag: String(row.tag ?? ""),
+      ledger: row.ledger === "private" ? "private" : "shared",
+    }));
+    return recurringListResultSchema.parse({ items });
+  }
+
   async listAccessibleExpenses(
     db: SupabaseClient,
     input: z.input<typeof ledgerVisibleExpenseQuerySchema>,
@@ -411,6 +669,22 @@ export class LedgerQueryService {
 }
 
 /* ─── Private Helpers ─── */
+
+function summarizeExpenses(expenses: LedgerVisibleExpense[]): QueryExpensesSummary {
+  const total = expenses.reduce((sum, expense) => sum + expense.amount_twd, 0);
+  const dates = expenses
+    .map((expense) => expense.expense_date)
+    .sort();
+  return queryExpensesSummarySchema.parse({
+    total,
+    count: expenses.length,
+    average: expenses.length ? Math.round(total / expenses.length) : 0,
+    date_range:
+      dates.length > 0
+        ? { from: dates[0]!, to: dates[dates.length - 1]! }
+        : null,
+  });
+}
 
 function buildDashboard(expenses: AppExpense[], month: string) {
   const trend = Array.from({ length: 6 }, (_, index) => ({

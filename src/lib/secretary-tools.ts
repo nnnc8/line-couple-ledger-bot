@@ -13,6 +13,7 @@ import { type FunctionDeclaration, Type } from "@google/genai";
 
 import { executeTool as executeAccountantTool } from "./accountant-tools";
 import type { ToolContext } from "./accountant-tools";
+import { ledgerQueryService } from "./services";
 import { RuleService } from "./rule-service";
 import { TaskService } from "./task-service";
 import { buildUpdateExpenseAction } from "./pending-action-builders";
@@ -24,21 +25,6 @@ export type { ToolContext };
 export interface SecretaryDeps {
   db: SupabaseClient;
   coupleId: number;
-}
-
-interface ExpenseRow {
-  id: string;
-  group_id: string;
-  ledger: "shared" | "private";
-  description: string;
-  merchant: string | null;
-  tag: string;
-  amount_twd: number;
-  paid_by_user_id: string;
-  created_by_user_id: string;
-  expense_date: string;
-  version: number;
-  deleted_at: string | null;
 }
 
 /* ─── Constants ─── */
@@ -228,7 +214,6 @@ export const secretaryToolDeclarations: FunctionDeclaration[] = [
         type: {
           type: Type.STRING,
           enum: [
-            "fix_uncertain_receipt",
             "budget_warning",
             "duplicate_expense_review",
             "tag_cleanup",
@@ -292,80 +277,16 @@ export async function executeSecretaryTool(
 /* ─── get_recent_expenses ─── */
 
 async function getRecentExpenses(ctx: ToolContext, args: Record<string, unknown>) {
-  const limit = Math.min(
-    z.number().int().min(1).max(10).default(5).parse(args.limit ?? 5),
-    10,
+  return ledgerQueryService.recentExpenses(
+    { db: ctx.db, groupId: ctx.groupId, userId: ctx.userId },
+    {
+      limit: z.number().int().min(1).max(10).default(5).parse(args.limit ?? 5),
+      ledger: z
+        .enum(["shared", "private", "all"])
+        .default("all")
+        .parse(args.ledger ?? "all"),
+    },
   );
-  const ledger = z.enum(["shared", "private", "all"]).default("all").parse(args.ledger);
-
-  const queries: Promise<{ data: unknown[] | null; error: unknown }>[] = [];
-
-  if (ledger !== "private") {
-    queries.push(
-      ctx.db
-        .from("expenses")
-        .select(
-          "id, group_id, ledger, description, merchant, tag, amount_twd, paid_by_user_id, created_by_user_id, expense_date, version, deleted_at",
-        )
-        .eq("group_id", ctx.groupId)
-        .is("mirror_kind", null)
-        .order("created_at", { ascending: false })
-        .limit(limit) as unknown as Promise<{
-        data: unknown[] | null;
-        error: unknown;
-      }>,
-    );
-  }
-
-  if (ledger !== "shared") {
-    queries.push(
-      ctx.db
-        .from("expenses")
-        .select(
-          "id, group_id, ledger, description, merchant, tag, amount_twd, paid_by_user_id, created_by_user_id, expense_date, version, deleted_at",
-        )
-        .eq("ledger", "private")
-        .eq("created_by_user_id", ctx.userId)
-        .is("mirror_kind", null)
-        .order("created_at", { ascending: false })
-        .limit(limit) as unknown as Promise<{
-        data: unknown[] | null;
-        error: unknown;
-      }>,
-    );
-  }
-
-  const results = await Promise.all(queries);
-  const rows = results.flatMap((r) =>
-    r.error ? [] : (r.data as ExpenseRow[]),
-  );
-
-  // Deduplicate by id
-  const seen = new Set<string>();
-  const unique = rows.filter((r) => {
-    if (seen.has(r.id) || r.deleted_at) return false;
-    seen.add(r.id);
-    return true;
-  });
-
-  const sorted = unique
-    .sort((a, b) => b.created_by_user_id.localeCompare(a.created_by_user_id))
-    .slice(0, limit);
-
-  return {
-    count: sorted.length,
-    items: sorted.map((e) => ({
-      id: e.id,
-      description: e.description,
-      merchant: e.merchant,
-      tag: e.tag,
-      amount_twd: e.amount_twd,
-      ledger: e.ledger,
-      expense_date: e.expense_date,
-      paid_by: e.paid_by_user_id === ctx.userId ? "self" : "partner",
-      version: e.version,
-    })),
-  };
 }
 
 /* ─── get_open_tasks ─── */
@@ -533,7 +454,6 @@ async function proposeMerchantRule(
 
 const createTaskParams = z.object({
   type: z.enum([
-    "fix_uncertain_receipt",
     "budget_warning",
     "duplicate_expense_review",
     "tag_cleanup",

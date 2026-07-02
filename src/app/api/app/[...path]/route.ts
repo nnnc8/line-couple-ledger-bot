@@ -11,11 +11,7 @@ import {
 } from "@/lib/server-runtime";
 import {
   changeGroup,
-  createReceiptUpload,
   importBankCsv,
-  processReceipt,
-  receiptDetails,
-  receiptUrl,
   saveRecurring,
   pendingActionService,
   ledgerQueryService,
@@ -46,12 +42,7 @@ export async function GET(request: Request, route: RouteContext) {
         },
       });
     }
-    if (path[0] === "receipts" && path[1] && path[2] === "url") {
-      return json({ url: await receiptUrl(context, path[1]) });
-    }
-    if (path[0] === "receipts" && path[1] && path.length === 2) {
-      return json(await receiptDetails(context, path[1]));
-    }
+
     if (path[0] === "analytics" && path[1] === "categories") {
       return json(await accountantService.categoryAnalytics(context, new URL(request.url).searchParams));
     }
@@ -107,10 +98,7 @@ export async function POST(request: Request, route: RouteContext) {
     if (path[0] === "groups") return json(await changeGroup(context, body));
     if (path[0] === "recurring")
       return json(await saveRecurring(context, body));
-    if (path[0] === "receipts" && path[1] === "upload")
-      return json(await createReceiptUpload(context, body));
-    if (path[0] === "receipts" && path[1] && path[2] === "process")
-      return json({ extraction: await processReceipt(context, path[1]) });
+
     if (path[0] === "categories" && path[1] === "cleanup") {
       const key = request.headers.get("idempotency-key")?.slice(0, 100);
       return json(await accountantService.createCategoryCleanup(

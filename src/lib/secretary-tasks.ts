@@ -9,7 +9,6 @@ import { z } from "zod";
 /* ─── Consts ─── */
 
 const ASSISTANT_TASK_TYPES = [
-  "fix_uncertain_receipt",
   "review_unmatched_bank_items",
   "settlement_suggestion",
   "duplicate_expense_review",

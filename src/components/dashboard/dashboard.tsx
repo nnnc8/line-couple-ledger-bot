@@ -17,7 +17,7 @@ interface DashboardProps {
   onSettle: (amount: number) => void;
   onAdd: () => void;
   onEdit: (expense: Expense) => void;
-  onReceipt: (id: string) => void;
+  onReceipt?: (id: string) => void;
 }
 
 type Range = "this_month" | "six_months" | "all";
@@ -320,7 +320,7 @@ function RecentTransactions({
   expenses: Expense[];
   users: User[];
   onEdit: (e: Expense) => void;
-  onReceipt: (id: string) => void;
+  onReceipt?: (id: string) => void;
   monthFilter: string | null;
   tagFilter: string | null;
 }) {
@@ -428,7 +428,7 @@ export function ExpenseList({
               <span className="text-[14px] font-bold tabular-nums">
                 {money(expense.amount_twd)}
               </span>
-              {expense.receipts[0] ? (
+              {expense.receipts[0] && onReceipt ? (
                 <button
                   type="button"
                   aria-label="收據"

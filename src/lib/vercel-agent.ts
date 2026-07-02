@@ -49,7 +49,6 @@ const proposeMerchantRuleSchema = z.object({
 
 const createTaskSchema = z.object({
   type: z.enum([
-    "fix_uncertain_receipt",
     "budget_warning",
     "duplicate_expense_review",
     "tag_cleanup",

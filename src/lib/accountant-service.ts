@@ -28,6 +28,9 @@ import {
 } from "./ledger-agent";
 import { getModel } from "./model-provider";
 import { HttpError } from "./http-error";
+import type { SupabaseClient } from "@supabase/supabase-js";
+import type { LedgerVisibleExpense } from "./ledger-query";
+import { ledgerQueryService } from "./services";
 
 const MODEL = "gemini-3.1-flash-lite";
 const EXPENSE_SELECT =
@@ -135,7 +138,291 @@ type CleanupActionInput = {
   idempotencyKey?: string;
 };
 
+export type AccountantToolContext = {
+  db: SupabaseClient;
+  groupId: string;
+  userId: string;
+  coupleId: number;
+};
+
 export class AccountantService {
+  private async listToolExpenses(
+    context: AccountantToolContext,
+    filters: {
+      dateFrom?: string;
+      dateTo?: string;
+      tag?: string;
+      type?: "shared" | "private" | "all";
+      limitPerLedger?: number;
+    },
+  ) {
+    return ledgerQueryService.listAccessibleExpenses(context.db, {
+      groupId: context.groupId,
+      userId: context.userId,
+      ...filters,
+    });
+  }
+
+  private toToolAgentExpense(
+    expense: LedgerVisibleExpense,
+    context: AccountantToolContext,
+  ): AgentExpense {
+    return {
+      id: expense.id,
+      group_id: expense.ledger === "private" ? null : context.groupId,
+      ledger: expense.ledger,
+      description: expense.description,
+      merchant: expense.merchant,
+      tag: expense.tag,
+      mirror_kind: null,
+      mirror_source_expense_id: null,
+      amount_twd: expense.amount_twd,
+      paid_by_user_id: expense.paid_by_user_id,
+      created_by_user_id: context.userId,
+      expense_date: expense.expense_date,
+      version: 1,
+      deleted_at: null,
+    };
+  }
+
+  async categoryBreakdown(
+    context: AccountantToolContext,
+    params: { dateFrom: string; dateTo: string },
+  ) {
+    const expenses = await this.listToolExpenses(context, {
+      dateFrom: params.dateFrom,
+      dateTo: params.dateTo,
+      limitPerLedger: 500,
+    });
+    const totals = new Map<string, { total: number; count: number }>();
+    for (const e of expenses) {
+      const key = e.tag;
+      const current = totals.get(key) ?? { total: 0, count: 0 };
+      current.total += e.amount_twd;
+      current.count += 1;
+      totals.set(key, current);
+    }
+    const grand = expenses.reduce((sum, e) => sum + e.amount_twd, 0);
+    return {
+      total: grand,
+      count: expenses.length,
+      breakdown: [...totals.entries()]
+        .sort((a, b) => b[1].total - a[1].total)
+        .slice(0, 15)
+        .map(([label, data]) => ({
+          label,
+          total: data.total,
+          count: data.count,
+          percent: grand ? Math.round((data.total / grand) * 100) : 0,
+        })),
+    };
+  }
+
+  async comparePeriods(
+    context: AccountantToolContext,
+    params: {
+      periodA: { from: string; to: string };
+      periodB: { from: string; to: string };
+    },
+  ) {
+    const [expA, expB] = await Promise.all([
+      this.listToolExpenses(context, {
+        dateFrom: params.periodA.from,
+        dateTo: params.periodA.to,
+        limitPerLedger: 500,
+      }),
+      this.listToolExpenses(context, {
+        dateFrom: params.periodB.from,
+        dateTo: params.periodB.to,
+        limitPerLedger: 500,
+      }),
+    ]);
+
+    const totalA = expA.reduce((s, e) => s + e.amount_twd, 0);
+    const totalB = expB.reduce((s, e) => s + e.amount_twd, 0);
+
+    const aMap = breakdownByKey(expA);
+    const bMap = breakdownByKey(expB);
+    const allKeys = new Set([...aMap.keys(), ...bMap.keys()]);
+    const comparison = [...allKeys]
+      .map((label) => ({
+        label,
+        period_a: aMap.get(label) ?? 0,
+        period_b: bMap.get(label) ?? 0,
+        change: (aMap.get(label) ?? 0) - (bMap.get(label) ?? 0),
+      }))
+      .sort((a, b) => Math.abs(b.change) - Math.abs(a.change))
+      .slice(0, 10);
+
+    return {
+      period_a: { total: totalA, count: expA.length },
+      period_b: { total: totalB, count: expB.length },
+      change_percent: totalB
+        ? Math.round(((totalA - totalB) / totalB) * 100)
+        : null,
+      comparison,
+    };
+  }
+
+  async anomalies(
+    context: AccountantToolContext,
+    params: { dateFrom?: string; dateTo?: string },
+  ) {
+    const expenses = await this.listToolExpenses(context, {
+      dateFrom: params.dateFrom,
+      dateTo: params.dateTo,
+      limitPerLedger: 500,
+    });
+    const agentExpenses = expenses.map((e) => this.toToolAgentExpense(e, context));
+    const duplicates = detectDuplicateAgentExpenses(agentExpenses);
+    return {
+      duplicate_groups: duplicates.slice(0, 5).map((group) =>
+        group.map((e) => ({
+          id: e.id,
+          description: e.description,
+          amount: e.amount_twd,
+          date: e.expense_date,
+        })),
+      ),
+      total_groups: duplicates.length,
+    };
+  }
+
+  async categoryTrend(
+    context: AccountantToolContext,
+    params: { tag: string; months: number },
+  ) {
+    const today = taipeiToday();
+    const currentMonth = today.slice(0, 7);
+    const months: string[] = [];
+    for (let i = params.months - 1; i >= 0; i--) {
+      months.push(shiftMonth(currentMonth, -i));
+    }
+    const startDate = `${months[0]}-01`;
+    const endDate = `${shiftMonth(currentMonth, 1)}-01`;
+
+    const expenses = await this.listToolExpenses(context, {
+      dateFrom: startDate,
+      dateTo: endDate,
+      tag: params.tag,
+      limitPerLedger: 500,
+    });
+
+    const trend = months.map((m) => {
+      const monthExpenses = expenses.filter((e) =>
+        e.expense_date.startsWith(`${m}-`),
+      );
+      return {
+        month: m,
+        total: monthExpenses.reduce((s, e) => s + e.amount_twd, 0),
+        count: monthExpenses.length,
+      };
+    });
+
+    return { tag: params.tag, trend };
+  }
+
+  async predictMonthEnd(
+    context: AccountantToolContext,
+    params: { tag?: string },
+  ) {
+    const today = taipeiToday();
+    const month = today.slice(0, 7);
+    const daysElapsed = Number(today.slice(8, 10));
+    const daysTotal = new Date(
+      Number(today.slice(0, 4)),
+      Number(today.slice(5, 7)),
+      0,
+    ).getDate();
+
+    if (daysElapsed < 4) {
+      return {
+        message: "月初資料不足，無法預測",
+        days_elapsed: daysElapsed,
+        days_total: daysTotal,
+      };
+    }
+
+    const expenses = await this.listToolExpenses(context, {
+      dateFrom: `${month}-01`,
+      dateTo: `${shiftMonth(month, 1)}-01`,
+      tag: params.tag,
+      limitPerLedger: 500,
+    });
+
+    const spentSoFar = expenses.reduce((s, e) => s + e.amount_twd, 0);
+    const projectedTotal = Math.round((spentSoFar / daysElapsed) * daysTotal);
+
+    return {
+      days_elapsed: daysElapsed,
+      days_total: daysTotal,
+      spent_so_far: spentSoFar,
+      projected_total: projectedTotal,
+    };
+  }
+
+  async analyzeSpending(
+    context: AccountantToolContext,
+    params: { dateFrom?: string; dateTo?: string },
+  ) {
+    const today = taipeiToday();
+    const monthStart = today.slice(0, 7) + "-01";
+    const dateFrom = params.dateFrom ?? monthStart;
+    const dateTo = params.dateTo ?? today;
+
+    const [expenses, balanceResult] = await Promise.all([
+      this.listToolExpenses(context, {
+        dateFrom,
+        dateTo,
+        type: "shared",
+        limitPerLedger: 500,
+      }),
+      context.db.rpc("group_balances", { p_group_id: context.groupId }),
+    ]);
+
+    const agentExpenses = expenses.map((e) => this.toToolAgentExpense(e, context));
+    const anomalies = detectDuplicateAgentExpenses(agentExpenses);
+
+    const total = expenses.reduce((s, e) => s + e.amount_twd, 0);
+    const byTag = breakdownByKey(expenses);
+
+    const topTags = [...byTag.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 5)
+      .map(([label, amount]) => ({
+        label,
+        amount,
+        percent: total > 0 ? Math.round((amount / total) * 100) : 0,
+      }));
+
+    const daysElapsed = Math.max(
+      1,
+      Math.floor(
+        (new Date(dateTo).getTime() - new Date(dateFrom).getTime()) /
+          (1000 * 60 * 60 * 24),
+      ) + 1,
+    );
+    const daysInMonth = new Date(
+      new Date(dateFrom).getFullYear(),
+      new Date(dateFrom).getMonth() + 1,
+      0,
+    ).getDate();
+    const dailyAvg = Math.round(total / daysElapsed);
+    const projected = dailyAvg * daysInMonth;
+
+    return {
+      period: { from: dateFrom, to: dateTo },
+      total,
+      transaction_count: expenses.length,
+      daily_average: dailyAvg,
+      projected_month_end: projected,
+      top_tags: topTags,
+      anomalies: anomalies.length > 0 ? anomalies.slice(0, 3) : undefined,
+      balance: !balanceResult.error
+        ? (balanceResult.data as Array<{ user_id: string; balance_twd: number }>)
+        : undefined,
+    };
+  }
   async ask(context: ServerContext, input: unknown) {
     const parsed = accountantAskInputSchema.parse(input);
     const run = await this.runAgent(context, {
@@ -916,4 +1203,13 @@ function shiftMonth(month: string, offset: number): string {
   const [year, monthNumber] = month.split("-").map(Number);
   const date = new Date(Date.UTC(year!, monthNumber! - 1 + offset, 1));
   return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, "0")}`;
+}
+
+function breakdownByKey(expenses: LedgerVisibleExpense[]) {
+  const map = new Map<string, number>();
+  for (const e of expenses) {
+    const label = e.tag;
+    map.set(label, (map.get(label) ?? 0) + e.amount_twd);
+  }
+  return map;
 }
