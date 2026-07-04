@@ -37,6 +37,23 @@ function normalizeGroupText(value: string) {
     .replace(/[^\p{Letter}\p{Number}]+/gu, "");
 }
 
+function matchedGroups<T extends { id: string; name: string }>(
+  text: string,
+  groups: T[],
+): T[] {
+  const normalizedText = normalizeGroupText(text);
+  return groups
+    .filter((group) => normalizedText.includes(normalizeGroupText(group.name)))
+    .sort((left, right) => right.name.length - left.name.length);
+}
+
+function cleanTurnText(value: string) {
+  return value
+    .replace(/\s+/g, " ")
+    .replace(/^[，,。.!！?？|｜:：;；、\s]+/u, "")
+    .trim();
+}
+
 export function parseFixedIntent(text: string): ParsedIntent | null {
   const intent = new Map<string, ParsedIntent["intent"]>([
     ["誰欠誰", "balance"],
@@ -86,16 +103,44 @@ export function selectMentionedGroup<T extends { id: string; name: string }>(
   groups: T[],
   activeGroupId: string,
 ): T | null {
-  const normalizedText = normalizeGroupText(text);
-  const mentioned = groups
-    .filter((group) => normalizedText.includes(normalizeGroupText(group.name)))
-    .sort((left, right) => right.name.length - left.name.length);
+  const mentioned = matchedGroups(text, groups);
   return (
     mentioned[0] ??
     groups.find((group) => group.id === activeGroupId) ??
     groups[0] ??
     null
   );
+}
+
+export function resolveMentionedGroupTurn<T extends { id: string; name: string }>(
+  text: string,
+  groups: T[],
+  activeGroupId: string,
+): {
+  group: T | null;
+  mentionedGroup: T | null;
+  cleanedText: string;
+} {
+  const mentionedGroup = matchedGroups(text, groups)[0] ?? null;
+  const group =
+    mentionedGroup ??
+    groups.find((item) => item.id === activeGroupId) ??
+    groups[0] ??
+    null;
+  if (!mentionedGroup) {
+    return {
+      group,
+      mentionedGroup: null,
+      cleanedText: cleanTurnText(text),
+    };
+  }
+
+  const cleanedText = cleanTurnText(text.replace(mentionedGroup.name, " "));
+  return {
+    group,
+    mentionedGroup,
+    cleanedText: cleanedText || cleanTurnText(text),
+  };
 }
 
 export function parsePendingRetargetCommand(text: string) {

@@ -4,6 +4,7 @@ import { runSecretaryLoop } from "./secretary-agent";
 import { notifyPartner as pushNotifyPartner } from "./secretary-push";
 import { SecretaryService } from "./secretary-service";
 import { pendingActionService, agentChatService } from "./services";
+import { resolveMentionedGroupTurn } from "./line-message-parsers";
 
 export interface LineUser {
   id: string;
@@ -43,9 +44,14 @@ export async function runLineSecretaryTurn(input: {
   dependencies: LineSecretaryDependencies;
   reply: (text: string) => Promise<void>;
   imageData?: { imageData: string; mimeType: string };
+  groupIdOverride?: string;
 }): Promise<void> {
   const { text, user, dependencies, reply, imageData } = input;
-  const groupId = await getActiveGroupId(dependencies.supabase, user);
+  const activeGroupId =
+    input.groupIdOverride ?? (await getActiveGroupId(dependencies.supabase, user));
+  const groups = await listActiveGroups(dependencies.supabase, user).catch(() => []);
+  const turn = resolveMentionedGroupTurn(text, groups, activeGroupId);
+  const groupId = turn.group?.id ?? activeGroupId;
 
   const toolCtx = {
     db: dependencies.supabase,
@@ -90,7 +96,7 @@ export async function runLineSecretaryTurn(input: {
     };
     const workflowResult = await secretaryService.run({
       initialInput: {
-        text,
+        text: turn.cleanedText,
         ...(imageData ? { imageData: imageData.imageData, mimeType: imageData.mimeType } : {}),
       },
       sessionId,
@@ -259,4 +265,18 @@ async function getActiveGroupId(
   }
 
   throw new Error("找不到可用群組");
+}
+
+async function listActiveGroups(
+  supabase: any,
+  user: LineUser,
+): Promise<Array<{ id: string; name: string }>> {
+  const { data, error } = await supabase
+    .from("groups")
+    .select("id, name")
+    .eq("couple_id", user.couple_id)
+    .is("archived_at", null);
+
+  if (error) throw error;
+  return z.array(z.object({ id: z.string().uuid(), name: z.string() })).parse(data ?? []);
 }

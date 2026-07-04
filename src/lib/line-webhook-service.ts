@@ -116,6 +116,7 @@ export async function handleLineEvent(
 export {
   parseFixedIntent,
   parseInlineExpenseItems,
+  resolveMentionedGroupTurn,
   selectMentionedGroup,
   parsePendingRetargetCommand,
   parseSearchCommand,

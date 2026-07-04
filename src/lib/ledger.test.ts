@@ -7,6 +7,7 @@ import {
   parsePendingRetargetCommand,
   parseFixedIntent,
   parseInlineExpenseItems,
+  resolveMentionedGroupTurn,
   selectMentionedGroup,
 } from "./bot";
 import {
@@ -225,6 +226,21 @@ test("selects a mentioned LINE group instead of the active group", () => {
     )?.id,
     "food",
   );
+});
+
+test("resolves a mentioned LINE group into target group and cleaned text", () => {
+  const resolved = resolveMentionedGroupTurn(
+    "幫我新增 吃飽喝足 拉麵 840 對方付",
+    [
+      { id: "active", name: "阿提斯" },
+      { id: "food", name: "吃飽喝足" },
+    ],
+    "active",
+  );
+
+  assert.equal(resolved.group?.id, "food");
+  assert.equal(resolved.mentionedGroup?.id, "food");
+  assert.equal(resolved.cleanedText, "幫我新增 拉麵 840 對方付");
 });
 
 test("ledger agent treats historical maximum questions as all-history queries", () => {
@@ -5464,18 +5480,32 @@ function setupMockEnv() {
 
 function createMockDbForSecretary(tableData: Record<string, any>) {
   const chain = (tableName: string) => {
+    const filters = new Map<string, unknown>();
+    const resolveData = () =>
+      typeof tableData[tableName] === "function"
+        ? tableData[tableName](filters)
+        : tableData[tableName];
     const subChain: any = {
       select: () => subChain,
-      eq: () => subChain,
+      eq: (field: string, value: unknown) => {
+        filters.set(field, value);
+        return subChain;
+      },
+      is: (field: string, value: unknown) => {
+        filters.set(field, value);
+        return subChain;
+      },
       neq: () => subChain,
       order: () => subChain,
       limit: () => subChain,
       single: () => {
-        return Promise.resolve({ data: tableData[tableName], error: null });
+        return Promise.resolve({ data: resolveData(), error: null });
       },
       maybeSingle: () => {
-        return Promise.resolve({ data: tableData[tableName], error: null });
+        return Promise.resolve({ data: resolveData(), error: null });
       },
+      then: (resolve: (value: { data: any; error: null }) => unknown) =>
+        Promise.resolve(resolve({ data: resolveData(), error: null })),
     };
     return subChain;
   };
@@ -5600,6 +5630,73 @@ test("runLineSecretaryTurn replies success and notifies partner when requested",
     assert.equal(repliedText, "Here is your coffee.");
     assert.equal(pushTarget, "line-partner");
     assert.equal(pushMsg, "📋 Partner got coffee");
+  } finally {
+    SecretaryService.prototype.run = originalRun;
+  }
+});
+
+test("runLineSecretaryTurn routes explicit group mention to that group and strips it from text", async () => {
+  setupMockEnv();
+  const { runLineSecretaryTurn } = await import("./line-secretary-service");
+  const { SecretaryService } = await import("./secretary-service");
+
+  let receivedText = "";
+  let sessionGroupId = "";
+  const originalRun = SecretaryService.prototype.run;
+  SecretaryService.prototype.run = async (args: any) => {
+    receivedText = args.initialInput.text;
+    return {
+      reply: "ok",
+      notifyPartner: false,
+      partnerMessage: null,
+      actionFailure: null,
+    };
+  };
+
+  try {
+    const activeGroupId = "00000000-0000-4000-8000-000000000001";
+    const foodGroupId = "00000000-0000-4000-8000-000000000002";
+    const dependencies = {
+      lineClient: {
+        replyMessage: async () => {},
+        getMessageContent: async () => ({} as any),
+        pushMessage: async () => {},
+      },
+      supabase: createMockDbForSecretary({
+        user_preferences: { active_group_id: activeGroupId },
+        groups: [
+          { id: activeGroupId, name: "阿提斯" },
+          { id: foodGroupId, name: "吃飽喝足" },
+        ],
+        users: { id: "00000000-0000-4000-8000-000000000003", couple_id: 1, role: "partner", line_user_id: "line-partner" },
+        secretary_sessions: (filters: Map<string, unknown>) => {
+          sessionGroupId = String(filters.get("group_id") ?? "");
+          return null;
+        },
+      }),
+      gemini: {} as any,
+    };
+
+    const user = {
+      id: "user-id",
+      couple_id: 1,
+      role: "owner" as const,
+      line_user_id: "line-user-id",
+    };
+
+    let repliedText = "";
+    await runLineSecretaryTurn({
+      text: "幫我新增 吃飽喝足 拉麵 840 對方付",
+      user,
+      dependencies,
+      reply: async (text) => {
+        repliedText = text;
+      },
+    });
+
+    assert.equal(receivedText, "幫我新增 拉麵 840 對方付");
+    assert.equal(sessionGroupId, foodGroupId);
+    assert.equal(repliedText, "ok");
   } finally {
     SecretaryService.prototype.run = originalRun;
   }
@@ -9351,5 +9448,3 @@ test("accountant agent barrel: exported functions/schemas still match the old pu
   assert.equal(barrel.categoryAnalyticsInputSchema.safeParse({ range: "six_months" }).success, true);
   assert.equal(barrel.categoryCleanupInputSchema.safeParse({ updates: [] }).success, false);
 });
-
-
