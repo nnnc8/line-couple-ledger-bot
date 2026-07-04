@@ -5936,6 +5936,262 @@ test("LINE regression: image message routes to handleLineImageTurn", async () =>
   }
 });
 
+test("line webhook: join path uses claimUser result and bypasses joined-user lookup", async () => {
+  setupMockEnv();
+  const { handleLineEvent } = await import("./line-webhook-service");
+
+  let findUserCalled = false;
+  let claimUserCalled = false;
+
+  const mockDb = {
+    from: (table: string) => {
+      const chain: any = {
+        select: (fields?: string, options?: any) => {
+          if (table === "users") {
+            if (fields === "id, couple_id, role, line_user_id") {
+              findUserCalled = true;
+            }
+            if (options?.count === "exact") {
+              return {
+                eq: (field: string, val: any) => {
+                  return Promise.resolve({ count: 0, error: null });
+                }
+              };
+            }
+          }
+          return chain;
+        },
+        eq: (field: string, val: any) => {
+          return chain;
+        },
+        maybeSingle: async () => {
+          return { data: null, error: null };
+        },
+        insert: (data: any) => {
+          claimUserCalled = true;
+          return {
+            select: () => ({
+              single: async () => ({
+                data: {
+                  id: "00000000-0000-4000-8000-000000000003",
+                  couple_id: 1,
+                  line_user_id: "line-user-1",
+                  role: "owner",
+                },
+                error: null,
+              }),
+            }),
+          };
+        },
+      };
+      return chain;
+    },
+  } as any;
+
+  let repliedText = "";
+  const dependencies = {
+    lineClient: {
+      replyMessage: async (params: any) => {
+        repliedText = params.messages[0].text;
+      },
+      getMessageContent: async () => { throw new Error("unused"); },
+      pushMessage: async () => {},
+    },
+    supabase: mockDb,
+    gemini: {} as any,
+    setupCode: "couple-setup-code",
+  };
+
+  await handleLineEvent(
+    {
+      type: "message",
+      webhookEventId: "evt-123",
+      deliveryContext: { isRedelivery: false },
+      timestamp: Date.now(),
+      source: { type: "user", userId: "line-owner" },
+      replyToken: "reply-123",
+      message: { type: "text", text: "加入 couple-setup-code" },
+    } as any,
+    dependencies as any,
+  );
+
+  assert.equal(findUserCalled, false);
+  assert.equal(claimUserCalled, true);
+  assert.equal(repliedText, "加入成功，你是 owner。");
+});
+
+test("line text service: search command calls ledgerQueryService.searchExpenses and returns LIFF link", async () => {
+  setupMockEnv();
+  const { handleLineTextMessage } = await import("./line-text-service");
+  const { ledgerQueryService } = await import("./services");
+
+  let searchCalled = false;
+  let searchParams: any = null;
+  const originalSearch = ledgerQueryService.searchExpenses;
+  ledgerQueryService.searchExpenses = async (ctx, params) => {
+    searchCalled = true;
+    searchParams = params;
+    return {
+      expenses: [
+        {
+          id: "1",
+          description: "午餐",
+          amount_twd: 120,
+          expense_date: "2026-06-25",
+          tag: "餐飲",
+        }
+      ]
+    } as any;
+  };
+
+  try {
+    let repliedText = "";
+    const dependencies = {
+      lineClient: {
+        replyMessage: async (params: any) => {
+          repliedText = params.messages[0].text;
+        },
+      },
+      supabase: {} as any,
+    };
+
+    const user = {
+      id: "user-1",
+      couple_id: 1,
+      role: "owner",
+      line_user_id: "line-user-1",
+    } as any;
+
+    await handleLineTextMessage(
+      "搜尋 午餐",
+      "evt-123",
+      user,
+      "reply-123",
+      dependencies as any,
+    );
+
+    assert.ok(searchCalled);
+    assert.equal(searchParams?.get("q"), "午餐");
+    assert.match(repliedText, /找到 1 筆：/);
+    assert.match(repliedText, /午餐 NT\$120｜2026-06-25/);
+    assert.match(repliedText, /看更多：https:\/\/app.example.com\/\?search=%E5%8D%88%E9%A4%90/);
+  } finally {
+    ledgerQueryService.searchExpenses = originalSearch;
+  }
+});
+
+test("line text service: pending retarget confirms every returned actionId", async () => {
+  setupMockEnv();
+  const { handleLineTextMessage } = await import("./line-text-service");
+  const { pendingActionService } = await import("./services");
+
+  let retargetCalled = false;
+  const confirmedIds: string[] = [];
+  const originalRetarget = pendingActionService.retargetActions;
+  const originalConfirm = pendingActionService.confirm;
+
+  pendingActionService.retargetActions = async (ctx, input) => {
+    retargetCalled = true;
+    return {
+      count: 2,
+      actionIds: ["action-1", "action-2"]
+    };
+  };
+
+  pendingActionService.confirm = async (ctx, actionId, bypass) => {
+    confirmedIds.push(actionId);
+    return {
+      result: "confirmed",
+      action_type: "create_expense"
+    };
+  };
+
+  try {
+    let repliedText = "";
+    const dependencies = {
+      lineClient: {
+        replyMessage: async (params: any) => {
+          repliedText = params.messages[0].text;
+        },
+      },
+      supabase: {} as any,
+    };
+
+    const user = {
+      id: "user-1",
+      couple_id: 1,
+      role: "owner",
+      line_user_id: "line-user-1",
+    } as any;
+
+    await handleLineTextMessage(
+      "都改成私人帳 交通",
+      "evt-123",
+      user,
+      "reply-123",
+      dependencies as any,
+    );
+
+    assert.ok(retargetCalled);
+    assert.deepEqual(confirmedIds, ["action-1", "action-2"]);
+    assert.match(repliedText, /已把 2 筆待確認草稿改成私人帳｜交通，並直接入帳。/);
+  } finally {
+    pendingActionService.retargetActions = originalRetarget;
+    pendingActionService.confirm = originalConfirm;
+  }
+});
+
+test("line webhook facade: exported parser helpers and handleLineEvent still route through split modules", async () => {
+  setupMockEnv();
+  const {
+    parseFixedIntent,
+    parseInlineExpenseItems,
+    selectMentionedGroup,
+    parsePendingRetargetCommand,
+    parseSearchCommand,
+    handleLineEvent,
+  } = await import("./line-webhook-service");
+
+  // Verify parser helpers exports are functional
+  assert.equal(parseFixedIntent("誰欠誰")?.intent, "balance");
+  assert.equal(parseFixedIntent("說明")?.intent, "help");
+  assert.deepEqual(parsePendingRetargetCommand("都改成私人帳 交通"), {
+    ledger: "private",
+    tag: "交通",
+  });
+  assert.equal(parseSearchCommand("搜尋 早餐"), "早餐");
+
+  // Verify handleLineEvent routing for join commands (uses joinCouple in split modules)
+  let repliedText = "";
+  const dependencies = {
+    lineClient: {
+      replyMessage: async (params: any) => {
+        repliedText = params.messages[0].text;
+      },
+      getMessageContent: async () => { throw new Error("unused"); },
+      pushMessage: async () => {},
+    },
+    supabase: {} as any,
+    gemini: {} as any,
+    setupCode: "couple-setup-code",
+  };
+
+  await handleLineEvent(
+    {
+      type: "message",
+      webhookEventId: "evt-123",
+      deliveryContext: { isRedelivery: false },
+      timestamp: Date.now(),
+      source: { type: "user", userId: "line-owner" },
+      replyToken: "reply-123",
+      message: { type: "text", text: "加入 wrong-code" },
+    } as any,
+    dependencies as any,
+  );
+
+  assert.equal(repliedText, "設定碼不正確。");
+});
+
 function createMockDbConfirm(opts: {
   actionId?: string;
   actionType?: string;
