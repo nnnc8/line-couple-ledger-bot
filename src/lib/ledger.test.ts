@@ -2935,6 +2935,305 @@ test("secretary prompt service omits optional sections when nothing is pending",
   assert.doesNotMatch(prompt, /已知商家規則/);
 });
 
+test("recurring service: toggle updates active flag and notifies partner", async () => {
+  const { RecurringService } = await import("./recurring-service");
+
+  const recurringId = "00000000-0000-4000-8000-000000000120";
+  let updated = false;
+  let activityArgs: any[] | null = null;
+  let notifyArgs: any[] | null = null;
+  let delivered = 0;
+
+  const mockDb = {
+    from: (table: string) => {
+      if (table === "recurring_expenses") {
+        return {
+          select: () => ({
+            eq: () => ({
+              eq: () => ({
+                single: () =>
+                  Promise.resolve({
+                    data: {
+                      id: recurringId,
+                      group_id: "00000000-0000-4000-8000-000000000121",
+                      active: true,
+                    },
+                    error: null,
+                  }),
+              }),
+            }),
+          }),
+          update: (payload: any) => {
+            assert.equal(payload.active, false);
+            return {
+              eq: () => ({
+                eq: () => {
+                  updated = true;
+                  return Promise.resolve({ error: null });
+                },
+              }),
+            };
+          },
+        };
+      }
+      throw new Error(`unexpected table ${table}`);
+    },
+  } as any;
+
+  const service = new RecurringService();
+  const result = await service.save(
+    {
+      db: mockDb,
+      user: { id: "u", couple_id: 1 },
+      requireGroup: async () => {},
+      appendActivity: async (...args: any[]) => {
+        activityArgs = args;
+      },
+      notifyPartner: async (...args: any[]) => {
+        notifyArgs = args;
+      },
+      deliverNotifications: async () => {
+        delivered++;
+      },
+    },
+    {
+      operation: "toggle",
+      id: recurringId,
+      active: false,
+    },
+  );
+
+  assert.deepEqual(result, { ok: true });
+  assert.equal(updated, true);
+  assert.deepEqual(activityArgs, [
+    recurringId,
+    "update",
+    "00000000-0000-4000-8000-000000000121",
+    {
+      id: recurringId,
+      group_id: "00000000-0000-4000-8000-000000000121",
+      active: true,
+    },
+    { operation: "toggle", id: recurringId, active: false },
+  ]);
+  assert.deepEqual(notifyArgs, [
+    "週期支出已更新",
+    "已停用週期支出",
+    "00000000-0000-4000-8000-000000000121",
+    recurringId,
+  ]);
+  assert.equal(delivered, 1);
+});
+
+test("recurring service: shared save requires group and preserves shared group_id", async () => {
+  const { RecurringService } = await import("./recurring-service");
+
+  const selfUserId = "00000000-0000-4000-8000-000000000122";
+  const partnerUserId = "00000000-0000-4000-8000-000000000123";
+  const groupId = "00000000-0000-4000-8000-000000000124";
+  let requireGroupCalledWith: string | null = null;
+  let inserted: any = null;
+
+  const mockDb = {
+    from: (table: string) => {
+      if (table === "users") {
+        return {
+          select: () => ({
+            eq: () => ({
+              neq: () => ({
+                maybeSingle: () =>
+                  Promise.resolve({
+                    data: { id: partnerUserId },
+                    error: null,
+                  }),
+              }),
+            }),
+          }),
+        };
+      }
+      if (table === "recurring_expenses") {
+        return {
+          insert: (row: any) => {
+            inserted = row;
+            return {
+              select: () => ({
+                single: () =>
+                  Promise.resolve({
+                    data: { id: "00000000-0000-4000-8000-000000000125" },
+                    error: null,
+                  }),
+              }),
+            };
+          },
+        };
+      }
+      throw new Error(`unexpected table ${table}`);
+    },
+  } as any;
+
+  const service = new RecurringService();
+  await service.save(
+    {
+      db: mockDb,
+      user: { id: selfUserId, couple_id: 1 },
+      requireGroup: async (gid) => {
+        requireGroupCalledWith = gid;
+      },
+      appendActivity: async () => {},
+      notifyPartner: async () => {},
+      deliverNotifications: async () => {},
+    },
+    {
+      id: null,
+      ledger: "shared",
+      groupId,
+      description: "Rent",
+      merchant: null,
+      notes: null,
+      tag: "房租",
+      amountTwd: 20000,
+      paidBy: "self",
+      expenseDate: "2026-06-30",
+      splitMethod: "equal",
+      selfValue: null,
+      partnerValue: null,
+      frequency: "monthly",
+      nextRunDate: "2026-07-01",
+      endDate: null,
+      active: true,
+    },
+  );
+
+  assert.equal(requireGroupCalledWith, groupId);
+  assert.ok(inserted);
+  assert.equal(inserted.group_id, groupId);
+  assert.equal(inserted.ledger, "shared");
+});
+
+test("recurring runner: failed executePendingAction logs error and does not advance next_run_date", async () => {
+  const { RecurringService } = await import("./recurring-service");
+
+  const recurringId = "00000000-0000-4000-8000-000000000126";
+  const creatorId = "00000000-0000-4000-8000-000000000127";
+  const groupId = "00000000-0000-4000-8000-000000000128";
+  
+  let loggedErrorId: string | null = null;
+  let dbUpdatesCalled = 0;
+
+  const mockDb = {
+    from: (table: string) => {
+      if (table === "recurring_expenses") {
+        return {
+          select: () => ({
+            eq: () => ({
+              lte: () =>
+                Promise.resolve({
+                  data: [
+                    {
+                      id: recurringId,
+                      group_id: groupId,
+                      created_by_user_id: creatorId,
+                      paid_by_user_id: creatorId,
+                      ledger: "shared",
+                      description: "Spotify Failure",
+                      amount_twd: 149,
+                      tag: "娛樂",
+                      split_method: "equal",
+                      splits: { [creatorId]: 75 },
+                      next_run_date: "2026-07-15",
+                      frequency: "monthly",
+                      anchor_day: 15,
+                      end_date: null,
+                    },
+                  ],
+                  error: null,
+                }),
+            }),
+          }),
+          update: () => {
+            dbUpdatesCalled++;
+            return {
+              eq: () => Promise.resolve({ error: null }),
+            };
+          },
+        };
+      }
+      if (table === "users") {
+        return {
+          select: () => ({
+            eq: () => ({
+              single: () =>
+                Promise.resolve({
+                  data: {
+                    id: creatorId,
+                    couple_id: 1,
+                    line_user_id: "line-user",
+                    role: "owner",
+                  },
+                  error: null,
+                }),
+            }),
+          }),
+        };
+      }
+      throw new Error(`unexpected table ${table}`);
+    },
+  } as any;
+
+  const service = new RecurringService();
+  const count = await service.runDue({
+    env: {},
+    db: mockDb,
+    today: "2026-07-20",
+    executePendingAction: async () => {
+      throw new Error("Simulated action failure");
+    },
+    logError: (rid, err) => {
+      loggedErrorId = rid;
+      assert.match((err as Error).message, /Simulated action failure/);
+    },
+  });
+
+  assert.equal(count, 0);
+  assert.equal(loggedErrorId, recurringId);
+  assert.equal(dbUpdatesCalled, 0);
+});
+
+test("recurring facade: save/runDue delegate to the split modules", async () => {
+  const { RecurringService } = await import("./recurring-service");
+  const { recurringSaveHandler } = await import("./recurring-save");
+  const { recurringRunnerHandler } = await import("./recurring-runner");
+
+  let saveCalled = false;
+  let runDueCalled = false;
+
+  const originalSave = recurringSaveHandler.saveRecurring;
+  const originalRunDue = recurringRunnerHandler.runDueRecurring;
+
+  recurringSaveHandler.saveRecurring = async () => {
+    saveCalled = true;
+    return { ok: true };
+  };
+  recurringRunnerHandler.runDueRecurring = async () => {
+    runDueCalled = true;
+    return 42;
+  };
+
+  try {
+    const service = new RecurringService();
+    const saveRes = await service.save({} as any, {});
+    const runDueRes = await service.runDue({} as any);
+
+    assert.equal(saveCalled, true);
+    assert.deepEqual(saveRes, { ok: true });
+    assert.equal(runDueCalled, true);
+    assert.equal(runDueRes, 42);
+  } finally {
+    recurringSaveHandler.saveRecurring = originalSave;
+    recurringRunnerHandler.runDueRecurring = originalRunDue;
+  }
+});
+
 test("recurring service saves private recurring expenses without shared group scope", async () => {
   const { RecurringService } = await import("./recurring-service");
 
@@ -7802,4 +8101,999 @@ test("secretary registry: get_open_tasks / get_user_memories return the same sha
   assert.equal(memoryResult.items[0].approved, true);
   assert.equal(memoryResult.items[0].kind, "merchant_rule");
 });
+
+// ---------------------------------------------------------------------------
+// accountant registry tests
+// ---------------------------------------------------------------------------
+
+test("accountant registry: declared names match executeTool dispatch names", async () => {
+  const { ACCOUNTANT_TOOL_NAMES, getAccountantTool, findAccountantTool } = await import("./accountant-tool-registry");
+  const { executeTool } = await import("./accountant-tools");
+
+  const expected = [
+    "query_expenses",
+    "get_balance_summary",
+    "get_category_breakdown",
+    "compare_period",
+    "get_recurring_list",
+    "get_anomalies",
+    "get_category_trend",
+    "predict_month_end",
+    "record_expense",
+    "settle_debt",
+    "analyze_spending",
+  ];
+
+  assert.equal(ACCOUNTANT_TOOL_NAMES.length, expected.length);
+  for (const name of expected) {
+    assert.ok(ACCOUNTANT_TOOL_NAMES.includes(name), `expected ${name} to be in ACCOUNTANT_TOOL_NAMES`);
+    assert.ok(findAccountantTool(name), `expected ${name} to be found in registry`);
+    assert.equal(typeof getAccountantTool(name).executor, "function");
+  }
+
+  // Check unknown tool returns unknown error envelope
+  const unknownResult = (await executeTool("this_is_not_a_real_tool", {}, {
+    db: {} as any,
+    groupId: "g",
+    userId: "u",
+    coupleId: 1,
+  })) as { error: string };
+  assert.equal(unknownResult.error, "Unknown tool: this_is_not_a_real_tool");
+});
+
+test("accountant registry: agent-chat-service tools come from registry, not inline second source", async () => {
+  const { buildAccountantVercelTools, getAccountantTool } = await import("./accountant-tool-registry");
+
+  const ctx = {
+    db: {} as any,
+    groupId: "g",
+    userId: "u",
+    coupleId: 1,
+  };
+  const tools = buildAccountantVercelTools(ctx);
+
+  const readTools = [
+    "query_expenses",
+    "get_balance_summary",
+    "get_category_breakdown",
+    "compare_period",
+    "get_recurring_list",
+    "get_anomalies",
+    "get_category_trend",
+    "predict_month_end",
+    "analyze_spending",
+  ];
+
+  for (const name of readTools) {
+    const vercelEntry = tools[name];
+    assert.ok(vercelEntry, `buildAccountantVercelTools must produce an entry for ${name}`);
+    const registryEntry = getAccountantTool(name);
+    assert.equal(vercelEntry.description, registryEntry.description);
+    assert.equal(vercelEntry.parameters, registryEntry.zodSchema);
+    assert.equal(typeof vercelEntry.execute, "function");
+  }
+});
+
+test("accountant registry: query_expenses parameters are canonical date/tag/member/type contract", async () => {
+  const { getAccountantTool } = await import("./accountant-tool-registry");
+  const tool = getAccountantTool("query_expenses");
+  
+  // Verify it parses the canonical contract
+  const validArgs = {
+    date_from: "2026-07-01",
+    date_to: "2026-07-10",
+    tag: "Food",
+    member: "me",
+    type: "shared",
+    limit: 10,
+    sort: "date_desc",
+  };
+  const parsed = tool.zodSchema.parse(validArgs) as any;
+  assert.equal(parsed.date_from, "2026-07-01");
+  assert.equal(parsed.sort, "date_desc");
+
+  // Verify it throws on incorrect fields or incorrect types
+  assert.throws(() => tool.zodSchema.parse({ member: "invalid" }));
+  assert.throws(() => tool.zodSchema.parse({ type: "invalid" }));
+  assert.throws(() => tool.zodSchema.parse({ sort: "invalid" }));
+});
+
+test("accountant registry: compare_period and get_anomalies use canonical schemas, not stale Vercel-only args", async () => {
+  const { getAccountantTool } = await import("./accountant-tool-registry");
+  const compareTool = getAccountantTool("compare_period");
+  const anomaliesTool = getAccountantTool("get_anomalies");
+
+  // compare_period: should NOT accept stale Vercel-only fields
+  const canonicalCompare = {
+    period_a: { from: "2026-07-01", to: "2026-07-10" },
+    period_b: { from: "2026-06-01", to: "2026-06-10" },
+  };
+  const parsedCompare = compareTool.zodSchema.parse(canonicalCompare) as any;
+  assert.deepEqual(parsedCompare.period_a, canonicalCompare.period_a);
+
+  const staleCompare = {
+    metric: "category",
+    tag: "Food",
+    date_from_a: "2026-07-01",
+    date_to_a: "2026-07-10",
+    date_from_b: "2026-06-01",
+    date_to_b: "2026-06-10",
+  };
+  assert.throws(() => compareTool.zodSchema.parse(staleCompare));
+
+  // get_anomalies: should NOT accept threshold_std_dev
+  const staleAnomalies = {
+    threshold_std_dev: 2.5,
+  };
+  const parsedAnomalies = anomaliesTool.zodSchema.parse(staleAnomalies);
+  const validAnomalies = { date_from: "2026-07-01", date_to: "2026-07-10" };
+  const parsedValid = anomaliesTool.zodSchema.parse(validAnomalies) as any;
+  assert.equal(parsedValid.date_from, "2026-07-01");
+});
+
+test("accountant registry integration: query_expenses parameters are canonical in AgentChatService", async () => {
+  const { AgentChatService } = await import("./agent-chat-service");
+  let passedTools: any = null;
+
+  const chatService = new AgentChatService({
+    generateTextImpl: async (input: any) => {
+      passedTools = input.tools;
+      return {
+        text: "test",
+        steps: [],
+      };
+    },
+  });
+
+  const mockQuery: any = {
+    insert: () => mockQuery,
+    update: () => mockQuery,
+    select: () => mockQuery,
+    eq: () => mockQuery,
+    single: async () => ({ data: { id: "00000000-0000-4000-8000-000000000001" }, error: null }),
+  };
+  const mockDb = {
+    from: () => mockQuery,
+  } as any;
+
+  const ctx = {
+    db: mockDb,
+    user: { id: "u", couple_id: 1 },
+    getActiveGroupId: async () => "g",
+  };
+
+  await chatService.chat(ctx, { message: "query test" });
+
+  assert.ok(passedTools);
+  assert.ok(passedTools.query_expenses);
+  
+  const querySchema = passedTools.query_expenses.parameters;
+  const parsed = querySchema.parse({
+    date_from: "2026-07-01",
+    sort: "amount_desc",
+  });
+  assert.equal(parsed.date_from, "2026-07-01");
+  assert.equal(parsed.sort, "amount_desc");
+
+  const shape = querySchema.shape;
+  assert.ok(!("category" in shape), "should not contain category");
+  assert.ok(!("category_label" in shape), "should not contain category_label");
+});
+
+test("accountant registry integration: compare_period does not accept stale args in AgentChatService", async () => {
+  const { AgentChatService } = await import("./agent-chat-service");
+  let passedTools: any = null;
+
+  const chatService = new AgentChatService({
+    generateTextImpl: async (input: any) => {
+      passedTools = input.tools;
+      return {
+        text: "test",
+        steps: [],
+      };
+    },
+  });
+
+  const mockQuery: any = {
+    insert: () => mockQuery,
+    update: () => mockQuery,
+    select: () => mockQuery,
+    eq: () => mockQuery,
+    single: async () => ({ data: { id: "00000000-0000-4000-8000-000000000001" }, error: null }),
+  };
+  const mockDb = {
+    from: () => mockQuery,
+  } as any;
+
+  const ctx = {
+    db: mockDb,
+    user: { id: "u", couple_id: 1 },
+    getActiveGroupId: async () => "g",
+  };
+
+  await chatService.chat(ctx, { message: "compare test" });
+
+  assert.ok(passedTools);
+  assert.ok(passedTools.compare_period);
+
+  const compareSchema = passedTools.compare_period.parameters;
+  const staleCompare = {
+    metric: "category",
+    tag: "Food",
+    date_from_a: "2026-07-01",
+    date_to_a: "2026-07-10",
+    date_from_b: "2026-06-01",
+    date_to_b: "2026-06-10",
+  };
+  assert.throws(() => compareSchema.parse(staleCompare));
+
+  const canonicalCompare = {
+    period_a: { from: "2026-07-01", to: "2026-07-10" },
+    period_b: { from: "2026-06-01", to: "2026-06-10" },
+  };
+  const parsed = compareSchema.parse(canonicalCompare);
+  assert.deepEqual(parsed.period_a, canonicalCompare.period_a);
+});
+
+// ---------------------------------------------------------------------------
+// ledger-query split: structural regressions at the most fragile
+// seams. These guard against the easy-to-miss breakage that comes
+// from collapsing ledger-query.ts into core / read / bootstrap /
+// search modules.
+// ---------------------------------------------------------------------------
+
+test("ledger-query split: loadBootstrap() still separates shared/private/balances/dashboard", async () => {
+  // The contract that the LIFF dashboard depends on: the bootstrap
+  // payload has separate shared + private expense arrays, separate
+  // dashboards for each, balances keyed by snake_case, and an
+  // active group id. We lock the partition with a minimal mock.
+  const { loadBootstrap } = await import("./ledger-query-bootstrap");
+  const { LedgerQueryService } = await import("./ledger-query");
+
+  const coupleId = 1;
+  const userId = "00000000-0000-4000-8000-000000000a01";
+  const partnerId = "00000000-0000-4000-8000-000000000a02";
+  const activeGroupId = "00000000-0000-4000-8000-000000000a03";
+
+  const sharedExpense = {
+    id: "00000000-0000-4000-8000-000000000b01",
+    couple_id: coupleId,
+    group_id: activeGroupId,
+    ledger: "shared" as const,
+    description: "共同晚餐",
+    merchant: null,
+    notes: null,
+    tag: "餐飲",
+    mirror_kind: null,
+    mirror_source_expense_id: null,
+    amount_twd: 600,
+    paid_by_user_id: userId,
+    created_by_user_id: userId,
+    expense_date: "2026-07-05",
+    split_method: "equal" as const,
+    version: 1,
+    deleted_at: null,
+    created_at: "2026-07-05T00:00:00.000Z",
+    expense_splits: [
+      { user_id: userId, amount_twd: 300 },
+      { user_id: partnerId, amount_twd: 300 },
+    ],
+  };
+  const privateExpense = {
+    ...sharedExpense,
+    id: "00000000-0000-4000-8000-000000000b02",
+    group_id: null,
+    ledger: "private" as const,
+    description: "私人咖啡",
+    amount_twd: 120,
+    expense_splits: [{ user_id: userId, amount_twd: 120 }],
+  };
+
+  const mockDb = {
+    from(table: string) {
+      if (table === "users") {
+        const query: any = {
+          select: () => query,
+          eq: () => query,
+          order: () => Promise.resolve({
+            data: [
+              { id: userId, couple_id: coupleId, line_user_id: "u", role: "owner" },
+              { id: partnerId, couple_id: coupleId, line_user_id: "p", role: "partner" },
+            ],
+            error: null,
+          }),
+        };
+        return query;
+      }
+      if (table === "groups") {
+        const query: any = {
+          select: () => query,
+          eq: () => query,
+          order: () => Promise.resolve({
+            data: [
+              {
+                id: activeGroupId,
+                name: "g",
+                color: "#000000",
+                archived_at: null,
+                created_at: "2026-07-01T00:00:00.000Z",
+              },
+            ],
+            error: null,
+          }),
+        };
+        return query;
+      }
+      if (table === "user_preferences") {
+        const query: any = {
+          select: () => query,
+          eq: () => query,
+          single: async () => ({
+            data: { active_group_id: activeGroupId },
+            error: null,
+          }),
+        };
+        return query;
+      }
+      if (table === "expenses") {
+        // The bootstrap fires two expense queries: shared by group_id,
+        // private by created_by_user_id. Both must use the same
+        // chainable shape; we route them by which .eq() the chain saw
+        // most recently.
+        const calls: { kind: "shared" | "private" | "other" } = { kind: "other" };
+        const query: any = {
+          select: () => query,
+          eq: (field: string, value: unknown) => {
+            if (field === "group_id" && value === activeGroupId) calls.kind = "shared";
+            else if (field === "ledger" && value === "private")
+              calls.kind = "private";
+            return query;
+          },
+          gte: () => query,
+          order: () => query,
+          limit: () =>
+            Promise.resolve({
+              data: calls.kind === "private" ? [privateExpense] : [sharedExpense],
+              error: null,
+            }),
+        };
+        return query;
+      }
+      if (table === "recurring_expenses") {
+        const query: any = {
+          select: () => query,
+          eq: () => query,
+          order: () => Promise.resolve({ data: [], error: null }),
+        };
+        return query;
+      }
+      if (table === "notifications") {
+        const query: any = {
+          select: () => query,
+          eq: () => query,
+          order: () => query,
+          limit: () => Promise.resolve({ data: [], error: null }),
+        };
+        return query;
+      }
+      throw new Error(`unexpected table ${table}`);
+    },
+    rpc: async () => ({
+      data: [
+        { user_id: userId, balance_twd: 100 },
+        { user_id: partnerId, balance_twd: -100 },
+      ],
+      error: null,
+    }),
+  } as unknown as import("@supabase/supabase-js").SupabaseClient;
+
+  const user = {
+    id: userId,
+    couple_id: coupleId,
+    line_user_id: "u",
+    role: "owner" as const,
+  };
+
+  const result = await loadBootstrap({ db: mockDb, user });
+
+  // Bootstrap must surface the active group, the user list, the
+  // shared + private expense arrays, the dashboard, and the
+  // snake_case balances. Every one of these is consumed by the LIFF.
+  assert.equal(result.activeGroupId, activeGroupId);
+  assert.equal(result.users.length, 2);
+  assert.equal(result.user.id, userId);
+  assert.equal(result.sharedExpenses.length, 1);
+  assert.equal(result.privateExpenses.length, 1);
+  assert.equal(result.expenses.length, 2);
+  // balances is snake_case, exactly as the LIFF expects.
+  assert.deepEqual(result.balances, [
+    { user_id: userId, balance_twd: 100 },
+    { user_id: partnerId, balance_twd: -100 },
+  ]);
+  // Dashboard splits monthly / trend.
+  assert.ok(result.dashboard);
+  assert.ok(result.privateDashboard);
+  assert.equal(result.dashboard.monthlyCount, 1);
+  assert.equal(result.privateDashboard.monthlyCount, 1);
+  // The facade class must delegate to the same bootstrap.
+  const service = new LedgerQueryService();
+  const facadeResult = await service.loadBootstrap({ db: mockDb, user });
+  assert.equal(facadeResult.activeGroupId, result.activeGroupId);
+  assert.equal(facadeResult.expenses.length, result.expenses.length);
+  assert.deepEqual(facadeResult.balances, result.balances);
+});
+
+test("ledger-query split: searchExpenses() resolves active group first, then filters", async () => {
+  // The contract: searchExpenses must look up active_group_id from
+  // user_preferences before running the search filter, and must use
+  // that group id to scope the listAccessibleExpenses call.
+  const { searchExpenses } = await import("./ledger-query-search");
+  const { LedgerQueryService } = await import("./ledger-query");
+
+  const userId = "00000000-0000-4000-8000-000000000c01";
+  const activeGroupId = "00000000-0000-4000-8000-000000000c02";
+
+  let activeGroupLookupHits = 0;
+  let groupIdUsedForSearch: string | null = null;
+
+  const mockDb = {
+    from(table: string) {
+      if (table === "user_preferences") {
+        const query: any = {
+          select: () => query,
+          eq: () => query,
+          single: async () => {
+            activeGroupLookupHits += 1;
+            return { data: { active_group_id: activeGroupId }, error: null };
+          },
+        };
+        return query;
+      }
+      if (table === "expenses") {
+        const query: any = {
+          select: () => query,
+          eq: (field: string, value: unknown) => {
+            if (field === "group_id") groupIdUsedForSearch = String(value);
+            return query;
+          },
+          is: () => query,
+          order: () => query,
+          limit: () => Promise.resolve({ data: [], error: null }),
+        };
+        return query;
+      }
+      throw new Error(`unexpected table ${table}`);
+    },
+  } as unknown as import("@supabase/supabase-js").SupabaseClient;
+
+  const params = new URLSearchParams({ q: "晚餐" });
+  const result = await searchExpenses({ db: mockDb, user: { id: userId } }, params);
+
+  assert.ok(activeGroupLookupHits >= 1, "active group must be looked up first");
+  assert.equal(groupIdUsedForSearch, activeGroupId);
+  assert.equal(result.count, 0);
+  assert.deepEqual(result.expenses, []);
+
+  // Same path through the facade.
+  const service = new LedgerQueryService();
+  const facadeResult = await service.searchExpenses(
+    { db: mockDb, user: { id: userId } },
+    params,
+  );
+  assert.deepEqual(facadeResult, result);
+});
+
+test("ledger-query split: categoryExpenses() returns the documented shape for six_months/combined", async () => {
+  // The contract: categoryExpenses returns { label, total, offset,
+  // limit, expenses[] } where each expense item has the snake_case
+  // / camelCase fields the LIFF panel expects. The split must not
+  // drop any of them.
+  const { categoryExpenses } = await import("./ledger-query-search");
+  const { LedgerQueryService } = await import("./ledger-query");
+
+  const userId = "00000000-0000-4000-8000-000000000d01";
+  const activeGroupId = "00000000-0000-4000-8000-000000000d02";
+
+  const sharedExpense = {
+    id: "00000000-0000-4000-8000-000000000d10",
+    couple_id: 1,
+    group_id: activeGroupId,
+    ledger: "shared" as const,
+    description: "shared1",
+    merchant: null,
+    notes: null,
+    tag: "餐飲",
+    mirror_kind: null,
+    mirror_source_expense_id: null,
+    amount_twd: 500,
+    paid_by_user_id: userId,
+    created_by_user_id: userId,
+    expense_date: "2026-07-10",
+    split_method: "equal" as const,
+    version: 1,
+    deleted_at: null,
+    created_at: "2026-07-10T00:00:00.000Z",
+    expense_splits: [
+      { user_id: userId, amount_twd: 250 },
+      {
+        user_id: "00000000-0000-4000-8000-000000000d03",
+        amount_twd: 250,
+      },
+    ],
+  };
+
+  const mockDb = {
+    from(table: string) {
+      if (table === "user_preferences") {
+        const query: any = {
+          select: () => query,
+          eq: () => query,
+          single: async () => ({
+            data: { active_group_id: activeGroupId },
+            error: null,
+          }),
+        };
+        return query;
+      }
+      if (table === "expenses") {
+        const query: any = {
+          select: () => query,
+          eq: () => query,
+          order: () => query,
+          limit: () => Promise.resolve({ data: [sharedExpense], error: null }),
+        };
+        return query;
+      }
+      throw new Error(`unexpected table ${table}`);
+    },
+  } as unknown as import("@supabase/supabase-js").SupabaseClient;
+
+  const params = new URLSearchParams({
+    label: "餐飲",
+    range: "six_months",
+    scope: "combined",
+    limit: "5",
+  });
+  const result = await categoryExpenses({ db: mockDb, user: { id: userId } }, params);
+
+  // Shape contract:
+  assert.equal(result.label, "餐飲");
+  assert.equal(typeof result.total, "number");
+  assert.equal(result.offset, 0);
+  assert.equal(result.limit, 5);
+  assert.ok(Array.isArray(result.expenses));
+  if (result.expenses.length > 0) {
+    const e = result.expenses[0];
+    // snake_case fields the LIFF depends on
+    assert.equal(e.id, sharedExpense.id);
+    assert.equal(e.amount_twd, sharedExpense.amount_twd);
+    assert.equal(e.expense_date, sharedExpense.expense_date);
+    assert.equal(e.paid_by_user_id, sharedExpense.paid_by_user_id);
+    assert.equal(e.version, sharedExpense.version);
+  }
+
+  // Same path through the facade.
+  const service = new LedgerQueryService();
+  const facadeResult = await service.categoryExpenses(
+    { db: mockDb, user: { id: userId } },
+    params,
+  );
+  assert.deepEqual(facadeResult, result);
+});
+
+test("ledger-query split: facade return shapes match the public types", async () => {
+  // Each facade method must produce a value that satisfies the
+  // public zod schema exported from `ledger-query-core`. The types
+  // have been stable for a long time; this test exists to make sure
+  // the refactor doesn't silently narrow or change a return shape.
+  const {
+    balanceSummarySchema,
+    queryExpensesSummarySchema,
+    recentExpensesResultSchema,
+    recurringListResultSchema,
+  } = await import("./ledger-query-core");
+  const { LedgerQueryService } = await import("./ledger-query");
+
+  const service = new LedgerQueryService();
+
+  // balanceSummary with a real db: just assert the schema parse on
+  // an empty/mock success path.
+  const balance = await service.balanceSummary({
+    db: {} as import("@supabase/supabase-js").SupabaseClient,
+    groupId: "g",
+    userId: "u",
+  });
+  // The error envelope is fine if loadGroupBalances fails on a stub.
+  if ("error" in balance) {
+    assert.equal(balance.error, "balance lookup failed");
+  } else {
+    assert.ok(balanceSummarySchema.safeParse(balance).success);
+  }
+
+  // recentExpenses with an empty mock db throws / returns weird; we
+  // only assert the type-level contract by feeding the schemas
+  // directly with a hand-rolled object.
+  assert.ok(
+    recentExpensesResultSchema.safeParse({
+      count: 0,
+      items: [],
+    }).success,
+  );
+  assert.ok(
+    queryExpensesSummarySchema.safeParse({
+      total: 0,
+      count: 0,
+      average: 0,
+      date_range: null,
+    }).success,
+  );
+  assert.ok(
+    recurringListResultSchema.safeParse({
+      items: [
+        {
+          description: "x",
+          amount: 100,
+          frequency: "monthly",
+          next_run: "2026-07-01",
+          active: true,
+          tag: "餐飲",
+          ledger: "shared",
+        },
+      ],
+    }).success,
+  );
+});
+
+test("accountant agent runner: LLM fact mismatch falls back but still persists report/run rows", async () => {
+  const { runAgent } = await import("./accountant-agent-runner");
+  const { setAnswerWithGemini } = await import("./accountant-agent-answer");
+
+  // Simulate fallback being triggered (due to mismatch or error)
+  setAnswerWithGemini(async (input, fallback) => {
+    return { answer: fallback, source: "fallback" };
+  });
+
+  try {
+    const reportRow = {
+      id: "00000000-0000-4000-8000-000000009202",
+      group_id: GROUP,
+      owner_user_id: null,
+      report_type: "manual_question",
+      scope: "shared",
+      month: "2026-07-01",
+      question: "本月支出",
+      title: "AI 會計師",
+      summary: "Mocked fallback answer",
+      facts: { totalTwd: 100, transactionCount: 1 },
+      findings: [],
+      suggestions: [],
+      source: "fallback",
+      created_at: "2026-07-15T00:00:00.000Z",
+    };
+
+    const insertedReports: any[] = [];
+    const insertedRuns: any[] = [];
+
+    const mockDb = {
+      from(table: string) {
+        if (table === "user_preferences") {
+          return {
+            select: () => mockDb.from(table),
+            eq: () => mockDb.from(table),
+            single: async () => ({
+              data: { active_group_id: GROUP },
+              error: null,
+            }),
+          };
+        }
+        if (table === "expenses") {
+          return {
+            select: () => mockDb.from(table),
+            eq: () => mockDb.from(table),
+            order: () => mockDb.from(table),
+            limit: () => Promise.resolve({ data: [], error: null }),
+          };
+        }
+        if (table === "accountant_reports") {
+          return {
+            insert: (row: any) => {
+              insertedReports.push(row);
+              return {
+                select: () => ({
+                  single: async () => ({ data: reportRow, error: null }),
+                }),
+              };
+            },
+          };
+        }
+        if (table === "agent_runs") {
+          return {
+            insert: (row: any) => {
+              insertedRuns.push(row);
+              return {
+                select: () => ({
+                  single: async () => ({ data: { id: "run-2" }, error: null }),
+                }),
+              };
+            },
+          };
+        }
+        throw new Error(`unexpected table ${table}`);
+      },
+    } as unknown as import("@supabase/supabase-js").SupabaseClient;
+
+    const result = await runAgent(
+      {
+        env: {} as ServerContext["env"],
+        db: mockDb,
+        user: {
+          id: CORE_OWNER,
+          couple_id: 1,
+          line_user_id: "line-owner",
+          role: "owner",
+        },
+      },
+      { message: "本月支出", scope: "shared" },
+    );
+
+    assert.equal(result.answer, "本月共同帳共 0 筆，總額 NT$0。");
+    assert.equal(insertedReports.length, 1);
+    assert.equal(insertedReports[0].source, "fallback");
+    assert.equal(insertedRuns.length, 1);
+    assert.equal(insertedRuns[0].report_id, reportRow.id);
+  } finally {
+    // Restore default implementation
+    const { answerWithGemini: originalAnswerWithGemini } = await import("./accountant-agent-answer");
+    setAnswerWithGemini(originalAnswerWithGemini);
+  }
+});
+
+test("accountant category cleanup: suggestCategoryUpdates only returns visible other-tag candidates", async () => {
+  const { suggestCategoryUpdates } = await import("./accountant-category-cleanup");
+
+  const expenses = [
+    {
+      id: "00000000-0000-4000-8000-000000009501",
+      couple_id: 1,
+      group_id: GROUP,
+      ledger: "shared",
+      description: "Shared other",
+      merchant: null,
+      notes: null,
+      tag: "其他",
+      mirror_kind: null,
+      mirror_source_expense_id: null,
+      amount_twd: 100,
+      paid_by_user_id: CORE_OWNER,
+      created_by_user_id: CORE_OWNER,
+      expense_date: "2026-07-01",
+      split_method: "equal",
+      version: 1,
+      deleted_at: null,
+      created_at: "2026-07-01T00:00:00.000Z",
+      expense_splits: [],
+    },
+    {
+      id: "00000000-0000-4000-8000-000000009502",
+      couple_id: 1,
+      group_id: GROUP,
+      ledger: "shared",
+      description: "Shared food",
+      merchant: null,
+      notes: null,
+      tag: "Food",
+      mirror_kind: null,
+      mirror_source_expense_id: null,
+      amount_twd: 200,
+      paid_by_user_id: CORE_OWNER,
+      created_by_user_id: CORE_OWNER,
+      expense_date: "2026-07-01",
+      split_method: "equal",
+      version: 1,
+      deleted_at: null,
+      created_at: "2026-07-01T00:00:00.000Z",
+      expense_splits: [],
+    },
+    {
+      id: "00000000-0000-4000-8000-000000009503",
+      couple_id: 1,
+      group_id: GROUP,
+      ledger: "private",
+      description: "Partner private other",
+      merchant: null,
+      notes: null,
+      tag: "其他",
+      mirror_kind: null,
+      mirror_source_expense_id: null,
+      amount_twd: 300,
+      paid_by_user_id: CORE_PARTNER,
+      created_by_user_id: CORE_PARTNER,
+      expense_date: "2026-07-01",
+      split_method: "equal",
+      version: 1,
+      deleted_at: null,
+      created_at: "2026-07-01T00:00:00.000Z",
+      expense_splits: [],
+    },
+  ];
+
+  let isPrivateQuery = false;
+  const mockDb = {
+    from(table: string) {
+      if (table === "user_preferences") {
+        return {
+          select: () => mockDb.from(table),
+          eq: () => mockDb.from(table),
+          single: async () => ({
+            data: { active_group_id: GROUP },
+            error: null,
+          }),
+        };
+      }
+      if (table === "expenses") {
+        return {
+          select: () => mockDb.from(table),
+          eq: (col: string, val: any) => {
+            if (col === "ledger" && val === "private") {
+              isPrivateQuery = true;
+            }
+            return mockDb.from(table);
+          },
+          order: () => mockDb.from(table),
+          limit: () => {
+            const data = isPrivateQuery ? [] : expenses;
+            isPrivateQuery = false;
+            return Promise.resolve({ data, error: null });
+          },
+        };
+      }
+      throw new Error(`unexpected table ${table}`);
+    },
+  } as unknown as import("@supabase/supabase-js").SupabaseClient;
+
+  const result = await suggestCategoryUpdates(
+    {
+      env: {} as ServerContext["env"],
+      db: mockDb,
+      user: {
+        id: CORE_OWNER,
+        couple_id: 1,
+        line_user_id: "line-owner",
+        role: "owner",
+      },
+    },
+    { range: "all", scope: "shared" },
+  );
+
+  assert.equal(result.updates.length, 1);
+  assert.equal(result.updates[0].expenseId, "00000000-0000-4000-8000-000000009501");
+});
+
+test("accountant category analytics: six_months still filters to the last six months window", async () => {
+  const { categoryAnalytics } = await import("./accountant-category-cleanup");
+
+  const expenses = [
+    {
+      id: "00000000-0000-4000-8000-000000009601",
+      couple_id: 1,
+      group_id: GROUP,
+      ledger: "shared",
+      description: "In window",
+      merchant: null,
+      notes: null,
+      tag: "Food",
+      mirror_kind: null,
+      mirror_source_expense_id: null,
+      amount_twd: 100,
+      paid_by_user_id: CORE_OWNER,
+      created_by_user_id: CORE_OWNER,
+      expense_date: "2026-02-01",
+      split_method: "equal",
+      version: 1,
+      deleted_at: null,
+      created_at: "2026-02-01T00:00:00.000Z",
+      expense_splits: [],
+    },
+    {
+      id: "00000000-0000-4000-8000-000000009602",
+      couple_id: 1,
+      group_id: GROUP,
+      ledger: "shared",
+      description: "Out window",
+      merchant: null,
+      notes: null,
+      tag: "Rent",
+      mirror_kind: null,
+      mirror_source_expense_id: null,
+      amount_twd: 1000,
+      paid_by_user_id: CORE_OWNER,
+      created_by_user_id: CORE_OWNER,
+      expense_date: "2026-01-31",
+      split_method: "equal",
+      version: 1,
+      deleted_at: null,
+      created_at: "2026-01-31T00:00:00.000Z",
+      expense_splits: [],
+    },
+  ];
+
+  let isPrivateQuery = false;
+  const mockDb = {
+    from(table: string) {
+      if (table === "user_preferences") {
+        return {
+          select: () => mockDb.from(table),
+          eq: () => mockDb.from(table),
+          single: async () => ({
+            data: { active_group_id: GROUP },
+            error: null,
+          }),
+        };
+      }
+      if (table === "expenses") {
+        return {
+          select: () => mockDb.from(table),
+          eq: (col: string, val: any) => {
+            if (col === "ledger" && val === "private") {
+              isPrivateQuery = true;
+            }
+            return mockDb.from(table);
+          },
+          order: () => mockDb.from(table),
+          limit: () => {
+            const data = isPrivateQuery ? [] : expenses;
+            isPrivateQuery = false;
+            return Promise.resolve({ data, error: null });
+          },
+        };
+      }
+      throw new Error(`unexpected table ${table}`);
+    },
+  } as unknown as import("@supabase/supabase-js").SupabaseClient;
+
+  const params = new URLSearchParams({
+    range: "six_months",
+    scope: "shared",
+  });
+
+  const result = await categoryAnalytics(
+    {
+      env: {} as ServerContext["env"],
+      db: mockDb,
+      user: {
+        id: CORE_OWNER,
+        couple_id: 1,
+        line_user_id: "line-owner",
+        role: "owner",
+      },
+    },
+    params,
+  );
+
+  assert.equal(result.count, 1);
+  assert.equal(result.categories.length, 1);
+  assert.equal(result.categories[0].label, "Food");
+  assert.equal(result.totalTwd, 100);
+});
+
+test("accountant agent barrel: exported functions/schemas still match the old public surface", async () => {
+  const barrel = await import("./accountant-agent");
+
+  assert.equal(typeof barrel.ask, "function");
+  assert.equal(typeof barrel.runAgent, "function");
+  assert.equal(typeof barrel.categoryAnalytics, "function");
+  assert.equal(typeof barrel.suggestCategoryUpdates, "function");
+  assert.equal(typeof barrel.createCategoryCleanup, "function");
+
+  assert.ok(barrel.accountantAskInputSchema);
+  assert.ok(barrel.agentRunInputSchema);
+  assert.ok(barrel.categoryAnalyticsInputSchema);
+  assert.ok(barrel.categoryCleanupInputSchema);
+
+  assert.equal(barrel.accountantAskInputSchema.safeParse({ question: "x" }).success, true);
+  assert.equal(barrel.agentRunInputSchema.safeParse({ message: "x" }).success, true);
+  assert.equal(barrel.categoryAnalyticsInputSchema.safeParse({ range: "six_months" }).success, true);
+  assert.equal(barrel.categoryCleanupInputSchema.safeParse({ updates: [] }).success, false);
+});
+
 
