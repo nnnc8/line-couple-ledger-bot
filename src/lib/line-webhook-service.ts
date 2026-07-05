@@ -74,6 +74,7 @@ export async function handleLineEvent(
       }
       await handleLineImageTurn({
         messageId: event.message.id,
+        sourceEventId: event.webhookEventId,
         user,
         dependencies,
         reply: (text) => replyText(dependencies.lineClient, replyToken, text),
@@ -93,6 +94,7 @@ export async function handleLineEvent(
       }
       await handleLineAudioTurn({
         messageId: event.message.id,
+        sourceEventId: event.webhookEventId,
         user,
         dependencies,
         reply: (text) => replyText(dependencies.lineClient, replyToken, text),

@@ -56,6 +56,7 @@ export async function handleLineTextMessage(
   // Route all other messages through the Agent Loop
   await runLineSecretaryTurn({
     text,
+    sourceEventId: eventId,
     user,
     dependencies,
     reply: (replyMsg) => replyText(dependencies.lineClient, replyToken, replyMsg),

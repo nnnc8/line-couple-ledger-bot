@@ -5702,6 +5702,77 @@ test("runLineSecretaryTurn routes explicit group mention to that group and strip
   }
 });
 
+test("runLineSecretaryTurn passes a stable line idempotency key into executeAgentAction", async () => {
+  setupMockEnv();
+  const { runLineSecretaryTurn } = await import("./line-secretary-service");
+  const { SecretaryService } = await import("./secretary-service");
+  const { pendingActionService } = await import("./services");
+
+  let capturedMetadata: any = null;
+  const originalRun = SecretaryService.prototype.run;
+  const originalExecuteAgentAction = pendingActionService.executeAgentAction;
+
+  SecretaryService.prototype.run = async (args: any) => {
+    await args.executeAction({
+      type: "create_expense",
+      expense: { description: "拉麵", amount_twd: 840 },
+    });
+    return {
+      reply: "ok",
+      notifyPartner: false,
+      partnerMessage: null,
+      actionFailure: null,
+    };
+  };
+
+  pendingActionService.executeAgentAction = async (_context: any, _action: any, metadata?: any) => {
+    capturedMetadata = metadata;
+    return { result: "confirmed", action_type: "create_expense" } as any;
+  };
+
+  try {
+    const dependencies = {
+      lineClient: {
+        replyMessage: async () => {},
+        getMessageContent: async () => ({} as any),
+        pushMessage: async () => {},
+      },
+      supabase: createMockDbForSecretary({
+        user_preferences: { active_group_id: "00000000-0000-4000-8000-000000000001" },
+        groups: [{ id: "00000000-0000-4000-8000-000000000001", name: "阿提斯" }],
+        users: {
+          id: "00000000-0000-4000-8000-000000000003",
+          couple_id: 1,
+          role: "partner",
+          line_user_id: "line-partner",
+        },
+        secretary_sessions: null,
+      }),
+      gemini: {} as any,
+    };
+
+    await runLineSecretaryTurn({
+      text: "幫我新增 拉麵 840 對方付",
+      sourceEventId: "evt-123",
+      user: {
+        id: "user-id",
+        couple_id: 1,
+        role: "owner",
+        line_user_id: "line-user-id",
+      },
+      dependencies,
+      reply: async () => {},
+    });
+
+    assert.equal(capturedMetadata?.source, "line");
+    assert.equal(capturedMetadata?.sourceEventId, capturedMetadata?.idempotencyKey);
+    assert.match(capturedMetadata?.idempotencyKey ?? "", /^evt-123:/);
+  } finally {
+    SecretaryService.prototype.run = originalRun;
+    pendingActionService.executeAgentAction = originalExecuteAgentAction;
+  }
+});
+
 test("handleLineAudioTurn prefixes transcript into assistant reply", async () => {
   setupMockEnv();
   const { handleLineAudioTurn } = await import("./line-secretary-service");

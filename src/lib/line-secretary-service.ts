@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { z } from "zod";
 import { serverEnvironment } from "./server-runtime";
 import { runSecretaryLoop } from "./secretary-agent";
@@ -45,6 +46,7 @@ export async function runLineSecretaryTurn(input: {
   reply: (text: string) => Promise<void>;
   imageData?: { imageData: string; mimeType: string };
   groupIdOverride?: string;
+  sourceEventId?: string;
 }): Promise<void> {
   const { text, user, dependencies, reply, imageData } = input;
   const activeGroupId =
@@ -112,7 +114,13 @@ export async function runLineSecretaryTurn(input: {
           agentDeps,
         ),
       executeAction: async (action) =>
-        actionResultSchema.parse(await pendingActionService.executeAgentAction(serverContext, action)),
+        actionResultSchema.parse(
+          await pendingActionService.executeAgentAction(
+            serverContext,
+            action,
+            lineActionMetadata(input.sourceEventId, action),
+          ),
+        ),
     });
     if (workflowResult.actionFailure) {
       const { actionResultMessage } = await import("./line-bot-shared");
@@ -139,6 +147,7 @@ export async function runLineSecretaryTurn(input: {
 
 export async function handleLineAudioTurn(input: {
   messageId: string;
+  sourceEventId?: string;
   user: LineUser;
   dependencies: LineSecretaryDependencies;
   reply: (text: string) => Promise<void>;
@@ -166,6 +175,7 @@ export async function handleLineAudioTurn(input: {
 
     await runLineSecretaryTurn({
       text,
+      sourceEventId: input.sourceEventId,
       user,
       dependencies,
       reply: async (assistantReply: string) => {
@@ -180,6 +190,7 @@ export async function handleLineAudioTurn(input: {
 
 export async function handleLineImageTurn(input: {
   messageId: string;
+  sourceEventId?: string;
   user: LineUser;
   dependencies: LineSecretaryDependencies;
   reply: (text: string) => Promise<void>;
@@ -212,6 +223,7 @@ export async function handleLineImageTurn(input: {
     const text = "這是一張收據或發票照片。請分析圖片內容，提取商家名稱、日期、總金額，並判斷分類，然後呼叫 record_expense 工具記帳。如果圖片不是收據或發票，請告知使用者。";
     await runLineSecretaryTurn({
       text,
+      sourceEventId: input.sourceEventId,
       user,
       dependencies,
       reply,
@@ -279,4 +291,21 @@ async function listActiveGroups(
 
   if (error) throw error;
   return z.array(z.object({ id: z.string().uuid(), name: z.string() })).parse(data ?? []);
+}
+
+function lineActionMetadata(
+  sourceEventId: string | undefined,
+  action: Record<string, unknown>,
+) {
+  if (!sourceEventId) return undefined;
+  const digest = createHash("sha256")
+    .update(JSON.stringify(action))
+    .digest("hex")
+    .slice(0, 24);
+  const key = `${sourceEventId}:${digest}`;
+  return {
+    source: "line",
+    sourceEventId: key,
+    idempotencyKey: key,
+  };
 }

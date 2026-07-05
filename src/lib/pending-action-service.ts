@@ -388,7 +388,11 @@ export class PendingActionService {
   proposeAction(
     context: PendingActionContext,
     input: unknown,
-    metadata?: { source?: string; idempotencyKey?: string | null },
+    metadata?: {
+      source?: string;
+      sourceEventId?: string;
+      idempotencyKey?: string | null;
+    },
   ) {
     return proposeActionHelper(this, context, input, metadata);
   }
@@ -404,7 +408,11 @@ export class PendingActionService {
   proposeSettlement(
     context: PendingActionContext,
     input: Parameters<typeof proposeSettlementHelper>[2],
-    metadata?: { source?: string; idempotencyKey?: string | null },
+    metadata?: {
+      source?: string;
+      sourceEventId?: string;
+      idempotencyKey?: string | null;
+    },
   ) {
     return proposeSettlementHelper(this, context, input, metadata);
   }
@@ -412,7 +420,11 @@ export class PendingActionService {
   proposeCreateExpenseHelper(
     context: PendingActionContext,
     expenseInput: Parameters<typeof proposeCreateExpenseHelper>[2],
-    metadata: { source: string; idempotencyKey?: string | null },
+    metadata: {
+      source: string;
+      sourceEventId?: string;
+      idempotencyKey?: string | null;
+    },
   ) {
     return proposeCreateExpenseHelper(this, context, expenseInput, metadata);
   }
@@ -422,7 +434,11 @@ export class PendingActionService {
     expenseId: string,
     expectedVersion: number,
     expenseInput: Parameters<typeof proposeUpdateExpenseHelper>[4],
-    metadata: { source: string; idempotencyKey?: string | null },
+    metadata: {
+      source: string;
+      sourceEventId?: string;
+      idempotencyKey?: string | null;
+    },
   ) {
     return proposeUpdateExpenseHelper(
       this,
@@ -438,7 +454,11 @@ export class PendingActionService {
     context: PendingActionContext,
     expenseId: string,
     expectedVersion: number,
-    metadata: { source: string; idempotencyKey?: string | null },
+    metadata: {
+      source: string;
+      sourceEventId?: string;
+      idempotencyKey?: string | null;
+    },
   ) {
     return proposeDeleteExpenseHelper(
       this,
@@ -453,7 +473,11 @@ export class PendingActionService {
     context: PendingActionContext,
     expenseId: string,
     expectedVersion: number,
-    metadata: { source: string; idempotencyKey?: string | null },
+    metadata: {
+      source: string;
+      sourceEventId?: string;
+      idempotencyKey?: string | null;
+    },
   ) {
     return proposeRestoreExpenseHelper(
       this,
@@ -518,8 +542,13 @@ export class PendingActionService {
   executeAgentAction(
     context: PendingActionContext,
     action: Record<string, unknown>,
+    metadata?: {
+      source?: string;
+      sourceEventId?: string;
+      idempotencyKey?: string | null;
+    },
   ) {
-    return executeAgentAction(this, context, action);
+    return executeAgentAction(this, context, action, metadata);
   }
 
   async applyConfirmedActionSideEffects(

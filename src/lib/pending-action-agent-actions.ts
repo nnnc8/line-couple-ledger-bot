@@ -323,8 +323,14 @@ export async function executeAgentAction(
   service: ServiceForAgentActions,
   context: PendingActionContext,
   action: Record<string, unknown>,
+  metadata?: {
+    source?: string;
+    sourceEventId?: string;
+    idempotencyKey?: string | null;
+  },
 ) {
   const type = typeof action.type === "string" ? action.type : "";
+  const source = metadata?.source ?? "line";
 
   if (type === "create_expense") {
     const expenseInput = z
@@ -350,7 +356,9 @@ export async function executeAgentAction(
     );
 
     return proposeCreateExpenseHelper(service, context, standardInput, {
-      source: "line",
+      source,
+      sourceEventId: metadata?.sourceEventId,
+      idempotencyKey: metadata?.idempotencyKey,
     });
   }
 
@@ -386,7 +394,11 @@ export async function executeAgentAction(
       input.expenseId,
       input.expectedVersion,
       standardInput,
-      { source: "line" },
+      {
+        source,
+        sourceEventId: metadata?.sourceEventId,
+        idempotencyKey: metadata?.idempotencyKey,
+      },
     );
   }
 
@@ -400,7 +412,11 @@ export async function executeAgentAction(
       service,
       context,
       { type: "settle", groupId: input.groupId, amountTwd: input.amountTwd },
-      { source: "line", idempotencyKey: null },
+      {
+        source,
+        sourceEventId: metadata?.sourceEventId,
+        idempotencyKey: metadata?.idempotencyKey ?? null,
+      },
     );
   }
 

@@ -50,6 +50,7 @@ type ServiceForProposals = Pick<
 interface ProposalMetadata {
   source: string;
   idempotencyKey?: string | null;
+  sourceEventId?: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -156,7 +157,7 @@ export async function proposeCreateExpenseHelper(
     actionType: "create_expense",
     groupId,
     payload: storedPayload,
-    sourceEventId: `${metadata.source}:${randomUUID()}`,
+    sourceEventId: metadata.sourceEventId ?? `${metadata.source}:${randomUUID()}`,
     idempotencyKey: metadata.idempotencyKey,
   });
 }
@@ -216,7 +217,7 @@ export async function proposeUpdateExpenseHelper(
     actionType: "update_expense",
     groupId,
     payload: storedPayload,
-    sourceEventId: `${metadata.source}:${randomUUID()}`,
+    sourceEventId: metadata.sourceEventId ?? `${metadata.source}:${randomUUID()}`,
     idempotencyKey: metadata.idempotencyKey,
   });
 }
@@ -259,7 +260,7 @@ export async function proposeDeleteExpenseHelper(
     actionType: "delete_expense",
     groupId: expense.group_id,
     payload: storedPayload,
-    sourceEventId: `${metadata.source}:${randomUUID()}`,
+    sourceEventId: metadata.sourceEventId ?? `${metadata.source}:${randomUUID()}`,
     idempotencyKey: metadata.idempotencyKey,
   });
 }
@@ -299,7 +300,7 @@ export async function proposeRestoreExpenseHelper(
     actionType: "restore_expense",
     groupId: expense.group_id,
     payload: storedPayload,
-    sourceEventId: `${metadata.source}:${randomUUID()}`,
+    sourceEventId: metadata.sourceEventId ?? `${metadata.source}:${randomUUID()}`,
     idempotencyKey: metadata.idempotencyKey,
   });
 }
@@ -370,7 +371,11 @@ export async function proposeSettlement(
   service: ServiceForProposals,
   context: PendingActionContext,
   input: z.infer<typeof createSettlementCommandSchema>,
-  metadata?: { source?: string; idempotencyKey?: string | null },
+  metadata?: {
+    source?: string;
+    sourceEventId?: string;
+    idempotencyKey?: string | null;
+  },
 ) {
   const parsed = createSettlementCommandSchema.parse(input);
   const groupId = await resolveSharedGroupId(
@@ -399,7 +404,7 @@ export async function proposeSettlement(
         idempotencyKey: metadata?.idempotencyKey ?? null,
       },
     ),
-    sourceEventId: `${source}:${randomUUID()}`,
+    sourceEventId: metadata?.sourceEventId ?? `${source}:${randomUUID()}`,
     idempotencyKey: metadata?.idempotencyKey,
   });
 }

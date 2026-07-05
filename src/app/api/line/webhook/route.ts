@@ -63,10 +63,12 @@ export async function POST(request: Request): Promise<Response> {
     setupCode: environment.data.COUPLE_SETUP_CODE,
   };
 
-  await Promise.allSettled(
-    callback.events.map((event) =>
-      handleLineEvent(event as unknown as webhook.Event, dependencies),
-    ),
-  );
+  after(async () => {
+    await Promise.allSettled(
+      callback.events.map((event) =>
+        handleLineEvent(event as unknown as webhook.Event, dependencies),
+      ),
+    );
+  });
   return NextResponse.json({ ok: true });
 }
