@@ -1,0 +1,14 @@
+name: Question
+description: Ask how to do something with the bot, dashboard, or deployment.
+labels: ["question"]
+body:
+  - type: textarea
+    id: question
+    attributes:
+      label: Your question
+    validations:
+      required: true
+  - type: textarea
+    id: context
+    attributes:
+      label: What you've already tried

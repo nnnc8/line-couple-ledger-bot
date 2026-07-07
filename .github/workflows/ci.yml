@@ -1,0 +1,58 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: typecheck, test, e2e, build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Unit tests
+        run: pnpm test
+
+      - name: E2E tests
+        run: pnpm test:e2e
+
+      - name: Build
+        run: pnpm build
+        env:
+          # Build only needs a stub env. Real secrets are not used in CI.
+          DATABASE_URL: postgresql://stub:stub@localhost:5432/stub
+          LINE_CHANNEL_SECRET: ci_stub
+          LINE_CHANNEL_ACCESS_TOKEN: ci_stub
+          GEMINI_API_KEY: ci_stub
+          SUPABASE_URL: https://ci.stub
+          SUPABASE_SECRET_KEY: ci_stub
+          COUPLE_SETUP_CODE: ci_stub_couple_setup_code_20
+          LINE_LOGIN_CHANNEL_ID: "200000000"
+          NEXT_PUBLIC_LIFF_ID: ci-stub
+          LIFF_SESSION_SECRET: ci_stub_liff_session_secret_32_chars
+          APP_URL: https://ci.stub
+          CRON_SECRET: ci_stub_cron_secret

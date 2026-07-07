@@ -1,0 +1,26 @@
+name: Feature request
+description: Propose a new capability for the bot, dashboard, or agent layer.
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem are you trying to solve?
+      description: Describe the user pain, not the solution.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional context
+      description: Screenshots, related projects, or sample LINE messages that should trigger this.

@@ -1,0 +1,14 @@
+# Bug reports
+* [ ] Read [SECURITY.md](../SECURITY.md) — don't file secrets leaks here.
+* [ ] Search for an existing report.
+* [ ] Use the "Bug report" template.
+
+# Feature requests
+* [ ] Search for an existing proposal.
+* [ ] Use the "Feature request" template; describe the user problem first, the solution second.
+
+# Questions
+* [ ] Use the "Question" template.
+
+# Pull requests
+* See [CONTRIBUTING.md](../CONTRIBUTING.md). Required CI: `pnpm typecheck && pnpm test && pnpm test:e2e && pnpm build`.
