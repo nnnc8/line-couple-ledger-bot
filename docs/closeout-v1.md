@@ -12,16 +12,18 @@
 - **Production alias**: `https://line-couple-ledger-bot.vercel.app` (the cron
   smoke at `scripts/live-smoke/cron.ts` confirms this endpoint is live and
   reachable).
-- **Repo SHA at closeout**: `09b8d94` (`chore: close out agent v1 rollout`,
+- **Repo SHA at closeout**: `97be21d` (`chore: close out agent v1 rollout`,
   pushed to `origin/codex/line-couple-bot-mvp`).
 - **Vercel deployment record**:
-  - deployment id: `dpl_2B8dQFYsgQUiuh3nJfTVhZpnyyEq`
-  - canonical URL: `https://line-couple-ledger-6aiwv7px3-ncnc8.vercel.app`
+  - deployment id: `dpl_64Ew3c2RByund15wFfqThvvzurgS`
+  - canonical URL: `https://line-couple-ledger-nf4bsay78-ncnc8.vercel.app`
   - target: `production`, status: `Ready`
-  - created: `2026-07-08 16:54:05 CST`
+  - created: `2026-07-08 17:17:52 CST`
   - aliases: `line-couple-ledger-bot.vercel.app`,
     `line-couple-ledger-bot-ncnc8.vercel.app`,
     `line-couple-ledger-bot-nnnc8-ncnc8.vercel.app`
+  - Previous production (kept for rollback reference): `dpl_2B8dQFYsgQUiuh3nJfTVhZpnyyEq`
+    (SHA `09b8d94`).
 - **Post-deploy sanity** (run after every redeploy):
   - `curl -sS -o /dev/null -w "%{http_code}\n" https://line-couple-ledger-bot.vercel.app/`
     → `200`.
@@ -125,9 +127,11 @@ swallows errors.
 
 1. In Vercel → Deployments, promote the previous deployment to
    production (or `vercel rollback`).
-   - Current production: `dpl_2B8dQFYsgQUiuh3nJfTVhZpnyyEq` (SHA
-     `09b8d94`).
-   - Previous production: the SHA `9858162` deployment (visible in
+   - Current production: `dpl_64Ew3c2RByund15wFfqThvvzurgS` (SHA
+     `97be21d`).
+   - Previous production (one step back): `dpl_2B8dQFYsgQUiuh3nJfTVhZpnyyEq`
+     (SHA `09b8d94`).
+   - Earlier still: the SHA `9858162` deployment (visible in
      `vercel ls --prod`).
 2. No data migration is required; the older build simply doesn't read
    from `agent_events` if you roll back further than the v1 closeout.
