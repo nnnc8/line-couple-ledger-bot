@@ -2,17 +2,35 @@
 
 > Snapshot of the v1 closeout run. Update the "Verified by" rows after each
 > redeploy and re-run of the live proof checklist.
+>
+> **Operator action required after redeploy**: open the production LINE OA
+> and run the 4 cases in "Live LINE proof" below, then come back and fill in
+> the `Verified by / when` column plus the actual reply and side-effect.
 
 ## Deployment
 
-- **Production URL**: `https://line-couple-ledger-bot.vercel.app` (the cron
+- **Production alias**: `https://line-couple-ledger-bot.vercel.app` (the cron
   smoke at `scripts/live-smoke/cron.ts` confirms this endpoint is live and
   reachable).
-- **Repo SHA at closeout**: `9858162` ("feat: introduce agent event logging
-  service and dashboard UI components for tasks and history").
-- **Working-tree changes at closeout** (uncommitted at this snapshot, must
-  be committed and pushed before the next redeploy):
+- **Repo SHA at closeout**: `09b8d94` (`chore: close out agent v1 rollout`,
+  pushed to `origin/codex/line-couple-bot-mvp`).
+- **Vercel deployment record**:
+  - deployment id: `dpl_2B8dQFYsgQUiuh3nJfTVhZpnyyEq`
+  - canonical URL: `https://line-couple-ledger-6aiwv7px3-ncnc8.vercel.app`
+  - target: `production`, status: `Ready`
+  - created: `2026-07-08 16:54:05 CST`
+  - aliases: `line-couple-ledger-bot.vercel.app`,
+    `line-couple-ledger-bot-ncnc8.vercel.app`,
+    `line-couple-ledger-bot-nnnc8-ncnc8.vercel.app`
+- **Post-deploy sanity** (run after every redeploy):
+  - `curl -sS -o /dev/null -w "%{http_code}\n" https://line-couple-ledger-bot.vercel.app/`
+    → `200`.
+  - `pnpm smoke:cron` → `200` from the same alias (so the cron route
+    is wired and the new deployment is what the alias resolves to).
+  - `vercel ls --prod` shows the new deployment at the top.
+- **Working-tree changes shipped in `09b8d94`**:
   - `README.md` — v1 copy refresh, 174 / 2 test counts, "v1 limits" section.
+  - `docs/README.zh-TW.md` — 架構圖不再寫「圖片」、`刪除剛剛那筆` 改寫為 LIFF confirm 流程。
   - `docs/commands.md` — replace 5-min confirm copy with the LIFF confirm
     flow; add Voice / Images rows.
   - `docs/deploy-vercel.md` — note that smoke scripts need
@@ -30,6 +48,7 @@
     test rewrite.
   - `tests/liff.spec.ts` — fixture gets `openTasks` / `recentEvents`;
     new `**/api/app/agent/memories` route mock.
+  - `docs/closeout-v1.md` — this file.
   - `scripts/live-smoke/apply-migration.ts`,
     `scripts/live-smoke/probe-agent-events.ts`,
     `scripts/live-smoke/probe-roles.ts` — verification helpers.
@@ -70,7 +89,8 @@
 | :--- | :--- |
 | `pnpm smoke:local` | Cases 1 (private) / 2 (shared) / 3 (settle) all passed, cleanup ran. |
 | `pnpm smoke:recurring` | Seeded recurring expense → generated `pending_action` (`status=confirmed`) → generated expense. Cleanup ran. |
-| `pnpm smoke:cron` | `GET /api/cron/daily` returned 200 with empty drafts/reports (today is 2026-07-08; nothing due). |
+| `pnpm smoke:cron` (pre-deploy) | `GET /api/cron/daily` returned 200 with empty drafts/reports (today is 2026-07-08; nothing due). |
+| `pnpm smoke:cron` (post-deploy, against alias) | `GET https://line-couple-ledger-bot.vercel.app/api/cron/daily` returned 200 with the same empty payload — confirms the alias is now pointing at the new deployment. |
 
 ### Live LINE proof (4 cases — to be filled in by the operator)
 
@@ -105,6 +125,10 @@ swallows errors.
 
 1. In Vercel → Deployments, promote the previous deployment to
    production (or `vercel rollback`).
+   - Current production: `dpl_2B8dQFYsgQUiuh3nJfTVhZpnyyEq` (SHA
+     `09b8d94`).
+   - Previous production: the SHA `9858162` deployment (visible in
+     `vercel ls --prod`).
 2. No data migration is required; the older build simply doesn't read
    from `agent_events` if you roll back further than the v1 closeout.
 
