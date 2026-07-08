@@ -5,7 +5,8 @@ import { runSecretaryLoop } from "./secretary-agent";
 import { notifyPartner as pushNotifyPartner } from "./secretary-push";
 import { SecretaryService } from "./secretary-service";
 import { pendingActionService, agentChatService } from "./services";
-import { resolveMentionedGroupTurn } from "./line-message-parsers";
+import { resolveSharedGroupStrict } from "./line-message-parsers";
+import { logAgentEvent } from "./agent-event-service";
 
 export interface LineUser {
   id: string;
@@ -22,6 +23,7 @@ export interface LineSecretaryDependencies {
   };
   supabase: any;
   gemini: any;
+  context?: Record<string, unknown>;
 }
 
 const actionResultSchema = z.object({
@@ -47,19 +49,59 @@ export async function runLineSecretaryTurn(input: {
   imageData?: { imageData: string; mimeType: string };
   groupIdOverride?: string;
   sourceEventId?: string;
+  isAudioMessage?: boolean;
 }): Promise<void> {
   const { text, user, dependencies, reply, imageData } = input;
-  const activeGroupId =
-    input.groupIdOverride ?? (await getActiveGroupId(dependencies.supabase, user));
   const groups = await listActiveGroups(dependencies.supabase, user).catch(() => []);
-  const turn = resolveMentionedGroupTurn(text, groups, activeGroupId);
-  const groupId = turn.group?.id ?? activeGroupId;
+
+  // Strict group resolution: shared expenses require explicit group name
+  const isExplicitlyPrivate = /私人|自己的|我自己/.test(text);
+  const strictResult = resolveSharedGroupStrict(text, groups);
+  const hasGroup = !!strictResult.group || !!input.groupIdOverride;
+
+  // Implicit group: audio messages with exactly one group bypass explicit requirement
+  const allowImplicitGroup = !!input.isAudioMessage && groups.length === 1;
+
+  // Gate: shared expenses without a group name are rejected (fail-fast before LLM)
+  if (!isExplicitlyPrivate && !hasGroup && !allowImplicitGroup && groups.length > 0) {
+    const groupNames = groups.map(g => g.name).join("、");
+    const replyText = `要記到哪個群組？你的群組有：${groupNames}\n請直接打「群組名＋內容」，例如「${groups[0]?.name ?? "群組"} 晚餐 500 我付」`;
+    await reply(replyText);
+    // Write-behind: log the needs_group event
+    await logAgentEvent(dependencies.supabase, {
+      coupleId: user.couple_id,
+      groupId: null,
+      userId: user.id,
+      source: "line",
+      sourceEventId: input.sourceEventId ?? null,
+      kind: "needs_group",
+      status: "needs_group",
+      inputText: text,
+      replyText,
+    });
+    return;
+  }
+
+  // Determine groupId: prefer explicit mention, then override, then implicit, then fallback
+  const resolvedGroupId =
+    input.groupIdOverride
+    ?? strictResult.group?.id
+    ?? (allowImplicitGroup ? groups[0].id : null)
+    ?? (await getActiveGroupId(dependencies.supabase, user));
+  const groupId = resolvedGroupId;
+
+  // Inject resolvedGroupId into dependencies context for downstream tool executors
+  dependencies.context = { ...dependencies.context, resolvedGroupId: groupId };
+
+  // Use cleaned text from strict resolver (group name stripped) to avoid LLM hallucination
+  const cleanedText = strictResult.cleanedText;
 
   const toolCtx = {
     db: dependencies.supabase,
     groupId,
     userId: user.id,
     coupleId: user.couple_id,
+    context: dependencies.context,
   };
 
   const agentDeps = {
@@ -98,7 +140,7 @@ export async function runLineSecretaryTurn(input: {
     };
     const workflowResult = await secretaryService.run({
       initialInput: {
-        text: turn.cleanedText,
+        text: cleanedText,
         ...(imageData ? { imageData: imageData.imageData, mimeType: imageData.mimeType } : {}),
       },
       sessionId,
@@ -124,11 +166,44 @@ export async function runLineSecretaryTurn(input: {
     });
     if (workflowResult.actionFailure) {
       const { actionResultMessage } = await import("./line-bot-shared");
-      await reply(actionResultMessage(workflowResult.actionFailure));
+      const failReply = actionResultMessage(workflowResult.actionFailure);
+      await reply(failReply);
+      // Write-behind: log failed action
+      await logAgentEvent(dependencies.supabase, {
+        coupleId: user.couple_id,
+        groupId,
+        userId: user.id,
+        source: "line",
+        sourceEventId: input.sourceEventId ?? null,
+        kind: "action_failed",
+        status: "failed",
+        inputText: text,
+        replyText: failReply,
+      });
       return;
     }
 
-    await reply(workflowResult.reply);
+    // Use the LLM reply directly; confirmation details are embedded by tool executors
+    const finalReply = workflowResult.reply;
+
+    await reply(finalReply);
+
+    // Write-behind: log successful interaction
+    const eventKind = workflowResult.pendingActions.length > 0
+      ? "action_executed" as const
+      : "text_other" as const;
+    await logAgentEvent(dependencies.supabase, {
+      coupleId: user.couple_id,
+      groupId,
+      userId: user.id,
+      source: "line",
+      sourceEventId: input.sourceEventId ?? null,
+      kind: eventKind,
+      status: "completed",
+      inputText: text,
+      replyText: finalReply,
+    });
+
     if (workflowResult.notifyPartner && workflowResult.partnerMessage && partner) {
       await pushNotifyPartner(dependencies.lineClient, dependencies.supabase, {
         targetUserId: partner.id,
@@ -178,6 +253,7 @@ export async function handleLineAudioTurn(input: {
       sourceEventId: input.sourceEventId,
       user,
       dependencies,
+      isAudioMessage: true,
       reply: async (assistantReply: string) => {
         await reply(`聽到：「${text}」\n${assistantReply}`);
       },

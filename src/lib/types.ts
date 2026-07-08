@@ -57,6 +57,31 @@ export type Bootstrap = {
   }>;
   dashboard: DashboardData;
   privateDashboard: DashboardData;
+  openTasks: Array<{
+    id: string;
+    type: string;
+    title: string;
+    summary: string | null;
+    priority: "low" | "normal" | "high";
+    status: string;
+  }>;
+  recentEvents: Array<{
+    id: string;
+    kind: string;
+    status: string;
+    input_text: string | null;
+    reply_text: string | null;
+    created_at: string;
+  }>;
+  memories: Array<{
+    id: string;
+    kind: string;
+    key: string;
+    value: Record<string, unknown> | null;
+    confidence: number;
+    scope: string;
+    approved: boolean;
+  }>;
 };
 
 export type CategoryAnalytics = {

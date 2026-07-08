@@ -53,6 +53,7 @@ export default function Home() {
     busy,
     setError,
     load,
+    reload,
     mutate,
     propose,
   } = useBootstrap();
@@ -230,6 +231,7 @@ export default function Home() {
               }
               onAdd={openAdd}
               onEdit={openEdit}
+              onRefresh={reload}
             />
           )}
           {tab === "history" && (

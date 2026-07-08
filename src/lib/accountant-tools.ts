@@ -10,6 +10,7 @@ export interface ToolContext {
   groupId: string;
   userId: string;
   coupleId: number;
+  context?: Record<string, unknown>;
 }
 
 export const toolDeclarations: FunctionDeclaration[] = accountantToolDeclarations();

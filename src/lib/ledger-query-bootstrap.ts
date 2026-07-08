@@ -20,6 +20,9 @@ import {
   userSchema,
   type AppUser,
 } from "./ledger-query-core";
+import { getOpenTasks } from "./secretary-tasks";
+import { getRecentEvents } from "./agent-event-service";
+import { RuleService } from "./rule-service";
 
 export async function loadBootstrap(context: {
   db: SupabaseClient;
@@ -61,6 +64,9 @@ export async function loadBootstrap(context: {
     balancesResult,
     recurringResult,
     notificationsResult,
+    openTasks,
+    recentEvents,
+    memories,
   ] = await Promise.all([
     db
       .from("expenses")
@@ -98,6 +104,24 @@ export async function loadBootstrap(context: {
       .eq("recipient_user_id", user.id)
       .order("created_at", { ascending: false })
       .limit(50),
+    getOpenTasks(db, { coupleId: user.couple_id, limit: 10 })
+      .then((data) => ({ data, error: null as null }))
+      .catch((error: unknown) => ({
+        data: null as Awaited<ReturnType<typeof getOpenTasks>> | null,
+        error: error instanceof Error ? error : new Error(String(error)),
+      })),
+    getRecentEvents(db, user.couple_id, { limit: 10 })
+      .then((data) => ({ data, error: null as null }))
+      .catch((error: unknown) => ({
+        data: null as Awaited<ReturnType<typeof getRecentEvents>> | null,
+        error: error instanceof Error ? error : new Error(String(error)),
+      })),
+    new RuleService(db).listMemories({ coupleId: user.couple_id, limit: 20 })
+      .then((data) => ({ data, error: null as null }))
+      .catch((error: unknown) => ({
+        data: null as Awaited<ReturnType<RuleService["listMemories"]>> | null,
+        error: error instanceof Error ? error : new Error(String(error)),
+      })),
   ]);
   if (
     sharedResult.error ||
@@ -137,5 +161,8 @@ export async function loadBootstrap(context: {
     notifications: notificationsResult.data,
     dashboard: buildDashboard(activeShared, month),
     privateDashboard: buildDashboard(activePrivate, month),
+    openTasks: openTasks.data ?? [],
+    recentEvents: recentEvents.data ?? [],
+    memories: memories.data ?? [],
   };
 }

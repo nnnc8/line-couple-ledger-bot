@@ -8,6 +8,8 @@ import { Empty } from "@/components/ui/empty";
 import { Inbox, Plus, TrendingDown } from "lucide-react";
 import { useCategoryAnalytics } from "@/hooks/use-analytics";
 import { SecretaryTaskCard } from "@/components/dashboard/secretary-task-card";
+import { AgentTaskBar } from "@/components/dashboard/agent-task-bar";
+import { RecentDecisions } from "@/components/dashboard/recent-decisions";
 import { donutGradient, money, moneyAbs, shortMoney, monthShort } from "@/lib/format";
 import { tagColor, tagTint, displayTag } from "@/lib/categories";
 import type { Bootstrap, Expense, User } from "@/lib/types";
@@ -17,6 +19,7 @@ interface DashboardProps {
   onSettle: (amount: number) => void;
   onAdd: () => void;
   onEdit: (expense: Expense) => void;
+  onRefresh?: () => void;
 }
 
 type Range = "this_month" | "six_months" | "all";
@@ -26,6 +29,7 @@ export function Dashboard({
   onSettle,
   onAdd,
   onEdit,
+  onRefresh,
 }: DashboardProps) {
   const [range, setRange] = React.useState<Range>("this_month");
   const [partial, setPartial] = React.useState("");
@@ -73,6 +77,12 @@ export function Dashboard({
         onAdd={onAdd}
       />
       <SecretaryTaskCard />
+      {data.openTasks && data.openTasks.length > 0 && onRefresh && (
+        <AgentTaskBar tasks={data.openTasks} onRefresh={onRefresh} />
+      )}
+      {data.recentEvents && data.recentEvents.length > 0 && (
+        <RecentDecisions events={data.recentEvents} />
+      )}
 
       <div className="grid grid-cols-2 gap-3">
         <Card className="p-4">

@@ -377,7 +377,7 @@ export const SECRETARY_TOOLS: SecretaryToolDef[] = [
   {
     name: "record_expense",
     description:
-      "記帳。直接寫入一筆支出，不需使用者再按確認。**重要規則：** 當用戶說「私人」、「自己」、「我自己的」時，ledger 必須是 \"private\"；只有用戶說「共同」、「一起」、「分攤」時才是 \"shared\"。tag 必須是中文標籤（如「餐飲」、「交通」、「共享機車」），不可省略。",
+      "記帳。直接寫入一筆支出，不需使用者再按確認。**重要規則：** 共同帳（shared）的群組由系統自動處理，LLM 不需要傳入群組。私人帳（private）不需要群組。當用戶說「私人」、「自己」、「我自己的」時，ledger 必須是 \"private\"；只有用戶說「共同」、「一起」、「分攤」時才是 \"shared\"。tag 必須是中文標籤（如「餐飲」、「交通」、「共享機車」），不可省略。",
     geminiParameters: {
       type: Type.OBJECT,
       properties: {
@@ -400,7 +400,22 @@ export const SECRETARY_TOOLS: SecretaryToolDef[] = [
       required: ["description", "amount_twd", "paid_by"],
     },
     zodSchema: z.object({}).passthrough(),
-    executor: (args, ctx) => executeAccountantTool("record_expense", args, ctx),
+    executor: async (args, ctx) => {
+      const ledger = typeof args.ledger === "string" ? args.ledger : "shared";
+
+      // Shared expenses: read resolvedGroupId from context (injected by pre-LLM group resolver)
+      if (ledger !== "private") {
+        const resolvedGroupId = ctx.context?.resolvedGroupId as string | undefined;
+        if (!resolvedGroupId) {
+          return {
+            error: "系統錯誤：共享帳未綁定群組。請確認用戶已選擇群組。",
+          };
+        }
+        return executeAccountantTool("record_expense", args, { ...ctx, groupId: resolvedGroupId });
+      }
+
+      return executeAccountantTool("record_expense", args, ctx);
+    },
   },
   {
     name: "propose_update_expense",

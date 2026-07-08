@@ -143,6 +143,37 @@ export function resolveMentionedGroupTurn<T extends { id: string; name: string }
   };
 }
 
+/**
+ * Strict group resolver for shared expense writes.
+ * Unlike `resolveMentionedGroupTurn`, this does NOT fallback to
+ * activeGroupId or groups[0]. Returns `group: null` when no group name
+ * is explicitly mentioned — callers must treat null as "ask the user".
+ */
+export function resolveSharedGroupStrict<T extends { id: string; name: string }>(
+  text: string,
+  groups: T[],
+): {
+  group: T | null;
+  mentionedGroup: T | null;
+  cleanedText: string;
+} {
+  const mentionedGroup = matchedGroups(text, groups)[0] ?? null;
+  if (!mentionedGroup) {
+    return {
+      group: null,
+      mentionedGroup: null,
+      cleanedText: cleanTurnText(text),
+    };
+  }
+
+  const cleanedText = cleanTurnText(text.replace(mentionedGroup.name, " "));
+  return {
+    group: mentionedGroup,
+    mentionedGroup,
+    cleanedText: cleanedText || cleanTurnText(text),
+  };
+}
+
 export function parsePendingRetargetCommand(text: string) {
   const normalized = text.replace(/\s+/g, "");
   if (!/(都|全部|這批|剛剛|剛才|上面|那些)/.test(normalized)) return null;

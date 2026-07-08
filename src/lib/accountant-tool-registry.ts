@@ -177,9 +177,23 @@ async function executeRecordExpense(
   const params = recordExpenseParams.parse(args);
   try {
     const action = await buildCreateExpenseAction(ctx, params);
+
+    // Look up group name for reply
+    let groupLabel = "";
+    if (params.ledger !== "private" && ctx.groupId) {
+      const { data: groupRow } = await ctx.db
+        .from("groups")
+        .select("name")
+        .eq("id", ctx.groupId)
+        .single();
+      if (groupRow?.name) {
+        groupLabel = `｜${groupRow.name}`;
+      }
+    }
+
     return {
       pending_action: action,
-      message: `已為您記下一筆 ${params.ledger === "private" ? "私人" : "共同"}帳支出：${params.description} NT$${params.amount_twd}（${params.paid_by === "self" ? "你付的" : "對方付的"}）。`,
+      message: `已為您記下一筆${params.ledger === "private" ? "私人" : "共同"}帳支出：${params.description} NT$${params.amount_twd}（${params.paid_by === "self" ? "你付的" : "對方付的"}）${groupLabel}。`,
     };
   } catch (error) {
     return {

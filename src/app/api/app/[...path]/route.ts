@@ -18,7 +18,9 @@ import {
   accountantService,
 } from "@/lib/services";
 import { expensesCsv } from "@/lib/ledger-query";
-import { getOpenTasks } from "@/lib/secretary-tasks";
+import { getOpenTasks, completeTask, dismissTask, snoozeTask } from "@/lib/secretary-tasks";
+import { RuleService } from "@/lib/rule-service";
+import { getRecentEvents } from "@/lib/agent-event-service";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -61,6 +63,24 @@ export async function GET(request: Request, route: RouteContext) {
         limit: 10,
       });
       return json({ tasks });
+    }
+    if (path[0] === "agent" && path[1] === "tasks") {
+      const tasks = await getOpenTasks(context.db, {
+        coupleId: context.user.couple_id,
+        limit: 20,
+      });
+      return json({ tasks });
+    }
+    if (path[0] === "agent" && path[1] === "memories") {
+      const memories = await new RuleService(context.db).listMemories({
+        coupleId: context.user.couple_id,
+        limit: 20,
+      });
+      return json({ memories });
+    }
+    if (path[0] === "agent" && path[1] === "events") {
+      const events = await getRecentEvents(context.db, context.user.couple_id, { limit: 20 });
+      return json({ events });
     }
     throw new HttpError(404, "Not found");
   } catch (error) {
@@ -113,6 +133,26 @@ export async function POST(request: Request, route: RouteContext) {
     }
     if (path[0] === "bank" && path[1] === "import") {
       return json(await importBankCsv(context, body));
+    }
+    if (path[0] === "agent" && path[1] === "tasks") {
+      const parsed = z.object({
+        taskId: z.string().uuid(),
+        action: z.enum(["complete", "dismiss", "snooze"]),
+        until: z.string().min(1).optional(),
+      }).parse(body);
+      if (parsed.action === "complete") {
+        await completeTask(context.db, parsed.taskId);
+        return json({ ok: true });
+      }
+      if (parsed.action === "dismiss") {
+        await dismissTask(context.db, parsed.taskId);
+        return json({ ok: true });
+      }
+      if (parsed.action === "snooze") {
+        if (!parsed.until) throw new HttpError(400, "snooze 需要 until 參數");
+        await snoozeTask(context.db, parsed.taskId, parsed.until);
+        return json({ ok: true });
+      }
     }
     throw new HttpError(404, "Not found");
   } catch (error) {
