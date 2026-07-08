@@ -86,30 +86,6 @@ export async function logAgentEvent(
   }
 }
 
-/**
- * Wrap a main task with audit logging. The event is written AFTER the
- * main task completes (success or failure). Failures in the audit write
- * are logged but never propagate — the primary path is never blocked.
- */
-export async function runWithAudit<T>(
-  db: SupabaseClient,
-  eventInput: Omit<LogAgentEventInput, "status">,
-  mainTask: () => Promise<T>,
-): Promise<T> {
-  try {
-    const result = await mainTask();
-    await logAgentEvent(db, { ...eventInput, status: "completed" });
-    return result;
-  } catch (err) {
-    await logAgentEvent(db, {
-      ...eventInput,
-      status: "failed",
-      payload: { error: err instanceof Error ? err.message : String(err) },
-    });
-    throw err;
-  }
-}
-
 /* ─── Read ─── */
 
 const agentEventRowSchema = z.object({

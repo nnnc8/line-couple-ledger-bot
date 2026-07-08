@@ -13,19 +13,20 @@ The secretary AI is the only entry point; it picks the right tool based on inten
 
 | Command | Effect |
 | :--- | :--- |
-| `dinner 860, I paid` | Shared expense, default split (equal). |
+| `<group> dinner 860, I paid` | Shared expense written directly to `<group>`, default split (equal). |
+| `dinner 860, I paid` (no group) | If the user has only one group, it commits there. If the user has multiple groups, the bot replies with `needs_group` listing them. |
 | `groceries 1200, partner paid, equal` | Explicit payer + split method. |
 | `rent 18000, I paid, all to me` | "I paid, all to me" — full reimbursement to payer. |
-| `change last one to 900` | Update the most recent commit (within 5 min). |
-| `delete the last one` | Withdraw the most recent commit (within 5 min). |
+| `change last one to 900` | Propose an edit to the most recent shared entry; the LIFF shows a one-tap confirm. |
+| `delete the last one` | Propose a delete of the most recent shared entry; the LIFF shows a one-tap confirm. |
 
 ## Private ledger
 
 | Command | Effect |
 | :--- | :--- |
-| `私人 lunch 120` | Private entry; never appears in partner's ledger. |
+| `私人 lunch 120` | Private entry written directly; never appears in partner's ledger. |
 | `private groceries 600` | English equivalent. |
-| `delete my private lunch` | Withdraw a private commit (within 5 min). |
+| `delete my private lunch` | Propose a delete of a private entry; the LIFF shows a one-tap confirm. |
 
 ## Settlements
 
@@ -44,6 +45,13 @@ The secretary AI is the only entry point; it picks the right tool based on inten
 | `last 6 months trend` | Series used by the dashboard chart. |
 | `any anomalies?` | Runs the accountant anomaly detector. |
 | `cleanup categories` | Suggests and applies a category merge plan. |
+
+## Voice and images
+
+| Input | Effect |
+| :--- | :--- |
+| Voice note | Transcribed to text, then routed through the same text pipeline (shared-with-group / private / chitchat). |
+| Image | Rejected with the fixed reply `目前請直接用文字記帳，圖片暫不自動入帳 📝`. No expense is created. |
 
 ## Memory and tasks
 

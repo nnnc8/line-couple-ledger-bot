@@ -129,6 +129,9 @@ export function SettingsSection({
         </CardContent>
       </Card>
 
+      {/* Agent Rules / Memories */}
+      <AgentRulesCard />
+
       {/* Recurring expenses */}
       <RecurringEditor data={data} onSave={onRecurring} />
 
@@ -177,6 +180,79 @@ function QuickAction({
         <ChevronRight className="size-4 text-[var(--muted-foreground)]" />
       ) : null}
     </button>
+  );
+}
+
+/* ─── Agent rules / memories ─── */
+interface AgentMemory {
+  id: string;
+  kind: string;
+  key: string;
+  value: Record<string, unknown> | null;
+  confidence: number;
+  scope: string;
+  approved: boolean;
+}
+
+function AgentRulesCard() {
+  const [memories, setMemories] = React.useState<AgentMemory[] | null>(null);
+
+  React.useEffect(() => {
+    let cancelled = false;
+    fetch("/api/app/agent/memories")
+      .then((res) => res.json() as Promise<{ memories?: AgentMemory[] }>)
+      .then((data) => {
+        if (!cancelled) setMemories(data.memories ?? []);
+      })
+      .catch(() => {
+        if (!cancelled) setMemories([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  return (
+    <Card>
+      <CardHeader className="pb-2">
+        <div>
+          <p className="text-[12px] font-medium text-[var(--muted-foreground)]">
+            AI 秘書
+          </p>
+          <CardTitle>學習紀錄</CardTitle>
+        </div>
+      </CardHeader>
+      <CardContent>
+        {memories === null ? (
+          <p className="text-[13px] text-[var(--muted-foreground)]">載入中…</p>
+        ) : memories.length === 0 ? (
+          <p className="text-[13px] text-[var(--muted-foreground)]">尚無學習紀錄</p>
+        ) : (
+          <div className="space-y-2">
+            {memories.slice(0, 10).map((m) => (
+              <div
+                key={m.id}
+                className="flex items-start gap-2 rounded-lg px-1 py-1.5"
+              >
+                <span
+                  className={cn(
+                    "mt-0.5 inline-block size-2 shrink-0 rounded-full",
+                    m.approved ? "bg-green-500" : "bg-amber-400",
+                  )}
+                />
+                <div className="min-w-0 flex-1">
+                  <p className="text-[13px] font-medium">{m.key}</p>
+                  <p className="text-[12px] text-[var(--muted-foreground)]">
+                    {m.kind === "merchant_rule" ? "商家規則" : m.kind} ·{" "}
+                    {m.approved ? "已確認" : "待確認"}
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 }
 

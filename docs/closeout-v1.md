@@ -1,0 +1,135 @@
+# Agent v1 — Production closeout
+
+> Snapshot of the v1 closeout run. Update the "Verified by" rows after each
+> redeploy and re-run of the live proof checklist.
+
+## Deployment
+
+- **Production URL**: `https://line-couple-ledger-bot.vercel.app` (the cron
+  smoke at `scripts/live-smoke/cron.ts` confirms this endpoint is live and
+  reachable).
+- **Repo SHA at closeout**: `9858162` ("feat: introduce agent event logging
+  service and dashboard UI components for tasks and history").
+- **Working-tree changes at closeout** (uncommitted at this snapshot, must
+  be committed and pushed before the next redeploy):
+  - `README.md` — v1 copy refresh, 174 / 2 test counts, "v1 limits" section.
+  - `docs/commands.md` — replace 5-min confirm copy with the LIFF confirm
+    flow; add Voice / Images rows.
+  - `docs/deploy-vercel.md` — note that smoke scripts need
+    `agent_events` migration applied.
+  - `src/lib/line-secretary-service.ts` — drop implicit group fallback,
+    intent-aware gate, image rejection, no `dependencies.context` writeback.
+  - `src/lib/secretary-service.ts` — `pendingActions: unknown[]` →
+    `didExecuteAction: boolean`.
+  - `src/lib/agent-event-service.ts` — delete unused `runWithAudit`.
+  - `src/lib/ledger-query-bootstrap.ts` + `src/lib/types.ts` — drop
+    `memories` from bootstrap payload and `Bootstrap` type.
+  - `src/components/settings/settings-section.tsx` — add
+    `AgentRulesCard` (on-demand `fetch("/api/app/agent/memories")`).
+  - `src/lib/ledger.test.ts` — 7 stub updates + 4 new tests + image
+    test rewrite.
+  - `tests/liff.spec.ts` — fixture gets `openTasks` / `recentEvents`;
+    new `**/api/app/agent/memories` route mock.
+  - `scripts/live-smoke/apply-migration.ts`,
+    `scripts/live-smoke/probe-agent-events.ts`,
+    `scripts/live-smoke/probe-roles.ts` — verification helpers.
+
+## Database
+
+- **Migration**: `supabase/migrations/202607080001_agent_events.sql` —
+  already applied to the production database that `.env.local` points at
+  (DB host `aws-1-ap-southeast-1.pooler.supabase.com`, role
+  `ledger_runtime`).
+- **Verification** (run via `pnpm exec tsx scripts/live-smoke/apply-migration.ts`):
+  - `to_regclass('public.agent_events')` → `agent_events` ✓
+  - Indexes: `agent_events_pkey`, `agent_events_couple_recent_idx`,
+    `agent_events_user_recent_idx`, `agent_events_source_event_uniq` ✓
+  - Unique partial index definition matches the migration SQL ✓
+  - `service_role` privileges: INSERT ✓, SELECT ✓, UPDATE ✓
+    (verified via `has_table_privilege`).
+  - `ledger_runtime` privileges: SELECT, INSERT, UPDATE, DELETE
+    (RLS on, role has `bypassrls`).
+  - `agent_events` RLS enabled (`rowsecurity=true`).
+  - service_role insert probe wrote a probe row, read it back, and
+    deleted it cleanly.
+
+## Verification
+
+### Automated gates (all green)
+
+| Gate | Result |
+| :--- | :--- |
+| `pnpm typecheck` | clean |
+| `pnpm test` | 174 / 174 passing |
+| `pnpm test:e2e` | 2 / 2 passing |
+| `pnpm build` | success |
+
+### Smoke (live DB, with cleanup)
+
+| Smoke | Result |
+| :--- | :--- |
+| `pnpm smoke:local` | Cases 1 (private) / 2 (shared) / 3 (settle) all passed, cleanup ran. |
+| `pnpm smoke:recurring` | Seeded recurring expense → generated `pending_action` (`status=confirmed`) → generated expense. Cleanup ran. |
+| `pnpm smoke:cron` | `GET /api/cron/daily` returned 200 with empty drafts/reports (today is 2026-07-08; nothing due). |
+
+### Live LINE proof (4 cases — to be filled in by the operator)
+
+> These four cases need a real LINE OA. The bot is reached on the same
+> Production URL above; the test pairs are the production LINE users
+> (smoke fixtures aside).
+
+| # | Message | Expected reply | Expected side-effect | Verified by / when |
+| :--- | :--- | :--- | :--- | :--- |
+| 1 | Shared text, no group name (e.g. `晚餐 500 我付`, account has ≥ 2 groups) | `要記到哪個群組？你的群組有：…` (`kind=needs_group`) | No `expenses` row. | _operator_ / _date_ |
+| 2 | Shared text, with group name (e.g. `<group> 拉麵 200 我付`) | Secretary success reply that **includes the group name** | New `expenses` row + `agent_events.kind=action_executed`. | _operator_ / _date_ |
+| 3 | Private text (e.g. `私人 咖啡 120`) | Direct success reply; no group prompt | New `expenses` row (ledger=`private`). | _operator_ / _date_ |
+| 4 | Image (any photo) | `目前請直接用文字記帳，圖片暫不自動入帳 📝` | `agent_events.kind=image_rejected`; no `expenses` row. | _operator_ / _date_ |
+
+### LIFF verification checklist (operator)
+
+- [ ] Dashboard shows `openTasks` and `recentEvents` populated.
+- [ ] Settings page shows the `學習紀錄` card (empty state until memories
+  are written, or list of green/amber dot entries if there are any).
+- [ ] After each LIVE LINE case above, the matching `agent_events` row
+  appears in `recentEvents` (or in the DB for the operator to inspect).
+
+## Rollback
+
+This round is additive on the schema side: the only new DB object is
+`public.agent_events`, which is a write-behind audit log that the
+primary write path never depends on. The app code that writes to it is
+in `agent-event-service.logAgentEvent`, which is best-effort and
+swallows errors.
+
+### Application rollback
+
+1. In Vercel → Deployments, promote the previous deployment to
+   production (or `vercel rollback`).
+2. No data migration is required; the older build simply doesn't read
+   from `agent_events` if you roll back further than the v1 closeout.
+
+### Schema rollback (only if absolutely needed)
+
+`agent_events` is purely an audit / observability layer. If a future
+incident requires removing it:
+
+```sql
+-- Drop the table. The agent_events payload is not referenced by any
+-- other table, no RLS policies outside the table itself, and no grants
+-- beyond service_role + ledger_runtime.
+drop table if exists public.agent_events cascade;
+```
+
+Equivalent DDL: deleting the migration file
+`supabase/migrations/202607080001_agent_events.sql` and re-running
+`supabase db push` against an empty / rolled-back DB. There is no
+data-loss risk in the primary tables (expenses / pending_actions /
+recurring_expenses / etc.) because none of them reference
+`agent_events` (the FKs in the migration are the reverse direction).
+
+### Smoke rollback
+
+Smoke scripts auto-clean when `SMOKE_CLEANUP_MODE` is enabled. If a
+smoke is interrupted, the seeded `codex-smoke` group and its rows can
+be reaped by re-running the same script — it is idempotent against the
+existing `codex-smoke` tenant.

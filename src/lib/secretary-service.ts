@@ -9,7 +9,7 @@ export interface SecretaryServiceResult {
   notifyPartner: boolean;
   partnerMessage: string | null;
   actionFailure: ActionResult | null;
-  pendingActions: unknown[];
+  didExecuteAction: boolean;
 }
 
 export class SecretaryService {
@@ -51,7 +51,7 @@ export class SecretaryService {
       notifyPartner: result.notifyPartner,
       partnerMessage: result.partnerMessage,
       actionFailure: null,
-      pendingActions: [],
+      didExecuteAction: false,
     };
   }
 
@@ -67,7 +67,7 @@ export class SecretaryService {
           notifyPartner: false,
           partnerMessage: null,
           actionFailure: actionResult,
-          pendingActions: result.pendingActions,
+          didExecuteAction: false,
         };
       }
     }
@@ -76,7 +76,7 @@ export class SecretaryService {
       notifyPartner: result.notifyPartner,
       partnerMessage: result.partnerMessage,
       actionFailure: null,
-      pendingActions: result.pendingActions,
+      didExecuteAction: true,
     };
   }
 }

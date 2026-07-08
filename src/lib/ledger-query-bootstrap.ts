@@ -22,7 +22,6 @@ import {
 } from "./ledger-query-core";
 import { getOpenTasks } from "./secretary-tasks";
 import { getRecentEvents } from "./agent-event-service";
-import { RuleService } from "./rule-service";
 
 export async function loadBootstrap(context: {
   db: SupabaseClient;
@@ -66,7 +65,6 @@ export async function loadBootstrap(context: {
     notificationsResult,
     openTasks,
     recentEvents,
-    memories,
   ] = await Promise.all([
     db
       .from("expenses")
@@ -116,12 +114,6 @@ export async function loadBootstrap(context: {
         data: null as Awaited<ReturnType<typeof getRecentEvents>> | null,
         error: error instanceof Error ? error : new Error(String(error)),
       })),
-    new RuleService(db).listMemories({ coupleId: user.couple_id, limit: 20 })
-      .then((data) => ({ data, error: null as null }))
-      .catch((error: unknown) => ({
-        data: null as Awaited<ReturnType<RuleService["listMemories"]>> | null,
-        error: error instanceof Error ? error : new Error(String(error)),
-      })),
   ]);
   if (
     sharedResult.error ||
@@ -163,6 +155,5 @@ export async function loadBootstrap(context: {
     privateDashboard: buildDashboard(activePrivate, month),
     openTasks: openTasks.data ?? [],
     recentEvents: recentEvents.data ?? [],
-    memories: memories.data ?? [],
   };
 }

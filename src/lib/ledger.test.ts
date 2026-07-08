@@ -5529,6 +5529,7 @@ test("runLineSecretaryTurn replies actionResultMessage on action failure", async
         result: "stale",
         action_type: "create_expense",
       },
+      didExecuteAction: false,
     };
   };
 
@@ -5586,6 +5587,7 @@ test("runLineSecretaryTurn replies success and notifies partner when requested",
       notifyPartner: true,
       partnerMessage: "Partner got coffee",
       actionFailure: null,
+      didExecuteAction: false,
     };
   };
 
@@ -5650,6 +5652,7 @@ test("runLineSecretaryTurn routes explicit group mention to that group and strip
       notifyPartner: false,
       partnerMessage: null,
       actionFailure: null,
+      didExecuteAction: false,
     };
   };
 
@@ -5702,6 +5705,240 @@ test("runLineSecretaryTurn routes explicit group mention to that group and strip
   }
 });
 
+test("runLineSecretaryTurn: shared account + accounting intent + no group name -> needs_group, no LLM call", async () => {
+  setupMockEnv();
+  const { runLineSecretaryTurn } = await import("./line-secretary-service");
+  const { SecretaryService } = await import("./secretary-service");
+
+  let runCalled = false;
+  const originalRun = SecretaryService.prototype.run;
+  SecretaryService.prototype.run = async () => {
+    runCalled = true;
+    return {
+      reply: "should not happen",
+      notifyPartner: false,
+      partnerMessage: null,
+      actionFailure: null,
+      didExecuteAction: false,
+    };
+  };
+
+  try {
+    let repliedText = "";
+    const dependencies = {
+      lineClient: {
+        replyMessage: async () => {},
+        getMessageContent: async () => ({} as any),
+        pushMessage: async () => {},
+      },
+      supabase: createMockDbForSecretary({
+        user_preferences: { active_group_id: "00000000-0000-4000-8000-000000000001" },
+        groups: [
+          { id: "00000000-0000-4000-8000-000000000001", name: "阿提斯" },
+          { id: "00000000-0000-4000-8000-000000000002", name: "吃飽喝足" },
+        ],
+        users: { id: "00000000-0000-4000-8000-000000000003", couple_id: 1, role: "partner", line_user_id: "line-partner" },
+        secretary_sessions: null,
+      }),
+      gemini: {} as any,
+    };
+
+    await runLineSecretaryTurn({
+      text: "幫我記 晚餐 500",
+      user: {
+        id: "user-id",
+        couple_id: 1,
+        role: "owner" as const,
+        line_user_id: "line-user-id",
+      },
+      dependencies,
+      reply: async (text) => {
+        repliedText = text;
+      },
+    });
+
+    assert.equal(runCalled, false);
+    assert.match(repliedText, /要記到哪個群組/);
+    assert.match(repliedText, /阿提斯、吃飽喝足/);
+  } finally {
+    SecretaryService.prototype.run = originalRun;
+  }
+});
+
+test("runLineSecretaryTurn: shared account + chitchat + no group name -> reaches LLM, no gate", async () => {
+  setupMockEnv();
+  const { runLineSecretaryTurn } = await import("./line-secretary-service");
+  const { SecretaryService } = await import("./secretary-service");
+
+  let runCalled = false;
+  const originalRun = SecretaryService.prototype.run;
+  SecretaryService.prototype.run = async () => {
+    runCalled = true;
+    return {
+      reply: "你好！需要什麼協助？",
+      notifyPartner: false,
+      partnerMessage: null,
+      actionFailure: null,
+      didExecuteAction: false,
+    };
+  };
+
+  try {
+    let repliedText = "";
+    const dependencies = {
+      lineClient: {
+        replyMessage: async () => {},
+        getMessageContent: async () => ({} as any),
+        pushMessage: async () => {},
+      },
+      supabase: createMockDbForSecretary({
+        user_preferences: { active_group_id: "00000000-0000-4000-8000-000000000001" },
+        groups: [{ id: "00000000-0000-4000-8000-000000000001", name: "阿提斯" }],
+        users: { id: "00000000-0000-4000-8000-000000000003", couple_id: 1, role: "partner", line_user_id: "line-partner" },
+        secretary_sessions: null,
+      }),
+      gemini: {} as any,
+    };
+
+    await runLineSecretaryTurn({
+      text: "你好",
+      user: {
+        id: "user-id",
+        couple_id: 1,
+        role: "owner" as const,
+        line_user_id: "line-user-id",
+      },
+      dependencies,
+      reply: async (text) => {
+        repliedText = text;
+      },
+    });
+
+    assert.equal(runCalled, true);
+    assert.equal(repliedText, "你好！需要什麼協助？");
+  } finally {
+    SecretaryService.prototype.run = originalRun;
+  }
+});
+
+test("handleLineAudioTurn no longer bypasses group gate when only one group exists", async () => {
+  setupMockEnv();
+  const { handleLineAudioTurn } = await import("./line-secretary-service");
+  const { SecretaryService } = await import("./secretary-service");
+  const { agentChatService } = await import("./services");
+
+  let runCalled = false;
+  const originalRun = SecretaryService.prototype.run;
+  SecretaryService.prototype.run = async () => {
+    runCalled = true;
+    return {
+      reply: "should not happen",
+      notifyPartner: false,
+      partnerMessage: null,
+      actionFailure: null,
+      didExecuteAction: false,
+    };
+  };
+
+  const originalTranscribe = agentChatService.transcribeAudio;
+  agentChatService.transcribeAudio = async () => "幫我記 咖啡 120";
+
+  try {
+    let repliedText = "";
+    const dependencies = {
+      lineClient: {
+        replyMessage: async () => {},
+        getMessageContent: async () => [Buffer.from("fake audio")] as any,
+        pushMessage: async () => {},
+      },
+      supabase: createMockDbForSecretary({
+        user_preferences: { active_group_id: "00000000-0000-4000-8000-000000000001" },
+        groups: [{ id: "00000000-0000-4000-8000-000000000001", name: "阿提斯" }],
+        users: { id: "00000000-0000-4000-8000-000000000003", couple_id: 1, role: "partner", line_user_id: "line-partner" },
+        secretary_sessions: null,
+      }),
+      gemini: {} as any,
+    };
+
+    await handleLineAudioTurn({
+      messageId: "msg-audio",
+      user: {
+        id: "user-id",
+        couple_id: 1,
+        role: "owner" as const,
+        line_user_id: "line-user-id",
+      },
+      dependencies,
+      reply: async (text) => {
+        repliedText = text;
+      },
+    });
+
+    assert.equal(runCalled, false);
+    assert.match(repliedText, /要記到哪個群組/);
+  } finally {
+    SecretaryService.prototype.run = originalRun;
+    agentChatService.transcribeAudio = originalTranscribe;
+  }
+});
+
+test("runLineSecretaryTurn: dependencies.context is not mutated by resolvedGroupId", async () => {
+  setupMockEnv();
+  const { runLineSecretaryTurn } = await import("./line-secretary-service");
+  const { SecretaryService } = await import("./secretary-service");
+
+  const originalRun = SecretaryService.prototype.run;
+  SecretaryService.prototype.run = async () => {
+    return {
+      reply: "ok",
+      notifyPartner: false,
+      partnerMessage: null,
+      actionFailure: null,
+      didExecuteAction: false,
+    };
+  };
+
+  try {
+    const groupA = "00000000-0000-4000-8000-000000000001";
+    const groupB = "00000000-0000-4000-8000-000000000002";
+    const dependencies: any = {
+      lineClient: {
+        replyMessage: async () => {},
+        getMessageContent: async () => ({} as any),
+        pushMessage: async () => {},
+      },
+      supabase: createMockDbForSecretary({
+        user_preferences: { active_group_id: groupA },
+        groups: [
+          { id: groupA, name: "阿提斯" },
+          { id: groupB, name: "吃飽喝足" },
+        ],
+        users: { id: "00000000-0000-4000-8000-000000000003", couple_id: 1, role: "partner", line_user_id: "line-partner" },
+        secretary_sessions: null,
+      }),
+      gemini: {} as any,
+      context: { existing: "marker" },
+    };
+
+    await runLineSecretaryTurn({
+      text: "吃飽喝足 拉麵 200",
+      user: {
+        id: "user-id",
+        couple_id: 1,
+        role: "owner" as const,
+        line_user_id: "line-user-id",
+      },
+      dependencies,
+      reply: async () => {},
+    });
+
+    assert.equal(dependencies.context.existing, "marker");
+    assert.equal(dependencies.context.resolvedGroupId, undefined);
+  } finally {
+    SecretaryService.prototype.run = originalRun;
+  }
+});
+
 test("runLineSecretaryTurn passes a stable line idempotency key into executeAgentAction", async () => {
   setupMockEnv();
   const { runLineSecretaryTurn } = await import("./line-secretary-service");
@@ -5722,6 +5959,7 @@ test("runLineSecretaryTurn passes a stable line idempotency key into executeAgen
       notifyPartner: false,
       partnerMessage: null,
       actionFailure: null,
+      didExecuteAction: false,
     };
   };
 
@@ -5752,7 +5990,7 @@ test("runLineSecretaryTurn passes a stable line idempotency key into executeAgen
     };
 
     await runLineSecretaryTurn({
-      text: "幫我新增 拉麵 840 對方付",
+      text: "阿提斯 拉麵 840 對方付",
       sourceEventId: "evt-123",
       user: {
         id: "user-id",
@@ -5786,6 +6024,7 @@ test("handleLineAudioTurn prefixes transcript into assistant reply", async () =>
       notifyPartner: false,
       partnerMessage: null,
       actionFailure: null,
+      didExecuteAction: false,
     };
   };
 
@@ -5856,34 +6095,34 @@ test("handleLineAudioTurn prefixes transcript into assistant reply", async () =>
   }
 });
 
-test("handleLineImageTurn detects mime and sends fixed vision prompt", async () => {
+test("handleLineImageTurn rejects image without downloading or calling LLM", async () => {
   setupMockEnv();
   const { handleLineImageTurn } = await import("./line-secretary-service");
   const { SecretaryService } = await import("./secretary-service");
 
-  let receivedPrompt = "";
-  let receivedMime = "";
-  let receivedBase64 = "";
+  let getMessageContentCalls = 0;
+  let runCalled = false;
 
   const originalRun = SecretaryService.prototype.run;
-  SecretaryService.prototype.run = async (args: any) => {
-    receivedPrompt = args.initialInput.text;
-    receivedBase64 = args.initialInput.imageData;
-    receivedMime = args.initialInput.mimeType;
+  SecretaryService.prototype.run = async () => {
+    runCalled = true;
     return {
-      reply: "Vision processed",
+      reply: "should not happen",
       notifyPartner: false,
       partnerMessage: null,
       actionFailure: null,
+      didExecuteAction: false,
     };
   };
 
   try {
-    const pngHeader = Buffer.from([0x89, 0x50, 0x4e, 0x47]);
     const dependencies = {
       lineClient: {
         replyMessage: async () => {},
-        getMessageContent: async () => [pngHeader] as any,
+        getMessageContent: async () => {
+          getMessageContentCalls++;
+          return [Buffer.from([0x89, 0x50, 0x4e, 0x47])] as any;
+        },
         pushMessage: async () => {},
       },
       supabase: createMockDbForSecretary({
@@ -5911,10 +6150,9 @@ test("handleLineImageTurn detects mime and sends fixed vision prompt", async () 
       },
     });
 
-    assert.equal(replied, "Vision processed");
-    assert.equal(receivedMime, "image/png");
-    assert.equal(receivedBase64, pngHeader.toString("base64"));
-    assert.ok(receivedPrompt.includes("這是一張收據或發票照片"));
+    assert.equal(replied, "目前請直接用文字記帳，圖片暫不自動入帳 📝");
+    assert.equal(getMessageContentCalls, 0);
+    assert.equal(runCalled, false);
 
   } finally {
     SecretaryService.prototype.run = originalRun;
@@ -6048,20 +6286,22 @@ test("static regression: check forbidden strings and imports in production files
   }
 });
 
-test("LINE regression: image message routes to handleLineImageTurn", async () => {
+test("LINE regression: image message routes to handleLineImageTurn and short-circuits", async () => {
   setupMockEnv();
   const { handleLineEvent } = await import("./line-webhook-service");
   const { SecretaryService } = await import("./secretary-service");
 
   let imageTurnCalled = false;
+  let getMessageContentCalls = 0;
   const originalRun = SecretaryService.prototype.run;
   SecretaryService.prototype.run = async () => {
     imageTurnCalled = true;
     return {
-      reply: "Vision reply",
+      reply: "should not happen",
       notifyPartner: false,
       partnerMessage: null,
       actionFailure: null,
+      didExecuteAction: false,
     };
   };
 
@@ -6072,7 +6312,10 @@ test("LINE regression: image message routes to handleLineImageTurn", async () =>
         replyMessage: async (params: any) => {
           repliedText = params.messages[0].text;
         },
-        getMessageContent: async () => [Buffer.from([0x89, 0x50, 0x4e, 0x47])] as any,
+        getMessageContent: async () => {
+          getMessageContentCalls++;
+          return [Buffer.from([0x89, 0x50, 0x4e, 0x47])] as any;
+        },
         pushMessage: async () => {},
       },
       supabase: createMockDbForSecretary({
@@ -6097,8 +6340,9 @@ test("LINE regression: image message routes to handleLineImageTurn", async () =>
       dependencies as any,
     );
 
-    assert.ok(imageTurnCalled);
-    assert.equal(repliedText, "Vision reply");
+    assert.equal(imageTurnCalled, false);
+    assert.equal(getMessageContentCalls, 0);
+    assert.equal(repliedText, "目前請直接用文字記帳，圖片暫不自動入帳 📝");
   } finally {
     SecretaryService.prototype.run = originalRun;
   }

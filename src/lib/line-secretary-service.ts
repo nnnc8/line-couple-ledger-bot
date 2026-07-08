@@ -41,6 +41,10 @@ const actionResultSchema = z.object({
 
 const secretaryService = new SecretaryService();
 
+function looksLikeGroupRequiredIntent(text: string): boolean {
+  return /記|帳|花|買|付|支出|收入|欠|結清|刪除|修改|改成|查|多少|幫我/.test(text);
+}
+
 export async function runLineSecretaryTurn(input: {
   text: string;
   user: LineUser;
@@ -49,7 +53,6 @@ export async function runLineSecretaryTurn(input: {
   imageData?: { imageData: string; mimeType: string };
   groupIdOverride?: string;
   sourceEventId?: string;
-  isAudioMessage?: boolean;
 }): Promise<void> {
   const { text, user, dependencies, reply, imageData } = input;
   const groups = await listActiveGroups(dependencies.supabase, user).catch(() => []);
@@ -59,11 +62,14 @@ export async function runLineSecretaryTurn(input: {
   const strictResult = resolveSharedGroupStrict(text, groups);
   const hasGroup = !!strictResult.group || !!input.groupIdOverride;
 
-  // Implicit group: audio messages with exactly one group bypass explicit requirement
-  const allowImplicitGroup = !!input.isAudioMessage && groups.length === 1;
-
-  // Gate: shared expenses without a group name are rejected (fail-fast before LLM)
-  if (!isExplicitlyPrivate && !hasGroup && !allowImplicitGroup && groups.length > 0) {
+  // Gate: only accounting-style intents fail fast when shared account is in scope.
+  // Help, join, greetings, and other chitchat pass through to the LLM.
+  if (
+    !isExplicitlyPrivate &&
+    !hasGroup &&
+    groups.length > 0 &&
+    looksLikeGroupRequiredIntent(text)
+  ) {
     const groupNames = groups.map(g => g.name).join("、");
     const replyText = `要記到哪個群組？你的群組有：${groupNames}\n請直接打「群組名＋內容」，例如「${groups[0]?.name ?? "群組"} 晚餐 500 我付」`;
     await reply(replyText);
@@ -82,26 +88,25 @@ export async function runLineSecretaryTurn(input: {
     return;
   }
 
-  // Determine groupId: prefer explicit mention, then override, then implicit, then fallback
+  // Determine groupId: prefer explicit mention, then override, then LIFF active group.
+  // No more audio-implicit fallback.
   const resolvedGroupId =
     input.groupIdOverride
     ?? strictResult.group?.id
-    ?? (allowImplicitGroup ? groups[0].id : null)
     ?? (await getActiveGroupId(dependencies.supabase, user));
   const groupId = resolvedGroupId;
-
-  // Inject resolvedGroupId into dependencies context for downstream tool executors
-  dependencies.context = { ...dependencies.context, resolvedGroupId: groupId };
 
   // Use cleaned text from strict resolver (group name stripped) to avoid LLM hallucination
   const cleanedText = strictResult.cleanedText;
 
+  // Local-only toolCtx: never write back to dependencies.context so concurrent
+  // webhook events in the same batch don't pollute each other.
   const toolCtx = {
     db: dependencies.supabase,
     groupId,
     userId: user.id,
     coupleId: user.couple_id,
-    context: dependencies.context,
+    context: { resolvedGroupId: groupId },
   };
 
   const agentDeps = {
@@ -189,7 +194,7 @@ export async function runLineSecretaryTurn(input: {
     await reply(finalReply);
 
     // Write-behind: log successful interaction
-    const eventKind = workflowResult.pendingActions.length > 0
+    const eventKind = workflowResult.didExecuteAction
       ? "action_executed" as const
       : "text_other" as const;
     await logAgentEvent(dependencies.supabase, {
@@ -253,7 +258,6 @@ export async function handleLineAudioTurn(input: {
       sourceEventId: input.sourceEventId,
       user,
       dependencies,
-      isAudioMessage: true,
       reply: async (assistantReply: string) => {
         await reply(`聽到：「${text}」\n${assistantReply}`);
       },
@@ -271,44 +275,19 @@ export async function handleLineImageTurn(input: {
   dependencies: LineSecretaryDependencies;
   reply: (text: string) => Promise<void>;
 }): Promise<void> {
-  const { messageId, user, dependencies, reply } = input;
-  try {
-    const content = await dependencies.lineClient.getMessageContent(messageId);
-    const chunks: Buffer[] = [];
-    let size = 0;
-    for await (const chunk of content) {
-      const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
-      size += buffer.length;
-      if (size > 10 * 1024 * 1024) {
-        await reply("圖片太大，請傳小一點的圖片。");
-        return;
-      }
-      chunks.push(buffer);
-    }
-    const bytes = Buffer.concat(chunks);
-    const base64Image = bytes.toString("base64");
-
-    // Determine MIME type from the first few bytes
-    let mimeType = "image/jpeg"; // default
-    if (bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4e && bytes[3] === 0x47) {
-      mimeType = "image/png";
-    } else if (bytes[0] === 0x52 && bytes[1] === 0x49 && bytes[2] === 0x46 && bytes[3] === 0x46) {
-      mimeType = "image/webp";
-    }
-
-    const text = "這是一張收據或發票照片。請分析圖片內容，提取商家名稱、日期、總金額，並判斷分類，然後呼叫 record_expense 工具記帳。如果圖片不是收據或發票，請告知使用者。";
-    await runLineSecretaryTurn({
-      text,
-      sourceEventId: input.sourceEventId,
-      user,
-      dependencies,
-      reply,
-      imageData: { imageData: base64Image, mimeType },
-    });
-  } catch (err) {
-    console.error("Failed to process image message:", err);
-    await reply("圖片處理失敗，請稍後再試。");
-  }
+  const replyText = "目前請直接用文字記帳，圖片暫不自動入帳 📝";
+  await input.reply(replyText);
+  await logAgentEvent(input.dependencies.supabase, {
+    coupleId: input.user.couple_id,
+    groupId: null,
+    userId: input.user.id,
+    source: "line",
+    sourceEventId: input.sourceEventId ?? null,
+    kind: "image_rejected",
+    status: "rejected",
+    inputText: null,
+    replyText,
+  });
 }
 
 async function findPartner(

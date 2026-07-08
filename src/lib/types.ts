@@ -73,15 +73,6 @@ export type Bootstrap = {
     reply_text: string | null;
     created_at: string;
   }>;
-  memories: Array<{
-    id: string;
-    kind: string;
-    key: string;
-    value: Record<string, unknown> | null;
-    confidence: number;
-    scope: string;
-    approved: boolean;
-  }>;
 };
 
 export type CategoryAnalytics = {

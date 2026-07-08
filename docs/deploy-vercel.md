@@ -40,3 +40,5 @@ Copy the LIFF id to `NEXT_PUBLIC_LIFF_ID` and the channel id to `LINE_LOGIN_CHAN
 ## 5. Smoke test (optional, Layer 3)
 
 `pnpm smoke:local` exercises the full create → split → settle → cleanup loop against your real DB. Set the `SMOKE_*` env vars per [env-vars.md](env-vars.md). Failures are loud; successes auto-clean.
+
+The smoke scripts assume the `agent_events` migration (`supabase/migrations/202607080001_agent_events.sql`) has been applied. If you see a `relation "agent_events" does not exist` error, apply the migration first.

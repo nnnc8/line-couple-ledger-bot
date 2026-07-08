@@ -45,6 +45,9 @@ test.beforeEach(async ({ page }) => {
   await page.route("**/api/app/agent/runs", (route) =>
     route.fulfill({ json: agentRun() }),
   );
+  await page.route("**/api/app/agent/memories", (route) =>
+    route.fulfill({ json: { memories: [] } }),
+  );
   await page.route("**/api/app/analytics/categories**", (route) =>
     route.fulfill({
       json: {
@@ -226,6 +229,8 @@ function bootstrap() {
       ],
       recent: [privateExpense],
     },
+    openTasks: [],
+    recentEvents: [],
   };
 }
 
