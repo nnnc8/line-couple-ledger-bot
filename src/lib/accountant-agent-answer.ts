@@ -9,8 +9,6 @@ import {
   type AgentTimeRange,
 } from "./ledger-agent";
 
-const MODEL = "gemini-3.1-flash-lite";
-
 export const agentLlmAnswerSchema = z
   .object({
     answer: z.string().trim().min(1).max(1_800),
@@ -51,7 +49,7 @@ async function answerWithGeminiImpl(
   };
   try {
     const response = await generateObject({
-      model: getModel(MODEL),
+      model: getModel(),
       system:
         "你是帳務專用 AI 會計師的回覆層。只能根據提供的工具結果回答；不能新增金額、不能假設不存在的帳務、不能要求使用者打開 LIFF 才知道答案。facts 必須逐字等於輸入 facts。若有操作建議，只能描述可直接執行的動作，不要提確認流程。",
       messages: [

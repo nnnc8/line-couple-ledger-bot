@@ -136,12 +136,7 @@ export function SettingsSection({
       <RecurringEditor data={data} onSave={onRecurring} />
 
       {/* Export */}
-      <Link
-        href="/api/app/export"
-        className="flex w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-[var(--border)] py-3 text-[13px] font-medium text-[var(--muted-foreground)] transition hover:bg-muted"
-      >
-        <Download className="size-4" /> 匯出目前流水 CSV
-      </Link>
+      <ExportCard />
     </div>
   );
 }
@@ -399,6 +394,57 @@ function RecurringEditor({
             <Plus className="size-4" /> 新增週期支出
           </Button>
         </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function ExportCard() {
+  const today = new Date();
+  const defaultPeriod = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`;
+  const [period, setPeriod] = React.useState(defaultPeriod);
+  const [ledger, setLedger] = React.useState<"all" | "shared" | "private">("all");
+
+  const exportUrl = `/api/app/export?period=${encodeURIComponent(period)}&ledger=${ledger}`;
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2 text-base">
+          <Download className="size-4" /> 匯出帳務
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <div className="flex gap-2">
+          <div className="flex-1">
+            <label className="text-[12px] font-medium text-[var(--muted-foreground)]">月份</label>
+            <Input
+              type="month"
+              value={period}
+              onChange={(e) => setPeriod(e.target.value)}
+              className="mt-1"
+            />
+          </div>
+          <div className="flex-1">
+            <label className="text-[12px] font-medium text-[var(--muted-foreground)]">帳本</label>
+            <Select
+              value={ledger}
+              onValueChange={(v) => setLedger(v as "all" | "shared" | "private")}
+              className="mt-1"
+              options={[
+                { value: "all", label: "全部" },
+                { value: "shared", label: "共同帳" },
+                { value: "private", label: "私人帳" },
+              ]}
+            />
+          </div>
+        </div>
+        <Link
+          href={exportUrl}
+          className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary py-2.5 text-[13px] font-semibold text-primary-foreground transition hover:opacity-90"
+        >
+          <Download className="size-4" /> 下載 CSV
+        </Link>
       </CardContent>
     </Card>
   );

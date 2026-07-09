@@ -13,6 +13,9 @@ import { RecentDecisions } from "@/components/dashboard/recent-decisions";
 import { donutGradient, money, moneyAbs, shortMoney, monthShort } from "@/lib/format";
 import { tagColor, tagTint, displayTag } from "@/lib/categories";
 import type { Bootstrap, Expense, User } from "@/lib/types";
+import { CategoryPieChart } from "./category-pie-chart";
+import { SpendingTrend } from "./spending-trend";
+import { TagBarChart } from "./tag-bar-chart";
 
 interface DashboardProps {
   data: Bootstrap;
@@ -75,6 +78,8 @@ export function Dashboard({
         setPartial={setPartial}
         onSettle={onSettle}
         onAdd={onAdd}
+        sharedMonthly={data.dashboard.monthlyTotalTwd}
+        privateMonthly={data.privateDashboard?.monthlyTotalTwd ?? 0}
       />
       <SecretaryTaskCard />
       {data.openTasks && data.openTasks.length > 0 && onRefresh && (
@@ -127,22 +132,13 @@ export function Dashboard({
         </div>
 
         {categoryRows.length > 0 ? (
-          <div className="mt-5 flex flex-col items-center gap-4 sm:flex-row">
-            <div
-              className="relative size-[150px] shrink-0 rounded-full"
-              style={{ background: donutGradient(categoryRows, categoryTotal) }}
-            >
-              <div className="absolute inset-[22%] grid place-items-center rounded-full bg-[var(--card)]">
-                <div className="text-center">
-                  <p className="text-xl font-extrabold leading-none">
-                    {categoryRows.length}
-                  </p>
-                  <p className="mt-0.5 text-[10px] text-[var(--muted-foreground)]">
-                    分類
-                  </p>
-                </div>
-              </div>
-            </div>
+          <div className="mt-5 space-y-4">
+            <CategoryPieChart
+              data={categoryRows}
+              total={categoryTotal}
+              onSelect={setSelectedCategory}
+              selected={selectedCategory}
+            />
             <div className="w-full space-y-1">
               {categoryRows.slice(0, 6).map((cat) => {
                 const active = selectedCategory === cat.label;
@@ -238,6 +234,28 @@ export function Dashboard({
         )}
       </Card>
 
+      <Card className="p-4">
+        <div>
+          <p className="text-[12px] font-medium text-[var(--muted-foreground)]">
+            標籤排行
+          </p>
+          <h2 className="text-base font-bold">前 5 大標籤</h2>
+        </div>
+        <div className="mt-3">
+          {categoryRows.length > 0 ? (
+            <TagBarChart
+              data={categoryRows.map((c) => ({ tag: c.tag, amount: c.value }))}
+            />
+          ) : (
+            <Empty
+              icon={<Inbox />}
+              title="尚無標籤資料"
+              className="py-8"
+            />
+          )}
+        </div>
+      </Card>
+
       <RecentTransactions
         expenses={data.dashboard.recent}
         users={data.users}
@@ -259,6 +277,8 @@ function BalanceCard({
   setPartial,
   onSettle,
   onAdd,
+  sharedMonthly,
+  privateMonthly,
 }: {
   groupName: string;
   groupColor: string;
@@ -268,6 +288,8 @@ function BalanceCard({
   setPartial: (v: string) => void;
   onSettle: (amount: number) => void;
   onAdd: () => void;
+  sharedMonthly: number;
+  privateMonthly: number;
 }) {
   return (
     <div
@@ -311,6 +333,21 @@ function BalanceCard({
       >
         <Plus className="mr-1 size-4" /> 新增支出
       </Button>
+
+      <div className="relative mt-4 flex gap-4 border-t border-white/10 pt-3">
+        <div className="flex-1">
+          <p className="text-[11px] text-white/60">本月共同</p>
+          <p className="mt-0.5 text-lg font-bold tabular-nums">
+            {money(sharedMonthly)}
+          </p>
+        </div>
+        <div className="flex-1">
+          <p className="text-[11px] text-white/60">本月私人</p>
+          <p className="mt-0.5 text-lg font-bold tabular-nums">
+            {money(privateMonthly)}
+          </p>
+        </div>
+      </div>
     </div>
   );
 }

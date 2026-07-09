@@ -1,6 +1,6 @@
 import { serverEnvironment } from "./server-runtime";
 import { pendingActionService, ledgerQueryService } from "./services";
-import { replyText, type LineUser } from "./line-bot-shared";
+import { replyText, replyMessages, type LineUser } from "./line-bot-shared";
 import { runLineSecretaryTurn } from "./line-secretary-service";
 import { claimUser } from "./claim-user";
 import { safeSecretEqual } from "./security";
@@ -59,7 +59,7 @@ export async function handleLineTextMessage(
     sourceEventId: eventId,
     user,
     dependencies,
-    reply: (replyMsg) => replyText(dependencies.lineClient, replyToken, replyMsg),
+    reply: (replyMsg) => replyMessages(dependencies.lineClient, replyToken, replyMsg),
   });
 }
 

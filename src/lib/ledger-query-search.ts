@@ -10,7 +10,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
 import { HttpError } from "./http-error";
-import { searchExpenseRows } from "./phase4";
+import { searchExpenseRows } from "./expense-search";
 import { filterAgentExpenses, type AgentTimeRange } from "./ledger-agent";
 import { shiftMonth, taipeiToday } from "./ledger-shared";
 import {

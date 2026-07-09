@@ -1,6 +1,7 @@
 import type { LineBotClient } from "@line/bot-sdk";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
+import type { LineReplyMessage } from "./flex-message-builder";
 
 export const userRowSchema = z.object({
   id: z.string().uuid(),
@@ -56,6 +57,24 @@ export async function replyText(
     replyToken,
     messages: [{ type: "text", text }],
   });
+}
+
+export type ReplyPayload = string | LineReplyMessage | (string | LineReplyMessage)[];
+
+function normalizeReplyPayload(payload: ReplyPayload): LineReplyMessage[] {
+  const items = Array.isArray(payload) ? payload : [payload];
+  return items.map((item) =>
+    typeof item === "string" ? { type: "text", text: item } : item,
+  );
+}
+
+export async function replyMessages(
+  lineClient: Pick<LineBotClient, "replyMessage">,
+  replyToken: string,
+  payload: ReplyPayload,
+): Promise<void> {
+  const messages = normalizeReplyPayload(payload);
+  await lineClient.replyMessage({ replyToken, messages: messages as never });
 }
 
 export async function findUser(

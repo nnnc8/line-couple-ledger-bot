@@ -5,8 +5,8 @@ import { z } from "zod";
 import { type ToolContext } from "./accountant-tools";
 import { buildAccountantVercelTools } from "./accountant-tool-registry";
 import { getModel } from "./model-provider";
+import { getModelConfig } from "./server-env";
 
-const AGENT_MODEL = "gemini-3.1-flash-lite";
 const SESSION_EXPIRE_MS = 2 * 60 * 60 * 1_000;
 const MAX_HISTORY = 30;
 
@@ -42,7 +42,7 @@ export class AgentChatService {
     sessionExpireMs?: number;
   }) {
     this.generateTextImpl = input?.generateTextImpl ?? generateText;
-    this.model = input?.model ?? AGENT_MODEL;
+    this.model = input?.model ?? getModelConfig().modelId;
     this.sessionExpireMs = input?.sessionExpireMs ?? SESSION_EXPIRE_MS;
   }
 

@@ -31,7 +31,9 @@ import { z } from "zod";
 
 import { executeTool as executeAccountantTool } from "./accountant-tools";
 import type { ToolContext } from "./accountant-tools";
-import { buildUpdateExpenseAction } from "./pending-action-builders";
+import { buildUpdateExpenseAction, buildDeleteExpenseAction } from "./pending-action-builders";
+import { executeDirectUpdate, executeDirectDelete } from "./secretary-direct-actions";
+import { suggestTag, normalizeTag } from "./tag-suggestion-service";
 import { RuleService } from "./rule-service";
 import { TaskService } from "./task-service";
 import { ledgerQueryService } from "./services";
@@ -141,28 +143,75 @@ async function executeGetUserMemories(
   };
 }
 
-async function executeProposeUpdateExpense(
+async function executeUpdateExpense(
   args: Record<string, unknown>,
   ctx: ToolContext,
 ) {
   const params = updateExpenseParams.parse(args);
   try {
+    const { data: expense } = await ctx.db
+      .from("expenses")
+      .select("ledger, created_by_user_id, deleted_at, description")
+      .eq("id", params.expense_id)
+      .single();
+
+    if (!expense) {
+      return { error: "找不到這筆支出。" };
+    }
+
+    const isPrivate = expense.ledger === "private"
+      && expense.created_by_user_id === ctx.userId
+      && !expense.deleted_at;
+
+    if (isPrivate) {
+      return executeDirectUpdate(ctx, params.expense_id, params.updates);
+    }
+
     const action = await buildUpdateExpenseAction(ctx, params.expense_id, params.updates);
     const changedFields = Object.keys(action.updates)
       .map((k) => fieldLabel(k))
       .filter(Boolean)
       .join("、");
-    const { data: expense } = await ctx.db
-      .from("expenses")
-      .select("description")
-      .eq("id", params.expense_id)
-      .single();
     return {
       pending_action: action,
       message: `已為你修改：${expense?.description ?? "支出"}（${changedFields}）。`,
     };
   } catch (error) {
     return { error: error instanceof Error ? error.message : "修改支出失敗" };
+  }
+}
+
+async function executeDeleteExpense(
+  args: Record<string, unknown>,
+  ctx: ToolContext,
+) {
+  const params = deleteExpenseParams.parse(args);
+  try {
+    const { data: expense } = await ctx.db
+      .from("expenses")
+      .select("ledger, created_by_user_id, deleted_at, description")
+      .eq("id", params.expense_id)
+      .single();
+
+    if (!expense) {
+      return { error: "找不到這筆支出。" };
+    }
+
+    const isPrivate = expense.ledger === "private"
+      && expense.created_by_user_id === ctx.userId
+      && !expense.deleted_at;
+
+    if (isPrivate) {
+      return executeDirectDelete(ctx, params.expense_id);
+    }
+
+    const action = await buildDeleteExpenseAction(ctx, params.expense_id);
+    return {
+      pending_action: action,
+      message: `已為你刪除：${expense?.description ?? "支出"}。`,
+    };
+  } catch (error) {
+    return { error: error instanceof Error ? error.message : "刪除支出失敗" };
   }
 }
 
@@ -176,6 +225,29 @@ function fieldLabel(key: string): string {
     expense_date: "日期",
   };
   return map[key] ?? key;
+}
+
+async function normalizeTagInArgs(
+  args: Record<string, unknown>,
+  ctx: ToolContext,
+): Promise<Record<string, unknown>> {
+  if (typeof args.tag !== "string" || !args.tag) return args;
+  try {
+    const suggestions = await suggestTag(
+      { db: ctx.db, coupleId: ctx.coupleId, groupId: ctx.groupId, userId: ctx.userId },
+      typeof args.description === "string" ? args.description : "",
+      typeof args.merchant === "string" ? args.merchant : undefined,
+    );
+    if (suggestions.length > 0) {
+      const normalized = normalizeTag(args.tag, suggestions);
+      if (normalized !== args.tag) {
+        return { ...args, tag: normalized };
+      }
+    }
+  } catch {
+    // Tag suggestion is best-effort; don't block recording on failure
+  }
+  return args;
 }
 
 async function executeProposeMerchantRule(
@@ -263,6 +335,10 @@ const updateExpenseParams = z.object({
   }),
 });
 
+const deleteExpenseParams = z.object({
+  expense_id: z.string(),
+});
+
 const merchantRuleParams = z.object({
   merchant: z.string().min(1).max(100),
   rule: z.object({
@@ -332,13 +408,6 @@ export const SECRETARY_TOOLS: SecretaryToolDef[] = [
     executor: (args, ctx) => executeAccountantTool("get_balance_summary", args, ctx),
   },
   {
-    name: "get_budget_status",
-    description: "取得當月預算使用狀態。（已停用）",
-    geminiParameters: { type: Type.OBJECT, properties: {} },
-    zodSchema: z.object({}).passthrough(),
-    executor: (args, ctx) => executeAccountantTool("get_budget_status", args, ctx),
-  },
-  {
     name: "get_open_tasks",
     description: "查詢目前待處理的秘書任務（待分類、待補資料等）。",
     geminiParameters: {
@@ -403,7 +472,8 @@ export const SECRETARY_TOOLS: SecretaryToolDef[] = [
     executor: async (args, ctx) => {
       const ledger = typeof args.ledger === "string" ? args.ledger : "shared";
 
-      // Shared expenses: read resolvedGroupId from context (injected by pre-LLM group resolver)
+      const normalizedArgs = await normalizeTagInArgs(args, ctx);
+
       if (ledger !== "private") {
         const resolvedGroupId = ctx.context?.resolvedGroupId as string | undefined;
         if (!resolvedGroupId) {
@@ -411,16 +481,16 @@ export const SECRETARY_TOOLS: SecretaryToolDef[] = [
             error: "系統錯誤：共享帳未綁定群組。請確認用戶已選擇群組。",
           };
         }
-        return executeAccountantTool("record_expense", args, { ...ctx, groupId: resolvedGroupId });
+        return executeAccountantTool("record_expense", normalizedArgs, { ...ctx, groupId: resolvedGroupId });
       }
 
-      return executeAccountantTool("record_expense", args, ctx);
+      return executeAccountantTool("record_expense", normalizedArgs, ctx);
     },
   },
   {
-    name: "propose_update_expense",
+    name: "update_expense",
     description:
-      "修改最近一筆支出。用於「剛剛那筆改私人」、「上一筆改分類」等情境。",
+      "修改一筆支出。私人帳直接修改，共同帳需確認。用於「剛剛那筆改私人」、「上一筆改分類」等情境。",
     geminiParameters: {
       type: Type.OBJECT,
       properties: {
@@ -449,7 +519,21 @@ export const SECRETARY_TOOLS: SecretaryToolDef[] = [
       required: ["expense_id", "updates"],
     },
     zodSchema: updateExpenseParams,
-    executor: executeProposeUpdateExpense,
+    executor: executeUpdateExpense,
+  },
+  {
+    name: "delete_expense",
+    description:
+      "刪除一筆支出。私人帳直接刪除，共同帳需確認。用於「刪掉上一筆」、「剛剛那筆刪了」等情境。",
+    geminiParameters: {
+      type: Type.OBJECT,
+      properties: {
+        expense_id: { type: Type.STRING, description: "要刪除的支出 ID" },
+      },
+      required: ["expense_id"],
+    },
+    zodSchema: deleteExpenseParams,
+    executor: executeDeleteExpense,
   },
   {
     name: "propose_settlement",

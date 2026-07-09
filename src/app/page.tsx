@@ -10,6 +10,7 @@ import { SettingsSection } from "@/components/settings/settings-section";
 import { ExpenseForm } from "@/components/expense/expense-form";
 import { Sheet } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
+import { OnboardingFlow } from "@/components/onboarding/onboarding-flow";
 import type { Expense } from "@/lib/types";
 import type { PendingActionInput } from "@/lib/optimistic";
 import { api } from "@/lib/api";
@@ -175,6 +176,10 @@ export default function Home() {
       );
     }
     return <LoadingShell />;
+  }
+
+  if (!data.user || data.groups.filter((g) => !g.archived_at).length === 0) {
+    return <OnboardingFlow onDone={() => void reload()} />;
   }
 
   return (

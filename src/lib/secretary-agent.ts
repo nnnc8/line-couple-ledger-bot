@@ -8,16 +8,10 @@
  * shared context for both partners in a couple.
  */
 
-import type { GoogleGenAI } from "@google/genai";
-import type { Content } from "@google/genai";
-
 import { runVercelAgent } from "./vercel-agent";
-import {
-  secretaryToolDeclarations,
-  executeSecretaryTool,
-  type ToolContext,
-} from "./secretary-tools";
+import type { ToolContext } from "./secretary-tools";
 import type { AgentDeps } from "./agent-loop";
+import type { ToolCallRecord } from "./secretary-workflow-service";
 import { SecretaryPromptService } from "./secretary-prompt-service";
 import { SecretarySessionService } from "./secretary-session-service";
 
@@ -30,17 +24,12 @@ export interface SecretaryResult {
   toolCallCount: number;
   pendingActions: unknown[];
   sessionId: string;
-  /** New tasks created during this turn */
   newTasks: string[];
-  /** Whether the other partner should be notified */
   notifyPartner: boolean;
   partnerMessage: string | null;
+  lastToolCall: ToolCallRecord | null;
 }
 
-/* ─── Constants ─── */
-
-const AGENT_MODEL = "gemini-3.1-flash-lite";
-const MAX_TOOL_CALLS = 8;
 /* ─── Main Agent Loop ─── */
 
 export interface SecretaryInput {
@@ -106,5 +95,6 @@ export async function runSecretaryLoop(
     newTasks: result.newTasks,
     notifyPartner: result.notifyPartner,
     partnerMessage: result.partnerMessage,
+    lastToolCall: result.lastToolCall,
   };
 }

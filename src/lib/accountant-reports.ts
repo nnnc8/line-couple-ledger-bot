@@ -32,8 +32,6 @@ import {
 import { getModel } from "./model-provider";
 import type { ServerContext } from "./server-runtime";
 
-const MODEL = "gemini-3.1-flash-lite";
-
 /**
  * Read-side: shared reports (for the active group) + own private
  * reports, merged and sorted newest first. Mirrors the contract
@@ -97,7 +95,7 @@ export async function generateReport(
   );
   try {
     const response = await generateObject({
-      model: getModel(MODEL),
+      model: getModel(),
       system:
         "你是台灣情侶帳本的會計師。只能根據提供的 snapshot 分析。facts 必須逐字等於 snapshot.facts；不能自行改金額、改權限或假設不存在的帳務。可給建議，建議中的改帳動作會直接執行。你只能根據提供的 snapshot 資料中出現的 merchant 或 description 進行字面推論，絕對禁止憑空捏造 snapshot 中沒有明確指出的具體事件、活動或情境（例如捏造出去某個商圈逛街、參加某種生日聚會、出遊等）。如果資料中沒有明確的商家或備註，僅能說明『主要來自大額支出』，不得虛構原因！",
       messages: [

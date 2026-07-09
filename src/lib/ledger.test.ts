@@ -1,15 +1,15 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
+import { actionResultMessage } from "./line-bot-shared";
 import {
-  actionResultMessage,
   handleLineEvent,
   parsePendingRetargetCommand,
   parseFixedIntent,
   parseInlineExpenseItems,
   resolveMentionedGroupTurn,
   selectMentionedGroup,
-} from "./bot";
+} from "./line-webhook-service";
 import {
   deliverNotifications,
   expensesCsv,
@@ -41,6 +41,32 @@ import { safeSecretEqual, signSession, verifySession } from "./security";
 import { matchTransactions, parseBankCsvWithMeta } from "./bank-csv";
 import { setMockWithTx } from "./db/tx";
 import { TransactionStaleError } from "./pending-action-executor";
+
+function replyTextOf(reply: any): string {
+  if (reply == null) return "";
+  if (typeof reply === "string") return reply;
+  if (Array.isArray(reply)) return reply.map((r: any) => typeof r === "string" ? r : r?.altText ?? "").join("\n");
+  return reply?.altText ?? "";
+}
+
+function collectAllTexts(container: any): string[] {
+  const texts: string[] = [];
+  function walk(node: any) {
+    if (!node || typeof node !== "object") return;
+    if (node.type === "text" && typeof node.text === "string") {
+      texts.push(node.text);
+    }
+    if (Array.isArray(node.contents)) {
+      for (const child of node.contents) walk(child);
+    }
+    if (node.header) walk(node.header);
+    if (node.body) walk(node.body);
+    if (node.footer) walk(node.footer);
+    if (node.action?.label) texts.push(node.action.label);
+  }
+  walk(container);
+  return texts;
+}
 
 export interface FakeTxCall {
   query: string;
@@ -94,7 +120,7 @@ setMockWithTx(async (callback) => {
   return await callback(client as any);
 });
 
-import { searchExpenseRows, shouldSendInsight } from "./phase4";
+import { searchExpenseRows } from "./expense-search";
 import {
   calculateBalances,
   geminiIntentJsonSchema,
@@ -1460,25 +1486,6 @@ test("phase 4 search filters chinese expense text and ranges", () => {
   assert.deepEqual(results.map((item) => item.id), ["e1"]);
 });
 
-test("phase 4 proactive insights suppress duplicate rules for three days", () => {
-  assert.equal(
-    shouldSendInsight(
-      [{ insight_rule_id: "budget_warning_80", created_at: "2026-06-23T00:00:00Z" }],
-      "budget_warning_80",
-      new Date("2026-06-25T00:00:00Z"),
-    ),
-    false,
-  );
-  assert.equal(
-    shouldSendInsight(
-      [{ insight_rule_id: "budget_warning_80", created_at: "2026-06-20T00:00:00Z" }],
-      "budget_warning_80",
-      new Date("2026-06-25T00:00:00Z"),
-    ),
-    true,
-  );
-});
-
 test("notification service skips proactive insight scan when disabled", async () => {
   const { scanProactiveInsights } = await import("./notification-service");
 
@@ -2421,7 +2428,7 @@ test("agent chat service transcribes audio with injected generator", async () =>
 test("agent-loop: buildSystemPrompt includes today date", async () => {
   const { runAgentLoop } = await import("./agent-loop");
 
-  const mockGemini: AgentDeps["gemini"] = {
+  const mockGemini = {
     models: {
       generateContent: async () => ({
         candidates: [
@@ -2434,7 +2441,7 @@ test("agent-loop: buildSystemPrompt includes today date", async () => {
         ],
       }),
     },
-  };
+  } as unknown as AgentDeps["gemini"];
 
   const mockDb = {
     rpc: () => Promise.resolve({ data: [], error: null }),
@@ -4539,6 +4546,7 @@ test("secretary service retries hallucinated writes and applies corrected pendin
           newTasks: [],
           notifyPartner: false,
           partnerMessage: null,
+          lastToolCall: null,
         };
       }
       return {
@@ -4566,6 +4574,7 @@ test("secretary service retries hallucinated writes and applies corrected pendin
         newTasks: [],
         notifyPartner: false,
         partnerMessage: null,
+        lastToolCall: null,
       };
     },
     executeAction: async (action) => {
@@ -4581,7 +4590,7 @@ test("secretary service retries hallucinated writes and applies corrected pendin
   assert.equal(result.actionFailure, null);
 });
 
-test("write tools: propose_update_expense returns pending_action updates", async () => {
+test("write tools: update_expense returns pending_action updates", async () => {
   const { executeSecretaryTool } = await import("./secretary-tools");
   const { registerPendingActionService } = await import("./pending-action-builders");
   const { PendingActionService } = await import("./pending-action-service");
@@ -4650,7 +4659,7 @@ test("write tools: propose_update_expense returns pending_action updates", async
   };
 
   const result = await executeSecretaryTool(
-    "propose_update_expense",
+    "update_expense",
     {
       expense_id: "00000000-0000-0000-0000-000000000001",
       updates: {
@@ -4680,7 +4689,7 @@ test("write tools: propose_update_expense returns pending_action updates", async
   assert.ok(res.message.includes("晚餐"));
 });
 
-test("write tools: propose_update_expense no-op throws error", async () => {
+test("write tools: update_expense no-op throws error", async () => {
   const { executeSecretaryTool } = await import("./secretary-tools");
   const { registerPendingActionService } = await import("./pending-action-builders");
   const { PendingActionService } = await import("./pending-action-service");
@@ -4749,7 +4758,7 @@ test("write tools: propose_update_expense no-op throws error", async () => {
   };
 
   const result = await executeSecretaryTool(
-    "propose_update_expense",
+    "update_expense",
     {
       expense_id: "00000000-0000-0000-0000-000000000001",
       updates: {},
@@ -5114,6 +5123,7 @@ test("secretary integration regression: tool -> SecretaryService.run -> TS trans
           newTasks: [],
           notifyPartner: false,
           partnerMessage: null,
+          lastToolCall: null,
         };
       },
       executeAction: async (action) => {
@@ -5530,13 +5540,14 @@ test("runLineSecretaryTurn replies actionResultMessage on action failure", async
         action_type: "create_expense",
       },
       didExecuteAction: false,
+      lastToolCall: null,
     };
   };
 
   try {
-    let repliedText = "";
+    let repliedText: any = "";
     let pushCalled = false;
-    const dependencies = {
+    const dependencies: any = {
       lineClient: {
         replyMessage: async () => {},
         getMessageContent: async () => ({} as any),
@@ -5588,15 +5599,16 @@ test("runLineSecretaryTurn replies success and notifies partner when requested",
       partnerMessage: "Partner got coffee",
       actionFailure: null,
       didExecuteAction: false,
+      lastToolCall: null,
     };
   };
 
   try {
-    let repliedText = "";
+    let repliedText: any = "";
     let pushTarget = "";
     let pushMsg = "";
 
-    const dependencies = {
+    const dependencies: any = {
       lineClient: {
         replyMessage: async () => {},
         getMessageContent: async () => ({} as any),
@@ -5653,13 +5665,14 @@ test("runLineSecretaryTurn routes explicit group mention to that group and strip
       partnerMessage: null,
       actionFailure: null,
       didExecuteAction: false,
+      lastToolCall: null,
     };
   };
 
   try {
     const activeGroupId = "00000000-0000-4000-8000-000000000001";
     const foodGroupId = "00000000-0000-4000-8000-000000000002";
-    const dependencies = {
+    const dependencies: any = {
       lineClient: {
         replyMessage: async () => {},
         getMessageContent: async () => ({} as any),
@@ -5687,7 +5700,7 @@ test("runLineSecretaryTurn routes explicit group mention to that group and strip
       line_user_id: "line-user-id",
     };
 
-    let repliedText = "";
+    let repliedText: any = "";
     await runLineSecretaryTurn({
       text: "幫我新增 吃飽喝足 拉麵 840 對方付",
       user,
@@ -5720,12 +5733,13 @@ test("runLineSecretaryTurn: shared account + accounting intent + no group name -
       partnerMessage: null,
       actionFailure: null,
       didExecuteAction: false,
+      lastToolCall: null,
     };
   };
 
   try {
-    let repliedText = "";
-    const dependencies = {
+    let repliedText: any = "";
+    const dependencies: any = {
       lineClient: {
         replyMessage: async () => {},
         getMessageContent: async () => ({} as any),
@@ -5758,8 +5772,8 @@ test("runLineSecretaryTurn: shared account + accounting intent + no group name -
     });
 
     assert.equal(runCalled, false);
-    assert.match(repliedText, /要記到哪個群組/);
-    assert.match(repliedText, /阿提斯、吃飽喝足/);
+    assert.match(replyTextOf(repliedText), /要記到哪個群組/);
+    assert.match(replyTextOf(repliedText), /阿提斯、吃飽喝足/);
   } finally {
     SecretaryService.prototype.run = originalRun;
   }
@@ -5780,12 +5794,13 @@ test("runLineSecretaryTurn: shared account + chitchat + no group name -> reaches
       partnerMessage: null,
       actionFailure: null,
       didExecuteAction: false,
+      lastToolCall: null,
     };
   };
 
   try {
-    let repliedText = "";
-    const dependencies = {
+    let repliedText: any = "";
+    const dependencies: any = {
       lineClient: {
         replyMessage: async () => {},
         getMessageContent: async () => ({} as any),
@@ -5837,6 +5852,7 @@ test("handleLineAudioTurn no longer bypasses group gate when only one group exis
       partnerMessage: null,
       actionFailure: null,
       didExecuteAction: false,
+      lastToolCall: null,
     };
   };
 
@@ -5844,8 +5860,8 @@ test("handleLineAudioTurn no longer bypasses group gate when only one group exis
   agentChatService.transcribeAudio = async () => "幫我記 咖啡 120";
 
   try {
-    let repliedText = "";
-    const dependencies = {
+    let repliedText: any = "";
+    const dependencies: any = {
       lineClient: {
         replyMessage: async () => {},
         getMessageContent: async () => [Buffer.from("fake audio")] as any,
@@ -5875,7 +5891,7 @@ test("handleLineAudioTurn no longer bypasses group gate when only one group exis
     });
 
     assert.equal(runCalled, false);
-    assert.match(repliedText, /要記到哪個群組/);
+    assert.match(replyTextOf(repliedText), /要記到哪個群組/);
   } finally {
     SecretaryService.prototype.run = originalRun;
     agentChatService.transcribeAudio = originalTranscribe;
@@ -5895,6 +5911,7 @@ test("runLineSecretaryTurn: dependencies.context is not mutated by resolvedGroup
       partnerMessage: null,
       actionFailure: null,
       didExecuteAction: false,
+      lastToolCall: null,
     };
   };
 
@@ -5960,6 +5977,7 @@ test("runLineSecretaryTurn passes a stable line idempotency key into executeAgen
       partnerMessage: null,
       actionFailure: null,
       didExecuteAction: false,
+      lastToolCall: null,
     };
   };
 
@@ -5969,7 +5987,7 @@ test("runLineSecretaryTurn passes a stable line idempotency key into executeAgen
   };
 
   try {
-    const dependencies = {
+    const dependencies: any = {
       lineClient: {
         replyMessage: async () => {},
         getMessageContent: async () => ({} as any),
@@ -6025,6 +6043,7 @@ test("handleLineAudioTurn prefixes transcript into assistant reply", async () =>
       partnerMessage: null,
       actionFailure: null,
       didExecuteAction: false,
+      lastToolCall: null,
     };
   };
 
@@ -6032,8 +6051,8 @@ test("handleLineAudioTurn prefixes transcript into assistant reply", async () =>
   agentChatService.transcribeAudio = async () => "buy coffee";
 
   try {
-    let repliedText = "";
-    const dependencies = {
+    let repliedText: any = "";
+    const dependencies: any = {
       lineClient: {
         replyMessage: async () => {},
         getMessageContent: async (id: string) => {
@@ -6066,11 +6085,11 @@ test("handleLineAudioTurn prefixes transcript into assistant reply", async () =>
       },
     });
 
-    assert.equal(repliedText, "聽到：「buy coffee」\nUnderstood, logged it.");
+    assert.deepEqual(repliedText, ["聽到：「buy coffee」", "Understood, logged it."]);
 
     // Oversize case
-    let sizeRep = "";
-    const dependenciesOversize = {
+    let sizeRep: any = "";
+    const dependenciesOversize: any = {
       ...dependencies,
       lineClient: {
         ...dependencies.lineClient,
@@ -6112,11 +6131,12 @@ test("handleLineImageTurn rejects image without downloading or calling LLM", asy
       partnerMessage: null,
       actionFailure: null,
       didExecuteAction: false,
+      lastToolCall: null,
     };
   };
 
   try {
-    const dependencies = {
+    const dependencies: any = {
       lineClient: {
         replyMessage: async () => {},
         getMessageContent: async () => {
@@ -6140,7 +6160,7 @@ test("handleLineImageTurn rejects image without downloading or calling LLM", asy
       line_user_id: "line-user-id",
     };
 
-    let replied = "";
+    let replied: any = "";
     await handleLineImageTurn({
       messageId: "msg-img",
       user,
@@ -6302,12 +6322,13 @@ test("LINE regression: image message routes to handleLineImageTurn and short-cir
       partnerMessage: null,
       actionFailure: null,
       didExecuteAction: false,
+      lastToolCall: null,
     };
   };
 
   try {
-    let repliedText = "";
-    const dependencies = {
+    let repliedText: any = "";
+    const dependencies: any = {
       lineClient: {
         replyMessage: async (params: any) => {
           repliedText = params.messages[0].text;
@@ -6400,7 +6421,7 @@ test("line webhook: join path uses claimUser result and bypasses joined-user loo
     },
   } as any;
 
-  let repliedText = "";
+  let repliedText: any = "";
   const dependencies = {
     lineClient: {
       replyMessage: async (params: any) => {
@@ -6457,8 +6478,8 @@ test("line text service: search command calls ledgerQueryService.searchExpenses 
   };
 
   try {
-    let repliedText = "";
-    const dependencies = {
+    let repliedText: any = "";
+    const dependencies: any = {
       lineClient: {
         replyMessage: async (params: any) => {
           repliedText = params.messages[0].text;
@@ -6519,8 +6540,8 @@ test("line text service: pending retarget confirms every returned actionId", asy
   };
 
   try {
-    let repliedText = "";
-    const dependencies = {
+    let repliedText: any = "";
+    const dependencies: any = {
       lineClient: {
         replyMessage: async (params: any) => {
           repliedText = params.messages[0].text;
@@ -6574,7 +6595,7 @@ test("line webhook facade: exported parser helpers and handleLineEvent still rou
   assert.equal(parseSearchCommand("搜尋 早餐"), "早餐");
 
   // Verify handleLineEvent routing for join commands (uses joinCouple in split modules)
-  let repliedText = "";
+  let repliedText: any = "";
   const dependencies = {
     lineClient: {
       replyMessage: async (params: any) => {
@@ -8521,7 +8542,7 @@ test("secretary registry: declared names match what executeSecretaryTool actuall
     "get_recent_expenses",
     "get_open_tasks",
     "get_user_memories",
-    "propose_update_expense",
+    "update_expense",
     "propose_merchant_rule",
     "create_task",
   ];
@@ -8615,7 +8636,7 @@ test("secretary registry: vercel-agent's tools object is the registry's tools ob
   }
 });
 
-test("secretary registry: record_expense / propose_update_expense / propose_settlement still go through pending action builder path", async () => {
+test("secretary registry: record_expense / update_expense / propose_settlement still go through pending action builder path", async () => {
   // These three tools are the ones the LIFF depends on for the
   // record → confirm flow. If their executors stop producing
   // `pending_action` / using `buildUpdateExpenseAction`, the workflow
@@ -8627,7 +8648,7 @@ test("secretary registry: record_expense / propose_update_expense / propose_sett
 
   for (const name of [
     "record_expense",
-    "propose_update_expense",
+    "update_expense",
     "propose_settlement",
   ]) {
     const def = findSecretaryTool(name);
@@ -9762,4 +9783,272 @@ test("accountant agent barrel: exported functions/schemas still match the old pu
   assert.equal(barrel.agentRunInputSchema.safeParse({ message: "x" }).success, true);
   assert.equal(barrel.categoryAnalyticsInputSchema.safeParse({ range: "six_months" }).success, true);
   assert.equal(barrel.categoryCleanupInputSchema.safeParse({ updates: [] }).success, false);
+});
+
+test("flex-message-builder: flexExpenseConfirm produces valid Flex bubble", () => {
+  const { flexExpenseConfirm } = require("./flex-message-builder");
+  const msg = flexExpenseConfirm({
+    description: "晚餐 拉麵",
+    amountTwd: 500,
+    tag: "餐飲",
+    paidBy: "self",
+    ledger: "shared",
+    groupName: "共同生活",
+    balanceText: "對方欠你 NT$1,200",
+  });
+  assert.equal(msg.type, "flex");
+  assert.equal(msg.altText, "已記帳 晚餐 拉麵 NT$500");
+  assert.equal(msg.contents.type, "bubble");
+  assert.ok(msg.contents.header, "header box must exist");
+  assert.ok(msg.contents.body, "body box must exist");
+  const allTexts = collectAllTexts(msg.contents);
+  assert.ok(allTexts.some((t: string) => t.includes("晚餐 拉麵")));
+  assert.ok(allTexts.some((t: string) => t.includes("NT$500")));
+  assert.ok(allTexts.some((t: string) => t.includes("你付")));
+  assert.ok(allTexts.some((t: string) => t.includes("共同帳")));
+  assert.ok(allTexts.some((t: string) => t.includes("餐飲")));
+});
+
+test("flex-message-builder: flexQueryResult produces valid Flex bubble with tags", () => {
+  const { flexQueryResult } = require("./flex-message-builder");
+  const msg = flexQueryResult({
+    title: "本月共同帳",
+    totalTwd: 12500,
+    count: 15,
+    topTags: [
+      { label: "餐飲", amount: 5625, percent: 45 },
+      { label: "交通", amount: 2500, percent: 20 },
+    ],
+    vsLastMonthPercent: 12,
+  });
+  assert.equal(msg.type, "flex");
+  assert.equal(msg.altText, "本月共同帳 NT$12,500 15筆");
+  assert.equal(msg.contents.type, "bubble");
+  const allTexts = collectAllTexts(msg.contents);
+  assert.ok(allTexts.some((t: string) => t.includes("餐飲")));
+  assert.ok(allTexts.some((t: string) => t.includes("45%")));
+  assert.ok(allTexts.some((t: string) => t.includes("較上月")));
+});
+
+test("flex-message-builder: flexNeedsGroup produces buttons for each group", () => {
+  const { flexNeedsGroup } = require("./flex-message-builder");
+  const msg = flexNeedsGroup([
+    { id: "g1", name: "共同生活" },
+    { id: "g2", name: "旅遊基金" },
+  ]);
+  assert.equal(msg.type, "flex");
+  assert.ok(msg.altText.includes("共同生活"));
+  assert.ok(msg.altText.includes("旅遊基金"));
+  const buttons = msg.contents.body.contents.filter((c: any) => c.type === "button");
+  assert.equal(buttons.length, 2);
+  assert.equal(buttons[0].action.label, "共同生活");
+  assert.equal(buttons[1].action.label, "旅遊基金");
+});
+
+test("flex-message-builder: flexError produces a warning card", () => {
+  const { flexError } = require("./flex-message-builder");
+  const msg = flexError("金額必須是正整數");
+  assert.equal(msg.type, "flex");
+  assert.equal(msg.altText, "金額必須是正整數");
+  assert.equal(msg.contents.type, "bubble");
+});
+
+test("secretary-direct-actions: executeDirectUpdate on private expense succeeds without pending_action", async () => {
+  const { executeDirectUpdate } = await import("./secretary-direct-actions");
+
+  let updateCall: any = null;
+  const mockDb = {
+    from: (table: string) => {
+      const chain: any = {
+        select: () => chain,
+        eq: () => chain,
+        neq: () => chain,
+        single: () => {
+          if (table === "expenses") {
+            return Promise.resolve({
+              data: {
+                id: "exp-private-1",
+                ledger: "private",
+                created_by_user_id: "user-1",
+                deleted_at: null,
+                description: "午餐",
+                version: 3,
+              },
+              error: null,
+            });
+          }
+          if (table === "users") {
+            return Promise.resolve({
+              data: { id: "partner-1" },
+              error: null,
+            });
+          }
+          return Promise.resolve({ data: null, error: null });
+        },
+        update: (data: any) => {
+          updateCall = data;
+          return {
+            eq: () => ({ eq: () => Promise.resolve({ error: null }) }),
+          };
+        },
+      };
+      return chain;
+    },
+  } as unknown as import("@supabase/supabase-js").SupabaseClient;
+
+  const ctx = {
+    db: mockDb,
+    groupId: "group-1",
+    userId: "user-1",
+    coupleId: 1,
+  };
+
+  const result = await executeDirectUpdate(ctx, "exp-private-1", {
+    amount_twd: 300,
+    tag: "餐飲",
+  });
+
+  assert.equal((result as any).result, "done");
+  assert.ok(!(result as any).pending_action, "should not produce pending_action");
+  assert.ok(updateCall, "should have called update on expenses");
+  assert.equal(updateCall.tag, "餐飲");
+  assert.equal(updateCall.amount_twd, 300);
+  assert.equal(updateCall.version, 4);
+});
+
+test("secretary-direct-actions: executeDirectUpdate rejects shared expense", async () => {
+  const { executeDirectUpdate } = await import("./secretary-direct-actions");
+
+  const mockDb = {
+    from: (table: string) => {
+      const chain: any = {
+        select: () => chain,
+        eq: () => chain,
+        single: () => {
+          if (table === "expenses") {
+            return Promise.resolve({
+              data: {
+                id: "exp-shared-1",
+                ledger: "shared",
+                created_by_user_id: "user-1",
+                deleted_at: null,
+                description: "晚餐",
+                version: 1,
+              },
+              error: null,
+            });
+          }
+          return Promise.resolve({ data: null, error: null });
+        },
+      };
+      return chain;
+    },
+  } as unknown as import("@supabase/supabase-js").SupabaseClient;
+
+  const ctx = {
+    db: mockDb,
+    groupId: "group-1",
+    userId: "user-1",
+    coupleId: 1,
+  };
+
+  const result = await executeDirectUpdate(ctx, "exp-shared-1", {
+    amount_twd: 500,
+  });
+
+  assert.ok(!(result as any).result, "should not succeed on shared expense");
+  assert.ok((result as any).error, "should return error");
+});
+
+test("secretary-direct-actions: executeDirectDelete on private expense soft-deletes", async () => {
+  const { executeDirectDelete } = await import("./secretary-direct-actions");
+
+  let updateCall: any = null;
+  const mockDb = {
+    from: (table: string) => {
+      const chain: any = {
+        select: () => chain,
+        eq: () => chain,
+        single: () => {
+          if (table === "expenses") {
+            return Promise.resolve({
+              data: {
+                id: "exp-private-2",
+                ledger: "private",
+                created_by_user_id: "user-1",
+                deleted_at: null,
+                description: "咖啡",
+                version: 2,
+              },
+              error: null,
+            });
+          }
+          return Promise.resolve({ data: null, error: null });
+        },
+        update: (data: any) => {
+          updateCall = data;
+          return {
+            eq: () => ({ eq: () => ({ is: () => Promise.resolve({ error: null }) }) }),
+          };
+        },
+      };
+      return chain;
+    },
+  } as unknown as import("@supabase/supabase-js").SupabaseClient;
+
+  const ctx = {
+    db: mockDb,
+    groupId: "group-1",
+    userId: "user-1",
+    coupleId: 1,
+  };
+
+  const result = await executeDirectDelete(ctx, "exp-private-2");
+
+  assert.equal((result as any).result, "done");
+  assert.ok(!(result as any).pending_action, "should not produce pending_action");
+  assert.ok(updateCall.deleted_at, "should set deleted_at");
+  assert.equal(updateCall.deleted_by_user_id, "user-1");
+});
+
+test("secretary-direct-actions: executeDirectDelete rejects shared expense", async () => {
+  const { executeDirectDelete } = await import("./secretary-direct-actions");
+
+  const mockDb = {
+    from: (table: string) => {
+      const chain: any = {
+        select: () => chain,
+        eq: () => chain,
+        single: () => {
+          if (table === "expenses") {
+            return Promise.resolve({
+              data: {
+                id: "exp-shared-2",
+                ledger: "shared",
+                created_by_user_id: "user-1",
+                deleted_at: null,
+                description: "晚餐",
+                version: 1,
+              },
+              error: null,
+            });
+          }
+          return Promise.resolve({ data: null, error: null });
+        },
+      };
+      return chain;
+    },
+  } as unknown as import("@supabase/supabase-js").SupabaseClient;
+
+  const ctx = {
+    db: mockDb,
+    groupId: "group-1",
+    userId: "user-1",
+    coupleId: 1,
+  };
+
+  const result = await executeDirectDelete(ctx, "exp-shared-2");
+
+  assert.ok(!(result as any).result, "should not succeed on shared expense");
+  assert.ok((result as any).error, "should return error");
 });

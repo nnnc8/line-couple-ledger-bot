@@ -25,6 +25,7 @@ import { normalizeActionSplits } from "./pending-action-utils";
 import type { PendingActionContext } from "./pending-action-types";
 import {
   proposeCreateExpenseHelper,
+  proposeDeleteExpenseHelper,
   proposeSettlement,
   proposeUpdateExpenseHelper,
 } from "./pending-action-proposals";
@@ -416,6 +417,27 @@ export async function executeAgentAction(
         source,
         sourceEventId: metadata?.sourceEventId,
         idempotencyKey: metadata?.idempotencyKey ?? null,
+      },
+    );
+  }
+
+  if (type === "delete_expense") {
+    const input = z
+      .object({
+        expenseId: z.string(),
+        expectedVersion: z.number().int().positive(),
+      })
+      .parse(action);
+
+    return proposeDeleteExpenseHelper(
+      service,
+      context,
+      input.expenseId,
+      input.expectedVersion,
+      {
+        source,
+        sourceEventId: metadata?.sourceEventId,
+        idempotencyKey: metadata?.idempotencyKey,
       },
     );
   }

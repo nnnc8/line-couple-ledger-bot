@@ -1,5 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { Content, Part } from "@google/genai";
+import type { Content, GoogleGenAI, Part } from "@google/genai";
 
 import {
   toolDeclarations,
@@ -7,9 +7,10 @@ import {
   type ToolContext,
 } from "./accountant-tools";
 import { loadGroupBalances } from "./balance-loader";
+import { getModelConfig } from "./server-env";
 
 export interface AgentDeps {
-  gemini: any;
+  gemini: GoogleGenAI;
   supabase: SupabaseClient;
 }
 
@@ -29,7 +30,6 @@ interface SessionRow {
   messages: AgentMessage[];
 }
 
-const AGENT_MODEL = "gemini-3.1-flash-lite";
 const MAX_TOOL_CALLS = 8;
 const MAX_HISTORY = 30;
 
@@ -157,7 +157,7 @@ export async function runAgentLoop(
 
   for (let i = 0; i < MAX_TOOL_CALLS; i++) {
     const response = await deps.gemini.models.generateContent({
-      model: AGENT_MODEL,
+      model: getModelConfig().modelId,
       contents: messages,
       config: {
         systemInstruction,
@@ -238,7 +238,7 @@ export async function runAgentLoop(
   }
 
   const summaryResponse = await deps.gemini.models.generateContent({
-    model: AGENT_MODEL,
+    model: getModelConfig().modelId,
     contents: [
       ...messages,
       { role: "user", parts: [{ text: "請用一句話總結你剛才做了什麼。" }] },

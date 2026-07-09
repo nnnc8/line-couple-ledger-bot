@@ -57,19 +57,6 @@ export function searchExpenseRows<T extends ExpenseSearchRow>(
     .slice(0, limit);
 }
 
-export function shouldSendInsight(
-  recent: Array<{ insight_rule_id?: string | null; created_at: string }>,
-  ruleId: string,
-  now = new Date(),
-): boolean {
-  const cutoff = now.getTime() - 3 * 24 * 60 * 60 * 1_000;
-  return !recent.some(
-    (item) =>
-      item.insight_rule_id === ruleId &&
-      new Date(item.created_at).getTime() > cutoff,
-  );
-}
-
 function normalize(value?: string | null): string {
   return (value ?? "").trim().toLowerCase();
 }

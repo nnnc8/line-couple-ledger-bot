@@ -9,6 +9,7 @@ import {
   serverEnvironment,
   sessionCookie,
 } from "@/lib/server-runtime";
+import { safeSecretEqual } from "@/lib/security";
 import {
   changeGroup,
   importBankCsv,
@@ -17,7 +18,7 @@ import {
   ledgerQueryService,
   accountantService,
 } from "@/lib/services";
-import { expensesCsv } from "@/lib/ledger-query";
+import { exportCsv } from "@/lib/export-service";
 import { getOpenTasks, completeTask, dismissTask, snoozeTask } from "@/lib/secretary-tasks";
 import { RuleService } from "@/lib/rule-service";
 import { getRecentEvents } from "@/lib/agent-event-service";
@@ -35,11 +36,21 @@ export async function GET(request: Request, route: RouteContext) {
     const context = await requireContext(request);
     if (path[0] === "bootstrap") return json(await ledgerQueryService.loadBootstrap(context));
     if (path[0] === "export") {
-      const data = await ledgerQueryService.loadBootstrap(context);
-      return new Response(expensesCsv(data.expenses, data.users), {
+      const url = new URL(request.url);
+      const period = url.searchParams.get("period") ?? undefined;
+      const ledger = (url.searchParams.get("ledger") as "shared" | "private" | "all" | null) ?? "all";
+      const groupId = url.searchParams.get("groupId") ?? undefined;
+      const csv = await exportCsv(
+        { db: context.db, coupleId: context.user.couple_id, userId: context.user.id },
+        { period, ledger, groupId },
+      );
+      const filename = period
+        ? `ledger-${period}.csv`
+        : `ledger-all.csv`;
+      return new Response(csv, {
         headers: {
           "content-type": "text/csv; charset=utf-8",
-          "content-disposition": `attachment; filename="ledger-${data.month}.csv"`,
+          "content-disposition": `attachment; filename="${filename}"`,
           "cache-control": "no-store",
         },
       });
@@ -153,6 +164,68 @@ export async function POST(request: Request, route: RouteContext) {
         await snoozeTask(context.db, parsed.taskId, parsed.until);
         return json({ ok: true });
       }
+    }
+    if (path[0] === "onboarding") {
+      const input = z.object({
+        pairCode: z.string().min(1).max(200),
+        groupName: z.string().min(1).max(50),
+        firstExpense: z.string().max(200).optional(),
+        firstAmount: z.number().int().positive().optional(),
+      }).parse(body);
+
+      if (!safeSecretEqual(input.pairCode.trim(), env.COUPLE_SETUP_CODE)) {
+        throw new HttpError(403, "配對碼不正確");
+      }
+
+      const { data: existingGroups } = await context.db
+        .from("groups")
+        .select("id")
+        .eq("couple_id", context.user.couple_id)
+        .is("archived_at", null);
+
+      if (existingGroups && existingGroups.length > 0) {
+        return json({ ok: true, message: "已有群組" });
+      }
+
+      const { data: newGroup, error: groupError } = await context.db
+        .from("groups")
+        .insert({
+          couple_id: context.user.couple_id,
+          name: input.groupName,
+          created_by_user_id: context.user.id,
+        })
+        .select("id, name")
+        .single();
+
+      if (groupError || !newGroup) {
+        throw new HttpError(500, "建立群組失敗");
+      }
+
+      if (input.firstExpense && input.firstAmount) {
+        await context.db
+          .from("expenses")
+          .insert({
+            couple_id: context.user.couple_id,
+            group_id: newGroup.id,
+            ledger: "shared",
+            description: input.firstExpense,
+            amount_twd: input.firstAmount,
+            paid_by_user_id: context.user.id,
+            created_by_user_id: context.user.id,
+            expense_date: new Date().toISOString().slice(0, 10),
+            split_method: "equal",
+            tag: "其他",
+          });
+      }
+
+      await context.db
+        .from("user_preferences")
+        .upsert({
+          user_id: context.user.id,
+          active_group_id: newGroup.id,
+        });
+
+      return json({ ok: true, groupId: newGroup.id });
     }
     throw new HttpError(404, "Not found");
   } catch (error) {

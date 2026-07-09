@@ -1,7 +1,7 @@
 import type { LineBotClient, webhook } from "@line/bot-sdk";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { AgentDeps } from "./agent-loop";
-import { findUser, replyText } from "./line-bot-shared";
+import { findUser, replyText, replyMessages } from "./line-bot-shared";
 import {
   handleLineAudioTurn,
   handleLineImageTurn,
@@ -77,7 +77,7 @@ export async function handleLineEvent(
         sourceEventId: event.webhookEventId,
         user,
         dependencies,
-        reply: (text) => replyText(dependencies.lineClient, replyToken, text),
+        reply: (msg) => replyMessages(dependencies.lineClient, replyToken, msg),
       });
       return;
     }
@@ -97,7 +97,7 @@ export async function handleLineEvent(
         sourceEventId: event.webhookEventId,
         user,
         dependencies,
-        reply: (text) => replyText(dependencies.lineClient, replyToken, text),
+        reply: (msg) => replyMessages(dependencies.lineClient, replyToken, msg),
       });
       return;
     }

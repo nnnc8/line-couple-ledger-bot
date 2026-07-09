@@ -236,7 +236,7 @@ export async function analyzeSpending(
   const dateFrom = params.dateFrom ?? monthStart;
   const dateTo = params.dateTo ?? today;
 
-  const [expenses, balanceResult] = await Promise.all([
+  const [expenses, balanceResult, lastMonthExpenses] = await Promise.all([
     listToolExpenses(context, {
       dateFrom,
       dateTo,
@@ -249,6 +249,7 @@ export async function analyzeSpending(
         data: null as Array<{ userId: string; balanceTwd: number }> | null,
         error: error instanceof Error ? error : new Error(String(error)),
       })),
+    loadLastMonthExpenses(context, dateFrom),
   ]);
 
   const agentExpenses = expenses.map((e) => toToolAgentExpense(e, context));
@@ -281,6 +282,26 @@ export async function analyzeSpending(
   const dailyAvg = Math.round(total / daysElapsed);
   const projected = dailyAvg * daysInMonth;
 
+  const highestSingle = expenses.length > 0
+    ? Math.max(...expenses.map((e) => e.amount_twd))
+    : 0;
+
+  const merchantCounts = new Map<string, number>();
+  for (const e of expenses) {
+    if (e.merchant) {
+      merchantCounts.set(e.merchant, (merchantCounts.get(e.merchant) ?? 0) + 1);
+    }
+  }
+  const mostFrequentMerchant = merchantCounts.size > 0
+    ? [...merchantCounts.entries()]
+        .sort((a, b) => b[1] - a[1])[0]
+    : null;
+
+  const lastMonthTotal = lastMonthExpenses.reduce((s, e) => s + e.amount_twd, 0);
+  const vsLastMonthPercent = lastMonthTotal > 0
+    ? Math.round(((total - lastMonthTotal) / lastMonthTotal) * 100)
+    : undefined;
+
   return {
     period: { from: dateFrom, to: dateTo },
     total,
@@ -288,6 +309,11 @@ export async function analyzeSpending(
     daily_average: dailyAvg,
     projected_month_end: projected,
     top_tags: topTags,
+    highest_single: highestSingle,
+    most_frequent_merchant: mostFrequentMerchant
+      ? { name: mostFrequentMerchant[0], count: mostFrequentMerchant[1] }
+      : undefined,
+    vs_last_month_percent: vsLastMonthPercent,
     anomalies: anomalies.length > 0 ? anomalies.slice(0, 3) : undefined,
     balance: !balanceResult.error && balanceResult.data
       ? balanceResult.data.map((row) => ({
@@ -296,4 +322,29 @@ export async function analyzeSpending(
         }))
       : undefined,
   };
+}
+
+async function loadLastMonthExpenses(
+  context: AccountantToolContext,
+  currentDateFrom: string,
+) {
+  try {
+    const fromDate = new Date(currentDateFrom);
+    const lastMonthStart = new Date(
+      fromDate.getFullYear(),
+      fromDate.getMonth() - 1,
+      1,
+    );
+    const lastMonthEnd = new Date(fromDate.getFullYear(), fromDate.getMonth(), 0);
+    const fromStr = lastMonthStart.toISOString().slice(0, 10);
+    const toStr = lastMonthEnd.toISOString().slice(0, 10);
+    return listToolExpenses(context, {
+      dateFrom: fromStr,
+      dateTo: toStr,
+      type: "shared",
+      limitPerLedger: 500,
+    });
+  } catch {
+    return [];
+  }
 }

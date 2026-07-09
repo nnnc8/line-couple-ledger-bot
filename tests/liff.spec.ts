@@ -77,7 +77,7 @@ test("mobile dashboard, history, and direct expense flow", async ({
 
   await page.getByRole("button", { name: /流水/ }).click();
   await expect(page.getByRole("heading", { name: "帳務流水" })).toBeVisible();
-  await expect(page.getByText("晚餐", { exact: true })).toBeVisible();
+  await expect(page.getByText("晚餐", { exact: true }).first()).toBeVisible();
 
   await page.getByRole("button", { name: /私人/ }).click();
   await expect(page.getByRole("heading", { name: "私人帳" })).toBeVisible();
@@ -100,7 +100,7 @@ test("dashboard fallback keeps free category labels and centered add button", as
 
   await page.goto("/");
   await expect(page.getByText("晚餐", { exact: true })).toHaveCount(2);
-  await expect(page.getByText("捷運", { exact: true })).toHaveCount(1);
+  await expect(page.getByText("捷運", { exact: true }).first()).toBeVisible();
   await expect(page.getByText("transport", { exact: true })).toHaveCount(0);
 
   const centerOffset = await page

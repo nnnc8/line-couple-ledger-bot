@@ -1,5 +1,6 @@
 import type { ActionResult } from "./pending-action-service";
 import type { SecretaryInput, SecretaryResult } from "./secretary-agent";
+import type { ToolCallRecord } from "./secretary-workflow-service";
 
 const actionClaimRegex =
   /(?:已|已經|已幫|幫你|幫).{0,6}?(?:記帳|記了|記好|新增|加入|修改|改|刪除|結清|建立)/;
@@ -10,6 +11,7 @@ export interface SecretaryServiceResult {
   partnerMessage: string | null;
   actionFailure: ActionResult | null;
   didExecuteAction: boolean;
+  lastToolCall: ToolCallRecord | null;
 }
 
 export class SecretaryService {
@@ -34,6 +36,20 @@ export class SecretaryService {
       return this.applyActions(result, input.executeAction);
     }
 
+    if (result.lastToolCall && result.toolCallCount > 0) {
+      const record = asRecord(result.lastToolCall.result);
+      if (record && !("error" in record)) {
+        return {
+          reply: result.answer,
+          notifyPartner: result.notifyPartner,
+          partnerMessage: result.partnerMessage,
+          actionFailure: null,
+          didExecuteAction: true,
+          lastToolCall: result.lastToolCall,
+        };
+      }
+    }
+
     if (actionClaimRegex.test(result.answer)) {
       const correctionResult = await input.runLoop(
         {
@@ -52,6 +68,7 @@ export class SecretaryService {
       partnerMessage: result.partnerMessage,
       actionFailure: null,
       didExecuteAction: false,
+      lastToolCall: result.lastToolCall,
     };
   }
 
@@ -68,6 +85,7 @@ export class SecretaryService {
           partnerMessage: null,
           actionFailure: actionResult,
           didExecuteAction: false,
+          lastToolCall: result.lastToolCall,
         };
       }
     }
@@ -77,6 +95,14 @@ export class SecretaryService {
       partnerMessage: result.partnerMessage,
       actionFailure: null,
       didExecuteAction: true,
+      lastToolCall: result.lastToolCall,
     };
   }
+}
+
+function asRecord(value: unknown): Record<string, unknown> | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return null;
+  }
+  return value as Record<string, unknown>;
 }

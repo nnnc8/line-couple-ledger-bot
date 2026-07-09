@@ -4,6 +4,8 @@ import type { ToolContext } from "./accountant-tools";
 import { RuleService } from "./rule-service";
 import { TaskService } from "./task-service";
 import { loadGroupBalances } from "./balance-loader";
+import { getRecentEvents } from "./agent-event-service";
+import { loadTagFrequencyForPrompt } from "./tag-suggestion-service";
 
 const PROMPT_BODY = `你的任務是幫他們管理共同帳務：
 - 記帳、改帳、查帳
@@ -31,7 +33,10 @@ const PROMPT_BODY = `你的任務是幫他們管理共同帳務：
 14. 如果使用者意圖模糊，主動問清楚而不是亂猜。
 15. ⚠️ **共享帳群組規則：** 如果使用者要記共同帳（shared），訊息中必須包含群組名稱。如果你無法從訊息中辨識群組名，不要呼叫 record_expense，直接回覆請使用者指定群組。
 16. ⚠️ **回覆確認規則：** 記帳成功後，回覆必須包含「帳別（共同/私人）、群組名稱（如有）、金額、付款人」四項資訊，確保使用者知道記到了哪裡。
-17. ⚠️ **自主通知另一半的決策：** 如果你的回覆內容涉及重要的共同變動（例如建立或修改了新商家規則、共同分帳模式、提出結清等），且你認為另一半【非常有必要】知道這件事，請在你的最終文字回覆最尾端加上標籤「[通知另一半]」；如果是私人帳、私人查帳、私人閒聊，或不重要的資訊，【絕對不要】加此標籤。`;
+17. ⚠️ **自主通知另一半的決策：** 如果你的回覆內容涉及重要的共同變動（例如建立或修改了新商家規則、共同分帳模式、提出結清等），且你認為另一半【非常有必要】知道這件事，請在你的最終文字回覆最尾端加上標籤「[通知另一半]」；如果是私人帳、私人查帳、私人閒聊，或不重要的資訊，【絕對不要】加此標籤。
+18. ⚠️ **多輪對話記憶：** 你可以看到前面的對話歷史。如果使用者說「改成 300」或「刪掉那筆」，請參考前面的上下文判斷是哪一筆支出。如果上下文不足，用 get_recent_expenses 查最近的支出。
+19. ⚠️ **查帳回覆格式：** 當使用者問「這個月花多少」→ 回覆必須包含：總金額、筆數、前 3 大標籤佔比、跟上月比較（如有）。當使用者問「餐飲花了多少」→ 回覆必須包含：該標籤總額、佔比、趨勢。不要只回一個數字。
+20. ⚠️ **多幣種辨識：** 「¥1000」「1000日圓」→ JPY；「USD 50」「美金50」→ USD；「€100」「歐元100」→ EUR；「₩50000」「5萬韓元」→ KRW；「100泰銖」→ THB。外幣記帳時，設 currency 和 original_amount，系統會自動換算成 TWD。「$100」預設為 TWD。`;
 
 interface BalanceRow {
   user_id: string;
@@ -83,8 +88,10 @@ export class SecretaryPromptService {
     const groupInfo = groupNames.length > 0
       ? `可用群組：${groupNames.join("、")}。`
       : "";
+    const recentSummary = await this.buildRecentSummary(input.ctx);
+    const tagInfo = await this.buildTagInfo(input.ctx);
     const intro = `你是「帳務秘書」，一個住在 LINE 裡的貼心記帳助手，服務 ${input.userName} 和 ${input.partnerName}（一對伴侶）。
-今天是 ${input.today}。${groupInfo}${balanceInfo}${taskInfo ? ` ${taskInfo}` : ""}${rulesInfo ? ` ${rulesInfo}` : ""}`;
+今天是 ${input.today}。${groupInfo}${balanceInfo}${taskInfo ? ` ${taskInfo}` : ""}${rulesInfo ? ` ${rulesInfo}` : ""}${tagInfo ? ` ${tagInfo}` : ""}${recentSummary ? ` ${recentSummary}` : ""}`;
 
     return `${intro}
 
@@ -142,6 +149,33 @@ ${PROMPT_BODY.replaceAll("${partnerName}", input.partnerName)}`;
       return (data ?? []).map((g: { name: string }) => g.name);
     } catch {
       return [];
+    }
+  }
+
+  private async buildRecentSummary(ctx: ToolContext): Promise<string> {
+    try {
+      const events = await getRecentEvents(ctx.db, ctx.coupleId, { limit: 3 });
+      const summaries = events
+        .filter((e) => e.input_text && e.reply_text)
+        .map((e) => `「${e.input_text?.slice(0, 30)}」→「${e.reply_text?.slice(0, 40)}」`);
+      return summaries.length > 0
+        ? `最近互動：${summaries.join("、")}。`
+        : "";
+    } catch {
+      return "";
+    }
+  }
+
+  private async buildTagInfo(ctx: ToolContext): Promise<string> {
+    try {
+      const tags = await loadTagFrequencyForPrompt(ctx.db, ctx.userId);
+      if (tags.length === 0) return "";
+      const tagList = tags
+        .map((t) => `${t.tag}(${t.count}次)`)
+        .join("、");
+      return `你的常用標籤（優先使用這些，保持一致性）：${tagList}`;
+    } catch {
+      return "";
     }
   }
 }

@@ -6,6 +6,7 @@ import type { MemoryMatch } from "./secretary-memory";
 import type { SecretaryInput } from "./secretary-agent";
 
 const MAX_HISTORY = 30;
+const SESSION_TTL_MS = 30 * 60 * 1000;
 
 export interface SecretaryAgentMessage {
   role: "user" | "model";
@@ -121,14 +122,27 @@ export class SecretarySessionService {
   ): Promise<{ id: string; messages: SecretaryAgentMessage[] } | null> {
     const { data } = await this.db
       .from("secretary_sessions")
-      .select("id, messages")
+      .select("id, messages, last_active_at")
       .eq("couple_id", coupleId)
       .eq("group_id", groupId)
       .order("last_active_at", { ascending: false })
       .limit(1)
       .single();
 
-    return (data as { id: string; messages: SecretaryAgentMessage[] } | null) ?? null;
+    if (!data) return null;
+
+    const lastActiveAt = (data as { last_active_at?: string }).last_active_at;
+    if (lastActiveAt) {
+      const elapsed = Date.now() - new Date(lastActiveAt).getTime();
+      if (elapsed > SESSION_TTL_MS) {
+        return null;
+      }
+    }
+
+    return {
+      id: (data as { id: string }).id,
+      messages: (data as { messages: SecretaryAgentMessage[] }).messages ?? [],
+    };
   }
 
   private async augmentText(input: {

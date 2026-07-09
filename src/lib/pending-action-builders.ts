@@ -88,3 +88,28 @@ export async function buildSettleAction(
   const context = await getPendingActionContext(ctx);
   return service.buildSettleAction(context, ctx.groupId, amountTwd);
 }
+
+export async function buildDeleteExpenseAction(
+  ctx: ToolContext,
+  expenseId: string,
+) {
+  const service = getService();
+  const context = await getPendingActionContext(ctx);
+  const { data: expense, error } = await ctx.db
+    .from("expenses")
+    .select("id, version, group_id, deleted_at")
+    .eq("id", expenseId)
+    .single();
+  if (error || !expense) {
+    throw new Error("找不到這筆支出");
+  }
+  if (expense.deleted_at) {
+    throw new Error("這筆支出已被刪除");
+  }
+  return {
+    type: "delete_expense" as const,
+    expenseId,
+    expectedVersion: expense.version,
+    userId: context.user.id,
+  };
+}

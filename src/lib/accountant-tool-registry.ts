@@ -4,6 +4,7 @@ import { buildCreateExpenseAction, buildSettleAction } from "./pending-action-bu
 import { HttpError } from "./http-error";
 import { accountantService, ledgerQueryService } from "./services";
 import type { ToolContext } from "./accountant-tools";
+import { convertToTwd, isSupportedCurrency, type Currency } from "./currency-service";
 
 export interface AccountantToolDef {
   name: string;
@@ -62,6 +63,8 @@ const recordExpenseParams = z.object({
   expense_date: z.string().optional(),
   merchant: z.string().optional(),
   notes: z.string().optional(),
+  currency: z.string().optional(),
+  original_amount: z.number().positive().optional(),
 });
 
 const settleDebtParams = z.object({
@@ -176,7 +179,28 @@ async function executeRecordExpense(
 ) {
   const params = recordExpenseParams.parse(args);
   try {
-    const action = await buildCreateExpenseAction(ctx, params);
+    let amountTwd = params.amount_twd;
+    let originalAmount: number | undefined;
+    let currency = "TWD";
+
+    if (params.currency && params.currency !== "TWD") {
+      if (!isSupportedCurrency(params.currency)) {
+        return { error: `不支援的幣別：${params.currency}` };
+      }
+      const rawAmount = params.original_amount ?? params.amount_twd;
+      const { twdAmount } = await convertToTwd(rawAmount, params.currency as Currency);
+      amountTwd = twdAmount;
+      originalAmount = rawAmount;
+      currency = params.currency;
+    }
+
+    const actionParams = {
+      ...params,
+      amount_twd: amountTwd,
+      ...(originalAmount !== undefined ? { original_amount: originalAmount, currency } : {}),
+    };
+
+    const action = await buildCreateExpenseAction(ctx, actionParams);
 
     // Look up group name for reply
     let groupLabel = "";
@@ -191,9 +215,13 @@ async function executeRecordExpense(
       }
     }
 
+    const currencyNote = currency !== "TWD" && originalAmount !== undefined
+      ? `（原幣 ${currency} ${originalAmount} → NT$${amountTwd}）`
+      : "";
+
     return {
       pending_action: action,
-      message: `已為您記下一筆${params.ledger === "private" ? "私人" : "共同"}帳支出：${params.description} NT$${params.amount_twd}（${params.paid_by === "self" ? "你付的" : "對方付的"}）${groupLabel}。`,
+      message: `已為您記下一筆${params.ledger === "private" ? "私人" : "共同"}帳支出：${params.description} NT$${amountTwd}${currencyNote}（${params.paid_by === "self" ? "你付的" : "對方付的"}）${groupLabel}。`,
     };
   } catch (error) {
     return {
@@ -404,6 +432,8 @@ export const ACCOUNTANT_TOOLS: AccountantToolDef[] = [
         expense_date: { type: Type.STRING, description: "支出日期 YYYY-MM-DD，預設今天" },
         merchant: { type: Type.STRING, description: "商家名稱（選填）" },
         notes: { type: Type.STRING, description: "備註（選填）" },
+        currency: { type: Type.STRING, description: "幣別代碼（TWD/USD/JPY/EUR/KRW/THB），預設 TWD" },
+        original_amount: { type: Type.INTEGER, description: "原幣金額（非 TWD 時填入）" },
       },
       required: ["description", "amount_twd", "paid_by"],
     },

@@ -1,5 +1,8 @@
 import { createHash } from "node:crypto";
 import { z } from "zod";
+import type { GoogleGenAI } from "@google/genai";
+import type { LineBotClient } from "@line/bot-sdk";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { serverEnvironment } from "./server-runtime";
 import { runSecretaryLoop } from "./secretary-agent";
 import { notifyPartner as pushNotifyPartner } from "./secretary-push";
@@ -7,6 +10,15 @@ import { SecretaryService } from "./secretary-service";
 import { pendingActionService, agentChatService } from "./services";
 import { resolveSharedGroupStrict } from "./line-message-parsers";
 import { logAgentEvent } from "./agent-event-service";
+import {
+  flexNeedsGroup,
+  flexExpenseConfirm,
+  flexQueryResult,
+  type LineReplyMessage,
+} from "./flex-message-builder";
+import type { ReplyPayload } from "./line-bot-shared";
+import type { ToolCallRecord } from "./secretary-workflow-service";
+import { loadGroupBalances } from "./balance-loader";
 
 export interface LineUser {
   id: string;
@@ -16,13 +28,9 @@ export interface LineUser {
 }
 
 export interface LineSecretaryDependencies {
-  lineClient: {
-    replyMessage(params: { replyToken: string; messages: any[] }): Promise<any>;
-    getMessageContent(messageId: string): Promise<any>;
-    pushMessage(params: { to: string; messages: any[] }): Promise<any>;
-  };
-  supabase: any;
-  gemini: any;
+  lineClient: Pick<LineBotClient, "replyMessage" | "getMessageContent" | "pushMessage">;
+  supabase: SupabaseClient;
+  gemini: GoogleGenAI;
   context?: Record<string, unknown>;
 }
 
@@ -49,7 +57,7 @@ export async function runLineSecretaryTurn(input: {
   text: string;
   user: LineUser;
   dependencies: LineSecretaryDependencies;
-  reply: (text: string) => Promise<void>;
+  reply: (message: ReplyPayload) => Promise<void>;
   imageData?: { imageData: string; mimeType: string };
   groupIdOverride?: string;
   sourceEventId?: string;
@@ -71,9 +79,9 @@ export async function runLineSecretaryTurn(input: {
     looksLikeGroupRequiredIntent(text)
   ) {
     const groupNames = groups.map(g => g.name).join("、");
-    const replyText = `要記到哪個群組？你的群組有：${groupNames}\n請直接打「群組名＋內容」，例如「${groups[0]?.name ?? "群組"} 晚餐 500 我付」`;
-    await reply(replyText);
-    // Write-behind: log the needs_group event
+    const replyText = `要記到哪個群組？你的群組有：${groupNames}`;
+    const flexMsg = flexNeedsGroup(groups);
+    await reply(flexMsg);
     await logAgentEvent(dependencies.supabase, {
       coupleId: user.couple_id,
       groupId: null,
@@ -188,10 +196,20 @@ export async function runLineSecretaryTurn(input: {
       return;
     }
 
-    // Use the LLM reply directly; confirmation details are embedded by tool executors
-    const finalReply = workflowResult.reply;
+    // Build Flex card from the last tool call if applicable
+    const flexCard = workflowResult.didExecuteAction
+      ? await buildFlexFromToolCall(
+          workflowResult.lastToolCall,
+          { db: dependencies.supabase, groupId, userId: user.id },
+        )
+      : null;
 
-    await reply(finalReply);
+    const finalReply = workflowResult.reply;
+    const replyPayload: ReplyPayload = flexCard
+      ? [flexCard, finalReply]
+      : finalReply;
+
+    await reply(replyPayload);
 
     // Write-behind: log successful interaction
     const eventKind = workflowResult.didExecuteAction
@@ -230,7 +248,7 @@ export async function handleLineAudioTurn(input: {
   sourceEventId?: string;
   user: LineUser;
   dependencies: LineSecretaryDependencies;
-  reply: (text: string) => Promise<void>;
+  reply: (message: ReplyPayload) => Promise<void>;
 }): Promise<void> {
   const { messageId, user, dependencies, reply } = input;
   try {
@@ -258,8 +276,9 @@ export async function handleLineAudioTurn(input: {
       sourceEventId: input.sourceEventId,
       user,
       dependencies,
-      reply: async (assistantReply: string) => {
-        await reply(`聽到：「${text}」\n${assistantReply}`);
+      reply: async (assistantReply: ReplyPayload) => {
+        const items = Array.isArray(assistantReply) ? assistantReply : [assistantReply];
+        await reply([`聽到：「${text}」`, ...items]);
       },
     });
   } catch (err) {
@@ -273,7 +292,7 @@ export async function handleLineImageTurn(input: {
   sourceEventId?: string;
   user: LineUser;
   dependencies: LineSecretaryDependencies;
-  reply: (text: string) => Promise<void>;
+  reply: (message: ReplyPayload) => Promise<void>;
 }): Promise<void> {
   const replyText = "目前請直接用文字記帳，圖片暫不自動入帳 📝";
   await input.reply(replyText);
@@ -291,7 +310,7 @@ export async function handleLineImageTurn(input: {
 }
 
 async function findPartner(
-  supabase: any,
+  supabase: SupabaseClient,
   user: LineUser,
 ): Promise<LineUser | null> {
   const { data, error } = await supabase
@@ -306,7 +325,7 @@ async function findPartner(
 }
 
 async function getActiveGroupId(
-  supabase: any,
+  supabase: SupabaseClient,
   user: LineUser,
 ): Promise<string> {
   const { data } = await supabase
@@ -335,7 +354,7 @@ async function getActiveGroupId(
 }
 
 async function listActiveGroups(
-  supabase: any,
+  supabase: SupabaseClient,
   user: LineUser,
 ): Promise<Array<{ id: string; name: string }>> {
   const { data, error } = await supabase
@@ -363,4 +382,82 @@ function lineActionMetadata(
     sourceEventId: key,
     idempotencyKey: key,
   };
+}
+
+async function buildFlexFromToolCall(
+  toolCall: ToolCallRecord | null,
+  ctx: { db: SupabaseClient; groupId: string; userId: string },
+): Promise<LineReplyMessage | null> {
+  if (!toolCall) return null;
+
+  if (toolCall.name === "record_expense") {
+    const args = toolCall.args as {
+      description?: string;
+      amount_twd?: number;
+      tag?: string;
+      paid_by?: "self" | "partner";
+      ledger?: "shared" | "private";
+    };
+    if (!args.description || !args.amount_twd || !args.paid_by) return null;
+
+    let balanceText: string | undefined;
+    let groupName: string | undefined;
+    if (args.ledger !== "private" && ctx.groupId) {
+      try {
+        const balances = await loadGroupBalances(ctx.db, ctx.groupId);
+        const myBalance = balances.find((b) => b.userId === ctx.userId)?.balanceTwd ?? 0;
+        balanceText = myBalance > 0
+          ? `對方欠你 NT$${myBalance.toLocaleString()}`
+          : myBalance < 0
+            ? `你欠對方 NT$${Math.abs(myBalance).toLocaleString()}`
+            : "帳務已結清";
+        const { data: groupRow } = await ctx.db
+          .from("groups")
+          .select("name")
+          .eq("id", ctx.groupId)
+          .single();
+        groupName = groupRow?.name ?? undefined;
+      } catch {
+        // Balance/group lookup is optional; card works without it
+      }
+    }
+
+    return flexExpenseConfirm({
+      description: args.description,
+      amountTwd: args.amount_twd,
+      tag: args.tag,
+      paidBy: args.paid_by,
+      ledger: args.ledger ?? "shared",
+      groupName,
+      balanceText,
+    });
+  }
+
+  if (toolCall.name === "query_expenses" || toolCall.name === "analyze_spending") {
+    const result = toolCall.result as Record<string, unknown> | null;
+    if (!result || "error" in result) return null;
+
+    if (toolCall.name === "query_expenses") {
+      const summary = result.summary as { total: number; count: number } | undefined;
+      if (!summary) return null;
+      return flexQueryResult({
+        title: "查帳結果",
+        totalTwd: summary.total,
+        count: summary.count,
+      });
+    }
+
+    const total = result.total as number | undefined;
+    const count = result.transaction_count as number | undefined;
+    const topTags = result.top_tags as Array<{ label: string; amount: number; percent: number }> | undefined;
+    if (total == null || count == null) return null;
+    return flexQueryResult({
+      title: "支出分析",
+      totalTwd: total,
+      count,
+      topTags,
+    });
+  }
+
+  return null;
 }
