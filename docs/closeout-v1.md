@@ -191,3 +191,24 @@ existing `codex-smoke` tenant.
 - **Local gates**: `pnpm typecheck`, `pnpm test` (189/189), `pnpm test:e2e` (4/4), changed-file ESLint, and `pnpm build` passed. The full repository lint baseline remains unresolved and is not claimed fixed here.
 - **Supabase limitation**: development branch creation was attempted but blocked because the current plan does not support branching. Production was changed only after the P0 backup artifact was created.
 - **Still operator-only**: real LINE two-user privacy cases and LIFF account-scope walkthrough remain required before starting the finance schema v2 work. No account/journal schema has been added yet.
+
+## 2026-07-12 Agent architecture convergence
+
+- **Repo**: branch `codex/personal-finance-v2`, implementation commit
+  `09fa5cefacbd238a2971f14bc87af51175f4e927` (`refactor: remove legacy agent paths`).
+- **Legacy removal**: deleted `src/lib/agent-loop.ts`, which had no production
+  caller; removed the test-only `AgentChatService.chat()` accountant session
+  path; removed the dead accountant Vercel tool builder.
+- **Production path**: retained the LINE secretary `generateText` workflow and
+  one secretary tool registry. The registry now emits the current AI SDK
+  `inputSchema` contract instead of the obsolete `parameters` shape.
+- **Provider**: `model-provider.ts` and `server-env.ts` are Gemini-only;
+  unused `@ai-sdk/openai` and `@ai-sdk/anthropic` dependencies were removed.
+  Audio transcription remains available through `AgentChatService`.
+- **Quality gates**: `pnpm typecheck`, `pnpm test` (184/184; four obsolete
+  legacy-path tests were removed), `pnpm test:e2e` (4/4), `pnpm build`, and
+  production-source ESLint (`src` excluding `*.test.ts`) all passed. The test
+  runner still prints existing best-effort `agent_event` mock warnings; they do
+  not fail the suite and are not treated as production success evidence.
+- **Deployment**: this commit is ready for Vercel preview/production
+  promotion. No database migration or schema change was made in this phase.
