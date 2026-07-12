@@ -7,7 +7,8 @@ Captured 2026-07-12 18:32–18:35 Asia/Taipei from Supabase project `alzzyweydbl
 - Git branch: `codex/personal-finance-v2`
 - Starting commit: `d441888cf9d1b76aeba7d92a475acf05c8637a9d`
 - Supabase: `ACTIVE_HEALTHY`, PostgreSQL 17.6.1, `ap-southeast-1`
-- Migration head: `20260710_multi_currency`
+- Migration head before P0: `20260710_multi_currency`
+- Migration applied during this rollout: `20260712103630_finance_v2_p0_repairs`
 - Schema source: `supabase/migrations/`
 - A Supabase development branch could not be created because the current plan does not support branching.
 
