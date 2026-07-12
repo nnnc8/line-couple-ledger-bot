@@ -39,8 +39,11 @@ export function CategoryPieChart({
           innerRadius={45}
           outerRadius={80}
           paddingAngle={2}
-          onClick={(entry: any) => {
-            const tag = entry?.tag;
+          onClick={(entry: unknown) => {
+            const tag =
+              entry && typeof entry === "object" && "tag" in entry && typeof entry.tag === "string"
+                ? entry.tag
+                : null;
             if (onSelect && tag) {
               onSelect(selected === tag ? null : tag);
             }

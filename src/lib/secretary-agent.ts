@@ -10,14 +10,18 @@
 
 import { runVercelAgent } from "./vercel-agent";
 import type { ToolContext } from "./secretary-tools";
-import type { AgentDeps } from "./agent-loop";
+import type { GoogleGenAI } from "@google/genai";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import type { ToolCallRecord } from "./secretary-workflow-service";
 import { SecretaryPromptService } from "./secretary-prompt-service";
 import { SecretarySessionService, type SecretarySessionScope } from "./secretary-session-service";
 
 /* ─── Types ─── */
 
-export type { AgentDeps } from "./agent-loop";
+export interface AgentDeps {
+  gemini: GoogleGenAI;
+  supabase: SupabaseClient;
+}
 
 export interface SecretaryResult {
   answer: string;

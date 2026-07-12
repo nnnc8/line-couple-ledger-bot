@@ -38,13 +38,35 @@ type ServiceForAgentActions = Pick<
   ledgerCommandService: PendingActionService["ledgerCommandService"];
 };
 
+type LegacyExpenseInput = {
+  ledger: "shared" | "private";
+  group_id?: string | null;
+  description: string;
+  merchant?: string | null;
+  notes?: string | null;
+  tag?: string;
+  amount_twd: number;
+  paid_by_user_id: string;
+  expense_date: string;
+  split_method: "equal" | "exact" | "percentage";
+};
+
+type LegacyExpenseUpdates = {
+  ledger?: "shared" | "private";
+  tag?: string;
+  description?: string;
+  amount_twd?: number;
+  paid_by_user_id?: string;
+  expense_date?: string;
+};
+
 // ---------------------------------------------------------------------------
 // normalize: legacy tool expense shape → standard input shape
 // ---------------------------------------------------------------------------
 export async function normalizeCreateExpenseInput(
   context: PendingActionContext,
-  expenseInput: any,
-  splitsInput: any,
+  expenseInput: LegacyExpenseInput,
+  splitsInput: unknown,
   groupIdInput: string | null,
 ) {
   const isPrivate = expenseInput.ledger === "private";
@@ -71,7 +93,7 @@ export async function normalizeCreateExpenseInput(
     description: expenseInput.description,
     merchant: expenseInput.merchant ?? null,
     notes: expenseInput.notes ?? null,
-    tag: expenseInput.tag,
+    tag: expenseInput.tag ?? "其他",
     amountTwd: expenseInput.amount_twd,
     paidBy,
     expenseDate: expenseInput.expense_date,
@@ -84,7 +106,7 @@ export async function normalizeCreateExpenseInput(
 export async function normalizeUpdateExpenseInput(
   context: PendingActionContext,
   expenseId: string,
-  updates: any,
+  updates: LegacyExpenseUpdates,
   groupIdInput: string | null | undefined,
 ) {
   const current = await loadExpense(context, expenseId);
@@ -213,20 +235,13 @@ export async function buildUpdateExpenseAction(
     expenseDate?: string;
   },
 ) {
-  const mapped: Record<string, any> = {};
+  const mapped: LegacyExpenseUpdates = {};
   const ledger = updates.ledger;
   const tag = updates.tag;
   const description = updates.description;
-  const amountTwd =
-    updates.amountTwd !== undefined
-      ? updates.amountTwd
-      : (updates as any).amount_twd;
-  const expenseDate =
-    updates.expenseDate !== undefined
-      ? updates.expenseDate
-      : (updates as any).expense_date;
-  const paidBy =
-    updates.paidBy !== undefined ? updates.paidBy : (updates as any).paid_by;
+  const amountTwd = updates.amountTwd;
+  const expenseDate = updates.expenseDate;
+  const paidBy = updates.paidBy;
 
   if (ledger !== undefined) mapped.ledger = ledger;
   if (tag !== undefined) mapped.tag = tag;

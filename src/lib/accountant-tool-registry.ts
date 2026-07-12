@@ -606,34 +606,3 @@ export async function dispatchAccountantTool(
   }
   return tool.executor(args, ctx);
 }
-
-export function buildAccountantVercelTools(ctx: ToolContext) {
-  const readTools = [
-    "query_expenses",
-    "get_balance_summary",
-    "get_category_breakdown",
-    "compare_period",
-    "get_recurring_list",
-    "get_anomalies",
-    "get_category_trend",
-    "predict_month_end",
-    "analyze_spending",
-  ];
-  const out: Record<
-    string,
-    {
-      description: string;
-      parameters: z.ZodTypeAny;
-      execute: (args: Record<string, unknown>) => Promise<unknown>;
-    }
-  > = {};
-  for (const name of readTools) {
-    const tool = getAccountantTool(name);
-    out[name] = {
-      description: tool.description,
-      parameters: tool.zodSchema,
-      execute: async (args) => dispatchAccountantTool(name, args, ctx),
-    };
-  }
-  return out;
-}

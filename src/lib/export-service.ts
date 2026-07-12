@@ -45,7 +45,9 @@ export async function exportCsv(
     query = query.eq("group_id", options.groupId);
   }
 
-  let { data: expenses, error } = await query;
+  const result = await query;
+  let expenses = result.data;
+  const { error } = result;
 
   if (error || !expenses) {
     return "\uFEFF日期,帳本,說明,金額\r\n";

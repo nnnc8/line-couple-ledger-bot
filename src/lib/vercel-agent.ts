@@ -11,25 +11,42 @@ import {
 
 /* ─── Mapper function ─── */
 
-export function mapMessages(messages: any[]): any[] {
+type AgentMessage = {
+  role: "user" | "assistant" | "system";
+  content: string;
+};
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+export function mapMessages(messages: unknown[]): AgentMessage[] {
   return messages.map((msg) => {
+    const record = isRecord(msg) ? msg : {};
     let content = "";
-    if (typeof msg.content === "string") {
-      content = msg.content;
-    } else if (Array.isArray(msg.parts)) {
-      content = msg.parts.map((p: any) => p.text || "").join("\n");
-    } else if (typeof msg.parts === "string") {
-      content = msg.parts;
+    if (typeof record.content === "string") {
+      content = record.content;
+    } else if (Array.isArray(record.parts)) {
+      content = record.parts
+        .map((part) => (isRecord(part) && typeof part.text === "string" ? part.text : ""))
+        .join("\n");
+    } else if (typeof record.parts === "string") {
+      content = record.parts;
     }
+    const role = record.role === "model" || record.role === "assistant"
+      ? "assistant"
+      : record.role === "system"
+        ? "system"
+        : "user";
     return {
-      role: msg.role === "model" ? "assistant" : msg.role,
+      role,
       content,
     };
   });
 }
 
 export async function runVercelAgent(
-  messages: any[],
+  messages: unknown[],
   systemInstruction: string,
   ctx: ToolContext,
 ): Promise<VercelAgentResult> {
@@ -47,13 +64,14 @@ export async function runVercelAgent(
     dispatchTool: (name, args) => workflow.executeTool(name, args, ctx),
   });
 
-  const result = await generateText({
+  const options: Parameters<typeof generateText>[0] = {
     model: getModel(),
     system: systemInstruction,
     messages: coreMessages,
     tools,
-    stopWhen: (({ steps }: any) => steps.length >= 8) as any,
-  } as any);
+    stopWhen: ({ steps }: { steps: unknown[] }) => steps.length >= 8,
+  };
+  const result = await generateText(options);
 
   return workflow.finish(result.text || "處理完成。");
 }

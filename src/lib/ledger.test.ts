@@ -31,7 +31,6 @@ import {
   safeBatchCategoryUpdates,
   type AgentExpense,
 } from "./ledger-agent";
-import type { AgentDeps } from "./agent-loop";
 import {
   buildPrivateMirrorDraft,
   classifyExpenseCategory,
@@ -2552,80 +2551,6 @@ test("accountant service generates monthly reports and targets notifications cor
   );
 });
 
-test("agent chat service reuses active session and appends the reply", async () => {
-  const { AgentChatService } = await import("./agent-chat-service");
-
-  let updated: Record<string, unknown> | null = null;
-  const service = new AgentChatService({
-    generateTextImpl: async (input: Record<string, unknown>) => {
-      const messages = input.messages as Array<{ role: string; content: unknown }>;
-      assert.equal(messages.at(-1)?.role, "user");
-      assert.equal(messages.at(-1)?.content, "今天共同帳花多少");
-      return {
-        steps: [],
-        text: "今天共同帳花了 NT$520。",
-      };
-    },
-  });
-
-  const mockDb = {
-    from(table: string) {
-      if (table === "accountant_sessions") {
-        return {
-          select: () => ({
-            eq: () => ({
-              eq: () => ({
-                single: () =>
-                  Promise.resolve({
-                    data: {
-                      id: "00000000-0000-4000-8000-000000000401",
-                      messages: [{ role: "assistant", content: "前一次回覆" }],
-                      last_active_at: new Date().toISOString(),
-                    },
-                    error: null,
-                  }),
-              }),
-            }),
-          }),
-          update: (row: Record<string, unknown>) => {
-            updated = row;
-            return {
-              eq: () => Promise.resolve({ error: null }),
-            };
-          },
-        };
-      }
-      throw new Error(`unexpected table ${table}`);
-    },
-  } as unknown as import("@supabase/supabase-js").SupabaseClient;
-
-  const result = await service.chat(
-    {
-      db: mockDb,
-      user: {
-        id: CORE_OWNER,
-        couple_id: 1,
-      },
-      getActiveGroupId: async () => GROUP,
-    },
-    {
-      sessionId: "00000000-0000-4000-8000-000000000401",
-      message: "今天共同帳花多少",
-    },
-  );
-
-  assert.equal(result.sessionId, "00000000-0000-4000-8000-000000000401");
-  assert.equal(result.answer, "今天共同帳花了 NT$520。");
-  assert.equal(result.toolCallCount, 0);
-  assert.ok(updated);
-  const updatedMessages = (updated as { messages: Array<{ role: string; content: string }> }).messages;
-  assert.deepEqual(updatedMessages.map((item) => item.role), [
-    "assistant",
-    "user",
-    "assistant",
-  ]);
-});
-
 test("agent chat service transcribes audio with injected generator", async () => {
   const { AgentChatService } = await import("./agent-chat-service");
 
@@ -2640,60 +2565,6 @@ test("agent chat service transcribes audio with injected generator", async () =>
 
   const text = await service.transcribeAudio(Buffer.from("abc"), "audio/x-m4a");
   assert.equal(text, "共享機車 185 元");
-});
-
-test("agent-loop: buildSystemPrompt includes today date", async () => {
-  const { runAgentLoop } = await import("./agent-loop");
-
-  const mockGemini = {
-    models: {
-      generateContent: async () => ({
-        candidates: [
-          {
-            content: {
-              parts: [{ text: "測試回應" }],
-              role: "model",
-            },
-          },
-        ],
-      }),
-    },
-  } as unknown as AgentDeps["gemini"];
-
-  const mockDb = {
-    rpc: () => Promise.resolve({ data: [], error: null }),
-    from: () => ({
-      select: () => ({
-        eq: () => ({
-          is: () => Promise.resolve({ data: [], error: null }),
-          order: () => ({
-            limit: () => ({
-              single: () => Promise.resolve({ data: null }),
-            }),
-          }),
-        }),
-      }),
-      upsert: () => Promise.resolve({ error: null }),
-    }),
-  } as unknown as import("@supabase/supabase-js").SupabaseClient;
-
-  const ctx = {
-    db: mockDb,
-    groupId: "group-1",
-    userId: "user-1",
-    coupleId: 1,
-  };
-
-  const result = await runAgentLoop(
-    "你好",
-    null,
-    "user-1",
-    ctx,
-    { gemini: mockGemini, supabase: mockDb },
-  );
-
-  assert.ok(result.answer);
-  assert.equal(result.toolCallCount, 0);
 });
 
 test("secretary: createTask returns uuid", async () => {
@@ -7821,7 +7692,7 @@ test("server-env: getAppUrl returns process.env.APP_URL or empty string", () => 
   }
 });
 
-test("server-env: getModelConfig picks provider from AGENT_MODEL_PROVIDER or heuristically from modelId", () => {
+test("server-env: getModelConfig is Gemini-only", () => {
   const { getModelConfig } = require("./server-env");
   const origProvider = process.env.AGENT_MODEL_PROVIDER;
   const origModel = process.env.AGENT_MODEL;
@@ -7830,10 +7701,10 @@ test("server-env: getModelConfig picks provider from AGENT_MODEL_PROVIDER or heu
     delete process.env.AGENT_MODEL;
     assert.equal(getModelConfig().provider, "google");
     assert.equal(getModelConfig().modelId, "gemini-3.1-flash-lite");
-    assert.equal(getModelConfig("gpt-4o-mini").provider, "openai");
-    assert.equal(getModelConfig("claude-haiku-4-20250514").provider, "anthropic");
+    assert.equal(getModelConfig("gemini-2.5-flash").provider, "google");
+    assert.equal(getModelConfig("gemini-2.5-flash").modelId, "gemini-2.5-flash");
     process.env.AGENT_MODEL_PROVIDER = "openai";
-    assert.equal(getModelConfig("gemini-3.1-flash-lite").provider, "openai");
+    assert.throws(() => getModelConfig(), /Only the Google Gemini provider is supported/);
   } finally {
     if (origProvider === undefined) delete process.env.AGENT_MODEL_PROVIDER;
     else process.env.AGENT_MODEL_PROVIDER = origProvider;
@@ -7842,21 +7713,11 @@ test("server-env: getModelConfig picks provider from AGENT_MODEL_PROVIDER or heu
   }
 });
 
-test("server-env: getModelConfig reads provider-specific API keys", () => {
+test("server-env: getModelConfig reads Gemini API keys", () => {
   const { getModelConfig } = require("./server-env");
-  const origProvider = process.env.AGENT_MODEL_PROVIDER;
   const origGemini = process.env.GEMINI_API_KEY;
   const origGoogleGen = process.env.GOOGLE_GENERATIVE_AI_API_KEY;
-  const origOpenAi = process.env.OPENAI_API_KEY;
-  const origAnthropic = process.env.ANTHROPIC_API_KEY;
   try {
-    process.env.AGENT_MODEL_PROVIDER = "openai";
-    process.env.OPENAI_API_KEY = "sk-test";
-    assert.equal(getModelConfig().apiKey, "sk-test");
-    process.env.AGENT_MODEL_PROVIDER = "anthropic";
-    process.env.ANTHROPIC_API_KEY = "ant-test";
-    assert.equal(getModelConfig().apiKey, "ant-test");
-    process.env.AGENT_MODEL_PROVIDER = "google";
     process.env.GEMINI_API_KEY = "g-1";
     delete process.env.GOOGLE_GENERATIVE_AI_API_KEY;
     assert.equal(getModelConfig().apiKey, "g-1");
@@ -7867,16 +7728,10 @@ test("server-env: getModelConfig reads provider-specific API keys", () => {
     delete process.env.GOOGLE_GENERATIVE_AI_API_KEY;
     assert.equal(getModelConfig().apiKey, null);
   } finally {
-    if (origProvider === undefined) delete process.env.AGENT_MODEL_PROVIDER;
-    else process.env.AGENT_MODEL_PROVIDER = origProvider;
     if (origGemini === undefined) delete process.env.GEMINI_API_KEY;
     else process.env.GEMINI_API_KEY = origGemini;
     if (origGoogleGen === undefined) delete process.env.GOOGLE_GENERATIVE_AI_API_KEY;
     else process.env.GOOGLE_GENERATIVE_AI_API_KEY = origGoogleGen;
-    if (origOpenAi === undefined) delete process.env.OPENAI_API_KEY;
-    else process.env.OPENAI_API_KEY = origOpenAi;
-    if (origAnthropic === undefined) delete process.env.ANTHROPIC_API_KEY;
-    else process.env.ANTHROPIC_API_KEY = origAnthropic;
   }
 });
 
@@ -7905,16 +7760,12 @@ test("env boundary: model-provider no longer reads process.env at module load", 
     GOOGLE_GENERATIVE_AI_API_KEY: process.env.GOOGLE_GENERATIVE_AI_API_KEY,
     AGENT_MODEL: process.env.AGENT_MODEL,
     AGENT_MODEL_PROVIDER: process.env.AGENT_MODEL_PROVIDER,
-    OPENAI_API_KEY: process.env.OPENAI_API_KEY,
-    ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY,
   };
   try {
     delete process.env.GEMINI_API_KEY;
     delete process.env.GOOGLE_GENERATIVE_AI_API_KEY;
     delete process.env.AGENT_MODEL;
     delete process.env.AGENT_MODEL_PROVIDER;
-    delete process.env.OPENAI_API_KEY;
-    delete process.env.ANTHROPIC_API_KEY;
     const mod = require("./model-provider");
     assert.equal(typeof mod.getModel, "function");
   } finally {
@@ -8869,7 +8720,7 @@ test("secretary registry: vercel-agent's tools object is the registry's tools ob
   // The hard part of the convergence: vercel-agent must not have its
   // own hand-rolled zod schema. The way to lock that down is to assert
   // that for every entry returned by `vercelToolDefs`, the
-  // `description` and `parameters` shape are the same as the
+  // `description` and `inputSchema` shape are the same as the
   // registry's own definition.
   const {
     SECRETARY_TOOLS,
@@ -8896,9 +8747,9 @@ test("secretary registry: vercel-agent's tools object is the registry's tools ob
     // re-introduces a second schema, this assertion will fail because
     // they will be two different references.
     assert.equal(
-      vercelEntry.parameters,
+      vercelEntry.inputSchema,
       def.zodSchema,
-      `vercel parameters for ${def.name} are not the same zod object as the registry`,
+      `vercel inputSchema for ${def.name} is not the same zod object as the registry`,
     );
     assert.equal(
       typeof vercelEntry.execute,
@@ -9109,39 +8960,6 @@ test("accountant registry: declared names match executeTool dispatch names", asy
   assert.equal(unknownResult.error, "Unknown tool: this_is_not_a_real_tool");
 });
 
-test("accountant registry: agent-chat-service tools come from registry, not inline second source", async () => {
-  const { buildAccountantVercelTools, getAccountantTool } = await import("./accountant-tool-registry");
-
-  const ctx = {
-    db: {} as any,
-    groupId: "g",
-    userId: "u",
-    coupleId: 1,
-  };
-  const tools = buildAccountantVercelTools(ctx);
-
-  const readTools = [
-    "query_expenses",
-    "get_balance_summary",
-    "get_category_breakdown",
-    "compare_period",
-    "get_recurring_list",
-    "get_anomalies",
-    "get_category_trend",
-    "predict_month_end",
-    "analyze_spending",
-  ];
-
-  for (const name of readTools) {
-    const vercelEntry = tools[name];
-    assert.ok(vercelEntry, `buildAccountantVercelTools must produce an entry for ${name}`);
-    const registryEntry = getAccountantTool(name);
-    assert.equal(vercelEntry.description, registryEntry.description);
-    assert.equal(vercelEntry.parameters, registryEntry.zodSchema);
-    assert.equal(typeof vercelEntry.execute, "function");
-  }
-});
-
 test("accountant registry: query_expenses parameters are canonical date/tag/member/type contract", async () => {
   const { getAccountantTool } = await import("./accountant-tool-registry");
   const tool = getAccountantTool("query_expenses");
@@ -9197,110 +9015,6 @@ test("accountant registry: compare_period and get_anomalies use canonical schema
   const validAnomalies = { date_from: "2026-07-01", date_to: "2026-07-10" };
   const parsedValid = anomaliesTool.zodSchema.parse(validAnomalies) as any;
   assert.equal(parsedValid.date_from, "2026-07-01");
-});
-
-test("accountant registry integration: query_expenses parameters are canonical in AgentChatService", async () => {
-  const { AgentChatService } = await import("./agent-chat-service");
-  let passedTools: any = null;
-
-  const chatService = new AgentChatService({
-    generateTextImpl: async (input: any) => {
-      passedTools = input.tools;
-      return {
-        text: "test",
-        steps: [],
-      };
-    },
-  });
-
-  const mockQuery: any = {
-    insert: () => mockQuery,
-    update: () => mockQuery,
-    select: () => mockQuery,
-    eq: () => mockQuery,
-    single: async () => ({ data: { id: "00000000-0000-4000-8000-000000000001" }, error: null }),
-  };
-  const mockDb = {
-    from: () => mockQuery,
-  } as any;
-
-  const ctx = {
-    db: mockDb,
-    user: { id: "u", couple_id: 1 },
-    getActiveGroupId: async () => "g",
-  };
-
-  await chatService.chat(ctx, { message: "query test" });
-
-  assert.ok(passedTools);
-  assert.ok(passedTools.query_expenses);
-  
-  const querySchema = passedTools.query_expenses.parameters;
-  const parsed = querySchema.parse({
-    date_from: "2026-07-01",
-    sort: "amount_desc",
-  });
-  assert.equal(parsed.date_from, "2026-07-01");
-  assert.equal(parsed.sort, "amount_desc");
-
-  const shape = querySchema.shape;
-  assert.ok(!("category" in shape), "should not contain category");
-  assert.ok(!("category_label" in shape), "should not contain category_label");
-});
-
-test("accountant registry integration: compare_period does not accept stale args in AgentChatService", async () => {
-  const { AgentChatService } = await import("./agent-chat-service");
-  let passedTools: any = null;
-
-  const chatService = new AgentChatService({
-    generateTextImpl: async (input: any) => {
-      passedTools = input.tools;
-      return {
-        text: "test",
-        steps: [],
-      };
-    },
-  });
-
-  const mockQuery: any = {
-    insert: () => mockQuery,
-    update: () => mockQuery,
-    select: () => mockQuery,
-    eq: () => mockQuery,
-    single: async () => ({ data: { id: "00000000-0000-4000-8000-000000000001" }, error: null }),
-  };
-  const mockDb = {
-    from: () => mockQuery,
-  } as any;
-
-  const ctx = {
-    db: mockDb,
-    user: { id: "u", couple_id: 1 },
-    getActiveGroupId: async () => "g",
-  };
-
-  await chatService.chat(ctx, { message: "compare test" });
-
-  assert.ok(passedTools);
-  assert.ok(passedTools.compare_period);
-
-  const compareSchema = passedTools.compare_period.parameters;
-  const staleCompare = {
-    metric: "category",
-    tag: "Food",
-    date_from_a: "2026-07-01",
-    date_to_a: "2026-07-10",
-    date_from_b: "2026-06-01",
-    date_to_b: "2026-06-10",
-  };
-  assert.throws(() => compareSchema.parse(staleCompare));
-
-  const canonicalCompare = {
-    period_a: { from: "2026-07-01", to: "2026-07-10" },
-    period_b: { from: "2026-06-01", to: "2026-06-10" },
-  };
-  const parsed = compareSchema.parse(canonicalCompare);
-  assert.deepEqual(parsed.period_a, canonicalCompare.period_a);
 });
 
 // ---------------------------------------------------------------------------

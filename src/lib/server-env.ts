@@ -26,12 +26,11 @@ export function getDatabaseUrl(): string | undefined {
   return process.env.DATABASE_URL;
 }
 
-export type AgentProvider = "google" | "openai" | "anthropic";
+export type AgentProvider = "google";
 
-/** Provider-keyed model config. Resolution rules:
- *  - provider: AGENT_MODEL_PROVIDER | heuristic from model id
- *  - modelId:  AGENT_MODEL       | "gemini-3.1-flash-lite"
- *  - apiKey:   provider-specific env | (google: dual-fallback)
+/** Gemini model config. Resolution rules:
+ *  - modelId: AGENT_MODEL | "gemini-3.1-flash-lite"
+ *  - apiKey: GEMINI_API_KEY | GOOGLE_GENERATIVE_AI_API_KEY
  */
 export interface ModelConfig {
   provider: AgentProvider;
@@ -39,39 +38,16 @@ export interface ModelConfig {
   apiKey: string | null;
 }
 
-function detectProvider(modelId: string): AgentProvider {
-  if (
-    modelId.startsWith("gpt-") ||
-    modelId.startsWith("o1") ||
-    modelId.startsWith("o3")
-  ) {
-    return "openai";
-  }
-  if (modelId.startsWith("claude-")) {
-    return "anthropic";
-  }
-  return "google";
-}
-
-function readApiKey(provider: AgentProvider): string | null {
-  if (provider === "google") {
-    return process.env.GEMINI_API_KEY ?? process.env.GOOGLE_GENERATIVE_AI_API_KEY ?? null;
-  }
-  if (provider === "openai") {
-    return process.env.OPENAI_API_KEY ?? null;
-  }
-  return process.env.ANTHROPIC_API_KEY ?? null;
-}
-
 /** Resolve model config at call time (so test env mutations are honored). */
 export function getModelConfig(modelId?: string): ModelConfig {
   const resolvedId = modelId ?? process.env.AGENT_MODEL ?? "gemini-3.1-flash-lite";
-  const provider =
-    (process.env.AGENT_MODEL_PROVIDER as AgentProvider | undefined) ??
-    detectProvider(resolvedId);
+  const configuredProvider = process.env.AGENT_MODEL_PROVIDER;
+  if (configuredProvider && configuredProvider !== "google") {
+    throw new Error("Only the Google Gemini provider is supported");
+  }
   return {
-    provider,
+    provider: "google",
     modelId: resolvedId,
-    apiKey: readApiKey(provider),
+    apiKey: process.env.GEMINI_API_KEY ?? process.env.GOOGLE_GENERATIVE_AI_API_KEY ?? null,
   };
 }

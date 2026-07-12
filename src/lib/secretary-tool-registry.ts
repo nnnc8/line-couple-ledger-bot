@@ -27,6 +27,7 @@
  * the entry. There is no second place to update.
  */
 import { type FunctionDeclaration, Type } from "@google/genai";
+import { type ToolSet } from "ai";
 import { z } from "zod";
 
 import { executeTool as executeAccountantTool } from "./accountant-tools";
@@ -661,19 +662,16 @@ export function vercelToolDefs(input: {
     args: Record<string, unknown>,
   ) => Promise<unknown>;
 }) {
-  const out: Record<
-    string,
-    {
-      description: string;
-      parameters: z.ZodTypeAny;
-      execute: (args: Record<string, unknown>) => Promise<unknown>;
-    }
-  > = {};
-  for (const tool of SECRETARY_TOOLS) {
-    out[tool.name] = {
-      description: tool.description,
-      parameters: tool.zodSchema,
-      execute: async (args) => input.dispatchTool(tool.name, args),
+  const out: ToolSet = {};
+  for (const definition of SECRETARY_TOOLS) {
+    out[definition.name] = {
+      description: definition.description,
+      inputSchema: definition.zodSchema,
+      execute: async (args: unknown) =>
+        input.dispatchTool(
+          definition.name,
+          z.record(z.string(), z.unknown()).parse(args),
+        ),
     };
   }
   return out;

@@ -16,7 +16,7 @@ function getPool(): Pool {
   return pool;
 }
 
-let mockWithTx: (<T>(callback: (client: any) => Promise<T>) => Promise<T>) | null = null;
+let mockWithTx: (<T>(callback: (client: unknown) => Promise<T>) => Promise<T>) | null = null;
 
 export function setMockWithTx(mock: typeof mockWithTx) {
   mockWithTx = mock;
@@ -24,7 +24,7 @@ export function setMockWithTx(mock: typeof mockWithTx) {
 
 export async function withTx<T>(callback: (client: PoolClient) => Promise<T>): Promise<T> {
   if (mockWithTx) {
-    return mockWithTx(callback);
+    return mockWithTx(callback as (client: unknown) => Promise<T>);
   }
 
   const client = await getPool().connect();

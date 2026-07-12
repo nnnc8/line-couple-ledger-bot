@@ -12,11 +12,11 @@ async function insertMulti(
   client: PoolClient,
   table: string,
   columns: string[],
-  rows: Array<Record<string, any>>
+  rows: Array<Record<string, unknown>>
 ) {
   if (rows.length === 0) return;
   const placeholders: string[] = [];
-  const values: any[] = [];
+  const values: unknown[] = [];
   let index = 1;
   for (const row of rows) {
     const rowPlaceholders: string[] = [];
@@ -113,7 +113,7 @@ export async function applyPendingActionPlanTx(
             expense_date = $9,
             split_method = $10,
         `;
-        const params: any[] = [
+        const params: unknown[] = [
           item.group_id ? String(item.group_id) : null,
           item.ledger,
           item.description,
@@ -241,13 +241,20 @@ export async function applyPendingActionPlanTx(
       action_type: actionType,
       created_count: plan.insert_expenses?.length ?? 0
     };
-  } catch (err: any) {
+  } catch (err: unknown) {
     if (err instanceof TransactionStaleError) {
       throw err;
     }
     const staleCodes = ["23503", "23505", "23514", "22003", "22P02"];
-    if (err && staleCodes.includes(err.code)) {
-      throw new TransactionStaleError(`Database constraint violation: ${err.message}`);
+    const code =
+      err && typeof err === "object" && "code" in err && typeof err.code === "string"
+        ? err.code
+        : null;
+    if (code && staleCodes.includes(code)) {
+      const message = err && typeof err === "object" && "message" in err && typeof err.message === "string"
+        ? err.message
+        : "unknown database error";
+      throw new TransactionStaleError(`Database constraint violation: ${message}`);
     }
     throw err;
   }

@@ -1,6 +1,6 @@
 import type { LineBotClient, webhook } from "@line/bot-sdk";
+import type { GoogleGenAI } from "@google/genai";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { AgentDeps } from "./agent-loop";
 import { findUser, replyText, replyMessages } from "./line-bot-shared";
 import {
   handleLineAudioTurn,
@@ -11,7 +11,7 @@ import { handleLineTextMessage, joinCouple } from "./line-text-service";
 export interface BotDependencies {
   lineClient: Pick<LineBotClient, "replyMessage" | "getMessageContent" | "pushMessage">;
   supabase: SupabaseClient;
-  gemini: AgentDeps["gemini"];
+  gemini: GoogleGenAI;
   setupCode: string;
 }
 

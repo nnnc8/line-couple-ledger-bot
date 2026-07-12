@@ -490,8 +490,8 @@ export class PendingActionService {
 
   normalizeCreateExpenseInput(
     context: PendingActionContext,
-    expenseInput: any,
-    splitsInput: any,
+    expenseInput: Parameters<typeof normalizeCreateExpenseInput>[1],
+    splitsInput: Parameters<typeof normalizeCreateExpenseInput>[2],
     groupIdInput: string | null,
   ) {
     return normalizeCreateExpenseInput(
@@ -505,7 +505,7 @@ export class PendingActionService {
   normalizeUpdateExpenseInput(
     context: PendingActionContext,
     expenseId: string,
-    updates: any,
+    updates: Parameters<typeof normalizeUpdateExpenseInput>[2],
     groupIdInput: string | null | undefined,
   ) {
     return normalizeUpdateExpenseInput(

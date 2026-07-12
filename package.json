@@ -20,9 +20,7 @@
     "smoke:cron": "tsx scripts/live-smoke/cron.ts"
   },
   "dependencies": {
-    "@ai-sdk/anthropic": "^4.0.1",
     "@ai-sdk/google": "^4.0.1",
-    "@ai-sdk/openai": "^4.0.2",
     "@base-ui/react": "^1.6.0",
     "@google/genai": "2.9.0",
     "@hookform/resolvers": "^5.4.0",

@@ -84,7 +84,7 @@ export interface RecurringSaveContext {
   deliverNotifications: () => Promise<void>;
 }
 
-export interface RecurringRunContext<Env = any> {
+export interface RecurringRunContext<Env = unknown> {
   env: Env;
   db: SupabaseClient;
   today: string;

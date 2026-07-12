@@ -56,7 +56,7 @@ export function Dashboard({
     }));
   const categoryRows = (analytics?.categories.length ?? 0)
     ? analytics!.categories.map((c) => {
-        const tag = c.tag || (c as any).label || "其他";
+        const tag = c.tag || "其他";
         return {
           tag,
           label: tag,
