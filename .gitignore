@@ -9,3 +9,4 @@ supabase/.temp/
 output/
 .DS_Store
 .vercel
+.finance-v2/

@@ -1,3 +1,4 @@
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { HttpError } from "./http-error";
 import {
   serverDatabase,
@@ -18,12 +19,15 @@ import {
   scanProactiveInsights,
 } from "./notification-service";
 
+type ServerEnvironment = ReturnType<typeof serverEnvironment>;
+
 export async function runCoreDailyJobs(options: {
-  env: any;
-  db: any;
+  env: ServerEnvironment;
+  db: SupabaseClient;
   today: string;
 }) {
   const { env, db, today } = options;
+  const expiredPendingActions = await expirePendingActions(db);
   const drafts = await recurringService.runDue({
     env,
     db,
@@ -47,7 +51,18 @@ export async function runCoreDailyJobs(options: {
   }
   const insightNotifications = await scanProactiveInsights(db, today);
   await flushQueuedNotifications({ env, db });
-  return { drafts, purgedReceipts, accountantReports, insightNotifications };
+  return { drafts, purgedReceipts, accountantReports, insightNotifications, expiredPendingActions };
+}
+
+export async function expirePendingActions(db: SupabaseClient, now = new Date()): Promise<number> {
+  const { data, error } = await db
+    .from("pending_actions")
+    .update({ status: "expired", processed_at: now.toISOString() })
+    .eq("status", "pending")
+    .lte("expires_at", now.toISOString())
+    .select("id");
+  if (error) throw new Error("pending action cleanup failed");
+  return Array.isArray(data) ? data.length : 0;
 }
 
 export async function runDailyJobs(request: Request) {

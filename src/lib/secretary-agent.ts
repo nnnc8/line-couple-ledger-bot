@@ -13,7 +13,7 @@ import type { ToolContext } from "./secretary-tools";
 import type { AgentDeps } from "./agent-loop";
 import type { ToolCallRecord } from "./secretary-workflow-service";
 import { SecretaryPromptService } from "./secretary-prompt-service";
-import { SecretarySessionService } from "./secretary-session-service";
+import { SecretarySessionService, type SecretarySessionScope } from "./secretary-session-service";
 
 /* ─── Types ─── */
 
@@ -47,6 +47,7 @@ export async function runSecretaryLoop(
   partnerName: string,
   ctx: ToolContext,
   deps: AgentDeps,
+  sessionScope: SecretarySessionScope = "group",
 ): Promise<SecretaryResult> {
   const today = new Intl.DateTimeFormat("en-CA", {
     timeZone: "Asia/Taipei",
@@ -64,6 +65,7 @@ export async function runSecretaryLoop(
     userId,
     coupleId,
     groupId: ctx.groupId,
+    scope: sessionScope,
     userName,
   });
 
@@ -83,6 +85,7 @@ export async function runSecretaryLoop(
     userId,
     coupleId,
     groupId: ctx.groupId,
+    scope: sessionScope,
     messages: prepared.messages,
     answer: result.answer,
   });

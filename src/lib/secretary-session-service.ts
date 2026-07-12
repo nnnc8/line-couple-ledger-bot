@@ -7,6 +7,7 @@ import type { SecretaryInput } from "./secretary-agent";
 
 const MAX_HISTORY = 30;
 const SESSION_TTL_MS = 30 * 60 * 1000;
+export type SecretarySessionScope = "user" | "group";
 
 export interface SecretaryAgentMessage {
   role: "user" | "model";
@@ -48,6 +49,7 @@ export class SecretarySessionService {
     userId: string;
     coupleId: number;
     groupId: string;
+    scope?: SecretarySessionScope;
     userName: string;
   }): Promise<{
     sessionId: string;
@@ -55,9 +57,10 @@ export class SecretarySessionService {
   }> {
     let messages: SecretaryAgentMessage[] = [];
     let effectiveSessionId = input.sessionId;
+    const scope = input.scope ?? "group";
 
     if (effectiveSessionId) {
-      const existing = await this.loadSession(input.coupleId, input.groupId);
+      const existing = await this.loadSession(input.coupleId, input.groupId, scope, input.userId);
       if (existing) {
         messages = existing.messages;
         effectiveSessionId = existing.id;
@@ -94,6 +97,7 @@ export class SecretarySessionService {
     userId: string;
     coupleId: number;
     groupId: string;
+    scope?: SecretarySessionScope;
     messages: SecretaryAgentMessage[];
     answer: string;
   }): Promise<void> {
@@ -105,11 +109,14 @@ export class SecretarySessionService {
       },
     ];
     const trimmed = nextMessages.slice(-MAX_HISTORY * 2);
+    const scope = input.scope ?? "group";
 
     await this.db.from("secretary_sessions").upsert({
       id: input.sessionId,
       couple_id: input.coupleId,
       group_id: input.groupId,
+      scope,
+      user_id: scope === "user" ? input.userId : null,
       messages: trimmed,
       last_active_user_id: input.userId,
       last_active_at: new Date().toISOString(),
@@ -119,12 +126,17 @@ export class SecretarySessionService {
   private async loadSession(
     coupleId: number,
     groupId: string,
+    scope: SecretarySessionScope,
+    userId: string,
   ): Promise<{ id: string; messages: SecretaryAgentMessage[] } | null> {
-    const { data } = await this.db
+    let query = this.db
       .from("secretary_sessions")
       .select("id, messages, last_active_at")
       .eq("couple_id", coupleId)
       .eq("group_id", groupId)
+      .eq("scope", scope);
+    query = scope === "user" ? query.eq("user_id", userId) : query.is("user_id", null);
+    const { data } = await query
       .order("last_active_at", { ascending: false })
       .limit(1)
       .single();

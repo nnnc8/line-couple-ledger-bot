@@ -148,6 +148,7 @@ import {
 import { registerPendingActionService } from "./pending-action-builders";
 import { SecretaryService } from "./secretary-service";
 import { purgeDeletedReceipts } from "./receipt-service";
+import { expirePendingActions } from "./daily-jobs";
 import { HttpError } from "./http-error";
 
 const defaultPendingService = new PendingActionService({
@@ -990,6 +991,34 @@ test("receipt service purges expired deleted receipts from storage and db", asyn
     "00000000-0000-4000-8000-000000000301",
     "00000000-0000-4000-8000-000000000302",
   ]);
+});
+
+test("daily jobs expire only pending actions past their deadline", async () => {
+  let updatePayload: Record<string, unknown> | null = null;
+  const mockDb = {
+    from: (table: string) => {
+      assert.equal(table, "pending_actions");
+      const chain: any = {
+        update: (payload: Record<string, unknown>) => {
+          updatePayload = payload;
+          return chain;
+        },
+        eq: () => chain,
+        lte: () => chain,
+        select: () => Promise.resolve({ data: [{ id: "expired-1" }, { id: "expired-2" }], error: null }),
+      };
+      return chain;
+    },
+  } as unknown as import("@supabase/supabase-js").SupabaseClient;
+
+  const now = new Date("2026-07-12T10:00:00.000Z");
+  const count = await expirePendingActions(mockDb, now);
+
+  assert.equal(count, 2);
+  assert.deepEqual(updatePayload, {
+    status: "expired",
+    processed_at: now.toISOString(),
+  });
 });
 
 
@@ -2929,15 +2958,19 @@ test("secretary session service loads session and augments approved merchant rul
           select: () => ({
             eq: () => ({
               eq: () => ({
-                order: () => ({
-                  limit: () => ({
-                    single: () =>
-                      Promise.resolve({
-                        data: {
-                          id: "session-existing",
-                          messages: existingMessages,
-                        },
+                eq: () => ({
+                  is: () => ({
+                    order: () => ({
+                      limit: () => ({
+                        single: () =>
+                          Promise.resolve({
+                            data: {
+                              id: "session-existing",
+                              messages: existingMessages,
+                            },
+                          }),
                       }),
+                    }),
                   }),
                 }),
               }),
@@ -3038,6 +3071,8 @@ test("secretary session service trims history before saving", async () => {
   assert.equal(saved.id, "session-1");
   assert.equal(saved.couple_id, 1);
   assert.equal(saved.group_id, "g1");
+  assert.equal(saved.scope, "group");
+  assert.equal(saved.user_id, null);
   assert.equal(saved.last_active_user_id, "u1");
   assert.equal(typeof saved.last_active_at, "string");
   assert.ok(Array.isArray(saved.messages));

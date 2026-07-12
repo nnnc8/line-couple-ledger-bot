@@ -22,6 +22,7 @@ import {
 import { actionResultMessage, type ReplyPayload } from "./line-bot-shared";
 import type { ToolCallRecord } from "./secretary-workflow-service";
 import { loadGroupBalances } from "./balance-loader";
+import type { SecretarySessionScope } from "./secretary-session-service";
 
 export interface LineUser {
   id: string;
@@ -132,6 +133,7 @@ export async function runLineSecretaryTurn(input: {
   const groupId = resolvedGroupId;
   const resolvedGroup =
     strictResult.group ?? groups.find((group) => group.id === groupId) ?? null;
+  const sessionScope: SecretarySessionScope = isExplicitlyPrivate ? "user" : "group";
 
   // Use cleaned text from strict resolver (group name stripped) to avoid LLM hallucination
   const cleanedText = strictResult.cleanedText;
@@ -172,15 +174,20 @@ export async function runLineSecretaryTurn(input: {
     return;
   }
 
-  // Load couple-level session
-  const { data: lastSession } = await dependencies.supabase
+  // Load the session scoped to this user's private or shared conversation.
+  let sessionQuery = dependencies.supabase
     .from("secretary_sessions")
     .select("id")
     .eq("couple_id", user.couple_id)
     .eq("group_id", groupId)
+    .eq("scope", sessionScope);
+  sessionQuery = sessionScope === "user"
+    ? sessionQuery.eq("user_id", user.id)
+    : sessionQuery.is("user_id", null);
+  const { data: lastSession } = await sessionQuery
     .order("last_active_at", { ascending: false })
     .limit(1)
-    .single();
+    .maybeSingle();
 
   const sessionId = lastSession?.id ?? null;
 
@@ -214,6 +221,7 @@ export async function runLineSecretaryTurn(input: {
           partnerName,
           toolCtx,
           agentDeps,
+          sessionScope,
         ),
       executeAction: async (action) =>
         actionResultSchema.parse(
