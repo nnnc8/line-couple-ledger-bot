@@ -165,7 +165,6 @@ export async function runLineSecretaryTurn(input: {
       groupId,
       groupName: resolvedGroup?.name ?? "共同帳本",
       user,
-      partner,
       dependencies,
       reply,
       sourceEventId: input.sourceEventId,
@@ -294,7 +293,6 @@ async function handleSettlementTurn(input: {
   groupId: string;
   groupName: string;
   user: LineUser;
-  partner: LineUser | null;
   dependencies: LineSecretaryDependencies;
   reply: (message: ReplyPayload) => Promise<void>;
   sourceEventId?: string;
@@ -371,12 +369,6 @@ async function handleSettlementTurn(input: {
     inputText: null,
     replyText: notification,
   });
-  if (result.result === "confirmed" && input.partner) {
-    await pushNotifyPartner(input.dependencies.lineClient, input.dependencies.supabase, {
-      targetUserId: input.partner.id,
-      message: notification,
-    });
-  }
 }
 
 export async function handleLineAudioTurn(input: {

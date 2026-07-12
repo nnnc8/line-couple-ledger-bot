@@ -6043,7 +6043,7 @@ test("runLineSecretaryTurn passes a stable line idempotency key into executeAgen
   }
 });
 
-test("LINE transfer command writes one settle action and sends one result", async () => {
+test("LINE transfer command writes one settle action without a duplicate partner push", async () => {
   setupMockEnv();
   const { runLineSecretaryTurn } = await import("./line-secretary-service");
   const { pendingActionService } = await import("./services");
@@ -6064,7 +6064,7 @@ test("LINE transfer command writes one settle action and sends one result", asyn
     error: null,
   });
   let action: any = null;
-  let pushed = "";
+  let pushCount = 0;
   const originalExecute = pendingActionService.executeAgentAction;
   pendingActionService.executeAgentAction = async (_context: any, input: any) => {
     action = input;
@@ -6080,8 +6080,8 @@ test("LINE transfer command writes one settle action and sends one result", asyn
         lineClient: {
           replyMessage: async () => {},
           getMessageContent: async () => ({} as any),
-          pushMessage: async (input: any) => {
-            pushed = input.messages[0].text;
+          pushMessage: async () => {
+            pushCount += 1;
           },
         },
         supabase: baseDb,
@@ -6093,7 +6093,7 @@ test("LINE transfer command writes one settle action and sends one result", asyn
     });
     assert.deepEqual(action, { type: "settle", groupId, amountTwd: 8000 });
     assert.match(replyText, /阿提斯帳務已結清/);
-    assert.match(pushed, /收到 NT\$8,000/);
+    assert.equal(pushCount, 0);
   } finally {
     pendingActionService.executeAgentAction = originalExecute;
   }
