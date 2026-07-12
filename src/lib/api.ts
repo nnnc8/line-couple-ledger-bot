@@ -24,7 +24,9 @@ export async function parseResponse(response: Response): Promise<ApiResult> {
   const body = await response.json().catch(() => ({}));
   if (!response.ok) {
     const error = (body as { error?: string }).error ?? "操作失敗";
-    throw new Error(error);
+    const failure = new Error(error) as Error & { status?: number };
+    failure.status = response.status;
+    throw failure;
   }
   return body as ApiResult;
 }

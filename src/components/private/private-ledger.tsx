@@ -156,6 +156,7 @@ export function PrivateLedger({
       <HistorySection
         expenses={privateExpenses}
         users={data.users}
+        settlements={[]}
         onEdit={onEdit}
         onDelete={onDelete}
 

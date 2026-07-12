@@ -8,7 +8,10 @@ import { runSecretaryLoop } from "./secretary-agent";
 import { notifyPartner as pushNotifyPartner } from "./secretary-push";
 import { SecretaryService } from "./secretary-service";
 import { pendingActionService, agentChatService } from "./services";
-import { resolveSharedGroupStrict } from "./line-message-parsers";
+import {
+  inferDeterministicPayerHint,
+  resolveSharedGroupStrict,
+} from "./line-message-parsers";
 import { logAgentEvent } from "./agent-event-service";
 import {
   flexNeedsGroup,
@@ -16,7 +19,7 @@ import {
   flexQueryResult,
   type LineReplyMessage,
 } from "./flex-message-builder";
-import type { ReplyPayload } from "./line-bot-shared";
+import { actionResultMessage, type ReplyPayload } from "./line-bot-shared";
 import type { ToolCallRecord } from "./secretary-workflow-service";
 import { loadGroupBalances } from "./balance-loader";
 
@@ -50,7 +53,31 @@ const actionResultSchema = z.object({
 const secretaryService = new SecretaryService();
 
 function looksLikeGroupRequiredIntent(text: string): boolean {
-  return /記|帳|花|買|付|支出|收入|欠|結清|刪除|修改|改成|查|多少|幫我/.test(text);
+  return /記|帳|花|買|付|支出|收入|欠|結清|轉帳|轉給|還|已付款|刪除|修改|改成|查|多少|幫我/.test(text);
+}
+
+export function parseSettlementRequest(text: string): {
+  full: boolean;
+  amountTwd: number | null;
+  partnerClaim: boolean;
+} | null {
+  const normalized = text.replace(/[\s,，]/g, "");
+  const partnerClaim = /另一半已還我|對方已還我|他已還我|她已還我/.test(normalized);
+  const full = /全部結清|全額結清|全部還清|結清/.test(normalized);
+  if (
+    !partnerClaim &&
+    !full &&
+    !/我轉|轉帳|轉給|我還|還另一半|還給另一半|我已付款|我已轉帳/.test(normalized)
+  ) {
+    return null;
+  }
+  const amountMatch = text.match(/-?\d[\d,]*(?:\.\d+)?/);
+  const amountTwd = amountMatch ? Number(amountMatch[0]!.replace(/,/g, "")) : null;
+  return {
+    full,
+    amountTwd: Number.isFinite(amountTwd) ? amountTwd : null,
+    partnerClaim,
+  };
 }
 
 export async function runLineSecretaryTurn(input: {
@@ -68,14 +95,14 @@ export async function runLineSecretaryTurn(input: {
   // Strict group resolution: shared expenses require explicit group name
   const isExplicitlyPrivate = /私人|自己的|我自己/.test(text);
   const strictResult = resolveSharedGroupStrict(text, groups);
-  const hasGroup = !!strictResult.group || !!input.groupIdOverride;
+  const hasGroup = !!strictResult.group || !!input.groupIdOverride || groups.length === 1;
 
   // Gate: only accounting-style intents fail fast when shared account is in scope.
   // Help, join, greetings, and other chitchat pass through to the LLM.
   if (
     !isExplicitlyPrivate &&
     !hasGroup &&
-    groups.length > 0 &&
+    groups.length > 1 &&
     looksLikeGroupRequiredIntent(text)
   ) {
     const groupNames = groups.map(g => g.name).join("、");
@@ -103,6 +130,8 @@ export async function runLineSecretaryTurn(input: {
     ?? strictResult.group?.id
     ?? (await getActiveGroupId(dependencies.supabase, user));
   const groupId = resolvedGroupId;
+  const resolvedGroup =
+    strictResult.group ?? groups.find((group) => group.id === groupId) ?? null;
 
   // Use cleaned text from strict resolver (group name stripped) to avoid LLM hallucination
   const cleanedText = strictResult.cleanedText;
@@ -114,7 +143,11 @@ export async function runLineSecretaryTurn(input: {
     groupId,
     userId: user.id,
     coupleId: user.couple_id,
-    context: { resolvedGroupId: groupId },
+    context: {
+      resolvedGroupId: hasGroup ? groupId : undefined,
+      resolvedGroupName: hasGroup ? resolvedGroup?.name : undefined,
+      deterministicPayerHint: inferDeterministicPayerHint(text) ?? undefined,
+    },
   };
 
   const agentDeps = {
@@ -124,6 +157,21 @@ export async function runLineSecretaryTurn(input: {
 
   // Get partner user info for secretary context
   const partner = await findPartner(dependencies.supabase, user);
+
+  const settlementRequest = parseSettlementRequest(text);
+  if (settlementRequest && hasGroup) {
+    await handleSettlementTurn({
+      request: settlementRequest,
+      groupId,
+      groupName: resolvedGroup?.name ?? "共同帳本",
+      user,
+      partner,
+      dependencies,
+      reply,
+      sourceEventId: input.sourceEventId,
+    });
+    return;
+  }
 
   // Load couple-level session
   const { data: lastSession } = await dependencies.supabase
@@ -205,9 +253,7 @@ export async function runLineSecretaryTurn(input: {
       : null;
 
     const finalReply = workflowResult.reply;
-    const replyPayload: ReplyPayload = flexCard
-      ? [flexCard, finalReply]
-      : finalReply;
+    const replyPayload: ReplyPayload = flexCard ?? finalReply;
 
     await reply(replyPayload);
 
@@ -240,6 +286,96 @@ export async function runLineSecretaryTurn(input: {
       name: error instanceof Error ? error.name : typeof error,
     });
     await reply("抱歉，我暫時無法處理你的請求，請稍後再試。");
+  }
+}
+
+async function handleSettlementTurn(input: {
+  request: { full: boolean; amountTwd: number | null; partnerClaim: boolean };
+  groupId: string;
+  groupName: string;
+  user: LineUser;
+  partner: LineUser | null;
+  dependencies: LineSecretaryDependencies;
+  reply: (message: ReplyPayload) => Promise<void>;
+  sourceEventId?: string;
+}): Promise<void> {
+  const balances = await loadGroupBalances(input.dependencies.supabase, input.groupId);
+  const mine = balances.find((row) => row.userId === input.user.id)?.balanceTwd ?? 0;
+
+  if (input.request.partnerClaim && mine > 0) {
+    const replyText = "請讓實際付款者從自己的 LINE 記錄轉帳，我不會代替對方改帳。";
+    await input.reply(replyText);
+    return;
+  }
+  if (mine >= 0) {
+    await input.reply(mine === 0 ? "目前帳務已結清。" : "目前是對方欠你，請由對方從自己的 LINE 記錄轉帳。再見到實際轉帳後，我才會入帳。");
+    return;
+  }
+
+  const owed = Math.abs(mine);
+  const amount = input.request.full ? owed : input.request.amountTwd;
+  if (amount === null) {
+    await input.reply(`請提供轉帳金額（目前欠 NT$${owed.toLocaleString()}）。`);
+    return;
+  }
+  if (!Number.isSafeInteger(amount) || amount <= 0) {
+    await input.reply("轉帳金額必須是正整數。");
+    return;
+  }
+  if (amount > owed) {
+    await input.reply(`轉帳金額不能超過目前欠款 NT$${owed.toLocaleString()}。`);
+    return;
+  }
+
+  const result = actionResultSchema.parse(
+    await pendingActionService.executeAgentAction(
+      {
+        env: serverEnvironment(),
+        db: input.dependencies.supabase,
+        user: input.user,
+      },
+      { type: "settle", groupId: input.groupId, amountTwd: amount },
+      lineActionMetadata(input.sourceEventId, {
+        type: "settle",
+        groupId: input.groupId,
+        amountTwd: amount,
+      }),
+    ),
+  );
+  if (!["confirmed", "already_done"].includes(result.result)) {
+    await input.reply(actionResultMessage(result));
+    return;
+  }
+
+  const after = await loadGroupBalances(input.dependencies.supabase, input.groupId);
+  const remaining = Math.max(
+    0,
+    -(after.find((row) => row.userId === input.user.id)?.balanceTwd ?? 0),
+  );
+  const notification = remaining === 0
+    ? `${input.groupName}帳務已結清｜收到 NT$${amount.toLocaleString()}`
+    : `另一半記錄已轉帳 NT$${amount.toLocaleString()}｜${input.groupName}｜尚欠 NT$${remaining.toLocaleString()}`;
+  await input.reply(
+    remaining === 0
+      ? `${input.groupName}帳務已結清｜已記錄轉帳 NT$${amount.toLocaleString()}`
+      : `已記錄轉帳 NT$${amount.toLocaleString()}｜${input.groupName}｜尚欠 NT$${remaining.toLocaleString()}`,
+  );
+  await logAgentEvent(input.dependencies.supabase, {
+    coupleId: input.user.couple_id,
+    groupId: input.groupId,
+    userId: input.user.id,
+    source: "line",
+    sourceEventId: input.sourceEventId ?? null,
+    kind: "action_executed",
+    status: "completed",
+    inputText: null,
+    replyText: notification,
+  });
+  if (result.result === "confirmed" && input.partner) {
+    await pushNotifyPartner(input.dependencies.lineClient, input.dependencies.supabase, {
+      targetUserId: input.partner.id,
+      message: notification,
+    });
   }
 }
 

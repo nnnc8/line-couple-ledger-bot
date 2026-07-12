@@ -310,18 +310,39 @@ function BalanceCard({
             : `你欠另一半 ${moneyAbs(owed)}`}
       </p>
 
-      {owed > 0 ? (
+      {balance < 0 ? (
         <div className="relative mt-4 space-y-2.5">
           <div className="flex gap-2">
+            <input
+              aria-label="轉帳金額"
+              type="number"
+              inputMode="numeric"
+              min={1}
+              max={owed}
+              step={1}
+              value={partial}
+              onChange={(event) => setPartial(event.target.value)}
+              placeholder={`全部 ${owed.toLocaleString()}`}
+              className="h-10 min-w-0 flex-1 rounded-lg border border-white/25 bg-white/10 px-3 text-sm text-white placeholder:text-white/60 focus:border-white focus:outline-none"
+            />
             <Button
               variant="primary"
               size="sm"
               className="h-10 bg-white/25 text-white hover:bg-white/35"
-              onClick={() => onSettle(owed)}
+              disabled={!partial || !Number.isSafeInteger(Number(partial)) || Number(partial) < 1 || Number(partial) > owed}
+              onClick={() => onSettle(Number(partial))}
             >
-              轉帳給另一半
+              記錄已轉帳
             </Button>
           </div>
+          <Button
+            variant="secondary"
+            size="sm"
+            className="h-9 bg-white/15 text-white hover:bg-white/25"
+            onClick={() => onSettle(owed)}
+          >
+            全部結清（NT${owed.toLocaleString()}）
+          </Button>
         </div>
       ) : null}
 

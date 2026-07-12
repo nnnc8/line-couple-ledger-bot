@@ -21,7 +21,7 @@ const TAB_KEYS: TabKey[] = ["dashboard", "history", "private", "settings"];
 declare global {
   interface Window {
     liff?: {
-      init(input: { liffId: string }): Promise<void>;
+      init(input: { liffId: string; withLoginOnExternalBrowser?: boolean }): Promise<void>;
       isLoggedIn(): boolean;
       login(input?: { redirectUri?: string }): void;
       getIDToken(): string | null;
@@ -45,6 +45,52 @@ function urlParam(name: string): string | null {
 function tabFromUrl(): TabKey {
   const v = urlParam("tab");
   return TAB_KEYS.includes(v as TabKey) ? (v as TabKey) : "dashboard";
+}
+
+let liffStartPromise: Promise<void> | null = null;
+
+function waitForLiffSdk(timeoutMs = 10_000): Promise<NonNullable<Window["liff"]>> {
+  return new Promise((resolve, reject) => {
+    const startedAt = Date.now();
+    const check = () => {
+      if (window.liff) {
+        resolve(window.liff);
+        return;
+      }
+      if (Date.now() - startedAt >= timeoutMs) {
+        reject(new Error("LIFF SDK 載入失敗"));
+        return;
+      }
+      window.setTimeout(check, 50);
+    };
+    check();
+  });
+}
+
+function liffRedirectUri(): string {
+  const redirect = new URL(window.location.origin + window.location.pathname);
+  for (const name of ["invite", "tab", "edit", "search"]) {
+    const value = urlParam(name);
+    if (value) redirect.searchParams.set(name, value);
+  }
+  return redirect.toString();
+}
+
+function liffErrorMessage(reason: unknown): string {
+  const message = reason instanceof Error ? reason.message : "";
+  const status = typeof reason === "object" && reason !== null && "status" in reason
+    ? Number((reason as { status?: unknown }).status)
+    : 0;
+  if (message === "LIFF SDK 載入失敗" || message === "尚未設定 LIFF ID") return message;
+  if (message.includes("LINE login expired") || message.includes("Session expired") || status === 401) {
+    return "LINE 登入已過期，請重新登入。";
+  }
+  if (message.includes("請先在 LINE Bot")) return "此 LINE 帳號尚未綁定，請先在 LINE Bot 輸入加入設定碼。";
+  if (message.includes("LINE login failed")) return "LINE 登入驗證失敗，請重新登入。";
+  if (message === "LINE 未提供登入憑證") return message;
+  if (message.includes("請在 LINE 內")) return message;
+  if (message.includes("LIFF 初始化")) return message;
+  return "LIFF 初始化失敗，請確認 LINE 登入後再試。";
 }
 
 export default function Home() {
@@ -72,40 +118,43 @@ export default function Home() {
     });
   }, []);
 
-  const startLiff = React.useCallback(async () => {
-    if (data) return;
-    const liffId = process.env.NEXT_PUBLIC_LIFF_ID;
-    if (!liffId || !window.liff) {
-      setLoginError("尚未設定 LIFF ID");
-      return;
-    }
-    try {
-      await window.liff.init({ liffId });
-      if (!window.liff.isLoggedIn()) {
-        return window.liff.login({
-          redirectUri: window.location.origin + window.location.pathname,
-        });
+  const startLiff = React.useCallback(() => {
+    if (data) return Promise.resolve();
+    if (liffStartPromise) return liffStartPromise;
+    liffStartPromise = (async () => {
+      const liffId = process.env.NEXT_PUBLIC_LIFF_ID;
+      if (!liffId) throw new Error("尚未設定 LIFF ID");
+      const liff = await waitForLiffSdk();
+      try {
+        await liff.init({ liffId });
+      } catch {
+        throw new Error("LIFF 初始化失敗");
       }
-      const idToken = window.liff.getIDToken();
+      if (!liff.isLoggedIn()) {
+        if (liff.isInClient()) throw new Error("請在 LINE 內重新開啟此帳本。");
+        liff.login({ redirectUri: liffRedirectUri() });
+        return;
+      }
+      const idToken = liff.getIDToken();
       if (!idToken) throw new Error("LINE 未提供登入憑證");
       await api("/api/app/session", { idToken });
       const ok = await load();
       if (!ok) throw new Error("無法讀取帳本");
-    } catch (reason) {
-      setLoginError(reason instanceof Error ? reason.message : "LINE 登入失敗");
-    }
+    })()
+      .catch((reason) => {
+        setLoginError(liffErrorMessage(reason));
+        throw reason;
+      })
+      .finally(() => {
+        liffStartPromise = null;
+      });
+    return liffStartPromise;
   }, [data, load]);
 
   React.useEffect(() => {
     if (data) return;
-    if (!window.liff) {
-      const t = window.setTimeout(() => {
-        if (window.liff) void startLiff();
-      }, 150);
-      return () => window.clearTimeout(t);
-    }
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    void startLiff();
+    void startLiff().catch(() => undefined);
   }, [data, startLiff]);
 
   React.useEffect(() => {
@@ -169,7 +218,14 @@ export default function Home() {
           </div>
           <h1 className="text-xl font-bold tracking-tight">共同帳本</h1>
           <p className="text-[14px] text-[var(--muted-foreground)]">{loginError}</p>
-          <Button variant="primary" size="md" onClick={() => void startLiff()}>
+          <Button
+            variant="primary"
+            size="md"
+            onClick={() => {
+              setLoginError("");
+              void startLiff().catch(() => undefined);
+            }}
+          >
             重新登入
           </Button>
         </main>
@@ -243,6 +299,7 @@ export default function Home() {
             <HistorySection
               expenses={data.sharedExpenses}
               users={data.users}
+              settlements={data.settlements}
               onEdit={openEdit}
               onDelete={(expense) =>
                 runAction(

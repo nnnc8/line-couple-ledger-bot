@@ -269,6 +269,20 @@ test("resolves a mentioned LINE group into target group and cleaned text", () =>
   assert.equal(resolved.cleanedText, "幫我新增 拉麵 840 對方付");
 });
 
+test("LINE payer hints cover natural self and partner wording", async () => {
+  const { inferDeterministicPayerHint } = await import("./line-message-parsers");
+  assert.equal(inferDeterministicPayerHint("肯德基 478 我出"), "self");
+  assert.equal(inferDeterministicPayerHint("晚餐 500 她出"), "partner");
+  assert.equal(inferDeterministicPayerHint("晚餐 500"), null);
+});
+
+test("LINE transfer parser preserves invalid amounts for rejection", async () => {
+  const { parseSettlementRequest } = await import("./line-secretary-service");
+  assert.equal(parseSettlementRequest("阿提斯 我轉 0")?.amountTwd, 0);
+  assert.equal(parseSettlementRequest("阿提斯 我轉 -100")?.amountTwd, -100);
+  assert.equal(parseSettlementRequest("阿提斯 我轉 100.5")?.amountTwd, 100.5);
+});
+
 test("ledger agent treats historical maximum questions as all-history queries", () => {
   assert.deepEqual(parseAgentRequest("會計師 歷史以來哪裡花最多"), {
     message: "歷史以來哪裡花最多",
@@ -5836,7 +5850,7 @@ test("runLineSecretaryTurn: shared account + chitchat + no group name -> reaches
   }
 });
 
-test("handleLineAudioTurn no longer bypasses group gate when only one group exists", async () => {
+test("handleLineAudioTurn uses the only available group without a redundant question", async () => {
   setupMockEnv();
   const { handleLineAudioTurn } = await import("./line-secretary-service");
   const { SecretaryService } = await import("./secretary-service");
@@ -5890,8 +5904,8 @@ test("handleLineAudioTurn no longer bypasses group gate when only one group exis
       },
     });
 
-    assert.equal(runCalled, false);
-    assert.match(replyTextOf(repliedText), /要記到哪個群組/);
+    assert.equal(runCalled, true);
+    assert.match(replyTextOf(repliedText), /should not happen/);
   } finally {
     SecretaryService.prototype.run = originalRun;
     agentChatService.transcribeAudio = originalTranscribe;
@@ -6026,6 +6040,62 @@ test("runLineSecretaryTurn passes a stable line idempotency key into executeAgen
   } finally {
     SecretaryService.prototype.run = originalRun;
     pendingActionService.executeAgentAction = originalExecuteAgentAction;
+  }
+});
+
+test("LINE transfer command writes one settle action and sends one result", async () => {
+  setupMockEnv();
+  const { runLineSecretaryTurn } = await import("./line-secretary-service");
+  const { pendingActionService } = await import("./services");
+  const groupId = "00000000-0000-4000-8000-000000000001";
+  const userId = "00000000-0000-4000-8000-000000000002";
+  const partnerId = "00000000-0000-4000-8000-000000000003";
+  const baseDb: any = createMockDbForSecretary({
+    groups: [{ id: groupId, name: "阿提斯" }],
+    users: { id: partnerId, couple_id: 1, role: "partner", line_user_id: "line-partner" },
+    secretary_sessions: null,
+  });
+  let balanceCalls = 0;
+  baseDb.rpc = async () => ({
+    data: [
+      { user_id: userId, balance_twd: balanceCalls++ === 0 ? -8000 : 0 },
+      { user_id: partnerId, balance_twd: balanceCalls === 1 ? 8000 : 0 },
+    ],
+    error: null,
+  });
+  let action: any = null;
+  let pushed = "";
+  const originalExecute = pendingActionService.executeAgentAction;
+  pendingActionService.executeAgentAction = async (_context: any, input: any) => {
+    action = input;
+    return { result: "confirmed", action_type: "settle" } as any;
+  };
+  try {
+    let replyText = "";
+    await runLineSecretaryTurn({
+      text: "阿提斯 我轉 8000 給她",
+      sourceEventId: "transfer-event",
+      user: { id: userId, couple_id: 1, role: "partner", line_user_id: "line-user" },
+      dependencies: {
+        lineClient: {
+          replyMessage: async () => {},
+          getMessageContent: async () => ({} as any),
+          pushMessage: async (input: any) => {
+            pushed = input.messages[0].text;
+          },
+        },
+        supabase: baseDb,
+        gemini: {} as any,
+      } as any,
+      reply: async (message) => {
+        replyText = typeof message === "string" ? message : JSON.stringify(message);
+      },
+    });
+    assert.deepEqual(action, { type: "settle", groupId, amountTwd: 8000 });
+    assert.match(replyText, /阿提斯帳務已結清/);
+    assert.match(pushed, /收到 NT\$8,000/);
+  } finally {
+    pendingActionService.executeAgentAction = originalExecute;
   }
 });
 
@@ -9145,6 +9215,15 @@ test("ledger-query split: loadBootstrap() still separates shared/private/balance
               data: calls.kind === "private" ? [privateExpense] : [sharedExpense],
               error: null,
             }),
+        };
+        return query;
+      }
+      if (table === "settlements") {
+        const query: any = {
+          select: () => query,
+          eq: () => query,
+          order: () => query,
+          limit: () => Promise.resolve({ data: [], error: null }),
         };
         return query;
       }

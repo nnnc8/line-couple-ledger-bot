@@ -174,6 +174,17 @@ export function resolveSharedGroupStrict<T extends { id: string; name: string }>
   };
 }
 
+export type DeterministicPayerHint = "self" | "partner";
+
+export function inferDeterministicPayerHint(
+  text: string,
+): DeterministicPayerHint | null {
+  const normalized = text.replace(/\s+/g, "");
+  if (/我出|我出的|我付|我付的|我請/.test(normalized)) return "self";
+  if (/她出|他出|她付|他付|對方付|另一半付/.test(normalized)) return "partner";
+  return null;
+}
+
 export function parsePendingRetargetCommand(text: string) {
   const normalized = text.replace(/\s+/g, "");
   if (!/(都|全部|這批|剛剛|剛才|上面|那些)/.test(normalized)) return null;

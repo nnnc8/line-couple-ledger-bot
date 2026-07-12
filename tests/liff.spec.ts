@@ -5,6 +5,17 @@ const PARTNER = "00000000-0000-4000-8000-000000000002";
 const GROUP = "00000000-0000-4000-8000-000000000003";
 let sessionBodies: unknown[] = [];
 
+type TestLiff = {
+  init: (input: { liffId: string; withLoginOnExternalBrowser?: boolean }) => Promise<void>;
+  isLoggedIn: () => boolean;
+  login: (input?: { redirectUri?: string }) => void;
+  getIDToken: () => string | null;
+  isInClient: () => boolean;
+  closeWindow: () => void;
+};
+
+type TestWindow = Window & { liff?: TestLiff; __redirectUri?: string };
+
 test.beforeEach(async ({ page }) => {
   sessionBodies = [];
   let sessionCreated = false;
@@ -73,6 +84,7 @@ test("mobile dashboard, history, and direct expense flow", async ({
   await page.goto("/");
   await expect(page.getByRole("heading", { name: "總覽" })).toBeVisible();
   await expect(page.getByText("另一半欠你 NT$430")).toBeVisible();
+  await expect(page.getByRole("button", { name: /記錄已轉帳/ })).toHaveCount(0);
   await expect(page.getByText("NT$1,060").first()).toBeVisible();
 
   await page.getByRole("button", { name: /流水/ }).click();
@@ -111,6 +123,53 @@ test("dashboard fallback keeps free category labels and centered add button", as
       return Math.abs(rect.left + rect.width / 2 - window.innerWidth / 2);
     });
   expect(centerOffset).toBeLessThan(3);
+});
+
+test("LIFF waits for a delayed SDK and still creates one session", async ({ page }) => {
+  await page.addInitScript(() => {
+    const delayedLiff: TestLiff = {
+      init: async () => undefined,
+      isLoggedIn: () => true,
+      login: () => undefined,
+      getIDToken: () => "delayed-id-token",
+      isInClient: () => true,
+      closeWindow: () => undefined,
+    };
+    const browser = window as TestWindow;
+    browser.liff = undefined;
+    window.setTimeout(() => {
+      browser.liff = delayedLiff;
+    }, 350);
+  });
+
+  await page.goto("/");
+  await expect(page.getByRole("heading", { name: "總覽" })).toBeVisible();
+  expect(sessionBodies).toHaveLength(1);
+});
+
+test("external LIFF login keeps invite and tab in redirect URI", async ({ page }) => {
+  await page.addInitScript(() => {
+    const browser = window as TestWindow;
+    browser.liff = {
+      init: async () => undefined,
+      isLoggedIn: () => false,
+      login: ({ redirectUri }: { redirectUri?: string } = {}) => {
+        browser.__redirectUri = redirectUri;
+      },
+      getIDToken: () => null,
+      isInClient: () => false,
+      closeWindow: () => undefined,
+    };
+  });
+
+  await page.goto("/?invite=invite-code&tab=history");
+  await expect.poll(() => page.evaluate(() => (window as TestWindow).__redirectUri)).toContain(
+    "invite=invite-code",
+  );
+  await expect.poll(() => page.evaluate(() => (window as TestWindow).__redirectUri)).toContain(
+    "tab=history",
+  );
+  expect(sessionBodies).toHaveLength(0);
 });
 
 
@@ -177,6 +236,7 @@ function bootstrap() {
       { user_id: OWNER, balance_twd: 430 },
       { user_id: PARTNER, balance_twd: -430 },
     ],
+    settlements: [],
     budgets: [
       {
         id: "1",

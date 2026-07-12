@@ -76,6 +76,8 @@ export class SecretaryService {
     result: SecretaryResult,
     executeAction: (action: Record<string, unknown>) => Promise<ActionResult>,
   ): Promise<SecretaryServiceResult> {
+    let sawConfirmed = false;
+    let sawAlreadyDone = false;
     for (const action of result.pendingActions) {
       const actionResult = await executeAction(action as Record<string, unknown>);
       if (!["confirmed", "already_done"].includes(actionResult.result)) {
@@ -88,11 +90,15 @@ export class SecretaryService {
           lastToolCall: result.lastToolCall,
         };
       }
+      sawConfirmed ||= actionResult.result === "confirmed";
+      sawAlreadyDone ||= actionResult.result === "already_done";
     }
     return {
       reply: result.answer,
-      notifyPartner: result.notifyPartner,
-      partnerMessage: result.partnerMessage,
+      notifyPartner: result.notifyPartner && (sawConfirmed || !sawAlreadyDone),
+      partnerMessage: result.notifyPartner && (sawConfirmed || !sawAlreadyDone)
+        ? result.partnerMessage
+        : null,
       actionFailure: null,
       didExecuteAction: true,
       lastToolCall: result.lastToolCall,

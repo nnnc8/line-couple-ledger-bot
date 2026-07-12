@@ -61,6 +61,7 @@ export async function loadBootstrap(context: {
     sharedResult,
     privateResult,
     balancesResult,
+    settlementsResult,
     recurringResult,
     notificationsResult,
     openTasks,
@@ -87,6 +88,13 @@ export async function loadBootstrap(context: {
         data: null as Array<{ userId: string; balanceTwd: number }> | null,
         error: error instanceof Error ? error : new Error(String(error)),
       })),
+    db
+      .from("settlements")
+      .select("id, group_id, from_user_id, to_user_id, amount_twd, created_at")
+      .eq("couple_id", user.couple_id)
+      .eq("group_id", activeGroupId)
+      .order("created_at", { ascending: false })
+      .limit(100),
     db
       .from("recurring_expenses")
       .select(
@@ -119,6 +127,7 @@ export async function loadBootstrap(context: {
     sharedResult.error ||
     privateResult.error ||
     balancesResult.error ||
+    settlementsResult.error ||
     recurringResult.error ||
     notificationsResult.error
   ) {
@@ -138,6 +147,16 @@ export async function loadBootstrap(context: {
     user_id: row.userId,
     balance_twd: row.balanceTwd,
   }));
+  const settlements = z
+    .array(z.object({
+      id: z.string().uuid(),
+      group_id: z.string().uuid(),
+      from_user_id: z.string().uuid(),
+      to_user_id: z.string().uuid(),
+      amount_twd: z.coerce.number().int().positive(),
+      created_at: z.string(),
+    }))
+    .parse(settlementsResult.data ?? []);
   return {
     today: taipeiToday(),
     month,
@@ -149,6 +168,7 @@ export async function loadBootstrap(context: {
     sharedExpenses,
     privateExpenses,
     balances,
+    settlements,
     recurring: recurringResult.data,
     notifications: notificationsResult.data,
     dashboard: buildDashboard(activeShared, month),

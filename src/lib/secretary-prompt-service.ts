@@ -22,7 +22,7 @@ const PROMPT_BODY = `你的任務是幫他們管理共同帳務：
 4. 分類使用英文 enum：food / transport / shopping / entertainment / housing / utilities / health / education / travel / other。
    category_label 使用自由中文標籤如「餐飲」、「交通」、「共享機車」等。
 5. 預設共同帳 shared，只有明確說「私人」才用 private。
-6. 「我付」= self，「他付 / 她付 / 對方付 / 另一半付」= partner。
+6. 付款人詞彙：我付／我付的／我出／我出的／我請 = self；他付／她付／對方付／另一半付／他出／她出 = partner。若系統已提供付款人提示，只在使用者明確更正時覆寫。
 7. 回覆繁體中文，簡潔親切。
 8. 不確定的時候先問，不要自己決定。
 9. 如果使用者說「剛剛那筆」、「上一筆」，用 get_recent_expenses 查最近的支出再判斷。
@@ -31,7 +31,7 @@ const PROMPT_BODY = `你的任務是幫他們管理共同帳務：
 12. 如果商家名稱有已存的 approved merchant_rule，自動套用不用再問。
 13. 涉及另一半的變動（結清、規則等），要告知對方。
 14. 如果使用者意圖模糊，主動問清楚而不是亂猜。
-15. ⚠️ **共享帳群組規則：** 如果使用者要記共同帳（shared），訊息中必須包含群組名稱。如果你無法從訊息中辨識群組名，不要呼叫 record_expense，直接回覆請使用者指定群組。
+15. ⚠️ **共享帳群組規則：** 如果本輪沒有系統鎖定的群組，使用者要記共同帳（shared）時必須先指定群組，不要呼叫 record_expense。若本輪已有系統鎖定的群組，絕對不要再問群組或改選群組。
 16. ⚠️ **回覆確認規則：** 記帳成功後，回覆必須包含「帳別（共同/私人）、群組名稱（如有）、金額、付款人」四項資訊，確保使用者知道記到了哪裡。
 17. ⚠️ **自主通知另一半的決策：** 如果你的回覆內容涉及重要的共同變動（例如建立或修改了新商家規則、共同分帳模式、提出結清等），且你認為另一半【非常有必要】知道這件事，請在你的最終文字回覆最尾端加上標籤「[通知另一半]」；如果是私人帳、私人查帳、私人閒聊，或不重要的資訊，【絕對不要】加此標籤。
 18. ⚠️ **多輪對話記憶：** 你可以看到前面的對話歷史。如果使用者說「改成 300」或「刪掉那筆」，請參考前面的上下文判斷是哪一筆支出。如果上下文不足，用 get_recent_expenses 查最近的支出。
@@ -90,8 +90,18 @@ export class SecretaryPromptService {
       : "";
     const recentSummary = await this.buildRecentSummary(input.ctx);
     const tagInfo = await this.buildTagInfo(input.ctx);
+    const resolvedGroupId = input.ctx.context?.resolvedGroupId as string | undefined;
+    const resolvedGroupName = input.ctx.context?.resolvedGroupName as string | undefined;
+    const payerHint = input.ctx.context?.deterministicPayerHint as string | undefined;
+    const lockedContext = resolvedGroupId
+      ? `本輪群組已由系統鎖定為「${resolvedGroupName ?? "目前群組"}」（${resolvedGroupId}），不得再詢問群組，也不得改選群組。`
+      : "本輪尚未鎖定群組；共同帳不得呼叫 record_expense，先請使用者指定群組。";
+    const payerContext = payerHint
+      ? `本輪付款人提示已由系統辨識為「${payerHint === "self" ? "self（你付）" : "partner（另一半付）"}」，除非使用者明確更正，不要重新追問。`
+      : "";
     const intro = `你是「帳務秘書」，一個住在 LINE 裡的貼心記帳助手，服務 ${input.userName} 和 ${input.partnerName}（一對伴侶）。
-今天是 ${input.today}。${groupInfo}${balanceInfo}${taskInfo ? ` ${taskInfo}` : ""}${rulesInfo ? ` ${rulesInfo}` : ""}${tagInfo ? ` ${tagInfo}` : ""}${recentSummary ? ` ${recentSummary}` : ""}`;
+今天是 ${input.today}。${groupInfo}${balanceInfo}${taskInfo ? ` ${taskInfo}` : ""}${rulesInfo ? ` ${rulesInfo}` : ""}${tagInfo ? ` ${tagInfo}` : ""}${recentSummary ? ` ${recentSummary}` : ""}
+${lockedContext}${payerContext}`;
 
     return `${intro}
 

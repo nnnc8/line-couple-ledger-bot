@@ -7,11 +7,12 @@ import { Empty } from "@/components/ui/empty";
 import { Search, Trash2 } from "lucide-react";
 import { ExpenseList } from "@/components/dashboard/dashboard";
 import { dateFormat } from "@/lib/format";
-import type { Expense, User } from "@/lib/types";
+import type { Expense, SettlementView, User } from "@/lib/types";
 
 interface HistorySectionProps {
   expenses: Expense[];
   users: User[];
+  settlements: SettlementView[];
   onEdit: (expense: Expense) => void;
   onDelete: (expense: Expense) => void;
 }
@@ -19,6 +20,7 @@ interface HistorySectionProps {
 export function HistorySection({
   expenses,
   users,
+  settlements,
   onEdit,
   onDelete,
 }: HistorySectionProps) {
@@ -47,6 +49,31 @@ export function HistorySection({
 
   return (
     <div className="space-y-3 pt-1">
+      {settlements.length > 0 && (
+        <Card className="p-4">
+          <p className="text-[12px] font-medium text-[var(--muted-foreground)]">轉帳流水</p>
+          <div className="mt-3 divide-y divide-[var(--border)]">
+            {settlements.map((settlement) => {
+              const from = users.find((user) => user.id === settlement.from_user_id)?.label ?? "?";
+              const to = users.find((user) => user.id === settlement.to_user_id)?.label ?? "?";
+              return (
+                <div key={settlement.id} className="flex items-center gap-3 py-3 text-[14px]">
+                  <div className="min-w-0 flex-1">
+                    <p className="font-medium">{from} → {to}</p>
+                    <p className="mt-0.5 text-[12px] text-[var(--muted-foreground)]">
+                      {new Intl.DateTimeFormat("zh-TW", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" }).format(new Date(settlement.created_at))}
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <p className="font-bold tabular-nums">NT${settlement.amount_twd.toLocaleString()}</p>
+                    <p className="text-[12px] text-[var(--muted-foreground)]">已入帳</p>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </Card>
+      )}
       <div className="space-y-2">
         <div className="relative">
           <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-[var(--muted-foreground)]" />

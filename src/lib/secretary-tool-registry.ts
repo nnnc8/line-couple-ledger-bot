@@ -472,7 +472,13 @@ export const SECRETARY_TOOLS: SecretaryToolDef[] = [
     executor: async (args, ctx) => {
       const ledger = typeof args.ledger === "string" ? args.ledger : "shared";
 
-      const normalizedArgs = await normalizeTagInArgs(args, ctx);
+      const payerHint = ctx.context?.deterministicPayerHint;
+      const normalizedArgs = await normalizeTagInArgs(
+        typeof args.paid_by === "string" || typeof payerHint !== "string"
+          ? args
+          : { ...args, paid_by: payerHint },
+        ctx,
+      );
 
       if (ledger !== "private") {
         const resolvedGroupId = ctx.context?.resolvedGroupId as string | undefined;

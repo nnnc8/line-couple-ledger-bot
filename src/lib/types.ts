@@ -36,6 +36,15 @@ export type DashboardData = {
   recent: Expense[];
 };
 
+export type SettlementView = {
+  id: string;
+  group_id: string;
+  from_user_id: string;
+  to_user_id: string;
+  amount_twd: number;
+  created_at: string;
+};
+
 export type Bootstrap = {
   today: string;
   month: string;
@@ -47,6 +56,7 @@ export type Bootstrap = {
   sharedExpenses: Expense[];
   privateExpenses: Expense[];
   balances: Array<{ user_id: string; balance_twd: number }>;
+  settlements: SettlementView[];
   recurring: Array<{
     id: string;
     description: string;

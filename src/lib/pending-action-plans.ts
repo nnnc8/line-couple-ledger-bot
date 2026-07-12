@@ -316,6 +316,19 @@ export async function buildSettlementPlan(
   ) {
     throw new StaleActionError("stale settlement");
   }
+  const groupResult = await context.db
+    .from("groups")
+    .select("name")
+    .eq("id", groupId)
+    .single();
+  const groupName = groupResult.data && typeof groupResult.data.name === "string"
+    ? groupResult.data.name
+    : groupId;
+  const remaining = Math.max(0, Math.abs(currentBalance) - amountTwd);
+  const notificationBody = remaining === 0
+    ? `${groupName}帳務已結清｜收到 NT$${amountTwd.toLocaleString()}`
+    : `另一半記錄已轉帳 NT$${amountTwd.toLocaleString()}｜${groupName}｜尚欠 NT$${remaining.toLocaleString()}`;
+  const notificationTitle = remaining === 0 ? `${groupName}帳務已結清` : "轉帳入帳";
   return {
     insert_settlements: [
       {
@@ -347,8 +360,8 @@ export async function buildSettlementPlan(
       users,
       context.user.id,
       groupId,
-      "帳務已結清",
-      "另一半新增了一筆結清紀錄",
+      notificationTitle,
+      notificationBody,
       "settlement",
       action.id,
       `action:${action.id}`,
@@ -359,8 +372,8 @@ export async function buildSettlementPlan(
               users,
               context.user.id,
               groupId,
-              "帳務已結清",
-              "另一半新增了一筆結清紀錄",
+              notificationTitle,
+              notificationBody,
               "settlement",
               action.id,
               `action:${action.id}`,
