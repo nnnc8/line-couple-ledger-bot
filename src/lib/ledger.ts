@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { isGenericCategoryTag } from "./category-tags";
 
 export const parsedIntentBaseSchema = z
   .object({
@@ -188,7 +189,7 @@ export function learnCategoryFromHistory(
   current: CategoryLearningEntry,
   history: CategoryLearningEntry[],
 ): string {
-  if (current.tag && current.tag !== "其他") return current.tag;
+  if (current.tag && !isGenericCategoryTag(current.tag)) return current.tag;
   const currentMerchant = normalizeCategoryText(current.merchant);
   const currentDescription = normalizeCategoryText(current.description);
   if (!currentMerchant && !currentDescription) return "其他";
@@ -198,7 +199,7 @@ export function learnCategoryFromHistory(
     { score: number; matches: number; firstIndex: number }
   >();
   history.forEach((entry, index) => {
-    if (!entry.tag || entry.tag === "其他") return;
+    if (!entry.tag || isGenericCategoryTag(entry.tag)) return;
     const score =
       categoryMatchScore(
         currentMerchant,

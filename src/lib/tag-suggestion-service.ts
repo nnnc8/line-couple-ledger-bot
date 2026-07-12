@@ -10,6 +10,7 @@
  */
 
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { isGenericCategoryTag, normalizeCategoryTag } from "./category-tags";
 
 export interface TagSuggestion {
   tag: string;
@@ -73,7 +74,9 @@ async function lookupMerchantRuleTag(
       .not("approved_at", "is", null)
       .limit(1)
       .single();
-    if (data?.value?.tag) return String(data.value.tag);
+    if (data?.value?.tag && !isGenericCategoryTag(data.value.tag)) {
+      return normalizeCategoryTag(data.value.tag);
+    }
     return null;
   } catch {
     return null;
@@ -101,7 +104,7 @@ async function loadTagFrequency(
     const counts = new Map<string, number>();
     for (const row of data) {
       const tag = (row as { tag?: string }).tag;
-      if (tag) {
+      if (tag && !isGenericCategoryTag(tag)) {
         counts.set(tag, (counts.get(tag) ?? 0) + 1);
       }
     }
@@ -167,7 +170,7 @@ export async function loadTagFrequencyForPrompt(
     const counts = new Map<string, number>();
     for (const row of data) {
       const tag = (row as { tag?: string }).tag;
-      if (tag) {
+      if (tag && !isGenericCategoryTag(tag)) {
         counts.set(tag, (counts.get(tag) ?? 0) + 1);
       }
     }

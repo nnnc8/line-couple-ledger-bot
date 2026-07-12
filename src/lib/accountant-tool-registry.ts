@@ -1,6 +1,11 @@
 import { type FunctionDeclaration, Type } from "@google/genai";
 import { z } from "zod";
 import { buildCreateExpenseAction, buildSettleAction } from "./pending-action-builders";
+import {
+  classifyExpenseCategory,
+  type CategoryClassificationGenerator,
+} from "./category-agent";
+import { isChineseCategoryTag, normalizeCategoryTag } from "./category-tags";
 import { HttpError } from "./http-error";
 import { accountantService, ledgerQueryService } from "./services";
 import type { ToolContext } from "./accountant-tools";
@@ -179,6 +184,7 @@ async function executeRecordExpense(
 ) {
   const params = recordExpenseParams.parse(args);
   try {
+    const tag = await resolveExpenseTag(params, ctx);
     let amountTwd = params.amount_twd;
     let originalAmount: number | undefined;
     let currency = "TWD";
@@ -196,6 +202,7 @@ async function executeRecordExpense(
 
     const actionParams = {
       ...params,
+      tag,
       amount_twd: amountTwd,
       ...(originalAmount !== undefined ? { original_amount: originalAmount, currency } : {}),
     };
@@ -228,6 +235,99 @@ async function executeRecordExpense(
       error: error instanceof Error ? error.message : "建立支出失敗",
     };
   }
+}
+
+async function resolveExpenseTag(
+  params: z.infer<typeof recordExpenseParams>,
+  ctx: ToolContext,
+): Promise<string> {
+  const suppliedTag = normalizeCategoryTag(params.tag);
+  if (suppliedTag && isChineseCategoryTag(suppliedTag)) return suppliedTag;
+
+  const categoryContext = await loadCategoryContext(ctx, params.ledger);
+  const generator = ctx.context?.categoryClassificationGenerator;
+  const classification = await classifyExpenseCategory(
+    {
+      description: params.description,
+      merchant: params.merchant ?? null,
+      groupName: categoryContext.groupName,
+      fallbackTag: suppliedTag ?? "其他",
+      history: categoryContext.history,
+    },
+    typeof generator === "function"
+      ? (generator as CategoryClassificationGenerator)
+      : undefined,
+  );
+  const classifiedTag = normalizeCategoryTag(classification.tag);
+  return classifiedTag && isChineseCategoryTag(classifiedTag)
+    ? classifiedTag
+    : "其他";
+}
+
+async function loadCategoryContext(
+  ctx: ToolContext,
+  ledger: "shared" | "private",
+): Promise<{
+  groupName: string | null;
+  history: Array<{
+    tag: string;
+    description: string;
+    merchant: string | null;
+  }>;
+}> {
+  const groupNamePromise = ledger === "private"
+    ? Promise.resolve(null)
+    : (async () => {
+        try {
+          const result = await ctx.db
+            .from("groups")
+            .select("name")
+            .eq("id", ctx.groupId)
+            .single();
+          return typeof result.data?.name === "string" ? result.data.name : null;
+        } catch {
+          return null;
+        }
+      })();
+
+  const historyPromise = (async () => {
+    try {
+      let query = ctx.db
+        .from("expenses")
+        .select("tag, description, merchant")
+        .eq("couple_id", ctx.coupleId)
+        .is("deleted_at", null)
+        .order("expense_date", { ascending: false })
+        .limit(100);
+      query = ledger === "private"
+        ? query.eq("created_by_user_id", ctx.userId)
+        : query.eq("group_id", ctx.groupId).eq("ledger", "shared");
+      const result = await query;
+      const parsed = z
+        .array(
+          z.object({
+            tag: z.string(),
+            description: z.string(),
+            merchant: z.string().nullable().optional(),
+          }),
+        )
+        .safeParse(result.data ?? []);
+      if (!parsed.success) return [];
+      return parsed.data
+        .filter((entry) => normalizeCategoryTag(entry.tag) !== null)
+        .slice(0, 30)
+        .map((entry) => ({
+          tag: normalizeCategoryTag(entry.tag)!,
+          description: entry.description,
+          merchant: entry.merchant ?? null,
+        }));
+    } catch {
+      return [];
+    }
+  })();
+
+  const [groupName, history] = await Promise.all([groupNamePromise, historyPromise]);
+  return { groupName, history };
 }
 
 async function executeSettleDebt(

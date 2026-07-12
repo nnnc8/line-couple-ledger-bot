@@ -1,7 +1,18 @@
-import { generateText, generateObject } from "ai";
+import { generateObject } from "ai";
 import { z } from "zod";
 
 import { getModel } from "./model-provider";
+import {
+  isChineseCategoryTag,
+  isGenericCategoryTag,
+  normalizeCategoryTag,
+} from "./category-tags";
+
+export {
+  isChineseCategoryTag,
+  isGenericCategoryTag,
+  normalizeCategoryTag,
+} from "./category-tags";
 
 export const categoryClassificationSchema = z
   .object({
@@ -18,6 +29,12 @@ export const geminiCategoryClassificationJsonSchema = Object.fromEntries(
 );
 
 export type CategoryClassification = z.infer<typeof categoryClassificationSchema>;
+
+export type CategoryClassificationGenerator = (
+  input: CategoryClassificationInput,
+) => Promise<unknown>;
+
+const CLASSIFICATION_TIMEOUT_MS = 4_000;
 
 export interface CategoryClassificationInput {
   description: string;
@@ -73,7 +90,10 @@ export function fallbackCategoryClassification(
   if (/保險/.test(normalized)) {
     return result("保險費", 0.85, "insurance");
   }
-  if (/保養|機油|維修|避震|檢查|除碳|隔熱紙|行車記錄|車牌框|鋁圈|工資|修逗號/.test(normalized)) {
+  if (/藥局|醫院|診所|藥品|藥/.test(normalized)) {
+    return result("醫療", 0.9, "medical");
+  }
+  if (/保桿|鈑金|烤漆|保養|機油|維修|避震|檢查|除碳|隔熱紙|行車記錄|車牌框|鋁圈|工資|修逗號/.test(normalized)) {
     return result("維修保養", 0.85, "maintenance");
   }
   if (/拼多多|鞋|百貨|購物/.test(normalized)) {
@@ -100,49 +120,72 @@ export function fallbackCategoryClassification(
     return result("餐飲", 0.85, "food group");
   }
 
-  const learned = historyLabel(input, input.fallbackTag);
+  const learned = historyLabel(input);
   if (learned) return result(learned, 0.65, "history");
-  return result(input.fallbackTag || "其他", 0.4, "fallback");
+  return result(normalizeCategoryTag(input.fallbackTag) ?? "其他", 0.4, "fallback");
 }
 
 export async function classifyExpenseCategory(
   input: CategoryClassificationInput,
-  gemini?: any,
+  generator: CategoryClassificationGenerator = generateCategoryClassification,
 ): Promise<CategoryClassification> {
   const fallback = fallbackCategoryClassification(input);
-  if (!gemini) return fallback;
+  if (fallback.confidence >= 0.65) return fallback;
   try {
-    const response = await generateObject({
-      model: getModel(),
-      system: "你是帳務分類器。輸出 tag（自由繁體中文標籤，1 到 40 字）。tag 可參考歷史標籤但也可以是新的簡短標籤。",
-      messages: [{
-        role: "user",
-        content: JSON.stringify({
-          expense: {
-            description: input.description,
-            merchant: input.merchant,
-            fallbackTag: input.fallbackTag,
-            groupName: input.groupName,
-          },
-          recentHistory: input.history.slice(0, 30),
-          rules: [
-            "共同帳分群組判斷分類；不要把餐點或店名直接當分類。",
-            "飲食群組把餐點收斂為餐飲、飲料、甜點、生鮮、其他。",
-            "停車費固定 停車費；油資固定 油資。",
-            "只回 JSON；不能新增金額、不能改權限。",
-            "回傳 tag（自由繁體中文標籤，1-40 字）。",
-          ],
-        }),
-      }],
-      temperature: 0,
-      schema: categoryClassificationSchema,
-    });
-    const parsed = response.object;
-    if (parsed.confidence < 0.35) return fallback;
-    return { ...parsed, tag: cleanLabel(parsed.tag) };
+    const parsed = categoryClassificationSchema.parse(
+      await withTimeout(generator(input), CLASSIFICATION_TIMEOUT_MS),
+    );
+    const tag = normalizeCategoryTag(parsed.tag);
+    if (parsed.confidence < 0.35 || !tag || !isChineseCategoryTag(tag)) return fallback;
+    return { ...parsed, tag };
   } catch {
     return fallback;
   }
+}
+
+async function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      promise,
+      new Promise<never>((_, reject) => {
+        timer = setTimeout(() => reject(new Error("category classification timeout")), timeoutMs);
+      }),
+    ]);
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
+
+async function generateCategoryClassification(
+  input: CategoryClassificationInput,
+): Promise<unknown> {
+  const response = await generateObject({
+    model: getModel(),
+    system: "你是帳務分類器。輸出 tag（自由繁體中文標籤，1 到 40 字）。tag 可參考歷史標籤但也可以是新的簡短標籤。",
+    messages: [{
+      role: "user",
+      content: JSON.stringify({
+        expense: {
+          description: input.description,
+          merchant: input.merchant,
+          fallbackTag: input.fallbackTag,
+          groupName: input.groupName,
+        },
+        recentHistory: input.history.slice(0, 30),
+        rules: [
+          "共同帳分群組判斷分類；不要把餐點或店名直接當分類。",
+          "飲食群組把餐點收斂為餐飲、飲料、甜點、生鮮、其他。",
+          "停車費固定 停車費；油資固定 油資。",
+          "只回 JSON；不能新增金額、不能改權限。",
+          "回傳 tag（自由繁體中文標籤，1-40 字）。",
+        ],
+      }),
+    }],
+    temperature: 0,
+    schema: categoryClassificationSchema,
+  });
+  return response.object;
 }
 
 export function buildPrivateMirrorDraft(source: PrivateMirrorSource) {
@@ -194,12 +237,12 @@ function result(
   return { tag: cleanLabel(tag), confidence, reason };
 }
 
-function historyLabel(input: CategoryClassificationInput, tag: string) {
+function historyLabel(input: CategoryClassificationInput, preferredTag?: string) {
   const current = normalize(`${input.merchant ?? ""} ${input.description}`);
   return input.history.find(
     (entry) =>
-      entry.tag === tag &&
-      entry.tag !== "其他" &&
+      (!preferredTag || entry.tag === preferredTag) &&
+      !isGenericCategoryTag(entry.tag) &&
       current &&
       normalize(`${entry.merchant ?? ""} ${entry.description}`).includes(current),
   )?.tag;

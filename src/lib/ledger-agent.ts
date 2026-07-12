@@ -3,6 +3,7 @@ import { z } from "zod";
 import {
   fallbackCategoryClassification,
 } from "./category-agent";
+import { isGenericCategoryTag } from "./category-tags";
 
 export const agentScopes = ["shared", "private", "combined"] as const;
 export const agentTimeRanges = [
@@ -121,7 +122,7 @@ export function rankCategoryLabels(expenses: AgentExpense[]): CategoryRank[] {
 
 function rankLabel(expense: AgentExpense) {
   const label = normalizeLabel(expense.tag);
-  if (label && label !== "其他") return label;
+  if (label && !isGenericCategoryTag(label)) return label;
   return fallbackCategoryClassification({
     description: expense.description,
     merchant: expense.merchant,
@@ -194,7 +195,7 @@ export function suggestCategoryCleanup(expenses: AgentExpense[]) {
   const updates: BatchCategoryUpdate[] = [];
   for (const expense of expenses) {
     const current = normalizeLabel(expense.tag);
-    if (current !== "其他") continue;
+    if (!isGenericCategoryTag(current)) continue;
     const suggested = suggestLabel(expense, learned);
     if (!suggested || suggested === current) continue;
     updates.push({
@@ -268,7 +269,7 @@ function buildLabelHistory(expenses: AgentExpense[]) {
         normalizeComparable(expense.description),
       ].filter(Boolean),
     }))
-    .filter((entry) => entry.label !== "其他");
+    .filter((entry) => !isGenericCategoryTag(entry.label));
 }
 
 function suggestLabel(

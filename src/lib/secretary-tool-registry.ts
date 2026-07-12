@@ -370,8 +370,7 @@ export const SECRETARY_TOOLS: SecretaryToolDef[] = [
       properties: {
         date_from: { type: Type.STRING, description: "起始 YYYY-MM-DD" },
         date_to: { type: Type.STRING, description: "結束 YYYY-MM-DD" },
-        category: { type: Type.STRING, description: "大分類 enum" },
-        category_label: { type: Type.STRING, description: "細分類 label" },
+        tag: { type: Type.STRING, description: "自由中文標籤" },
         limit: { type: Type.INTEGER, description: "回傳筆數上限 1-20" },
         type: {
           type: Type.STRING,
@@ -446,7 +445,7 @@ export const SECRETARY_TOOLS: SecretaryToolDef[] = [
   {
     name: "record_expense",
     description:
-      "記帳。直接寫入一筆支出，不需使用者再按確認。**重要規則：** 共同帳（shared）的群組由系統自動處理，LLM 不需要傳入群組。私人帳（private）不需要群組。當用戶說「私人」、「自己」、「我自己的」時，ledger 必須是 \"private\"；只有用戶說「共同」、「一起」、「分攤」時才是 \"shared\"。tag 必須是中文標籤（如「餐飲」、「交通」、「共享機車」），不可省略。",
+      "記帳。直接寫入一筆支出，不需使用者再按確認。**重要規則：** 共同帳（shared）的群組由系統自動處理，LLM 不需要傳入群組。私人帳（private）不需要群組。當用戶說「私人」、「自己」、「我自己的」時，ledger 必須是 \"private\"；只有用戶說「共同」、「一起」、「分攤」時才是 \"shared\"。tag 使用自由中文標籤（如「餐飲」、「交通」、「共享機車」），不確定時可省略，由後端分類器補上。",
     geminiParameters: {
       type: Type.OBJECT,
       properties: {

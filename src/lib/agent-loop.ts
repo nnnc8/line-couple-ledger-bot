@@ -56,7 +56,7 @@ ${balanceInfo}
 規則：
 1. record_expense / settle_debt 等寫入工具會直接寫入資料庫，不需要使用者再按確認；送出後立刻入帳。
 2. 金額必須是正整數（新台幣）。
-3. record_expense 必須提供 tag（自由中文標籤，可參考歷史標籤）。
+3. record_expense 的 tag 使用自由中文標籤；不確定時可省略，由後端分類器補上。
 4. 當使用者說「我付的」或「我請客」，paid_by = "self"；說「對方付的」或「另一半付的」，paid_by = "partner"。
 5. 預設是 shared（共同帳），除非使用者明確說「私人」。
 6. 回覆使用繁體中文，簡潔友善。

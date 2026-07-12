@@ -34,6 +34,7 @@ import {
 import type { AgentDeps } from "./agent-loop";
 import {
   buildPrivateMirrorDraft,
+  classifyExpenseCategory,
   fallbackCategoryClassification,
   splitBootstrapExpenses,
 } from "./category-agent";
@@ -595,6 +596,95 @@ test("group-aware category fallback keeps food groups coarse and parking specifi
       reason: "parking",
     },
   );
+});
+
+test("category classifier keeps rules and history off the LLM path", async () => {
+  let generatorCalls = 0;
+  const generator = async () => {
+    generatorCalls += 1;
+    return { tag: "錯誤", confidence: 1, reason: "test" };
+  };
+
+  assert.equal(
+    (
+      await classifyExpenseCategory(
+        {
+          description: "藥局",
+          fallbackTag: "其他",
+          history: [],
+        },
+        generator,
+      )
+    ).tag,
+    "醫療",
+  );
+  assert.equal(
+    (
+      await classifyExpenseCategory(
+        {
+          description: "肯德基",
+          merchant: "肯德基",
+          fallbackTag: "其他",
+          history: [{ tag: "餐飲", description: "肯德基", merchant: "肯德基" }],
+        },
+        generator,
+      )
+    ).tag,
+    "餐飲",
+  );
+  assert.equal(generatorCalls, 0);
+});
+
+test("category classifier uses injected generator and always falls back safely", async () => {
+  const input = {
+    description: "完全未知店名",
+    fallbackTag: "其他",
+    history: [],
+  };
+  let calls = 0;
+  const success = await classifyExpenseCategory(input, async () => {
+    calls += 1;
+    return { tag: "餐飲", confidence: 0.9, reason: "test" };
+  });
+  assert.equal(success.tag, "餐飲");
+  assert.equal(calls, 1);
+
+  const lowConfidence = await classifyExpenseCategory(input, async () => ({
+    tag: "餐飲",
+    confidence: 0.2,
+    reason: "test",
+  }));
+  assert.equal(lowConfidence.tag, "其他");
+
+  const failed = await classifyExpenseCategory(input, async () => {
+    throw new Error("classifier down");
+  });
+  assert.equal(failed.tag, "其他");
+
+  const timedOut = await classifyExpenseCategory(input, async () => new Promise(() => {}));
+  assert.equal(timedOut.tag, "其他");
+});
+
+test("tag frequency for prompts excludes both generic other labels", async () => {
+  const { loadTagFrequencyForPrompt } = await import("./tag-suggestion-service");
+  const query: any = {
+    select: () => query,
+    eq: () => query,
+    is: () => query,
+    gte: () => query,
+    then: (resolve: (value: { data: unknown[]; error: null }) => unknown) =>
+      Promise.resolve(resolve({
+        data: [
+          { tag: "其他" },
+          { tag: "other" },
+          { tag: "餐飲" },
+          { tag: "餐飲" },
+        ],
+        error: null,
+      })),
+  };
+  const db = { from: () => query } as unknown as import("@supabase/supabase-js").SupabaseClient;
+  assert.deepEqual(await loadTagFrequencyForPrompt(db, OWNER), [{ tag: "餐飲", count: 2 }]);
 });
 
 test("shared expense private mirror records only the requester split", () => {
@@ -1585,6 +1675,90 @@ test("write tools: record_expense returns pending_action with expense", async ()
   });
   assert.ok(res.message.includes("860"));
   assert.equal(res.message.includes("請確認"), false);
+});
+
+test("write tools: record_expense fills a missing tag before building the action", async () => {
+  const { executeTool } = await import("./accountant-tools");
+  const users = [
+    { id: "user-1", couple_id: 1, line_user_id: "line-1", role: "owner" as const },
+    { id: "partner-123", couple_id: 1, line_user_id: "line-2", role: "partner" as const },
+  ];
+  const classifierCapture: {
+    current: {
+      groupName?: string | null;
+      history: Array<{ tag: string; description: string; merchant?: string | null }>;
+    } | null;
+  } = { current: null };
+
+  const db = {
+    from(table: string) {
+      const filters = new Map<string, unknown>();
+      const query: any = {
+        select: () => query,
+        eq: (field: string, value: unknown) => {
+          filters.set(field, value);
+          return query;
+        },
+        is: (field: string, value: unknown) => {
+          filters.set(field, value);
+          return query;
+        },
+        order: () => query,
+        limit: () => query,
+        single: async () => {
+          if (table === "users") return { data: users[0], error: null };
+          if (table === "groups") return { data: { id: GROUP, name: "阿提斯" }, error: null };
+          return { data: null, error: null };
+        },
+        then: (resolve: (value: { data: unknown; error: null }) => unknown) => {
+          if (table === "users") return Promise.resolve(resolve({ data: users, error: null }));
+          if (table === "expenses") {
+            return Promise.resolve(resolve({
+              data: [
+                { tag: "其他", description: "錯誤歷史", merchant: null },
+                { tag: "餐飲", description: "漢堡", merchant: "餐廳" },
+              ],
+              error: null,
+            }));
+          }
+          return Promise.resolve(resolve({ data: [], error: null }));
+        },
+      };
+      return query;
+    },
+  } as unknown as import("@supabase/supabase-js").SupabaseClient;
+
+  const result = await executeTool(
+    "record_expense",
+    {
+      description: "肯德基",
+      amount_twd: 478,
+      paid_by: "self",
+      ledger: "shared",
+    },
+    {
+      db,
+      groupId: GROUP,
+      userId: OWNER,
+      coupleId: 1,
+      context: {
+        categoryClassificationGenerator: async (input: {
+          groupName?: string | null;
+          history: Array<{ tag: string; description: string; merchant?: string | null }>;
+        }) => {
+          classifierCapture.current = input;
+          return { tag: "餐飲", confidence: 0.9, reason: "test" };
+        },
+      },
+    },
+  );
+
+  const expense = (result as { pending_action: { expense: { tag: string } } }).pending_action.expense;
+  assert.equal(expense.tag, "餐飲");
+  if (!classifierCapture.current) assert.fail("classifier was not called");
+  const captured = classifierCapture.current;
+  assert.equal(captured.groupName, "阿提斯");
+  assert.deepEqual(captured.history.map((entry) => entry.tag), ["餐飲"]);
 });
 
 test("write tools: record_expense keeps private expenses out of shared group payload", async () => {
