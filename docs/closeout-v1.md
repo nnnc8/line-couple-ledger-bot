@@ -180,3 +180,14 @@ Smoke scripts auto-clean when `SMOKE_CLEANUP_MODE` is enabled. If a
 smoke is interrupted, the seeded `codex-smoke` group and its rows can
 be reaped by re-running the same script — it is idempotent against the
 existing `codex-smoke` tenant.
+
+## 2026-07-12 finance-v2 P0 repair
+
+- **Repo**: branch `codex/personal-finance-v2`, commit `8424a17` (`fix: repair finance v2 privacy and ledger mirrors`), pushed to `origin`.
+- **Baseline**: [finance-v2-baseline-20260712.md](./finance-v2-baseline-20260712.md). The P0 rollback SQL is kept outside Git at `.finance-v2/backups/production-p0-20260712.sql`.
+- **Database migration**: `20260712102803_finance_v2_p0_repairs` applied to production. It adds user/group secretary session scope, invalidates the three unsafe old transcripts, fixes the mirror function, backfills missing mirrors in one transaction, adds 131 audit events, and expires 51 stale pending actions.
+- **Database proof**: positive shared splits 257/257 have valid private mirrors; missing/stale mirrors 0; expired pending rows still marked pending 0; group balances stayed `阿提斯 -16,235/+16,235` and `吃飽喝足 +413/-413`; no notification rows were created by the repair.
+- **Production**: deployment `dpl_4NAZHwhQr1Z1BFrhC9bQXk1tsgmg`, `READY` / `PROMOTED`, source SHA exactly `8424a170f1bdbc78171b0c3bd5d9b5f9e3758e03`, production alias HTTP 200, last-hour Vercel error log scan empty.
+- **Local gates**: `pnpm typecheck`, `pnpm test` (189/189), `pnpm test:e2e` (4/4), changed-file ESLint, and `pnpm build` passed. The full repository lint baseline remains unresolved and is not claimed fixed here.
+- **Supabase limitation**: development branch creation was attempted but blocked because the current plan does not support branching. Production was changed only after the P0 backup artifact was created.
+- **Still operator-only**: real LINE two-user privacy cases and LIFF account-scope walkthrough remain required before starting the finance schema v2 work. No account/journal schema has been added yet.
