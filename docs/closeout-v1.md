@@ -9,10 +9,10 @@
 
 ## 2026-07-12 transfer / LIFF repair continuation
 
-- **Repo**: branch `codex/line-couple-bot-mvp`, HEAD `18dfc633f6e64b8bb08bc49e4d6113d5ebf827c4`; the repair is currently uncommitted, so it has not been shipped to production.
+- **Repo**: branch `codex/line-couple-bot-mvp`, repair commit `5780540a5900db03adc91de6a892f9a901633867` pushed to `origin`.
 - **Local gates**: `pnpm typecheck`, `pnpm test` (184/184), `pnpm test:e2e` (4/4), `pnpm build`, and `pnpm smoke:local` all passed. The live smoke covered private expense, shared expense, settlement, and cleanup.
 - **Database**: no schema or migration changed. Settlement writes still use `pending_actions` → `settlements` / `activity_events` / `notifications` in the existing transaction; local smoke cleanup completed.
-- **Production observation**: `vercel ls` and `vercel inspect` found the current production alias Ready, created 2026-07-09. Its git SHA was not exposed by the current CLI output; because this repair is uncommitted, production SHA parity is **not verified**.
+- **Production observation**: the HEAD push triggered a Vercel production deployment; the production alias is Ready and returns HTTP 200. The current CLI does not expose the deployment source SHA, so branch-push linkage is recorded but SHA parity is not independently exposed.
 - **LINE / LIFF**: deterministic transfer and delayed-SDK coverage are local tests only. Real LINE account, LINE Console settings, production LIFF cold starts, and production DB side-effects remain operator-only after deployment.
 
 ## Deployment
