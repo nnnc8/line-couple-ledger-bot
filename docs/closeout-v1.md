@@ -210,5 +210,11 @@ existing `codex-smoke` tenant.
   production-source ESLint (`src` excluding `*.test.ts`) all passed. The test
   runner still prints existing best-effort `agent_event` mock warnings; they do
   not fail the suite and are not treated as production success evidence.
-- **Deployment**: this commit is ready for Vercel preview/production
-  promotion. No database migration or schema change was made in this phase.
+- **Production**: deployment `dpl_3MQSeQEREsdH2yGdsMH39KjR5LMK` is
+  `READY` / `PROMOTED`; its Vercel API `gitSource.sha` is exactly
+  `9bb68460c2896b784edf27d07de7b2ab71ddf505`, production alias HTTP 200,
+  and the last-hour error-log query returned `No logs found`.
+- **Database**: no migration or schema change was made in this phase. The
+  closeout commit after this deployment only records these deployment facts;
+  the deployed application code is the implementation in `09fa5ce` plus the
+  already-pushed closeout metadata.
