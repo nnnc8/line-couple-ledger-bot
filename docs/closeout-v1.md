@@ -17,6 +17,15 @@
 - **Production observation**: the HEAD push triggered a Vercel production deployment; the production alias is Ready and returns HTTP 200. The current CLI does not expose the deployment source SHA, so branch-push linkage is recorded but SHA parity is not independently exposed.
 - **LINE / LIFF**: deterministic transfer and delayed-SDK coverage are local tests only. Real LINE account, LINE Console settings, production LIFF cold starts, and production DB side-effects remain operator-only after deployment.
 
+## 2026-07-12 classification repair continuation
+
+- **Repo**: branch `codex/line-couple-bot-mvp`, code commit `4bcd186ff3f19baaf552a4aeb4f043ae5e5222c4` pushed to `origin`.
+- **Local gates**: `pnpm typecheck`, `pnpm test` (188/188), `pnpm test:e2e` (4/4), `pnpm build`, and `pnpm smoke:local` all passed.
+- **Production**: Vercel deployment `dpl_27ns5ChL2pFU2DUCEGrkDVgLxTmx` is `READY` / `PROMOTED`, production alias returns HTTP 200, and Vercel API `gitSource.sha` exactly matches `4bcd186ff3f19baaf552a4aeb4f043ae5e5222c4`.
+- **Classification**: `record_expense` now preserves valid Chinese tags, excludes `other` / `其他` history, applies deterministic rules first, and falls back safely on low confidence, errors, or timeout. Local model smoke was attempted but `.env.local` Gemini returned `API key not valid`; no successful live-model result is claimed.
+- **Backfill**: exact target predicate (`source_event_id ~ '^01K'`, shared, 15 mapped descriptions, original tag `other` / `其他`) matched 15 rows. One atomic version-guarded update produced 15/15 expected tags, 15/15 version increments, 15/15 activity audits, and 0 notifications. Each audit `before_state` contains the rollback snapshot.
+- **Database**: no schema or migration changed; raw pending-action command payloads were not rewritten, so the original command tag remains available for audit.
+
 ## Deployment
 
 - **Production alias**: `https://line-couple-ledger-bot.vercel.app` (the cron
