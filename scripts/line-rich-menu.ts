@@ -468,7 +468,7 @@ function gitSha() {
     [
       "log",
       "-1",
-      "--format=%h",
+      "--format=%H",
       "--",
       "assets/line-rich-menu",
       "src/app/page.tsx",
@@ -479,7 +479,7 @@ function gitSha() {
       "src/lib/line-webhook-service.ts",
     ],
     { encoding: "utf8" },
-  ).trim();
+  ).trim().slice(0, 8);
 }
 
 async function main() {
