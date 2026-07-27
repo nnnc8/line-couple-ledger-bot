@@ -1,11 +1,181 @@
 # Agent v1 — Production closeout
 
-> Snapshot of the v1 closeout run. Update the "Verified by" rows after each
-> redeploy and re-run of the live proof checklist.
+> The newest release record is first. Older sections are retained as historical
+> evidence and must not be read as the current deployment or rollback target.
 >
-> **Operator action required after redeploy**: open the production LINE OA
-> and run the 4 cases in "Live LINE proof" below, then come back and fill in
-> the `Verified by / when` column plus the actual reply and side-effect.
+> **Operator action still required**: the automated and database proofs below
+> are complete. A real LINE OA signature flow and a logged-in LIFF session on a
+> physical phone cannot be impersonated by this run. Complete the two rows in
+> "Operator-only acceptance" after checking them with the production accounts.
+
+## 2026-07-27 first-class transfer release
+
+### Release identity
+
+- **Branch**: `codex/v1-transfer-flow`, pushed to
+  `origin/codex/v1-transfer-flow`.
+- **Runtime source SHA**:
+  `bb5340c3ded5d344f39be01e1c15ee05b7abc64a`
+  (`feat: add first-class transfer ledger`).
+- **Verified preview**:
+  `dpl_3B5KREpdeCAKr3AXURpkEJSFzwFP`
+  (`https://line-couple-ledger-3y1lgi2wv-ncnc8.vercel.app`), `READY`, exact
+  source SHA above.
+- **Production deployment**:
+  `dpl_3S23pfx2NPCR3FGKWbHVnCWuQwbn`
+  (`https://line-couple-ledger-whg3r01bw-ncnc8.vercel.app`), `READY`,
+  promoted at 2026-07-27 20:46 Asia/Taipei.
+- **Production alias**:
+  `https://line-couple-ledger-bot.vercel.app`.
+- Vercel records `action=promote` and
+  `originalDeploymentId=dpl_3B5KREpdeCAKr3AXURpkEJSFzwFP`; the production
+  deployment has the same Git SHA. Vercel assigned the promoted production
+  copy a new deployment ID, so the production copy was independently checked
+  instead of assuming preview proof carried over.
+- **Application rollback target**:
+  `dpl_5GXuNtvS4TL2XDcUXn2Tog9sdeg9`
+  (`273a6f8165a7d4d933c54c6e546e7ec0c4bbc9fe`), the previously deployed
+  clean v1 baseline.
+- This closeout file is committed after promotion. Its later docs-only commit
+  is not the production runtime SHA; the runtime identity is the full SHA
+  recorded above.
+
+### v2 removal and recovery boundary
+
+- Clean development base was the deployed v1 SHA `273a6f8`; the release
+  branch is not descended from finance-v2 core commit `c222367`.
+- Active Git refs containing `c222367` are empty. The local/remote
+  `codex/personal-finance-v2` branch, its alias, `.finance-v2/`, and
+  deployments whose source SHA was `c222367` or a descendant were removed.
+  Historical Vercel records whose branch metadata says
+  `codex/personal-finance-v2` but whose SHA is a retained v1 repair commit are
+  not executable finance-v2.
+- Production has no `finance` schema, abandoned public finance columns or
+  indexes, or v2 finance activity-event entity types. The required
+  `20260712103630_finance_v2_p0_repairs.sql` remains because it is a v1
+  privacy/mirror repair despite its filename.
+- Isolated backup:
+  `/Users/nc8/Backups/line-couple-ledger/2026-07-22-v1-transfer-cutover`.
+  The directory is mode `700`, backup files are mode `600`, and all five
+  entries in `checksums.sha256` pass. It contains the public/finance schema
+  and data inventory, Git bundle, v2 worktree, migration inventory, balances,
+  and Vercel deployment inventory. Retain through 2026-08-21.
+- The cleanup preflight proved all eight finance tables had zero rows before
+  `DROP SCHEMA finance RESTRICT`. No 100/0 expense was guessed or converted;
+  the eight historical candidates remain a read-only review list.
+
+### Database migrations and live proof
+
+The linked local/remote migration histories agree through:
+
+1. `20260722103819_remove_abandoned_finance_schema`
+2. `20260722104424_add_first_class_transfers`
+3. `20260727193628_grant_group_balances_to_ledger_runtime`
+4. `20260727200904_add_line_action_plans`
+5. `20260727202748_restrict_line_action_plan_grants`
+6. `20260727203509_lock_line_action_plan_runtime`
+
+Post-migration production query at 2026-07-27 20:47 Asia/Taipei:
+
+| Proof | Result |
+| :--- | :--- |
+| `public.expenses` | 572 |
+| `public.expense_splits` | 768 |
+| `public.settlements` | 4 |
+| Transfer smoke residue | 0 transfer settlements, 0 transfer/void pending actions |
+| `public.line_action_plans` residue | 0 |
+| `finance` schema | absent |
+| Abandoned public v2 columns / indexes / activity types | 0 / 0 / 0 |
+| Transfer settlement columns | 7 / 7 present |
+| Pending-action request fingerprint | present |
+| `service_role` on `line_action_plans` | `SELECT`, `INSERT` only |
+| `ledger_runtime` on `line_action_plans` | no table privileges |
+
+The row-count increase from the 2026-07-22 backup (564 expenses / 755 splits)
+is subsequent normal v1 usage, not cleanup loss. The four pre-existing
+settlements remain four. Supabase security and performance advisors reported
+only `INFO` notices and no `WARN` or `ERROR`; the no-policy RLS notice on
+`line_action_plans` is paired with deny-by-default client grants.
+
+### Product and accounting contract shipped
+
+- `新增花費`, `記錄轉帳`, and `全部結清` are separate intents and UI flows.
+- General transfers support zero balance, either direction, reverse direction,
+  overpayment/crossing zero, and requester-recorded partner-to-me movement.
+- Settle remains debt-limited and recalculates after obtaining the group lock.
+- Transfer/settle/void, shared-expense writers, activity, notification queue,
+  and pending-action confirmation share one database transaction and the same
+  ordered group locks.
+- Transfer is stored as a settlement, never an expense, split, category,
+  budget item, or private mirror. Soft void keeps actor, time, source action,
+  version, activity, and notification audit.
+- LIFF now has the `記一筆` action sheet, balance-before/after preview,
+  cross-zero warnings, transfer history filter, and soft-void entry.
+- LINE direction is deterministic for `我轉給她`, `她轉給我`, `我還她`,
+  `她還我`, and both settle phrases. Ambiguous direction/group asks instead of
+  writing. A persisted immutable `line_action_plans` row makes webhook
+  redelivery replay the first plan without rerunning the model.
+- Pending financial actions notify the partner through the transactional queue
+  only; the old direct second push is suppressed.
+
+### Automated and live-system gates
+
+| Gate | Result |
+| :--- | :--- |
+| `pnpm typecheck` | clean |
+| `pnpm test` | 193 / 193 |
+| `pnpm test:tx` | 26 / 26, including 3 real PostgreSQL tests |
+| `pnpm test:e2e` | 6 / 6 |
+| `pnpm build` | success |
+| Changed-file ESLint | clean |
+| Production-source ESLint | 0 errors; 11 inherited warnings |
+| `git diff --check` | clean |
+| `pnpm smoke:transfer` | all 6 phases passed; cleanup left zero residue |
+
+The transfer smoke proved zero-balance transfers in both directions,
+reverse/overpay crossing zero, partial/full partner-to-me settle, concurrent
+full settle, scoped idempotency conflict handling, exactly-one audit and queued
+notification, analytics isolation, and rollback cleanup.
+
+Production verification after promotion:
+
+- alias root returned HTTP `200` with title `共同帳本`;
+- `GET /api/line/webhook` returned expected `405` with
+  `x-matched-path: /api/line/webhook`, proving the POST-only route is live;
+- production client bundle contains `記錄轉帳`, transfer history/search copy,
+  and the void confirmation;
+- bundle contains none of `FinanceHome`, `我的財務`, `淨資產`, `資產總覽`,
+  `負債`, `NetWorth`, or `financialHome`;
+- build error-only log, last-hour runtime error clusters, and
+  deployment-scoped error/fatal logs were empty.
+
+### Operator-only acceptance
+
+| Surface | Cases | Expected proof | Verified by / when |
+| :--- | :--- | :--- | :--- |
+| Real LINE OA | outgoing, incoming, ambiguous direction, settle, same webhook redelivery | Confirm card before write; one settlement/activity/notification after confirm; ambiguous text writes nothing; retry does not duplicate | _operator_ / _date_ |
+| Physical-phone LIFF | zero-balance transfer, cross-zero preview, partner-to-me, settle, history filter, void, keyboard/safe area | Correct before/after balance, transfer excluded from analytics, void restores balance once | _operator_ / _date_ |
+
+### Rollback
+
+- **Application**: point `line-couple-ledger-bot.vercel.app` back to
+  `dpl_5GXuNtvS4TL2XDcUXn2Tog9sdeg9` in Vercel Deployments, or assign the
+  alias to
+  `https://line-couple-ledger-jk0j1iawv-ncnc8.vercel.app`.
+- **Transfer schema**: additive and backward-compatible with clean v1. Once
+  real transfer rows exist, do not drop the settlement columns, enum values,
+  fingerprint, or action-plan table. Use an incident-specific forward
+  migration if a schema repair is required.
+- **Finance cleanup**: there is intentionally no destructive down migration.
+  Restore abandoned finance data only from the isolated backup/PITR after a
+  separate incident review; deleting migration files is not a production
+  rollback.
+
+---
+
+The remaining sections are historical release records. Their deployment IDs,
+test counts, database description, and rollback targets are preserved for
+audit only and are superseded by the 2026-07-27 section above.
 
 ## 2026-07-12 transfer / LIFF repair continuation
 
