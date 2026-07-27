@@ -224,14 +224,52 @@ test("external LIFF login keeps invite and tab in redirect URI", async ({ page }
     };
   });
 
-  await page.goto("/?invite=invite-code&tab=history");
+  await page.goto(
+    "/?invite=invite-code&tab=history&action=transfer&amount=600",
+  );
   await expect.poll(() => page.evaluate(() => (window as TestWindow).__redirectUri)).toContain(
     "invite=invite-code",
   );
   await expect.poll(() => page.evaluate(() => (window as TestWindow).__redirectUri)).toContain(
     "tab=history",
   );
+  await expect.poll(() => page.evaluate(() => (window as TestWindow).__redirectUri)).toContain(
+    "action=transfer",
+  );
+  await expect.poll(() => page.evaluate(() => (window as TestWindow).__redirectUri)).toContain(
+    "amount=600",
+  );
   expect(sessionBodies).toHaveLength(0);
+});
+
+test("LIFF expense deep link validates and prefills the form", async ({ page }) => {
+  await page.goto(
+    "/?action=expense&ledger=private&paidBy=partner&tag=%E9%A4%90%E9%A3%B2&description=%E5%8D%88%E9%A4%90&amount=500",
+  );
+
+  await expect(page.getByRole("heading", { name: "新增支出" })).toBeVisible();
+  await expect(page.getByLabel("金額（TWD）")).toHaveValue("500");
+  await expect(page.getByLabel("說明")).toHaveValue("午餐");
+  await expect(page.getByLabel("標籤")).toHaveValue("餐飲");
+  await expect(page.getByRole("tab", { name: /私人/ })).toHaveAttribute(
+    "aria-selected",
+    "true",
+  );
+  await expect(page).not.toHaveURL(/action=expense/);
+});
+
+test("LIFF transfer deep link prefills only an authorized group", async ({ page }) => {
+  await page.goto(
+    `/?action=transfer&groupId=${GROUP}&direction=partner_to_me&amount=600`,
+  );
+
+  await expect(page.getByRole("heading", { name: "記錄轉帳" })).toBeVisible();
+  await expect(page.getByLabel("轉帳金額（TWD）")).toHaveValue("600");
+  await expect(page.getByRole("tab", { name: "另一半轉給我" })).toHaveAttribute(
+    "aria-selected",
+    "true",
+  );
+  await expect(page).not.toHaveURL(/action=transfer/);
 });
 
 

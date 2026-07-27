@@ -37,6 +37,7 @@ import {
   proposeAction as proposeActionHelper,
   proposeBatchCreateExpenses,
   proposeCreateExpenseHelper,
+  proposeCreateExpensePending as proposeCreateExpensePendingHelper,
   proposeDeleteExpenseHelper,
   proposeRestoreExpenseHelper,
   proposeSettlement as proposeSettlementHelper,
@@ -601,6 +602,23 @@ export class PendingActionService {
     },
   ) {
     return proposeCreateExpenseHelper(this, context, expenseInput, metadata);
+  }
+
+  proposeCreateExpensePending(
+    context: PendingActionContext,
+    expenseInput: Parameters<typeof proposeCreateExpenseHelper>[2],
+    metadata: {
+      source: string;
+      sourceEventId: string;
+      idempotencyKey: string;
+    },
+  ) {
+    return proposeCreateExpensePendingHelper(
+      this,
+      context,
+      expenseInput,
+      metadata,
+    );
   }
 
   proposeUpdateExpenseHelper(

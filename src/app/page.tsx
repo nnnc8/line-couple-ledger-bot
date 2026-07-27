@@ -7,14 +7,18 @@ import { Dashboard } from "@/components/dashboard/dashboard";
 import { HistorySection } from "@/components/history/history-section";
 import { PrivateLedger } from "@/components/private/private-ledger";
 import { SettingsSection } from "@/components/settings/settings-section";
-import { ExpenseForm } from "@/components/expense/expense-form";
+import {
+  ExpenseForm,
+  type ExpenseFormPrefill,
+} from "@/components/expense/expense-form";
 import {
   TransferSheet,
+  type TransferSheetPrefill,
 } from "@/components/transfer/transfer-sheet";
 import { Sheet } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { OnboardingFlow } from "@/components/onboarding/onboarding-flow";
-import type { Expense, SettlementView } from "@/lib/types";
+import type { Bootstrap, Expense, SettlementView } from "@/lib/types";
 import type { ActionInput } from "@/lib/pending-action-types";
 import { api } from "@/lib/api";
 import { toast } from "sonner";
@@ -73,7 +77,20 @@ function waitForLiffSdk(timeoutMs = 10_000): Promise<NonNullable<Window["liff"]>
 
 function liffRedirectUri(): string {
   const redirect = new URL(window.location.origin + window.location.pathname);
-  for (const name of ["invite", "tab", "edit", "search"]) {
+  for (const name of [
+    "invite",
+    "tab",
+    "edit",
+    "search",
+    "action",
+    "groupId",
+    "ledger",
+    "paidBy",
+    "direction",
+    "tag",
+    "amount",
+    "description",
+  ]) {
     const value = urlParam(name);
     if (value) redirect.searchParams.set(name, value);
   }
@@ -113,7 +130,12 @@ export default function Home() {
   const [recordOpen, setRecordOpen] = React.useState(false);
   const [expenseOpen, setExpenseOpen] = React.useState(false);
   const [transferOpen, setTransferOpen] = React.useState(false);
+  const [expensePrefill, setExpensePrefill] =
+    React.useState<ExpenseFormPrefill | null>(null);
+  const [transferPrefill, setTransferPrefill] =
+    React.useState<TransferSheetPrefill | null>(null);
   const [editExpense, setEditExpense] = React.useState<Expense | null>(null);
+  const deepLinkHandledRef = React.useRef(false);
   const settleRequestRef = React.useRef<{ fingerprint: string; key: string } | null>(null);
   const voidRequestKeysRef = React.useRef(new Map<string, string>());
 
@@ -181,14 +203,56 @@ export default function Home() {
     }
   }, [data]);
 
+  React.useEffect(() => {
+    if (!data || deepLinkHandledRef.current) return;
+    const action = urlParam("action");
+    if (action !== "expense" && action !== "transfer") return;
+    deepLinkHandledRef.current = true;
+    const groupId = validGroupId(data, urlParam("groupId"));
+    const amount = validAmountParam(urlParam("amount"));
+    if (action === "expense") {
+      const ledger = urlParam("ledger");
+      const paidBy = urlParam("paidBy");
+      const prefill: ExpenseFormPrefill = {
+        ledger: ledger === "private" ? "private" : "shared",
+        groupId,
+        paidBy: paidBy === "partner" ? "partner" : "self",
+        tag: boundedParam("tag", 40),
+        description: boundedParam("description", 100),
+        amount,
+      };
+      queueMicrotask(() => {
+        setExpensePrefill(prefill);
+        setEditExpense(null);
+        setExpenseOpen(true);
+      });
+    } else {
+      const prefill: TransferSheetPrefill = {
+        groupId,
+        direction:
+          urlParam("direction") === "partner_to_me"
+            ? "partner_to_me"
+            : "me_to_partner",
+        amount,
+      };
+      queueMicrotask(() => {
+        setTransferPrefill(prefill);
+        setTransferOpen(true);
+      });
+    }
+    clearActionParams();
+  }, [data]);
+
   function openAdd() {
     setEditExpense(null);
+    setExpensePrefill(null);
     sessionStorage.removeItem("editExpense");
     setExpenseOpen(true);
   }
 
   function openTransfer() {
     setRecordOpen(false);
+    setTransferPrefill(null);
     setTransferOpen(true);
   }
 
@@ -205,6 +269,7 @@ export default function Home() {
   function closeExpense() {
     setExpenseOpen(false);
     setEditExpense(null);
+    setExpensePrefill(null);
     sessionStorage.removeItem("editExpense");
   }
 
@@ -413,7 +478,7 @@ export default function Home() {
         open={recordOpen}
         onClose={() => setRecordOpen(false)}
         title="記一筆"
-        subtitle="花費與เงินจริง轉帳分開記錄"
+        subtitle="花費與實際轉帳分開記錄"
         labelledBy="record-sheet-title"
       >
         <div className="space-y-2">
@@ -464,6 +529,7 @@ export default function Home() {
           data={data}
           busy={busy}
           editExpense={editExpense}
+          prefill={expensePrefill}
           onExit={closeExpense}
           onTransfer={() => {
             closeExpense();
@@ -500,17 +566,61 @@ export default function Home() {
           groupBalances={data.groupBalances}
           today={data.today}
           busy={busy}
-          onClose={() => setTransferOpen(false)}
+          prefill={transferPrefill}
+          onClose={() => {
+            setTransferOpen(false);
+            setTransferPrefill(null);
+          }}
           onSubmit={(body) =>
             runAction(body, {
               success: "已記錄轉帳",
-              onSuccess: () => setTransferOpen(false),
+              onSuccess: () => {
+                setTransferOpen(false);
+                setTransferPrefill(null);
+              },
             })
           }
         />
       ) : null}
     </main>
   );
+}
+
+function boundedParam(name: string, maxLength: number): string | undefined {
+  const value = urlParam(name)?.trim();
+  return value && value.length <= maxLength ? value : undefined;
+}
+
+function validAmountParam(value: string | null): string | undefined {
+  if (!value || !/^\d{1,9}$/.test(value)) return undefined;
+  const amount = Number(value);
+  return amount >= 1 && amount <= 100_000_000 ? String(amount) : undefined;
+}
+
+function validGroupId(
+  data: Bootstrap,
+  value: string | null,
+): string | undefined {
+  return data.groups.some((group) => group.id === value && !group.archived_at)
+    ? value!
+    : undefined;
+}
+
+function clearActionParams() {
+  const url = new URL(window.location.href);
+  for (const name of [
+    "action",
+    "groupId",
+    "ledger",
+    "paidBy",
+    "direction",
+    "tag",
+    "amount",
+    "description",
+  ]) {
+    url.searchParams.delete(name);
+  }
+  history.replaceState(null, "", `${url.pathname}${url.search}${url.hash}`);
 }
 
 function titleFor(tab: TabKey): string {

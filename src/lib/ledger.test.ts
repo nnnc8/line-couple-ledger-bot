@@ -41,6 +41,11 @@ import { safeSecretEqual, signSession, verifySession } from "./security";
 import { matchTransactions, parseBankCsvWithMeta } from "./bank-csv";
 import { setMockWithTx } from "./db/tx";
 import { TransactionStaleError } from "./pending-action-executor";
+import { tagColor } from "./categories";
+import {
+  handleLineMenuPostback,
+  parseLineMenuPostback,
+} from "./line-menu-service";
 
 function replyTextOf(reply: any): string {
   if (reply == null) return "";
@@ -1302,6 +1307,200 @@ test("LINE postback confirms only the signed-in user's pending action", async ()
   assert.equal(
     (replied[0] as { messages: Array<{ text: string }> }).messages[0].text,
     "已記錄轉帳。",
+  );
+});
+
+test("LINE menu postback accepts only the versioned whitelist", () => {
+  assert.deepEqual(parseLineMenuPostback("m=1&a=expense"), {
+    m: "1",
+    a: "expense",
+  });
+  assert.equal(parseLineMenuPostback("m=1&a=expense&userId=forged"), null);
+  assert.equal(parseLineMenuPostback("m=1&m=1&a=expense"), null);
+  assert.equal(
+    parseLineMenuPostback(
+      "m=1&a=expense_amount&l=p&p=m&t=f&d=di&n=500",
+    )?.n,
+    500,
+  );
+  assert.equal(
+    parseLineMenuPostback(
+      "m=1&a=expense_amount&l=p&g=00000000-0000-4000-8000-000000000099&p=m&t=f&d=di&n=500",
+    ),
+    null,
+  );
+  assert.equal(
+    parseLineMenuPostback(
+      "m=1&a=expense_amount&l=p&p=m&t=f&d=di&n=0x64",
+    ),
+    null,
+  );
+  assert.equal(
+    parseLineMenuPostback(
+      "m=1&a=expense_amount&l=p&p=m&t=f&d=fuel&n=500",
+    ),
+    null,
+  );
+});
+
+test("LINE quick expense creates a pending action and never confirms directly", async () => {
+  const { pendingActionService } = await import("./services");
+  const originalPropose = pendingActionService.proposeCreateExpensePending;
+  const originalConfirm = pendingActionService.confirm;
+  let proposed: any = null;
+  let confirmCalls = 0;
+  pendingActionService.proposeCreateExpensePending = async (
+    _context,
+    command,
+    metadata,
+  ) => {
+    proposed = { command, metadata };
+    return {
+      result: "pending",
+      action_id: "00000000-0000-4000-8000-000000000099",
+      action_type: "create_expense",
+      expense: {
+        ledger: "private",
+        group_id: null,
+        description: command.description,
+        tag: command.tag,
+        amount_twd: command.amountTwd,
+        paid_by_user_id: CORE_OWNER,
+        expense_date: command.expenseDate,
+      },
+    };
+  };
+  pendingActionService.confirm = async (...args) => {
+    confirmCalls += 1;
+    return originalConfirm.apply(pendingActionService, args);
+  };
+  try {
+    const menu = parseLineMenuPostback(
+      "m=1&a=expense_amount&l=p&p=m&t=f&d=di&n=500",
+    );
+    assert.ok(menu);
+    const response = await handleLineMenuPostback({
+      menu,
+      user: {
+        id: CORE_OWNER,
+        couple_id: 1,
+        line_user_id: "line-owner",
+        role: "owner",
+      },
+      db: {} as never,
+      appUrl: "https://example.com",
+      sourceEventId: "event-menu-expense",
+      sourceEventTimestamp: Date.UTC(2026, 6, 27, 12),
+    });
+    assert.equal(typeof response, "object");
+    assert.equal((response as { type: string }).type, "flex");
+    assert.equal(proposed.command.ledger, "private");
+    assert.equal(proposed.command.description, "晚餐");
+    assert.equal(proposed.command.amountTwd, 500);
+    assert.match(proposed.metadata.idempotencyKey, /^line-menu:/);
+    assert.equal(confirmCalls, 0);
+  } finally {
+    pendingActionService.proposeCreateExpensePending = originalPropose;
+    pendingActionService.confirm = originalConfirm;
+  }
+});
+
+test("LINE quick transfer preserves direction and uses pending confirmation", async () => {
+  const { pendingActionService } = await import("./services");
+  const originalPropose = pendingActionService.proposeTransferPending;
+  let commandSeen: any = null;
+  pendingActionService.proposeTransferPending = async (
+    _context,
+    command,
+    metadata,
+  ) => {
+    commandSeen = { command, metadata };
+    return {
+      result: "pending",
+      action_id: "00000000-0000-4000-8000-000000000098",
+      action_type: "transfer",
+      group_id: GROUP,
+      direction: command.direction,
+      amount_twd: command.amountTwd,
+      occurred_on: command.occurredOn,
+      notes: null,
+      balance: {
+        group_id: GROUP,
+        before_by_user_id: { [CORE_OWNER]: 300 },
+        after_by_user_id: { [CORE_OWNER]: -700 },
+      },
+    };
+  };
+  const chain: any = {
+    select: () => chain,
+    eq: () => chain,
+    is: () => chain,
+    order: async () => ({
+      data: [{ id: GROUP, name: "吃飽喝足" }],
+      error: null,
+    }),
+  };
+  try {
+    const menu = parseLineMenuPostback(
+      `m=1&a=transfer_amount&g=${GROUP}&r=p&n=1000`,
+    );
+    assert.ok(menu);
+    const response = await handleLineMenuPostback({
+      menu,
+      user: {
+        id: CORE_OWNER,
+        couple_id: 1,
+        line_user_id: "line-owner",
+        role: "owner",
+      },
+      db: { from: () => chain } as never,
+      appUrl: "https://example.com",
+      sourceEventId: "event-menu-transfer",
+      sourceEventTimestamp: Date.UTC(2026, 6, 27, 12),
+    });
+    assert.equal((response as { type: string }).type, "flex");
+    assert.equal(commandSeen.command.direction, "partner_to_me");
+    assert.equal(commandSeen.command.amountTwd, 1000);
+    assert.match(commandSeen.metadata.idempotencyKey, /^line-menu:/);
+  } finally {
+    pendingActionService.proposeTransferPending = originalPropose;
+  }
+});
+
+test("LINE menu rejects a forged group outside the requester's couple", async () => {
+  const groupId = "00000000-0000-4000-8000-000000000099";
+  const menu = parseLineMenuPostback(`m=1&a=transfer_group&g=${groupId}`);
+  assert.ok(menu);
+  const chain: any = {
+    select: () => chain,
+    eq: () => chain,
+    is: () => chain,
+    order: async () => ({
+      data: [
+        {
+          id: "00000000-0000-4000-8000-000000000003",
+          name: "合法群組",
+        },
+      ],
+      error: null,
+    }),
+  };
+  await assert.rejects(
+    () =>
+      handleLineMenuPostback({
+        menu,
+        user: {
+          id: CORE_OWNER,
+          couple_id: 1,
+          line_user_id: "line-owner",
+          role: "owner",
+        },
+        db: { from: () => chain } as never,
+        appUrl: "https://example.com",
+        sourceEventId: "event-forged-group",
+        sourceEventTimestamp: Date.now(),
+      }),
+    /group is unavailable/,
   );
 });
 
@@ -6622,7 +6821,8 @@ test("handleLineImageTurn rejects image without downloading or calling LLM", asy
       },
     });
 
-    assert.equal(replied, "目前請直接用文字記帳，圖片暫不自動入帳 📝");
+    assert.equal(replied.type, "flex");
+    assert.equal(replied.altText, "目前不支援收據圖片辨識");
     assert.equal(getMessageContentCalls, 0);
     assert.equal(runCalled, false);
 
@@ -6735,6 +6935,11 @@ test("static regression: check forbidden strings and imports in production files
     }
 
     const content = fs.readFileSync(file, "utf8");
+    assert.doesNotMatch(
+      content,
+      /[\u0E01-\u0E3E\u0E40-\u0E7F]/u,
+      `File ${file} contains Thai text`,
+    );
 
     // Check imports from bot.ts
     const botImportRegex = /from\s+["'](@\/lib\/bot|\.\/bot)["']/;
@@ -6783,7 +6988,7 @@ test("LINE regression: image message routes to handleLineImageTurn and short-cir
     const dependencies: any = {
       lineClient: {
         replyMessage: async (params: any) => {
-          repliedText = params.messages[0].text;
+          repliedText = params.messages[0].altText;
         },
         getMessageContent: async () => {
           getMessageContentCalls++;
@@ -6815,7 +7020,7 @@ test("LINE regression: image message routes to handleLineImageTurn and short-cir
 
     assert.equal(imageTurnCalled, false);
     assert.equal(getMessageContentCalls, 0);
-    assert.equal(repliedText, "目前請直接用文字記帳，圖片暫不自動入帳 📝");
+    assert.equal(repliedText, "目前不支援收據圖片辨識");
   } finally {
     SecretaryService.prototype.run = originalRun;
   }
@@ -10206,8 +10411,13 @@ test("accountant category analytics: six_months still filters to the last six mo
 
   assert.equal(result.count, 1);
   assert.equal(result.categories.length, 1);
-  assert.equal(result.categories[0].label, "Food");
+  assert.equal(result.categories[0].tag, "Food");
+  assert.equal("label" in result.categories[0], false);
   assert.equal(result.totalTwd, 100);
+});
+
+test("category colors stay distinct when analytics returns distinct tags", () => {
+  assert.notEqual(tagColor("餐飲"), tagColor("停車費"));
 });
 
 test("accountant agent barrel: exported functions/schemas still match the old public surface", async () => {

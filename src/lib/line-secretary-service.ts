@@ -16,6 +16,7 @@ import { logAgentEvent } from "./agent-event-service";
 import {
   flexNeedsGroup,
   flexExpenseConfirm,
+  flexImageUnsupported,
   flexQueryResult,
   flexTransferConfirm,
   type LineReplyMessage,
@@ -610,8 +611,8 @@ export async function handleLineImageTurn(input: {
   dependencies: LineSecretaryDependencies;
   reply: (message: ReplyPayload) => Promise<void>;
 }): Promise<void> {
-  const replyText = "目前請直接用文字記帳，圖片暫不自動入帳 📝";
-  await input.reply(replyText);
+  const replyText = "圖片暫不自動入帳，請使用快速記帳或完整表單。";
+  await input.reply(flexImageUnsupported(serverEnvironment().APP_URL));
   await logAgentEvent(input.dependencies.supabase, {
     coupleId: input.user.couple_id,
     groupId: null,

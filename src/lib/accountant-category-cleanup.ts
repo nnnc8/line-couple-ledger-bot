@@ -78,7 +78,9 @@ export async function categoryAnalytics(context: ServerContext, params: URLSearc
     totalTwd,
     count: expenses.length,
     categories: categories.map((item) => ({
-      ...item,
+      tag: item.label,
+      totalTwd: item.totalTwd,
+      count: item.count,
       percent: totalTwd ? Math.round((item.totalTwd / totalTwd) * 100) : 0,
     })),
   };

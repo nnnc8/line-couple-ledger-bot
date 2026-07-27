@@ -16,10 +16,20 @@ type SplitMethod = "equal" | "exact" | "percentage";
 type LedgerType = "shared" | "private";
 type PaidBy = "self" | "partner";
 
+export interface ExpenseFormPrefill {
+  ledger?: LedgerType;
+  groupId?: string;
+  description?: string;
+  tag?: string;
+  amount?: string;
+  paidBy?: PaidBy;
+}
+
 interface ExpenseFormProps {
   data: Bootstrap;
   busy: boolean;
   editExpense: Expense | null;
+  prefill?: ExpenseFormPrefill | null;
   onSubmit: (body: PendingActionInput) => void;
   onDelete?: () => void;
   onTransfer?: () => void;
@@ -28,6 +38,7 @@ interface ExpenseFormProps {
 
 interface FormState {
   ledger: LedgerType;
+  groupId: string;
   description: string;
   merchant: string;
   notes: string;
@@ -40,7 +51,11 @@ interface FormState {
   partnerValue: string;
 }
 
-function deriveInitial(data: Bootstrap, editing: Expense | null): FormState {
+function deriveInitial(
+  data: Bootstrap,
+  editing: Expense | null,
+  prefill?: ExpenseFormPrefill | null,
+): FormState {
   if (editing) {
     const mine =
       editing.expense_splits.find((s) => s.user_id === data.user.id)?.amount_twd ?? 0;
@@ -48,6 +63,7 @@ function deriveInitial(data: Bootstrap, editing: Expense | null): FormState {
       editing.expense_splits.find((s) => s.user_id !== data.user.id)?.amount_twd ?? 0;
     return {
       ledger: editing.ledger,
+      groupId: editing.group_id ?? data.activeGroupId,
       description: editing.description,
       merchant: editing.merchant ?? "",
       notes: editing.notes ?? "",
@@ -66,14 +82,21 @@ function deriveInitial(data: Bootstrap, editing: Expense | null): FormState {
           : String(theirs),
     };
   }
+  const ledger = prefill?.ledger ?? "shared";
+  const groupId = data.groups.some(
+    (group) => group.id === prefill?.groupId && !group.archived_at,
+  )
+    ? prefill!.groupId!
+    : data.activeGroupId;
   return {
-    ledger: "shared",
-    description: "",
+    ledger,
+    groupId,
+    description: prefill?.description ?? "",
     merchant: "",
     notes: "",
-    tag: "",
-    amount: "",
-    paidBy: "self",
+    tag: prefill?.tag ?? "",
+    amount: prefill?.amount ?? "",
+    paidBy: ledger === "private" ? "self" : prefill?.paidBy ?? "self",
     expenseDate: data.today,
     splitMethod: "equal",
     selfValue: "",
@@ -85,12 +108,13 @@ export function ExpenseForm({
   data,
   busy,
   editExpense,
+  prefill,
   onSubmit,
   onDelete,
   onTransfer,
 }: ExpenseFormProps) {
   const [state, setState] = React.useState<FormState>(() =>
-    deriveInitial(data, editExpense),
+    deriveInitial(data, editExpense, prefill),
   );
   const [err, setErr] = React.useState("");
   const amountValue = Number(state.amount);
@@ -128,7 +152,7 @@ export function ExpenseForm({
 
     const expenseBody = {
       ledger: state.ledger,
-      groupId: state.ledger === "shared" ? data.activeGroupId : null,
+      groupId: state.ledger === "shared" ? state.groupId : null,
       description: state.description.trim(),
       merchant: state.merchant.trim() || null,
       notes: state.notes.trim() || null,
@@ -186,6 +210,19 @@ export function ExpenseForm({
           ]}
         />
       </div>
+
+      {state.ledger === "shared" ? (
+        <div>
+          <Label className="mb-2">群組</Label>
+          <Select
+            value={state.groupId}
+            onValueChange={(value) => patch("groupId", value)}
+            options={data.groups
+              .filter((group) => !group.archived_at)
+              .map((group) => ({ value: group.id, label: group.name }))}
+          />
+        </div>
+      ) : null}
 
       {/* Description */}
       <div>

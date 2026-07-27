@@ -15,6 +15,10 @@ import {
 import { handleLineTextMessage, joinCouple } from "./line-text-service";
 import { serverEnvironment } from "./server-runtime";
 import { pendingActionService } from "./services";
+import {
+  handleLineMenuPostback,
+  parseLineMenuPostback,
+} from "./line-menu-service";
 
 export interface BotDependencies {
   lineClient: Pick<LineBotClient, "replyMessage" | "getMessageContent" | "pushMessage">;
@@ -43,29 +47,47 @@ export async function handleLineEvent(
         return;
       }
       const decision = parsePendingActionPostback(event.postback.data);
-      if (!decision) {
+      if (decision) {
+        const result = actionResultSchema.parse(
+          await pendingActionService.confirm(
+            {
+              env: serverEnvironment(),
+              db: dependencies.supabase,
+              user,
+            },
+            decision.actionId,
+            decision.confirm,
+          ),
+        );
         await replyText(
           dependencies.lineClient,
           replyToken,
-          "這個操作無效，請重新輸入轉帳內容。",
+          actionResultMessage(result),
         );
         return;
       }
-      const result = actionResultSchema.parse(
-        await pendingActionService.confirm(
-          {
-            env: serverEnvironment(),
-            db: dependencies.supabase,
-            user,
-          },
-          decision.actionId,
-          decision.confirm,
-        ),
-      );
-      await replyText(
+      const menu = parseLineMenuPostback(event.postback.data);
+      if (!menu) {
+        await replyText(
+          dependencies.lineClient,
+          replyToken,
+          "這個操作無效或已更新，請重新開啟帳務選單。",
+        );
+        return;
+      }
+      const env = serverEnvironment();
+      const response = await handleLineMenuPostback({
+        menu,
+        user,
+        db: dependencies.supabase,
+        appUrl: env.APP_URL,
+        sourceEventId: event.webhookEventId,
+        sourceEventTimestamp: event.timestamp,
+      });
+      await replyMessages(
         dependencies.lineClient,
         replyToken,
-        actionResultMessage(result),
+        response,
       );
       return;
     }

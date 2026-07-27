@@ -168,7 +168,7 @@ export async function proposeAction(
 // ---------------------------------------------------------------------------
 // create_expense
 // ---------------------------------------------------------------------------
-export async function proposeCreateExpenseHelper(
+async function proposeCreateExpenseInternal(
   service: ServiceForProposals,
   context: PendingActionContext,
   expenseInput: z.infer<typeof ledgerExpenseInputSchema>,
@@ -197,12 +197,60 @@ export async function proposeCreateExpenseHelper(
       idempotencyKey: metadata.idempotencyKey,
     },
   );
-  return service.execute(context, {
+  const pendingInput = {
     actionType: "create_expense",
     groupId,
     payload: storedPayload,
     sourceEventId: metadata.sourceEventId ?? `${metadata.source}:${randomUUID()}`,
     idempotencyKey: metadata.idempotencyKey,
+  };
+  if (metadata.deferConfirmation) {
+    const actionId = await service.insert(context, pendingInput);
+    return {
+      result: "pending" as const,
+      action_id: actionId,
+      action_type: "create_expense" as const,
+      expense: {
+        ledger: draft.ledger,
+        group_id: draft.groupId,
+        description: draft.description,
+        tag: draft.tag,
+        amount_twd: draft.amountTwd,
+        paid_by_user_id: draft.paidByUserId,
+        expense_date: draft.expenseDate,
+      },
+    };
+  }
+  return service.execute(context, pendingInput);
+}
+
+export function proposeCreateExpenseHelper(
+  service: ServiceForProposals,
+  context: PendingActionContext,
+  expenseInput: z.infer<typeof ledgerExpenseInputSchema>,
+  metadata: ProposalMetadata,
+) {
+  return proposeCreateExpenseInternal(
+    service,
+    context,
+    expenseInput,
+    metadata,
+  ) as ReturnType<ServiceForProposals["execute"]>;
+}
+
+export function proposeCreateExpensePending(
+  service: ServiceForProposals,
+  context: PendingActionContext,
+  expenseInput: z.infer<typeof ledgerExpenseInputSchema>,
+  metadata: {
+    source: string;
+    sourceEventId: string;
+    idempotencyKey: string;
+  },
+) {
+  return proposeCreateExpenseInternal(service, context, expenseInput, {
+    ...metadata,
+    deferConfirmation: true,
   });
 }
 

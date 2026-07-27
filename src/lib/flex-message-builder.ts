@@ -48,9 +48,36 @@ export type FlexAction =
       displayText?: string;
     };
 
+export type QuickReplyAction = FlexAction;
+
+export type QuickReplyItem = {
+  type: "action";
+  action: QuickReplyAction;
+};
+
+export type QuickReply = {
+  items: QuickReplyItem[];
+};
+
 export type LineReplyMessage =
-  | { type: "text"; text: string }
+  | { type: "text"; text: string; quickReply?: QuickReply }
   | { type: "flex"; altText: string; contents: FlexContainer };
+
+export function quickReplyText(
+  text: string,
+  actions: QuickReplyAction[],
+): LineReplyMessage {
+  return {
+    type: "text",
+    text,
+    quickReply: {
+      items: actions.slice(0, 13).map((action) => ({
+        type: "action",
+        action,
+      })),
+    },
+  };
+}
 
 export interface ExpenseConfirmParams {
   description: string;
@@ -140,6 +167,177 @@ export function flexExpenseConfirm(params: ExpenseConfirmParams): LineReplyMessa
             color: "#999999",
             margin: "sm",
             wrap: true,
+          },
+        ],
+        paddingAll: "md",
+      },
+    },
+  };
+}
+
+export interface ExpensePendingParams {
+  actionId: string;
+  description: string;
+  amountTwd: number;
+  tag: string;
+  paidByLabel: string;
+  ledgerLabel: string;
+  groupName?: string;
+}
+
+export function flexExpensePending(
+  params: ExpensePendingParams,
+): LineReplyMessage {
+  const actionData = (decision: "confirm" | "cancel") =>
+    `decision=${decision}&id=${encodeURIComponent(params.actionId)}`;
+  return {
+    type: "flex",
+    altText: `確認記帳 ${params.description} NT$${params.amountTwd.toLocaleString()}`,
+    contents: {
+      type: "bubble",
+      header: {
+        type: "box",
+        layout: "vertical",
+        contents: [
+          { type: "text", text: "確認記帳", size: "lg", weight: "bold" },
+          {
+            type: "text",
+            text: `NT$${params.amountTwd.toLocaleString()}`,
+            size: "xxl",
+            weight: "bold",
+            color: "#2563EB",
+            margin: "xs",
+          },
+        ],
+        paddingAll: "md",
+        backgroundColor: "#EFF6FF",
+      },
+      body: {
+        type: "box",
+        layout: "vertical",
+        contents: [
+          {
+            type: "text",
+            text: params.description,
+            size: "xl",
+            weight: "bold",
+            wrap: true,
+          },
+          {
+            type: "text",
+            text: `${params.tag} · ${params.paidByLabel} · ${params.ledgerLabel}`,
+            size: "sm",
+            color: "#666666",
+            margin: "sm",
+            wrap: true,
+          },
+          ...(params.groupName
+            ? [{
+                type: "text" as const,
+                text: `群組：${params.groupName}`,
+                size: "sm",
+                color: "#888888",
+                margin: "sm",
+                wrap: true,
+              }]
+            : []),
+          {
+            type: "text",
+            text: "10 分鐘內有效；確認前不會入帳。",
+            size: "xs",
+            color: "#999999",
+            margin: "md",
+          },
+        ],
+        paddingAll: "md",
+      },
+      footer: {
+        type: "box",
+        layout: "horizontal",
+        contents: [
+          {
+            type: "button",
+            action: {
+              type: "postback",
+              label: "取消",
+              data: actionData("cancel"),
+              displayText: "取消這筆花費",
+            },
+            style: "secondary",
+            flex: 1,
+          },
+          {
+            type: "button",
+            action: {
+              type: "postback",
+              label: "確認",
+              data: actionData("confirm"),
+              displayText: "確認這筆花費",
+            },
+            style: "primary",
+            color: "#2563EB",
+            margin: "sm",
+            flex: 1,
+          },
+        ],
+        spacing: "sm",
+        paddingAll: "md",
+      },
+    },
+  };
+}
+
+export function flexImageUnsupported(appUrl: string): LineReplyMessage {
+  return {
+    type: "flex",
+    altText: "目前不支援收據圖片辨識",
+    contents: {
+      type: "bubble",
+      body: {
+        type: "box",
+        layout: "vertical",
+        contents: [
+          {
+            type: "text",
+            text: "圖片暫不自動入帳",
+            size: "lg",
+            weight: "bold",
+          },
+          {
+            type: "text",
+            text: "請使用快速記帳，或開啟完整表單輸入內容。",
+            size: "sm",
+            color: "#666666",
+            margin: "sm",
+            wrap: true,
+          },
+        ],
+        paddingAll: "md",
+      },
+      footer: {
+        type: "box",
+        layout: "vertical",
+        contents: [
+          {
+            type: "button",
+            action: {
+              type: "postback",
+              label: "快速記帳",
+              data: "m=1&a=expense",
+              displayText: "快速記帳",
+            },
+            style: "primary",
+            color: "#2563EB",
+          },
+          {
+            type: "button",
+            action: {
+              type: "uri",
+              label: "開啟完整表單",
+              uri: `${appUrl}/?action=expense`,
+            },
+            style: "link",
+            margin: "sm",
           },
         ],
         paddingAll: "md",

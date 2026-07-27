@@ -23,6 +23,12 @@ export type TransferFormInput = {
   idempotencyKey: string;
 };
 
+export type TransferSheetPrefill = {
+  groupId?: string;
+  direction?: TransferDirection;
+  amount?: string;
+};
+
 interface TransferSheetProps {
   open: boolean;
   groups: Group[];
@@ -34,6 +40,7 @@ interface TransferSheetProps {
   >;
   today: string;
   busy: boolean;
+  prefill?: TransferSheetPrefill | null;
   onClose: () => void;
   onSubmit: (input: TransferFormInput) => void;
 }
@@ -77,7 +84,7 @@ function transferNotice(
     (currentBalance < 0 && direction === "me_to_partner") ||
     (currentBalance > 0 && direction === "partner_to_me");
   if (!repaysCurrentDebt) {
-    return "這是目前欠款的反方向，記錄後欠款會增加。請確認เงินจริง方向無誤。";
+    return "這是目前欠款的反方向，記錄後欠款會增加。請確認實際轉帳方向無誤。";
   }
   if (amountTwd > Math.abs(currentBalance)) {
     return "金額超過目前欠款，餘額會跨過 0，超出的部分將成為預付款。";
@@ -93,13 +100,18 @@ export function TransferSheet({
   groupBalances,
   today,
   busy,
+  prefill,
   onClose,
   onSubmit,
 }: TransferSheetProps) {
-  const [groupId, setGroupId] = React.useState(initialGroupId);
+  const [groupId, setGroupId] = React.useState(
+    groups.some((group) => group.id === prefill?.groupId && !group.archived_at)
+      ? prefill!.groupId!
+      : initialGroupId,
+  );
   const [direction, setDirection] =
-    React.useState<TransferDirection>("me_to_partner");
-  const [amount, setAmount] = React.useState("");
+    React.useState<TransferDirection>(prefill?.direction ?? "me_to_partner");
+  const [amount, setAmount] = React.useState(prefill?.amount ?? "");
   const [occurredOn, setOccurredOn] = React.useState(today);
   const [notes, setNotes] = React.useState("");
   const [error, setError] = React.useState("");
@@ -165,7 +177,7 @@ export function TransferSheet({
       open={open}
       onClose={onClose}
       title="記錄轉帳"
-      subtitle="只記錄เงินจริง移動，不會計入支出報表"
+      subtitle="只記錄實際金流，不會計入支出報表"
       labelledBy="transfer-sheet-title"
       variant="full"
     >

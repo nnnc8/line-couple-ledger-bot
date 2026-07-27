@@ -1,4 +1,3 @@
-import { createClient } from "@supabase/supabase-js";
 import { LedgerCommandService } from "./ledger-core";
 import { LedgerQueryService } from "./ledger-query";
 import { GroupService } from "./group-service";
@@ -16,7 +15,7 @@ import {
 } from "./ledger-shared";
 import { type ServerContext } from "./server-runtime";
 
-const ACTION_SECONDS = 60 * 5;
+const ACTION_SECONDS = 60 * 10;
 
 export const ledgerCommandService = new LedgerCommandService();
 export const ledgerQueryService = new LedgerQueryService();
