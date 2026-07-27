@@ -42,6 +42,13 @@ export type SettlementView = {
   from_user_id: string;
   to_user_id: string;
   amount_twd: number;
+  intent: "settle" | "transfer";
+  occurred_on: string;
+  notes: string | null;
+  recorded_by_user_id: string | null;
+  voided_at: string | null;
+  voided_by_user_id: string | null;
+  version: number;
   created_at: string;
 };
 
@@ -56,6 +63,10 @@ export type Bootstrap = {
   sharedExpenses: Expense[];
   privateExpenses: Expense[];
   balances: Array<{ user_id: string; balance_twd: number }>;
+  groupBalances: Record<
+    string,
+    Array<{ user_id: string; balance_twd: number }>
+  >;
   settlements: SettlementView[];
   recurring: Array<{
     id: string;

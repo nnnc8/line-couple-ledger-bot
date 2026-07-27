@@ -1,4 +1,5 @@
 import { splitEqual } from "./ledger";
+import type { ActionInput } from "./pending-action-types";
 
 export type OptimisticExpense = {
   id: string;
@@ -55,26 +56,7 @@ export type ExpenseInput = {
   partnerValue?: number | null;
 };
 
-export type PendingActionInput =
-  | { type: "create_expense"; expense: ExpenseInput }
-  | {
-      type: "update_expense";
-      expenseId: string;
-      expectedVersion: number;
-      expense: ExpenseInput;
-    }
-  | {
-      type: "delete_expense";
-      expenseId: string;
-      expectedVersion: number;
-    }
-  | {
-      type: "restore_expense";
-      expenseId: string;
-      expectedVersion: number;
-    }
-  | { type: "settle"; groupId: string; amountTwd: number }
-  | { type: "batch_create_expenses"; expenses: ExpenseInput[] };
+export type PendingActionInput = ActionInput;
 
 export function applyOptimistic(
   data: BootstrapLike,
@@ -111,7 +93,11 @@ export function applyOptimistic(
         version: expense.version + 1,
       }));
     case "settle":
-      return settleBalance(data, action.amountTwd);
+    case "transfer":
+    case "void_settlement":
+      // Balance-changing actions are reloaded from the authoritative result;
+      // optimistic math would be wrong for full settle and concurrent writes.
+      return data;
     default:
       return data;
   }
@@ -205,26 +191,6 @@ function patchExpense(
   };
   const updated = next.expenses.find((item) => item.id === expenseId);
   return updated ? refreshDashboards(next, updated) : next;
-}
-
-function settleBalance(data: BootstrapLike, amountTwd: number): BootstrapLike {
-  const mine =
-    data.balances.find((item) => item.user_id === data.user.id)?.balance_twd ??
-    0;
-  const partnerId = data.users.find((user) => user.id !== data.user.id)?.id;
-  if (!partnerId || mine === 0) return data;
-  const nextMine =
-    mine > 0 ? Math.max(0, mine - amountTwd) : Math.min(0, mine + amountTwd);
-  const nextPartner = -nextMine;
-  return {
-    ...data,
-    balances: data.balances.map((item) => {
-      if (item.user_id === data.user.id) return { ...item, balance_twd: nextMine };
-      if (item.user_id === partnerId)
-        return { ...item, balance_twd: nextPartner };
-      return item;
-    }),
-  };
 }
 
 function refreshDashboards(

@@ -284,6 +284,43 @@ test("LINE transfer parser preserves invalid amounts for rejection", async () =>
   assert.equal(parseSettlementRequest("阿提斯 我轉 100.5")?.amountTwd, 100.5);
 });
 
+test("LINE money movement parser keeps transfer direction deterministic", async () => {
+  const { parseSettlementRequest } = await import("./line-secretary-service");
+  assert.deepEqual(parseSettlementRequest("我轉給她 500"), {
+    intent: "transfer",
+    full: false,
+    amountTwd: 500,
+    direction: "me_to_partner",
+  });
+  assert.equal(
+    parseSettlementRequest("她轉給我 500")?.direction,
+    "partner_to_me",
+  );
+  assert.equal(
+    parseSettlementRequest("她轉 500 給我")?.direction,
+    "partner_to_me",
+  );
+  assert.equal(parseSettlementRequest("轉帳 500")?.direction, null);
+  assert.deepEqual(parseSettlementRequest("我還她 500"), {
+    intent: "settle",
+    full: false,
+    amountTwd: 500,
+    direction: "me_to_partner",
+  });
+  assert.deepEqual(parseSettlementRequest("她已經還清了"), {
+    intent: "settle",
+    full: true,
+    amountTwd: null,
+    direction: "partner_to_me",
+  });
+  assert.equal(parseSettlementRequest("不要結清"), null);
+  assert.equal(parseSettlementRequest("帳務已結清嗎？"), null);
+  assert.equal(parseSettlementRequest("我是不是已經結清了"), null);
+  assert.equal(parseSettlementRequest("我沒有要結清"), null);
+  assert.equal(parseSettlementRequest("我不是要結清"), null);
+  assert.equal(parseSettlementRequest("她是否轉500給我"), null);
+});
+
 test("ledger agent treats historical maximum questions as all-history queries", () => {
   assert.deepEqual(parseAgentRequest("會計師 歷史以來哪裡花最多"), {
     message: "歷史以來哪裡花最多",
@@ -440,6 +477,7 @@ test("ledger core builds settlement drafts from balances", () => {
 
   assert.deepEqual(draft, {
     groupId: GROUP,
+    direction: "me_to_partner",
     fromUserId: CORE_OWNER,
     toUserId: CORE_PARTNER,
     amountTwd: 300,
@@ -1205,10 +1243,17 @@ test("notification flush for cron does not need a user lookup", async () => {
   assert.equal(db.updatedStatus, "sent");
 });
 
-test("LINE postback confirmation path is disabled", async () => {
+test("LINE postback confirms only the signed-in user's pending action", async () => {
   const pushed: unknown[] = [];
   const replied: unknown[] = [];
   const db = fakeNotificationDb();
+  const { pendingActionService } = await import("./services");
+  const originalConfirm = pendingActionService.confirm;
+  const confirmed: Array<{ actionId: string; confirm: boolean; userId: string }> = [];
+  pendingActionService.confirm = async (context, actionId, confirm) => {
+    confirmed.push({ actionId, confirm, userId: context.user.id });
+    return { result: "confirmed", action_type: "transfer" };
+  };
   await withMockFetch(async (url, init) => {
     assert.equal(String(url), "https://api.line.me/v2/bot/message/push");
     pushed.push(JSON.parse(String(init?.body)));
@@ -1244,12 +1289,19 @@ test("LINE postback confirmation path is disabled", async () => {
         },
       );
     });
+  }).finally(() => {
+    pendingActionService.confirm = originalConfirm;
   });
 
   assert.equal(pushed.length, 0);
+  assert.deepEqual(confirmed, [{
+    actionId: "00000000-0000-4000-8000-000000000099",
+    confirm: true,
+    userId: "00000000-0000-4000-8000-000000000001",
+  }]);
   assert.equal(
     (replied[0] as { messages: Array<{ text: string }> }).messages[0].text,
-    "這個操作已停用，請重新記帳或到圖形化帳本編輯。",
+    "已記錄轉帳。",
   );
 });
 
@@ -2151,7 +2203,7 @@ test("pending action service proposes settlement from current group balances", a
     service as unknown as {
       proposeSettlement: (
         context: unknown,
-        input: { type: "settle"; groupId: string; amountTwd: number },
+        input: { type: "settle"; groupId: string; amountTwd?: number },
         metadata: { source: string; idempotencyKey?: string | null },
       ) => Promise<{ result: string; action_type: string }>;
     }
@@ -2168,7 +2220,6 @@ test("pending action service proposes settlement from current group balances", a
     {
       type: "settle",
       groupId: GROUP,
-      amountTwd: 430,
     },
     {
       source: "liff",
@@ -2196,11 +2247,13 @@ test("pending action service proposes settlement from current group balances", a
     to_user_id: CORE_PARTNER,
     amount_twd: 430,
     expected_balance_twd: -430,
+    settle_all: true,
   });
   const command = pendingActionCommandFromPayload(executedInput.payload);
   assert.deepEqual(command, {
     type: "settle",
     groupId: GROUP,
+    direction: "me_to_partner",
     amountTwd: 430,
   });
 });
@@ -4684,6 +4737,143 @@ test("secretary service retries hallucinated writes and applies corrected pendin
   assert.equal(result.actionFailure, null);
 });
 
+test("secretary service replays an immutable action plan without rerunning the model", async () => {
+  const { SecretaryService } = await import("./secretary-service");
+  const service = new SecretaryService();
+  const executed: string[] = [];
+  let runLoopCalls = 0;
+  const plannedResult = {
+    answer: "已處理兩筆異動。",
+    toolCallCount: 2,
+    pendingActions: [
+      { type: "update_expense", expenseId: "expense-1" },
+      { type: "create_expense", expense: { description: "晚餐" } },
+    ],
+    sessionId: "session-1",
+    newTasks: [],
+    notifyPartner: true,
+    partnerMessage: "共同帳本有兩筆異動。",
+    lastToolCall: null,
+  };
+
+  const result = await service.run({
+    initialInput: { text: "模型重送時可能只剩新增動作" },
+    sessionId: null,
+    plannedResult,
+    runLoop: async () => {
+      runLoopCalls += 1;
+      throw new Error("stored plans must skip the model");
+    },
+    prepareResult: async () => {
+      throw new Error("stored plans must not be replaced");
+    },
+    executeAction: async (action, actionIndex) => {
+      executed.push(`${actionIndex}:${String(action.type)}`);
+      return {
+        result: actionIndex === 0 ? "already_done" : "confirmed",
+        action_type: String(action.type),
+      };
+    },
+  });
+
+  assert.equal(runLoopCalls, 0);
+  assert.deepEqual(executed, [
+    "0:update_expense",
+    "1:create_expense",
+  ]);
+  assert.equal(result.actionFailure, null);
+  assert.equal(result.notifyPartner, true);
+});
+
+test("LINE action plan keeps the first mixed-action result across redelivery", async () => {
+  const {
+    loadLineActionPlan,
+    persistLineActionPlan,
+  } = await import("./line-action-plan-service");
+  const sourceEventId = "01HWEBHOOK-EVENT";
+  const groupId = "00000000-0000-4000-8000-000000000001";
+  const user = {
+    id: "00000000-0000-4000-8000-000000000002",
+    couple_id: 1,
+  };
+  let storedRow: Record<string, unknown> | null = null;
+  const db = {
+    from(table: string) {
+      assert.equal(table, "line_action_plans");
+      let mode: "lookup" | "insert" = "lookup";
+      let inserted: Record<string, unknown> | null = null;
+      let eventFilter: string | null = null;
+      const chain: any = {
+        insert(value: Record<string, unknown>) {
+          mode = "insert";
+          inserted = value;
+          return chain;
+        },
+        select() {
+          return chain;
+        },
+        eq(field: string, value: string) {
+          if (field === "source_event_id") eventFilter = value;
+          return chain;
+        },
+        async maybeSingle() {
+          if (mode === "insert") {
+            if (storedRow) {
+              return { data: null, error: { code: "23505" } };
+            }
+            storedRow = inserted;
+            return { data: storedRow, error: null };
+          }
+          const matches =
+            storedRow?.source_event_id === eventFilter ? storedRow : null;
+          return { data: matches, error: null };
+        },
+      };
+      return chain;
+    },
+  } as any;
+  const firstResult = {
+    answer: "第一次模型結果",
+    toolCallCount: 2,
+    pendingActions: [
+      { type: "update_expense", expenseId: "expense-1" },
+      { type: "create_expense", expense: { description: "晚餐" } },
+    ],
+    sessionId: "session-1",
+    newTasks: [],
+    notifyPartner: false,
+    partnerMessage: null,
+    lastToolCall: null,
+  };
+  const shiftedRetry = {
+    ...firstResult,
+    answer: "重送後模型結果",
+    toolCallCount: 1,
+    pendingActions: [firstResult.pendingActions[1]!],
+  };
+
+  const first = await persistLineActionPlan(db, {
+    sourceEventId,
+    groupId,
+    user,
+    result: firstResult,
+  });
+  const retry = await persistLineActionPlan(db, {
+    sourceEventId,
+    groupId,
+    user,
+    result: shiftedRetry,
+  });
+  const loaded = await loadLineActionPlan(db, sourceEventId, user);
+
+  assert.deepEqual(retry, first);
+  assert.deepEqual(loaded, first);
+  assert.deepEqual(
+    retry.result.pendingActions.map((action: any) => action.type),
+    ["update_expense", "create_expense"],
+  );
+});
+
 test("write tools: update_expense returns pending_action updates", async () => {
   const { executeSecretaryTool } = await import("./secretary-tools");
   const { registerPendingActionService } = await import("./pending-action-builders");
@@ -6056,19 +6246,29 @@ test("runLineSecretaryTurn passes a stable line idempotency key into executeAgen
   const { SecretaryService } = await import("./secretary-service");
   const { pendingActionService } = await import("./services");
 
-  let capturedMetadata: any = null;
+  const capturedMetadata: any[] = [];
+  let pushCount = 0;
   const originalRun = SecretaryService.prototype.run;
   const originalExecuteAgentAction = pendingActionService.executeAgentAction;
 
   SecretaryService.prototype.run = async (args: any) => {
-    await args.executeAction({
+    const firstAction = {
       type: "create_expense",
       expense: { description: "拉麵", amount_twd: 840 },
-    });
+    };
+    await args.executeAction(firstAction, 0);
+    await args.executeAction(firstAction, 0);
+    await args.executeAction(
+      {
+        type: "create_expense",
+        expense: { description: "咖哩", amount_twd: 220 },
+      },
+      1,
+    );
     return {
       reply: "ok",
-      notifyPartner: false,
-      partnerMessage: null,
+      notifyPartner: true,
+      partnerMessage: "共同帳本已更新",
       actionFailure: null,
       didExecuteAction: false,
       lastToolCall: null,
@@ -6076,7 +6276,7 @@ test("runLineSecretaryTurn passes a stable line idempotency key into executeAgen
   };
 
   pendingActionService.executeAgentAction = async (_context: any, _action: any, metadata?: any) => {
-    capturedMetadata = metadata;
+    capturedMetadata.push(metadata);
     return { result: "confirmed", action_type: "create_expense" } as any;
   };
 
@@ -6085,7 +6285,9 @@ test("runLineSecretaryTurn passes a stable line idempotency key into executeAgen
       lineClient: {
         replyMessage: async () => {},
         getMessageContent: async () => ({} as any),
-        pushMessage: async () => {},
+        pushMessage: async () => {
+          pushCount += 1;
+        },
       },
       supabase: createMockDbForSecretary({
         user_preferences: { active_group_id: "00000000-0000-4000-8000-000000000001" },
@@ -6114,16 +6316,37 @@ test("runLineSecretaryTurn passes a stable line idempotency key into executeAgen
       reply: async () => {},
     });
 
-    assert.equal(capturedMetadata?.source, "line");
-    assert.equal(capturedMetadata?.sourceEventId, capturedMetadata?.idempotencyKey);
-    assert.match(capturedMetadata?.idempotencyKey ?? "", /^evt-123:/);
+    assert.equal(capturedMetadata[0]?.source, "line");
+    assert.equal(
+      capturedMetadata[0]?.sourceEventId,
+      capturedMetadata[0]?.idempotencyKey,
+    );
+    assert.match(
+      capturedMetadata[0]?.idempotencyKey ?? "",
+      /^line:[0-9a-f]{32}:[0-9a-f]{24}$/,
+    );
+    assert.equal(
+      capturedMetadata[0]?.idempotencyKey,
+      capturedMetadata[1]?.idempotencyKey,
+      "the same event/action ordinal must replay with the same key",
+    );
+    assert.notEqual(
+      capturedMetadata[0]?.idempotencyKey,
+      capturedMetadata[2]?.idempotencyKey,
+      "two same-type actions in one event need distinct keys",
+    );
+    assert.equal(
+      pushCount,
+      0,
+      "pending financial actions notify only through the transactional outbox",
+    );
   } finally {
     SecretaryService.prototype.run = originalRun;
     pendingActionService.executeAgentAction = originalExecuteAgentAction;
   }
 });
 
-test("LINE transfer command writes one settle action without a duplicate partner push", async () => {
+test("LINE transfer command creates one pending transfer without a direct partner push", async () => {
   setupMockEnv();
   const { runLineSecretaryTurn } = await import("./line-secretary-service");
   const { pendingActionService } = await import("./services");
@@ -6135,26 +6358,35 @@ test("LINE transfer command writes one settle action without a duplicate partner
     users: { id: partnerId, couple_id: 1, role: "partner", line_user_id: "line-partner" },
     secretary_sessions: null,
   });
-  let balanceCalls = 0;
-  baseDb.rpc = async () => ({
-    data: [
-      { user_id: userId, balance_twd: balanceCalls++ === 0 ? -8000 : 0 },
-      { user_id: partnerId, balance_twd: balanceCalls === 1 ? 8000 : 0 },
-    ],
-    error: null,
-  });
   let action: any = null;
+  let actionMetadata: any = null;
   let pushCount = 0;
-  const originalExecute = pendingActionService.executeAgentAction;
-  pendingActionService.executeAgentAction = async (_context: any, input: any) => {
+  const originalPropose = pendingActionService.proposeTransferPending;
+  pendingActionService.proposeTransferPending = async (_context: any, input: any, metadata: any) => {
     action = input;
-    return { result: "confirmed", action_type: "settle" } as any;
+    actionMetadata = metadata;
+    return {
+      result: "pending",
+      action_id: "00000000-0000-4000-8000-000000000099",
+      action_type: "transfer",
+      group_id: groupId,
+      direction: "me_to_partner",
+      amount_twd: 8000,
+      occurred_on: input.occurredOn,
+      notes: null,
+      balance: {
+        group_id: groupId,
+        before_by_user_id: { [userId]: -8000, [partnerId]: 8000 },
+        after_by_user_id: { [userId]: 0, [partnerId]: 0 },
+      },
+    } as any;
   };
   try {
     let replyText = "";
     await runLineSecretaryTurn({
       text: "阿提斯 我轉 8000 給她",
       sourceEventId: "transfer-event",
+      sourceEventTimestamp: Date.UTC(2020, 0, 1, 16, 30),
       user: { id: userId, couple_id: 1, role: "partner", line_user_id: "line-user" },
       dependencies: {
         lineClient: {
@@ -6171,11 +6403,81 @@ test("LINE transfer command writes one settle action without a duplicate partner
         replyText = typeof message === "string" ? message : JSON.stringify(message);
       },
     });
-    assert.deepEqual(action, { type: "settle", groupId, amountTwd: 8000 });
-    assert.match(replyText, /阿提斯帳務已結清/);
+    assert.equal(action.type, "transfer");
+    assert.equal(action.groupId, groupId);
+    assert.equal(action.direction, "me_to_partner");
+    assert.equal(action.amountTwd, 8000);
+    assert.equal(action.occurredOn, "2020-01-02");
+    assert.equal(actionMetadata.sourceEventId, actionMetadata.idempotencyKey);
+    assert.match(actionMetadata.idempotencyKey, /^line:[0-9a-f]{32}:[0-9a-f]{24}$/);
+    assert.match(replyText, /確認轉帳/);
+    assert.match(replyText, /10 分鐘內有效/);
     assert.equal(pushCount, 0);
   } finally {
-    pendingActionService.executeAgentAction = originalExecute;
+    pendingActionService.proposeTransferPending = originalPropose;
+  }
+});
+
+test("LINE negation and questions never reach a money-write path", async () => {
+  setupMockEnv();
+  const { runLineSecretaryTurn } = await import("./line-secretary-service");
+  const { SecretaryService } = await import("./secretary-service");
+  const { pendingActionService } = await import("./services");
+  const originalRun = SecretaryService.prototype.run;
+  const originalTransfer = pendingActionService.proposeTransferPending;
+  const originalSettle = pendingActionService.proposeSettlementPending;
+  let agentRuns = 0;
+  let writeCalls = 0;
+  SecretaryService.prototype.run = async () => {
+    agentRuns += 1;
+    throw new Error("unsafe LLM fallback");
+  };
+  pendingActionService.proposeTransferPending = async () => {
+    writeCalls += 1;
+    throw new Error("unsafe transfer proposal");
+  };
+  pendingActionService.proposeSettlementPending = async () => {
+    writeCalls += 1;
+    throw new Error("unsafe settle proposal");
+  };
+
+  try {
+    const dependencies: any = {
+      lineClient: {
+        replyMessage: async () => {},
+        getMessageContent: async () => ({} as any),
+        pushMessage: async () => {},
+      },
+      supabase: createMockDbForSecretary({
+        groups: [{ id: GROUP, name: "阿提斯" }],
+      }),
+      gemini: {} as any,
+    };
+    const replies: string[] = [];
+    for (const text of ["不要結清", "帳務已結清嗎？"]) {
+      await runLineSecretaryTurn({
+        text,
+        sourceEventId: `guard:${text}`,
+        user: {
+          id: CORE_OWNER,
+          couple_id: 1,
+          role: "owner",
+          line_user_id: "line-owner",
+        },
+        dependencies,
+        reply: async (message) => {
+          replies.push(String(message));
+        },
+      });
+    }
+    assert.equal(agentRuns, 0);
+    assert.equal(writeCalls, 0);
+    assert.match(replies[0] ?? "", /沒有建立/);
+    assert.match(replies[1] ?? "", /沒有建立轉帳/);
+  } finally {
+    SecretaryService.prototype.run = originalRun;
+    pendingActionService.proposeTransferPending = originalTransfer;
+    pendingActionService.proposeSettlementPending = originalSettle;
   }
 });
 
@@ -7058,8 +7360,45 @@ test("TS Confirm Paths: settle success", async () => {
     pattern: /SELECT.*FROM.*pending_actions.*FOR UPDATE/i,
     result: {
       rowCount: 1,
-      rows: [{ status: "pending", expires_at: "2099-01-01T00:00:00.000Z", action_type: "settle" }]
+      rows: [{
+        id: "00000000-0000-4000-8000-000000000401",
+        couple_id: 1,
+        group_id: GROUP,
+        status: "pending",
+        expires_at: "2099-01-01T00:00:00.000Z",
+        action_type: "settle",
+        payload: {
+          kind: "ledger_command",
+          version: 1,
+          command: { type: "settle", groupId: GROUP, amountTwd: 500 },
+          metadata: { source: "line", actorUserId: CORE_OWNER, idempotencyKey: null },
+          group_id: GROUP,
+          amount_twd: 500,
+        },
+      }]
     }
+  });
+  fakeTx.mockResults.push({
+    pattern: /FROM public.groups/i,
+    result: { rowCount: 1, rows: [{ id: GROUP, name: "共同帳", archived_at: null }] },
+  });
+  fakeTx.mockResults.push({
+    pattern: /FROM public.users/i,
+    result: { rowCount: 2, rows: [{ id: CORE_OWNER }, { id: CORE_PARTNER }] },
+  });
+  fakeTx.mockResults.push({
+    pattern: /FROM public.group_balances/i,
+    result: {
+      rowCount: 2,
+      rows: [
+        { user_id: CORE_OWNER, balance_twd: -500 },
+        { user_id: CORE_PARTNER, balance_twd: 500 },
+      ],
+    },
+  });
+  fakeTx.mockResults.push({
+    pattern: /INSERT INTO public.settlements/i,
+    result: { rowCount: 1, rows: [{ version: 1 }] },
   });
   activeTxClient = fakeTx;
 
@@ -7067,22 +7406,19 @@ test("TS Confirm Paths: settle success", async () => {
     const mockDb = createMockDbConfirm({
       actionId: "00000000-0000-4000-8000-000000000401",
       actionType: "settle",
+      expenseGroupId: GROUP,
       activeGroupId: GROUP,
       groupBalances: { [CORE_OWNER]: -500 },
       payload: {
         kind: "ledger_command",
         version: 1,
         command: {
-          type: "settle_debt",
-          settlement: {
-            group_id: null,
-            from_user_id: CORE_OWNER,
-            to_user_id: CORE_PARTNER,
-            amount_twd: 500
-          }
+          type: "settle",
+          groupId: GROUP,
+          amountTwd: 500,
         },
         metadata: { source: "line", actorUserId: CORE_OWNER, idempotencyKey: null },
-        group_id: null,
+        group_id: GROUP,
         from_user_id: CORE_OWNER,
         to_user_id: CORE_PARTNER,
         amount_twd: 500
@@ -7161,8 +7497,18 @@ test("TS Confirm Paths: batch_update_expenses success", async () => {
     pattern: /SELECT.*FROM.*pending_actions.*FOR UPDATE/i,
     result: {
       rowCount: 1,
-      rows: [{ status: "pending", expires_at: "2099-01-01T00:00:00.000Z", action_type: "batch_update_expenses" }]
+      rows: [{
+        couple_id: 1,
+        group_id: GROUP,
+        status: "pending",
+        expires_at: "2099-01-01T00:00:00.000Z",
+        action_type: "batch_update_expenses",
+      }]
     }
+  });
+  fakeTx.mockResults.push({
+    pattern: /FROM public.groups/i,
+    result: { rowCount: 1, rows: [{ id: GROUP, name: "共同帳", archived_at: null }] },
   });
   activeTxClient = fakeTx;
 
@@ -7279,6 +7625,58 @@ test("TS Confirm Paths: already_done / expired / not_found", async () => {
   } finally {
     activeTxClient = null;
   }
+});
+
+test("confirmed action replay repairs idempotent post-commit tag normalization", async () => {
+  const { PendingActionService } = await import("./pending-action-service");
+  const service = new PendingActionService();
+  const actionId = "00000000-0000-4000-8000-000000000401";
+  let expenseUpdate: Record<string, unknown> | null = null;
+  const actionRow = {
+    id: actionId,
+    couple_id: 1,
+    group_id: null,
+    action_type: "create_expense",
+    payload: { tag: " 餐飲 " },
+    status: "confirmed",
+    expires_at: "2099-01-01T00:00:00.000Z",
+  };
+  const db = {
+    from(table: string) {
+      const chain: any = {
+        select: () => chain,
+        eq: () => chain,
+        update(value: Record<string, unknown>) {
+          expenseUpdate = value;
+          return chain;
+        },
+        maybeSingle: async () => ({ data: actionRow, error: null }),
+        single: async () => ({ data: actionRow, error: null }),
+        then(resolve: (value: unknown) => unknown) {
+          assert.equal(table, "expenses");
+          return Promise.resolve(resolve({ data: null, error: null }));
+        },
+      };
+      return chain;
+    },
+  } as any;
+
+  const result = await service.confirm(
+    {
+      db,
+      user: {
+        id: CORE_OWNER,
+        couple_id: 1,
+        line_user_id: "line-owner",
+        role: "owner",
+      },
+    },
+    actionId,
+    true,
+  );
+
+  assert.equal(result.result, "already_done");
+  assert.deepEqual(expenseUpdate, { tag: "餐飲" });
 });
 
 test("TS Confirm Paths: constraint violation -> stale", async () => {
@@ -7809,9 +8207,15 @@ function makeProposalMockDb(opts: {
       const builder: any = {};
       builder.select = (sel?: string) => {
         if (sel === "id") {
-          return {
-            eq: () => Promise.resolve({ count: hasAnySettlement ? 1 : 0, error: null }),
+          const settlementQuery: any = {
+            eq: () => settlementQuery,
+            is: () =>
+              Promise.resolve({
+                count: hasAnySettlement ? 1 : 0,
+                error: null,
+              }),
           };
+          return settlementQuery;
         }
         const terminal: any = {
           single: () => {
@@ -7956,7 +8360,7 @@ test("proposal guard: restore_expense rejects when mirror_kind is 'shared_share'
   );
 });
 
-test("proposal guard: update_expense shared→private is refused when any settlement exists", async () => {
+test("proposal guard: update_expense shared→private is refused when its group has an active settlement", async () => {
   const { PendingActionService } = await import("./pending-action-service");
   const { db } = makeProposalMockDb({
     expense: {
@@ -9036,6 +9440,8 @@ test("ledger-query split: loadBootstrap() still separates shared/private/balance
   const userId = "00000000-0000-4000-8000-000000000a01";
   const partnerId = "00000000-0000-4000-8000-000000000a02";
   const activeGroupId = "00000000-0000-4000-8000-000000000a03";
+  const archivedGroupId = "00000000-0000-4000-8000-000000000a04";
+  let settlementGroupId: unknown = null;
 
   const sharedExpense = {
     id: "00000000-0000-4000-8000-000000000b01",
@@ -9100,6 +9506,13 @@ test("ledger-query split: loadBootstrap() still separates shared/private/balance
                 archived_at: null,
                 created_at: "2026-07-01T00:00:00.000Z",
               },
+              {
+                id: archivedGroupId,
+                name: "archived",
+                color: "#000000",
+                archived_at: "2026-07-02T00:00:00.000Z",
+                created_at: "2026-07-01T00:00:00.000Z",
+              },
             ],
             error: null,
           }),
@@ -9142,11 +9555,37 @@ test("ledger-query split: loadBootstrap() still separates shared/private/balance
         return query;
       }
       if (table === "settlements") {
+        const settlement = (groupId: string, id: string) => ({
+          id,
+          group_id: groupId,
+          from_user_id: userId,
+          to_user_id: partnerId,
+          amount_twd: 100,
+          intent: "transfer",
+          occurred_on: "2026-07-05",
+          notes: null,
+          voided_at: null,
+          voided_by_user_id: null,
+          version: 1,
+          created_at: "2026-07-05T00:00:00.000Z",
+          source_action: null,
+        });
         const query: any = {
           select: () => query,
-          eq: () => query,
+          eq: (field: string, value: unknown) => {
+            if (field === "group_id") settlementGroupId = value;
+            return query;
+          },
           order: () => query,
-          limit: () => Promise.resolve({ data: [], error: null }),
+          limit: () => Promise.resolve({
+            data: settlementGroupId === activeGroupId
+              ? [settlement(activeGroupId, "00000000-0000-4000-8000-000000000b03")]
+              : [
+                  settlement(activeGroupId, "00000000-0000-4000-8000-000000000b03"),
+                  settlement(archivedGroupId, "00000000-0000-4000-8000-000000000b04"),
+                ],
+            error: null,
+          }),
         };
         return query;
       }
@@ -9196,6 +9635,10 @@ test("ledger-query split: loadBootstrap() still separates shared/private/balance
   assert.equal(result.sharedExpenses.length, 1);
   assert.equal(result.privateExpenses.length, 1);
   assert.equal(result.expenses.length, 2);
+  assert.equal(settlementGroupId, activeGroupId);
+  assert.deepEqual(result.settlements.map((settlement) => settlement.group_id), [
+    activeGroupId,
+  ]);
   // balances is snake_case, exactly as the LIFF expects.
   assert.deepEqual(result.balances, [
     { user_id: userId, balance_twd: 100 },

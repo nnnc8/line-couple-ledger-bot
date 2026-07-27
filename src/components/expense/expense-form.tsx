@@ -7,11 +7,10 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select } from "@/components/ui/select";
 import { Segmented } from "@/components/ui/segmented";
-import { Trash2 } from "lucide-react";
-import { tagPreset, tagColor } from "@/lib/categories";
+import { ArrowLeftRight, Trash2 } from "lucide-react";
+import { tagPreset } from "@/lib/categories";
 import type { Bootstrap, Expense } from "@/lib/types";
 import type { PendingActionInput } from "@/lib/optimistic";
-import { cn } from "@/lib/utils";
 
 type SplitMethod = "equal" | "exact" | "percentage";
 type LedgerType = "shared" | "private";
@@ -23,6 +22,7 @@ interface ExpenseFormProps {
   editExpense: Expense | null;
   onSubmit: (body: PendingActionInput) => void;
   onDelete?: () => void;
+  onTransfer?: () => void;
   onExit: () => void;
 }
 
@@ -87,11 +87,24 @@ export function ExpenseForm({
   editExpense,
   onSubmit,
   onDelete,
+  onTransfer,
 }: ExpenseFormProps) {
   const [state, setState] = React.useState<FormState>(() =>
     deriveInitial(data, editExpense),
   );
   const [err, setErr] = React.useState("");
+  const amountValue = Number(state.amount);
+  const selfValue = Number(state.selfValue);
+  const partnerValue = Number(state.partnerValue);
+  const looksLikeTransfer =
+    state.ledger === "shared" &&
+    ((state.splitMethod === "percentage" &&
+      ((selfValue === 100 && partnerValue === 0) ||
+        (selfValue === 0 && partnerValue === 100))) ||
+      (state.splitMethod === "exact" &&
+        amountValue > 0 &&
+        ((selfValue === amountValue && partnerValue === 0) ||
+          (selfValue === 0 && partnerValue === amountValue))));
 
   function patch<K extends keyof FormState>(key: K, value: FormState[K]) {
     setState((s) => ({ ...s, [key]: value }));
@@ -281,6 +294,26 @@ export function ExpenseForm({
               placeholder={state.splitMethod === "exact" ? "0" : "50"}
             />
           </div>
+        </div>
+      ) : null}
+
+      {looksLikeTransfer ? (
+        <div
+          role="note"
+          className="rounded-xl border border-amber-300 bg-amber-50 px-3 py-2.5 text-[13px] leading-5 text-amber-950 dark:border-amber-800 dark:bg-amber-950/45 dark:text-amber-100"
+        >
+          <p>
+            這筆會計入支出與分類報表。如果是還款或轉帳，請改用「記錄轉帳」。
+          </p>
+          {onTransfer ? (
+            <button
+              type="button"
+              onClick={onTransfer}
+              className="mt-1.5 inline-flex items-center gap-1 font-bold underline underline-offset-2"
+            >
+              <ArrowLeftRight className="size-4" /> 改用記錄轉帳
+            </button>
+          ) : null}
         </div>
       ) : null}
 

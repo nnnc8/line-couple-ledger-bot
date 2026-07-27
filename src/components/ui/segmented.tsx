@@ -15,6 +15,7 @@ interface SegmentedProps<T extends string> {
   options: SegmentedOption<T>[];
   className?: string;
   size?: "sm" | "md";
+  ariaLabel?: string;
 }
 
 export function Segmented<T extends string>({
@@ -23,10 +24,12 @@ export function Segmented<T extends string>({
   options,
   className,
   size = "md",
+  ariaLabel,
 }: SegmentedProps<T>) {
   return (
     <div
       role="tablist"
+      aria-label={ariaLabel}
       className={cn(
         "inline-flex items-center gap-1 rounded-xl bg-muted p-1 text-foreground",
         size === "sm" && "p-0.5",

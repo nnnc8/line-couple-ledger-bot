@@ -22,9 +22,12 @@ import {
 import {
   createExpenseCommandSchema,
   createSettlementCommandSchema,
+  transferCommandSchema,
+  voidSettlementCommandSchema,
   expenseDraftToLegacyPayload,
   ledgerExpenseInputSchema,
   settlementDraftToLegacyPayload,
+  transferDraftToLegacyPayload,
 } from "./ledger-core";
 import {
   loadCoupleUsers,
@@ -42,7 +45,7 @@ import type { PendingActionService } from "./pending-action-service";
 
 type ServiceForProposals = Pick<
   PendingActionService,
-  "execute" | "buildStoredPayload"
+  "execute" | "insert" | "buildStoredPayload"
 > & {
   ledgerCommandService: PendingActionService["ledgerCommandService"];
 };
@@ -51,6 +54,38 @@ interface ProposalMetadata {
   source: string;
   idempotencyKey?: string | null;
   sourceEventId?: string;
+  deferConfirmation?: boolean;
+}
+
+function balancePreview(
+  balances: Array<{ userId: string; balanceTwd: number }>,
+  groupId: string,
+  fromUserId: string,
+  toUserId: string,
+  amountTwd: number,
+) {
+  const beforeByUserId = Object.fromEntries(
+    balances.map((row) => [row.userId, row.balanceTwd]),
+  );
+  return {
+    group_id: groupId,
+    before_by_user_id: beforeByUserId,
+    after_by_user_id: {
+      ...beforeByUserId,
+      [fromUserId]: (beforeByUserId[fromUserId] ?? 0) + amountTwd,
+      [toUserId]: (beforeByUserId[toUserId] ?? 0) - amountTwd,
+    },
+  };
+}
+
+function resolveCommandIdempotencyKey(
+  commandKey: string | undefined,
+  transportKey: string | null | undefined,
+) {
+  if (commandKey && transportKey && commandKey !== transportKey) {
+    throw new HttpError(409, "idempotency_conflict");
+  }
+  return commandKey ?? transportKey ?? undefined;
 }
 
 // ---------------------------------------------------------------------------
@@ -117,6 +152,15 @@ export async function proposeAction(
   }
   if (parsed.type === "settle") {
     return proposeSettlement(service, context, parsed, { source, idempotencyKey });
+  }
+  if (parsed.type === "transfer") {
+    return proposeTransfer(service, context, parsed, { source, idempotencyKey });
+  }
+  if (parsed.type === "void_settlement") {
+    return proposeVoidSettlement(service, context, parsed, {
+      source,
+      idempotencyKey,
+    });
   }
   throw new HttpError(400, "不支援的操作");
 }
@@ -367,7 +411,7 @@ export async function proposeBatchCreateExpenses(
 // ---------------------------------------------------------------------------
 // settle
 // ---------------------------------------------------------------------------
-export async function proposeSettlement(
+async function proposeSettlementInternal(
   service: ServiceForProposals,
   context: PendingActionContext,
   input: z.infer<typeof createSettlementCommandSchema>,
@@ -375,6 +419,7 @@ export async function proposeSettlement(
     source?: string;
     sourceEventId?: string;
     idempotencyKey?: string | null;
+    deferConfirmation?: boolean;
   },
 ) {
   const parsed = createSettlementCommandSchema.parse(input);
@@ -391,20 +436,250 @@ export async function proposeSettlement(
       actorUserId: context.user.id,
     },
   );
+  const storedCommand = createSettlementCommandSchema.parse({
+    ...parsed,
+    groupId: draft.groupId,
+    direction: draft.direction,
+    amountTwd: draft.amountTwd,
+  });
   const source = metadata?.source ?? "liff";
-  return service.execute(context, {
+  const idempotencyKey = resolveCommandIdempotencyKey(
+    parsed.idempotencyKey,
+    metadata?.idempotencyKey,
+  );
+  const pendingInput = {
     actionType: "settle",
     groupId: draft.groupId,
     payload: service.buildStoredPayload(
-      parsed,
-      settlementDraftToLegacyPayload(draft),
+      storedCommand,
+      {
+        ...settlementDraftToLegacyPayload(draft),
+        settle_all: parsed.amountTwd === undefined,
+      },
       {
         source,
         actorUserId: context.user.id,
-        idempotencyKey: metadata?.idempotencyKey ?? null,
+        idempotencyKey: idempotencyKey ?? null,
       },
     ),
     sourceEventId: metadata?.sourceEventId ?? `${source}:${randomUUID()}`,
-    idempotencyKey: metadata?.idempotencyKey,
+    idempotencyKey,
+  };
+  if (metadata?.deferConfirmation) {
+    const actionId = await service.insert(context, pendingInput);
+    return {
+      result: "pending" as const,
+      action_id: actionId,
+      action_type: "settle" as const,
+      group_id: draft.groupId,
+      direction: draft.direction,
+      amount_twd: draft.amountTwd,
+      balance: balancePreview(
+        balances,
+        draft.groupId,
+        draft.fromUserId,
+        draft.toUserId,
+        draft.amountTwd,
+      ),
+    };
+  }
+  return service.execute(context, pendingInput);
+}
+
+export function proposeSettlement(
+  service: ServiceForProposals,
+  context: PendingActionContext,
+  input: z.infer<typeof createSettlementCommandSchema>,
+  metadata?: {
+    source?: string;
+    sourceEventId?: string;
+    idempotencyKey?: string | null;
+  },
+) {
+  return proposeSettlementInternal(
+    service,
+    context,
+    input,
+    metadata,
+  ) as ReturnType<ServiceForProposals["execute"]>;
+}
+
+export function proposeSettlementPending(
+  service: ServiceForProposals,
+  context: PendingActionContext,
+  input: z.infer<typeof createSettlementCommandSchema>,
+  metadata: {
+    source: string;
+    sourceEventId: string;
+    idempotencyKey: string;
+  },
+) {
+  return proposeSettlementInternal(service, context, input, {
+    ...metadata,
+    deferConfirmation: true,
+  });
+}
+
+// ---------------------------------------------------------------------------
+// transfer / void settlement
+// ---------------------------------------------------------------------------
+async function proposeTransferInternal(
+  service: ServiceForProposals,
+  context: PendingActionContext,
+  input: z.infer<typeof transferCommandSchema>,
+  metadata?: {
+    source?: string;
+    sourceEventId?: string;
+    idempotencyKey?: string | null;
+    deferConfirmation?: boolean;
+  },
+) {
+  const parsed = transferCommandSchema.parse(input);
+  const groupId = await resolveSharedGroupId(
+    context,
+    parsed.groupId,
+    parsed.groupId,
+  );
+  const users = await loadCoupleUsers(context);
+  const partner = users.find((user) => user.id !== context.user.id);
+  if (!partner) throw new HttpError(409, "請先讓另一半加入");
+  const command = { ...parsed, groupId };
+  const draft = service.ledgerCommandService.buildTransferDraft(command, {
+    actorUserId: context.user.id,
+    partnerUserId: partner.id,
+  });
+  const source = metadata?.source ?? "liff";
+  const idempotencyKey = resolveCommandIdempotencyKey(
+    parsed.idempotencyKey,
+    metadata?.idempotencyKey,
+  );
+  const balances = await loadGroupBalances(context.db, groupId);
+  const pendingInput = {
+    actionType: "transfer",
+    groupId,
+    payload: service.buildStoredPayload(
+      command,
+      transferDraftToLegacyPayload(draft),
+      {
+        source,
+        actorUserId: context.user.id,
+        idempotencyKey: idempotencyKey ?? null,
+      },
+    ),
+    sourceEventId: metadata?.sourceEventId ?? `${source}:${randomUUID()}`,
+    idempotencyKey,
+  };
+  if (metadata?.deferConfirmation) {
+    const actionId = await service.insert(context, pendingInput);
+    return {
+      result: "pending" as const,
+      action_id: actionId,
+      action_type: "transfer" as const,
+      group_id: groupId,
+      direction: draft.direction,
+      amount_twd: draft.amountTwd,
+      occurred_on: draft.occurredOn,
+      notes: draft.notes,
+      balance: balancePreview(
+        balances,
+        groupId,
+        draft.fromUserId,
+        draft.toUserId,
+        draft.amountTwd,
+      ),
+    };
+  }
+  return service.execute(context, pendingInput);
+}
+
+export function proposeTransfer(
+  service: ServiceForProposals,
+  context: PendingActionContext,
+  input: z.infer<typeof transferCommandSchema>,
+  metadata?: {
+    source?: string;
+    sourceEventId?: string;
+    idempotencyKey?: string | null;
+  },
+) {
+  return proposeTransferInternal(
+    service,
+    context,
+    input,
+    metadata,
+  ) as ReturnType<ServiceForProposals["execute"]>;
+}
+
+export function proposeTransferPending(
+  service: ServiceForProposals,
+  context: PendingActionContext,
+  input: z.infer<typeof transferCommandSchema>,
+  metadata: {
+    source: string;
+    sourceEventId: string;
+    idempotencyKey: string;
+  },
+) {
+  return proposeTransferInternal(service, context, input, {
+    ...metadata,
+    deferConfirmation: true,
+  });
+}
+
+export async function proposeVoidSettlement(
+  service: ServiceForProposals,
+  context: PendingActionContext,
+  input: z.infer<typeof voidSettlementCommandSchema>,
+  metadata?: {
+    source?: string;
+    sourceEventId?: string;
+    idempotencyKey?: string | null;
+  },
+) {
+  const parsed = voidSettlementCommandSchema.parse(input);
+  const lookup = await context.db
+    .from("settlements")
+    .select("id, group_id, version, voided_at")
+    .eq("id", parsed.settlementId)
+    .eq("couple_id", context.user.couple_id)
+    .single();
+  const row = z
+    .object({
+      id: z.string().uuid(),
+      group_id: z.string().uuid(),
+      version: z.number().int().positive(),
+      voided_at: z.string().nullable(),
+    })
+    .safeParse(lookup.data);
+  if (
+    lookup.error ||
+    !row.success ||
+    row.data.voided_at ||
+    row.data.version !== parsed.expectedVersion
+  ) {
+    throw new HttpError(409, "stale_action");
+  }
+  const source = metadata?.source ?? "liff";
+  const idempotencyKey = resolveCommandIdempotencyKey(
+    parsed.idempotencyKey,
+    metadata?.idempotencyKey,
+  );
+  return service.execute(context, {
+    actionType: "void_settlement",
+    groupId: row.data.group_id,
+    payload: service.buildStoredPayload(
+      parsed,
+      {
+        settlement_id: parsed.settlementId,
+        expected_version: parsed.expectedVersion,
+      },
+      {
+        source,
+        actorUserId: context.user.id,
+        idempotencyKey: idempotencyKey ?? null,
+      },
+    ),
+    sourceEventId: metadata?.sourceEventId ?? `${source}:${randomUUID()}`,
+    idempotencyKey,
   });
 }

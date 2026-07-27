@@ -76,9 +76,9 @@ export async function requireGroup(
 }
 
 /**
- * For a shared->private conversion: if any settlement exists for this
- * couple, refuse. The settled picture would silently disagree with the
- * new private ledger, so the user must restore the settlement first.
+ * For a shared->private conversion: if an active settlement exists in
+ * the source group, refuse. The settled picture would silently disagree
+ * with the new private ledger, so the user must void that settlement first.
  */
 export async function checkExpenseInSettlements(
   context: PendingActionContext,
@@ -97,13 +97,15 @@ export async function checkExpenseInSettlements(
   const settlements = await context.db
     .from("settlements")
     .select("id", { count: "exact", head: true })
-    .eq("couple_id", context.user.couple_id);
+    .eq("couple_id", context.user.couple_id)
+    .eq("group_id", expense.data.group_id)
+    .is("voided_at", null);
   const hasSettlements =
     !settlements.error && (settlements.count ?? 0) > 0;
   return {
     settled: hasSettlements,
     message: hasSettlements
-      ? "此帳已包含在結清紀錄中，無法改為私人帳。請先復原該筆結清才能修改。"
+      ? "此帳已包含在結清紀錄中，且該紀錄仍有效，無法改為私人帳。請先撤銷該筆結清才能修改。"
       : "",
   };
 }

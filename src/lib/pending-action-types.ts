@@ -6,8 +6,9 @@ import {
   updateExpenseCommandSchema,
   deleteExpenseCommandSchema,
   restoreExpenseCommandSchema,
+  transferCommandSchema,
   createSettlementCommandSchema,
-  ledgerExpenseInputSchema,
+  voidSettlementCommandSchema,
 } from "./ledger-core";
 import { batchCategoryUpdateSchema } from "./ledger-agent";
 
@@ -17,7 +18,9 @@ export const actionInputSchema = z.discriminatedUnion("type", [
   updateExpenseCommandSchema,
   deleteExpenseCommandSchema,
   restoreExpenseCommandSchema,
+  transferCommandSchema,
   createSettlementCommandSchema,
+  voidSettlementCommandSchema,
   z.object({
     type: z.literal("batch_update_expenses"),
     updates: z.array(batchCategoryUpdateSchema).min(1).max(50),
@@ -35,6 +38,15 @@ export const actionResultSchema = z.object({
   ]),
   action_type: z.string().nullable().optional(),
   created_count: z.number().int().optional(),
+  settlement_id: z.string().uuid().optional(),
+  settlement_version: z.number().int().positive().optional(),
+  balance: z
+    .object({
+      group_id: z.string().uuid(),
+      before_by_user_id: z.record(z.string(), z.number().int()),
+      after_by_user_id: z.record(z.string(), z.number().int()),
+    })
+    .optional(),
 });
 
 export const pendingRetargetInputSchema = z.object({
@@ -119,12 +131,24 @@ export const pendingExpenseRowSchema = z.object({
 });
 
 export const pendingSettlementRowSchema = z.object({
+  id: z.string().uuid().optional(),
+  group_id: z.string().uuid().optional(),
   from_user_id: z.string(),
   to_user_id: z.string(),
   amount_twd: z.number().int(),
+  intent: z.enum(["settle", "transfer"]).optional(),
+  occurred_on: z.iso.date().optional(),
+  notes: z.string().nullable().optional(),
+  voided_at: z.string().nullable().optional(),
+  version: z.number().int().positive().optional(),
 });
 
 export interface PendingActionPlan {
+  expected_request_fingerprint?: string;
+  ledger_action?: "transfer" | "settle" | "void_settlement";
+  lock_group_ids?: string[];
+  active_group_ids?: string[];
+  reject_shared_to_private_if_settled_group_id?: string;
   insert_expenses?: Array<Record<string, unknown>>;
   update_expenses?: Array<Record<string, unknown>>;
   delete_expense_splits?: string[];

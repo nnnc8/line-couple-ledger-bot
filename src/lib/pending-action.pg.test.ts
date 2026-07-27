@@ -6,8 +6,8 @@
  * Runs ONLY when DATABASE_URL + SUPABASE_URL + SUPABASE_SECRET_KEY are
  * present; otherwise every test skips. Each test creates its own fixture
  * (pending_action + expenses / splits / settlements) and cleans up its own
- * rows. We do NOT call getOrCreateSmokeTenant — these tests use the
- * existing smoke couple's owner + group looked up directly by id.
+ * rows. The suite creates or reuses the isolated smoke group, restores the
+ * users' prior active-group preferences, and removes a newly created group.
  *
  * Coverage: the three minimal real paths required for live activation:
  *   1. create_expense → confirm success
@@ -16,13 +16,13 @@
  */
 
 import assert from "node:assert/strict";
-import test from "node:test";
+import test, { after, before } from "node:test";
 import { randomUUID } from "node:crypto";
 import { createClient } from "@supabase/supabase-js";
 import { withTx } from "./db/tx";
 import { applyPendingActionPlanTx } from "./pending-action-executor";
 import type { PendingActionPlan } from "./pending-action-types";
-import { getSmokeEnv } from "./smoke/smoke-tenant";
+import { getOrCreateSmokeTenant, type SmokeTenant } from "./smoke/smoke-tenant";
 
 const HAS_DB = !!process.env.DATABASE_URL;
 const HAS_SUPABASE = !!process.env.SUPABASE_URL && !!process.env.SUPABASE_SECRET_KEY;
@@ -43,52 +43,40 @@ interface FixtureRefs {
   partnerLineId: string;
 }
 
-async function loadFixtureRefs(): Promise<FixtureRefs> {
-  if (!ENABLED) {
-    throw new Error("loadFixtureRefs called without required env");
-  }
-  const { SMOKE_LINE_USER_ID, SMOKE_PARTNER_LINE_USER_ID, SMOKE_GROUP_NAME } = getSmokeEnv();
-  const db = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SECRET_KEY!, {
+function createAdminClient() {
+  return createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SECRET_KEY!, {
     auth: { persistSession: false, autoRefreshToken: false },
   });
+}
 
-  const ownerRes = await db
-    .from("users")
-    .select("id, couple_id, line_user_id")
-    .eq("line_user_id", SMOKE_LINE_USER_ID)
-    .maybeSingle();
-  if (ownerRes.error || !ownerRes.data) {
-    throw new Error(`smoke owner not found in DB: ${ownerRes.error?.message ?? "no row"}`);
-  }
+let smokeTenant: SmokeTenant | null = null;
+let fixtureRefs: FixtureRefs | null = null;
 
-  const partnerRes = await db
-    .from("users")
-    .select("id, couple_id, line_user_id")
-    .eq("line_user_id", SMOKE_PARTNER_LINE_USER_ID)
-    .maybeSingle();
-  if (partnerRes.error || !partnerRes.data) {
-    throw new Error(`smoke partner not found in DB: ${partnerRes.error?.message ?? "no row"}`);
-  }
+before(async () => {
+  if (!ENABLED) return;
 
-  const groupRes = await db
-    .from("groups")
-    .select("id, couple_id")
-    .eq("name", SMOKE_GROUP_NAME)
-    .eq("couple_id", ownerRes.data.couple_id)
-    .is("archived_at", null)
-    .maybeSingle();
-  if (groupRes.error || !groupRes.data) {
-    throw new Error(`smoke group not found: ${groupRes.error?.message ?? "no row"}`);
-  }
-
-  return {
-    ownerId: ownerRes.data.id,
-    partnerId: partnerRes.data.id,
-    groupId: groupRes.data.id,
-    coupleId: ownerRes.data.couple_id,
-    ownerLineId: ownerRes.data.line_user_id,
-    partnerLineId: partnerRes.data.line_user_id,
+  const db = createAdminClient();
+  smokeTenant = await getOrCreateSmokeTenant(db);
+  fixtureRefs = {
+    ownerId: smokeTenant.owner.id,
+    partnerId: smokeTenant.partner.id,
+    groupId: smokeTenant.group.id,
+    coupleId: smokeTenant.owner.couple_id,
+    ownerLineId: smokeTenant.owner.line_user_id,
+    partnerLineId: smokeTenant.partner.line_user_id,
   };
+});
+
+after(async () => {
+  if (!smokeTenant) return;
+  await smokeTenant.cleanup();
+});
+
+async function loadFixtureRefs(): Promise<FixtureRefs> {
+  if (!fixtureRefs) {
+    throw new Error("live PostgreSQL fixture is not initialized");
+  }
+  return fixtureRefs;
 }
 
 function makePendingRow(actionId: string, refs: FixtureRefs, actionType: string, payload: Record<string, unknown>) {
@@ -110,9 +98,7 @@ async function seedPendingAction(refs: FixtureRefs, actionType: string, payload:
   if (!ENABLED) throw new Error("seedPendingAction called without required env");
   const actionId = randomUUID();
   const row = makePendingRow(actionId, refs, actionType, payload);
-  const db = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SECRET_KEY!, {
-    auth: { persistSession: false, autoRefreshToken: false },
-  });
+  const db = createAdminClient();
   const insert = await db.from("pending_actions").insert(row).select("id").single();
   if (insert.error || !insert.data) {
     throw new Error(`failed to seed pending_action: ${insert.error?.message ?? "no data"}`);
@@ -122,13 +108,55 @@ async function seedPendingAction(refs: FixtureRefs, actionType: string, payload:
 
 async function deleteByColumn(table: string, column: string, value: string) {
   if (!ENABLED) return;
-  const db = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SECRET_KEY!, {
-    auth: { persistSession: false, autoRefreshToken: false },
-  });
+  const db = createAdminClient();
   const res = await db.from(table).delete().eq(column, value);
   if (res.error) {
-    console.warn(`[pg test cleanup] ${table} delete error: ${res.error.message}`);
+    throw new Error(`[pg test cleanup] ${table} delete error: ${res.error.message}`);
   }
+}
+
+async function cleanupExpenseFixture(expenseId: string, actionIds: string[]) {
+  if (!ENABLED) return;
+  const db = createAdminClient();
+  const mirrorRes = await db
+    .from("expenses")
+    .select("id")
+    .eq("mirror_kind", "shared_share")
+    .eq("mirror_source_expense_id", expenseId);
+  if (mirrorRes.error) {
+    throw new Error(`[pg test cleanup] mirror lookup failed: ${mirrorRes.error.message}`);
+  }
+
+  const mirrorIds = (mirrorRes.data ?? []).map((row) => row.id);
+  const expenseIds = [...mirrorIds, expenseId];
+  const entityIds = [...expenseIds, ...actionIds];
+
+  const assistantByAction = await db
+    .from("assistant_tasks")
+    .delete()
+    .in("related_pending_action_id", actionIds);
+  if (assistantByAction.error) throw new Error(assistantByAction.error.message);
+  const assistantByExpense = await db
+    .from("assistant_tasks")
+    .delete()
+    .in("related_expense_id", expenseIds);
+  if (assistantByExpense.error) throw new Error(assistantByExpense.error.message);
+
+  const activities = await db.from("activity_events").delete().in("entity_id", entityIds);
+  if (activities.error) throw new Error(activities.error.message);
+  const notifications = await db.from("notifications").delete().in("entity_id", entityIds);
+  if (notifications.error) throw new Error(notifications.error.message);
+  const splits = await db.from("expense_splits").delete().in("expense_id", expenseIds);
+  if (splits.error) throw new Error(splits.error.message);
+
+  if (mirrorIds.length > 0) {
+    const mirrors = await db.from("expenses").delete().in("id", mirrorIds);
+    if (mirrors.error) throw new Error(mirrors.error.message);
+  }
+  const source = await db.from("expenses").delete().eq("id", expenseId);
+  if (source.error) throw new Error(source.error.message);
+  const actions = await db.from("pending_actions").delete().in("id", actionIds);
+  if (actions.error) throw new Error(actions.error.message);
 }
 
 // ---------------------------------------------------------------------------
@@ -189,10 +217,7 @@ test("pg executor: create_expense confirm success (real DB)", { skip: !ENABLED }
     assert.equal(result.result, "confirmed");
     assert.equal(result.created_count, 1);
   } finally {
-    await deleteByColumn("expense_splits", "expense_id", expenseId);
-    await deleteByColumn("expenses", "id", expenseId);
-    await deleteByColumn("activity_events", "entity_id", expenseId);
-    await deleteByColumn("pending_actions", "id", actionId);
+    await cleanupExpenseFixture(expenseId, [actionId]);
   }
 });
 
@@ -202,6 +227,16 @@ test("pg executor: create_expense confirm success (real DB)", { skip: !ENABLED }
 test("pg executor: update_expense version mismatch → stale (real DB)", { skip: !ENABLED }, async () => {
   const refs = await loadFixtureRefs();
   const targetExpenseId = randomUUID();
+  const seedActionId = await seedPendingAction(refs, "create_expense", {
+    group_id: null,
+    ledger: "private",
+    description: "pg-test stale target seed",
+    amount_twd: 50,
+    paid_by_user_id: refs.ownerId,
+    expense_date: new Date().toISOString().slice(0, 10),
+    tag: "其他",
+    split_method: "equal",
+  });
   const actionId = await seedPendingAction(refs, "update_expense", {
     expense_id: targetExpenseId,
     expected_version: 99,
@@ -216,9 +251,7 @@ test("pg executor: update_expense version mismatch → stale (real DB)", { skip:
   });
 
   // Seed the existing target expense with version=1, so expected_version=99 fails.
-  const db = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SECRET_KEY!, {
-    auth: { persistSession: false, autoRefreshToken: false },
-  });
+  const db = createAdminClient();
   const seed = await db.from("expenses").insert({
     id: targetExpenseId,
     couple_id: refs.coupleId,
@@ -231,6 +264,7 @@ test("pg executor: update_expense version mismatch → stale (real DB)", { skip:
     expense_date: new Date().toISOString().slice(0, 10),
     split_method: "equal",
     version: 1,
+    source_action_id: seedActionId,
   }).select("id").single();
   if (seed.error) {
     throw new Error(`failed to seed target expense: ${seed.error.message}`);
@@ -266,8 +300,7 @@ test("pg executor: update_expense version mismatch → stale (real DB)", { skip:
       TransactionStaleError,
     );
   } finally {
-    await deleteByColumn("expenses", "id", targetExpenseId);
-    await deleteByColumn("pending_actions", "id", actionId);
+    await cleanupExpenseFixture(targetExpenseId, [actionId, seedActionId]);
   }
 });
 

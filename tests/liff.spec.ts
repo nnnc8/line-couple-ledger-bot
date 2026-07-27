@@ -4,6 +4,7 @@ const OWNER = "00000000-0000-4000-8000-000000000001";
 const PARTNER = "00000000-0000-4000-8000-000000000002";
 const GROUP = "00000000-0000-4000-8000-000000000003";
 let sessionBodies: unknown[] = [];
+let actionBodies: unknown[] = [];
 
 type TestLiff = {
   init: (input: { liffId: string; withLoginOnExternalBrowser?: boolean }) => Promise<void>;
@@ -18,6 +19,7 @@ type TestWindow = Window & { liff?: TestLiff; __redirectUri?: string };
 
 test.beforeEach(async ({ page }) => {
   sessionBodies = [];
+  actionBodies = [];
   let sessionCreated = false;
   await page.addInitScript(() => {
     window.liff = {
@@ -39,11 +41,16 @@ test.beforeEach(async ({ page }) => {
     sessionCreated = true;
     return route.fulfill({ json: { user: { id: OWNER, role: "owner" } } });
   });
-  await page.route("**/api/app/actions", (route) =>
-    route.fulfill({
-      json: { result: "confirmed", action_type: "create_expense" },
-    }),
-  );
+  await page.route("**/api/app/actions", (route) => {
+    const body = route.request().postDataJSON();
+    actionBodies.push(body);
+    return route.fulfill({
+      json: {
+        result: "confirmed",
+        action_type: (body as { type?: string }).type ?? "unknown",
+      },
+    });
+  });
   await page.route("**/api/app/groups", (route) =>
     route.fulfill({ json: { ok: true } }),
   );
@@ -90,12 +97,16 @@ test("mobile dashboard, history, and direct expense flow", async ({
   await page.getByRole("button", { name: /流水/ }).click();
   await expect(page.getByRole("heading", { name: "帳務流水" })).toBeVisible();
   await expect(page.getByText("晚餐", { exact: true }).first()).toBeVisible();
+  await page.getByRole("tab", { name: "轉帳" }).click();
+  await expect(page.getByText("交通預付款")).toBeVisible();
+  await expect(page.getByRole("button", { name: /晚餐/ })).toHaveCount(0);
 
   await page.getByRole("button", { name: /私人/ }).click();
   await expect(page.getByRole("heading", { name: "私人帳" })).toBeVisible();
   await expect(page.getByText("共同分攤")).toBeVisible();
 
-  await page.getByRole("button", { name: /新增/ }).click();
+  await page.getByRole("button", { name: "記一筆" }).click();
+  await page.getByRole("button", { name: "新增花費" }).click();
   await page.getByLabel("說明").fill("晚餐");
   await page.getByLabel("金額（TWD）").fill("860");
   await page.getByRole("button", { name: "直接記帳" }).click();
@@ -117,12 +128,63 @@ test("dashboard fallback keeps free category labels and centered add button", as
 
   const centerOffset = await page
     .locator("nav")
-    .getByRole("button", { name: /新增/ })
+    .getByRole("button", { name: "記一筆" })
     .evaluate((button) => {
       const rect = button.getBoundingClientRect();
       return Math.abs(rect.left + rect.width / 2 - window.innerWidth / 2);
     });
   expect(centerOffset).toBeLessThan(3);
+});
+
+test("general transfer is separate from expenses and previews crossing zero", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: "記錄轉帳" }).click();
+
+  await expect(page.getByRole("heading", { name: "記錄轉帳" })).toBeVisible();
+  await page.getByRole("tab", { name: "另一半轉給我" }).click();
+  await page.getByLabel("轉帳金額（TWD）").fill("600");
+
+  const transferDialog = page.getByRole("dialog", { name: "記錄轉帳" });
+  await expect(transferDialog.getByText("另一半欠你 NT$430", { exact: true })).toBeVisible();
+  await expect(transferDialog.getByText("你欠另一半 NT$170", { exact: true })).toBeVisible();
+  await expect(transferDialog.getByText(/金額超過目前欠款/)).toBeVisible();
+
+  await page.getByRole("button", { name: "記錄這筆轉帳" }).click();
+  await expect(page.getByText("已記錄轉帳")).toBeVisible();
+  expect(actionBodies).toHaveLength(1);
+  expect(actionBodies[0]).toMatchObject({
+    type: "transfer",
+    groupId: GROUP,
+    direction: "partner_to_me",
+    amountTwd: 600,
+    occurredOn: "2026-06-22",
+  });
+  expect((actionBodies[0] as { idempotencyKey?: string }).idempotencyKey).toBeTruthy();
+});
+
+test("transfer history shows audit details and previews void balance", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: /流水/ }).click();
+  await page.getByRole("tab", { name: "轉帳" }).click();
+
+  await expect(page.getByText("你 → 另一半")).toBeVisible();
+  await expect(page.getByText("記錄者：你")).toBeVisible();
+  await expect(page.getByText("已入帳")).toBeVisible();
+  await page.getByRole("button", { name: "撤銷" }).click();
+
+  const voidDialog = page.getByRole("dialog", { name: "撤銷這筆轉帳？" });
+  await expect(voidDialog.getByText("另一半欠你 NT$430", { exact: true })).toBeVisible();
+  await expect(voidDialog.getByText("另一半欠你 NT$330", { exact: true })).toBeVisible();
+  await voidDialog.getByRole("button", { name: "確認撤銷" }).click();
+
+  expect(actionBodies).toHaveLength(1);
+  expect(actionBodies[0]).toMatchObject({
+    type: "void_settlement",
+    settlementId: "00000000-0000-4000-8000-000000000020",
+    expectedVersion: 1,
+  });
 });
 
 test("LIFF waits for a delayed SDK and still creates one session", async ({ page }) => {
@@ -236,7 +298,28 @@ function bootstrap() {
       { user_id: OWNER, balance_twd: 430 },
       { user_id: PARTNER, balance_twd: -430 },
     ],
-    settlements: [],
+    groupBalances: {
+      [GROUP]: [
+        { user_id: OWNER, balance_twd: 430 },
+        { user_id: PARTNER, balance_twd: -430 },
+      ],
+    },
+    settlements: [
+      {
+        id: "00000000-0000-4000-8000-000000000020",
+        group_id: GROUP,
+        from_user_id: OWNER,
+        to_user_id: PARTNER,
+        amount_twd: 100,
+        intent: "transfer",
+        occurred_on: "2026-06-21",
+        notes: "交通預付款",
+        voided_at: null,
+        version: 1,
+        recorded_by_user_id: OWNER,
+        created_at: "2026-06-21T12:00:00Z",
+      },
+    ],
     budgets: [
       {
         id: "1",

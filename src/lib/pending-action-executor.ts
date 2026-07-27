@@ -1,5 +1,12 @@
 import { type PoolClient } from "pg";
+import { z } from "zod";
 import { type PendingActionPlan, type ActionResult } from "./pending-action-service";
+import {
+  applyLedgerActionTx,
+  LedgerActionStaleError,
+  lockGroupLedgers,
+  type PendingLedgerActionRow,
+} from "./pending-action-ledger-tx";
 
 export class TransactionStaleError extends Error {
   constructor(message: string) {
@@ -39,7 +46,8 @@ export async function applyPendingActionPlanTx(
 ): Promise<ActionResult> {
   // 1. SELECT FOR UPDATE to lock the row
   const actionRes = await client.query(
-    `SELECT status, expires_at, action_type 
+    `SELECT id::text, couple_id, group_id::text, requested_by_user_id::text,
+            status, expires_at, action_type, payload, request_fingerprint
      FROM public.pending_actions 
      WHERE id = $1 AND requested_by_user_id = $2 
      FOR UPDATE`,
@@ -55,10 +63,20 @@ export async function applyPendingActionPlanTx(
 
   // 2. Re-check status and expiry
   if (actionRow.status !== "pending") {
-    return { result: "already_done", action_type: actionType };
+    const result =
+      actionRow.status === "expired"
+        ? "expired"
+        : actionRow.status === "cancelled"
+          ? "cancelled"
+          : "already_done";
+    return { result, action_type: actionType };
   }
 
-  if (actionRow.expires_at <= nowIso) {
+  const expiresAt =
+    actionRow.expires_at instanceof Date
+      ? actionRow.expires_at.toISOString()
+      : String(actionRow.expires_at);
+  if (expiresAt <= nowIso) {
     await client.query(
       `UPDATE public.pending_actions 
        SET status = 'expired', processed_at = $1 
@@ -68,16 +86,83 @@ export async function applyPendingActionPlanTx(
     return { result: "expired", action_type: actionType };
   }
 
+  if (plan.expected_request_fingerprint) {
+    const lockedFingerprint =
+      typeof actionRow.request_fingerprint === "string"
+        ? actionRow.request_fingerprint
+        : null;
+    if (
+      lockedFingerprint &&
+      lockedFingerprint !== plan.expected_request_fingerprint
+    ) {
+      throw new TransactionStaleError("Pending action changed before confirmation");
+    }
+  }
+
   // 3. Execute plan segments
   try {
+    const groupIds = plan.lock_group_ids ?? [];
+    const coupleId = Number(actionRow.couple_id);
+    if (groupIds.length > 0 && !Number.isInteger(coupleId)) {
+      throw new TransactionStaleError("Invalid action couple");
+    }
+    const lockedGroups = await lockGroupLedgers(
+      client,
+      coupleId,
+      groupIds,
+    );
+    for (const groupId of plan.active_group_ids ?? []) {
+      if (lockedGroups.get(groupId)?.archived_at) {
+        throw new TransactionStaleError("Group archived");
+      }
+    }
+    const settlementGuardGroupId =
+      plan.reject_shared_to_private_if_settled_group_id;
+    if (settlementGuardGroupId) {
+      if (!lockedGroups.has(settlementGuardGroupId)) {
+        throw new TransactionStaleError(
+          "Shared-to-private guard requires the source group lock",
+        );
+      }
+      const settlement = await client.query(
+        `SELECT 1
+           FROM public.settlements
+          WHERE couple_id = $1
+            AND group_id = $2::uuid
+            AND voided_at IS NULL
+          LIMIT 1`,
+        [coupleId, settlementGuardGroupId],
+      );
+      if (settlement.rowCount && settlement.rowCount > 0) {
+        throw new TransactionStaleError(
+          "Shared settlement already exists in the locked group",
+        );
+      }
+    }
+    let effectivePlan = plan;
+    let ledgerResult: Partial<ActionResult> = {};
+    if (plan.ledger_action) {
+      const dynamic = await applyLedgerActionTx(
+        client,
+        actionRow as PendingLedgerActionRow,
+        lockedGroups,
+        requestedByUserId,
+        nowIso,
+      );
+      effectivePlan = {
+        ...plan,
+        ...dynamic.plan,
+      };
+      ledgerResult = dynamic.result;
+    }
     // insert_expenses
-    if (plan.insert_expenses && plan.insert_expenses.length > 0) {
+    if (effectivePlan.insert_expenses && effectivePlan.insert_expenses.length > 0) {
       const columns = [
         "id", "couple_id", "group_id", "ledger", "description", "merchant", "notes", "tag",
         "amount_twd", "paid_by_user_id", "created_by_user_id", "expense_date", "split_method",
         "source_action_id"
       ];
-      const rows = plan.insert_expenses.map((row) => ({
+      const rows = effectivePlan.insert_expenses.map((row) => ({
         id: row.id,
         couple_id: row.couple_id,
         group_id: row.group_id ? String(row.group_id) : null,
@@ -97,8 +182,8 @@ export async function applyPendingActionPlanTx(
     }
 
     // update_expenses
-    if (plan.update_expenses && plan.update_expenses.length > 0) {
-      for (const item of plan.update_expenses) {
+    if (effectivePlan.update_expenses && effectivePlan.update_expenses.length > 0) {
+      for (const item of effectivePlan.update_expenses) {
         let queryText = `
           UPDATE public.expenses
           SET
@@ -153,17 +238,17 @@ export async function applyPendingActionPlanTx(
     }
 
     // delete_expense_splits
-    if (plan.delete_expense_splits && plan.delete_expense_splits.length > 0) {
+    if (effectivePlan.delete_expense_splits && effectivePlan.delete_expense_splits.length > 0) {
       await client.query(
         `DELETE FROM public.expense_splits WHERE expense_id = ANY($1::uuid[])`,
-        [plan.delete_expense_splits]
+        [effectivePlan.delete_expense_splits]
       );
     }
 
     // insert_expense_splits
-    if (plan.insert_expense_splits && plan.insert_expense_splits.length > 0) {
+    if (effectivePlan.insert_expense_splits && effectivePlan.insert_expense_splits.length > 0) {
       const columns = ["expense_id", "user_id", "amount_twd"];
-      const rows = plan.insert_expense_splits.map((row) => ({
+      const rows = effectivePlan.insert_expense_splits.map((row) => ({
         expense_id: row.expense_id,
         user_id: row.user_id,
         amount_twd: row.amount_twd
@@ -174,29 +259,38 @@ export async function applyPendingActionPlanTx(
 
 
     // insert_settlements
-    if (plan.insert_settlements && plan.insert_settlements.length > 0) {
+    if (effectivePlan.insert_settlements && effectivePlan.insert_settlements.length > 0) {
       const columns = [
-        "id", "couple_id", "group_id", "from_user_id", "to_user_id", "amount_twd", "source_action_id"
+        "id", "couple_id", "group_id", "from_user_id", "to_user_id", "amount_twd", "source_action_id",
+        "intent", "occurred_on", "notes"
       ];
-      const rows = plan.insert_settlements.map((row) => ({
+      const rows = effectivePlan.insert_settlements.map((row) => ({
         id: row.id,
         couple_id: row.couple_id,
         group_id: row.group_id ? String(row.group_id) : null,
         from_user_id: row.from_user_id,
         to_user_id: row.to_user_id,
         amount_twd: row.amount_twd,
-        source_action_id: row.source_action_id
+        source_action_id: row.source_action_id,
+        intent: row.intent ?? "settle",
+        occurred_on: row.occurred_on ?? new Intl.DateTimeFormat("en-CA", {
+          timeZone: "Asia/Taipei",
+          year: "numeric",
+          month: "2-digit",
+          day: "2-digit",
+        }).format(new Date(nowIso)),
+        notes: row.notes ?? null,
       }));
       await insertMulti(client, "public.settlements", columns, rows);
     }
 
     // insert_activities
-    if (plan.insert_activities && plan.insert_activities.length > 0) {
+    if (effectivePlan.insert_activities && effectivePlan.insert_activities.length > 0) {
       const columns = [
         "couple_id", "group_id", "actor_user_id", "entity_type", "entity_id", "action",
         "before_state", "after_state"
       ];
-      const rows = plan.insert_activities.map((row) => ({
+      const rows = effectivePlan.insert_activities.map((row) => ({
         couple_id: row.couple_id,
         group_id: row.group_id ? String(row.group_id) : null,
         actor_user_id: row.actor_user_id,
@@ -210,11 +304,11 @@ export async function applyPendingActionPlanTx(
     }
 
     // insert_notifications
-    if (plan.insert_notifications && plan.insert_notifications.length > 0) {
+    if (effectivePlan.insert_notifications && effectivePlan.insert_notifications.length > 0) {
       const columns = [
         "recipient_user_id", "group_id", "kind", "title", "body", "entity_type", "entity_id", "dedupe_key"
       ];
-      const rows = plan.insert_notifications.map((row) => ({
+      const rows = effectivePlan.insert_notifications.map((row) => ({
         recipient_user_id: row.recipient_user_id,
         group_id: row.group_id ? String(row.group_id) : null,
         kind: row.kind,
@@ -239,11 +333,15 @@ export async function applyPendingActionPlanTx(
     return {
       result: "confirmed",
       action_type: actionType,
-      created_count: plan.insert_expenses?.length ?? 0
+      created_count: effectivePlan.insert_expenses?.length ?? 0,
+      ...ledgerResult,
     };
   } catch (err: unknown) {
     if (err instanceof TransactionStaleError) {
       throw err;
+    }
+    if (err instanceof LedgerActionStaleError || err instanceof z.ZodError) {
+      throw new TransactionStaleError(err.message);
     }
     const staleCodes = ["23503", "23505", "23514", "22003", "22P02"];
     const code =

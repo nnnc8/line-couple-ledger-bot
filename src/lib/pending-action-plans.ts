@@ -5,15 +5,13 @@ import {
   type PendingActionPlan,
   pendingActionRowSchema,
   pendingUserRowSchema,
-  pendingExpenseRowSchema,
-  pendingSettlementRowSchema,
   StaleActionError,
 } from "./pending-action-types";
 import {
   loadCoupleUsers,
   loadExpense,
   resolveSharedGroupId,
-  hasAnySettlement,
+  hasActiveSettlementInGroup,
 } from "./pending-action-loaders";
 import {
   parsePositiveMoney,
@@ -24,7 +22,7 @@ import {
   splitEntries,
   normalizeActionSplits,
 } from "./pending-action-utils";
-import { calculateBalances, type LedgerExpense, type Settlement } from "./ledger";
+import { pendingActionCommandFromPayload } from "./ledger-core";
 
 export async function buildConfirmPlan(
   context: PendingActionContext,
@@ -45,6 +43,12 @@ export async function buildConfirmPlan(
   if (action.action_type === "settle") {
     return buildSettlementPlan(context, action);
   }
+  if (action.action_type === "transfer") {
+    return buildTransferPlan(context, action);
+  }
+  if (action.action_type === "void_settlement") {
+    return buildVoidSettlementPlan(action);
+  }
   if (action.action_type === "batch_create_expenses") {
     return buildBatchCreatePlan(context, action);
   }
@@ -62,6 +66,12 @@ export async function buildCreateExpensePlan(
   const users = await loadCoupleUsers(context);
   const item = await planExpenseInsert(context, action, payload, users);
   return {
+    lock_group_ids: item.expense.group_id
+      ? [String(item.expense.group_id)]
+      : [],
+    active_group_ids: item.expense.group_id
+      ? [String(item.expense.group_id)]
+      : [],
     insert_expenses: [item.expense],
     insert_expense_splits: item.splits,
     insert_activities: [item.activity],
@@ -91,10 +101,12 @@ export async function buildUpdateExpensePlan(
     throw new StaleActionError("private ownership mismatch");
   }
   const nextLedger = z.enum(["shared", "private"]).parse(action.payload.ledger);
+  const sharedToPrivate =
+    current.ledger === "shared" && nextLedger === "private";
   if (
-    current.ledger === "shared" &&
-    nextLedger === "private" &&
-    (await hasAnySettlement(context))
+    sharedToPrivate &&
+    (!current.group_id ||
+      (await hasActiveSettlementInGroup(context, current.group_id)))
   ) {
     throw new StaleActionError("shared settlement already exists");
   }
@@ -141,6 +153,15 @@ export async function buildUpdateExpensePlan(
     deleted_by_user_id: current.deleted_by_user_id ?? null,
   };
   return {
+    lock_group_ids: [current.group_id, groupId].filter(
+      (value): value is string => Boolean(value),
+    ),
+    active_group_ids: groupId ? [groupId] : [],
+    ...(sharedToPrivate && current.group_id
+      ? {
+          reject_shared_to_private_if_settled_group_id: current.group_id,
+        }
+      : {}),
     update_expenses: [afterRow],
     delete_expense_splits: [current.id],
     insert_expense_splits: splitEntries(current.id, splits),
@@ -240,6 +261,7 @@ export async function buildDeleteRestorePlan(
     deleted_by_user_id: mode === "delete" ? context.user.id : null,
   };
   return {
+    lock_group_ids: current.group_id ? [current.group_id] : [],
     update_expenses: [afterRow],
     insert_activities: [
       {
@@ -290,97 +312,50 @@ export async function buildSettlementPlan(
     action.payload.group_id,
     action.group_id,
   );
-  const users = await loadCoupleUsers(context);
-  const fromUserId = z.string().parse(action.payload.from_user_id);
-  const toUserId = z.string().parse(action.payload.to_user_id);
-  const amountTwd = parsePositiveMoney(action.payload.amount_twd);
-  const expectedBalance =
-    action.payload.expected_balance_twd === undefined
-      ? null
-      : z.coerce.number().int().parse(action.payload.expected_balance_twd);
-  if (
-    fromUserId === toUserId ||
-    !users.some((user) => user.id === fromUserId) ||
-    !users.some((user) => user.id === toUserId)
-  ) {
-    throw new StaleActionError("invalid settlement users");
+  const command = pendingActionCommandFromPayload(action.payload);
+  if (command && command.type !== "settle") {
+    throw new StaleActionError("invalid settlement command");
   }
-  const balances = await loadComputedGroupBalances(context, groupId);
-  const currentBalance = balances[fromUserId] ?? 0;
-  const targetBalance = balances[toUserId] ?? 0;
-  if (
-    currentBalance >= 0 ||
-    targetBalance !== -currentBalance ||
-    amountTwd > Math.abs(currentBalance) ||
-    (expectedBalance !== null && currentBalance !== expectedBalance)
-  ) {
-    throw new StaleActionError("stale settlement");
+  if (!command) {
+    parsePositiveMoney(action.payload.amount_twd);
   }
-  const groupResult = await context.db
-    .from("groups")
-    .select("name")
-    .eq("id", groupId)
-    .single();
-  const groupName = groupResult.data && typeof groupResult.data.name === "string"
-    ? groupResult.data.name
-    : groupId;
-  const remaining = Math.max(0, Math.abs(currentBalance) - amountTwd);
-  const notificationBody = remaining === 0
-    ? `${groupName}帳務已結清｜收到 NT$${amountTwd.toLocaleString()}`
-    : `另一半記錄已轉帳 NT$${amountTwd.toLocaleString()}｜${groupName}｜尚欠 NT$${remaining.toLocaleString()}`;
-  const notificationTitle = remaining === 0 ? `${groupName}帳務已結清` : "轉帳入帳";
   return {
-    insert_settlements: [
-      {
-        id: randomUUID(),
-        couple_id: context.user.couple_id,
-        group_id: groupId,
-        from_user_id: fromUserId,
-        to_user_id: toUserId,
-        amount_twd: amountTwd,
-        source_action_id: action.id,
-      },
-    ],
-    insert_activities: [
-      {
-        couple_id: context.user.couple_id,
-        group_id: groupId,
-        actor_user_id: context.user.id,
-        entity_type: "settlement",
-        entity_id: action.id,
-        action: "settle",
-        after_state: {
-          from_user_id: fromUserId,
-          to_user_id: toUserId,
-          amount_twd: amountTwd,
-        },
-      },
-    ],
-    ...(buildSharedExpenseNotification(
-      users,
-      context.user.id,
-      groupId,
-      notificationTitle,
-      notificationBody,
-      "settlement",
-      action.id,
-      `action:${action.id}`,
-    )
-      ? {
-          insert_notifications: [
-            buildSharedExpenseNotification(
-              users,
-              context.user.id,
-              groupId,
-              notificationTitle,
-              notificationBody,
-              "settlement",
-              action.id,
-              `action:${action.id}`,
-            )!,
-          ],
-        }
-      : {}),
+    ledger_action: "settle",
+    lock_group_ids: [groupId],
+    active_group_ids: [groupId],
+  };
+}
+
+export async function buildTransferPlan(
+  context: PendingActionContext,
+  action: z.infer<typeof pendingActionRowSchema>,
+): Promise<PendingActionPlan> {
+  const command = pendingActionCommandFromPayload(action.payload);
+  if (!command || command.type !== "transfer") {
+    throw new StaleActionError("invalid transfer command");
+  }
+  const groupId = await resolveSharedGroupId(
+    context,
+    command.groupId,
+    action.group_id,
+  );
+  return {
+    ledger_action: "transfer",
+    lock_group_ids: [groupId],
+    active_group_ids: [groupId],
+  };
+}
+
+export function buildVoidSettlementPlan(
+  action: z.infer<typeof pendingActionRowSchema>,
+): PendingActionPlan {
+  const command = pendingActionCommandFromPayload(action.payload);
+  if (!command || command.type !== "void_settlement" || !action.group_id) {
+    throw new StaleActionError("invalid void command");
+  }
+  return {
+    ledger_action: "void_settlement",
+    lock_group_ids: [action.group_id],
   };
 }
 
@@ -411,6 +386,10 @@ export async function buildBatchCreatePlan(
   if (!insertExpenses.length) {
     throw new StaleActionError("empty batch");
   }
+  plan.lock_group_ids = insertExpenses
+    .map((expense) => expense.group_id)
+    .filter((value): value is string => typeof value === "string");
+  plan.active_group_ids = [...plan.lock_group_ids];
   const notification = buildSharedExpenseNotification(
     users,
     context.user.id,
@@ -502,6 +481,9 @@ export async function buildBatchUpdatePlan(
   if (!updateExpenses.length) {
     throw new StaleActionError("empty batch");
   }
+  plan.lock_group_ids = updateExpenses
+    .map((expense) => expense.group_id)
+    .filter((value): value is string => typeof value === "string");
   const notification = buildSharedExpenseNotification(
     users,
     context.user.id,
@@ -610,70 +592,6 @@ export function buildSharedExpenseNotification(
     entity_id: entityId,
     dedupe_key: `${dedupePrefix}:user:${targetUser.id}`,
   };
-}
-
-export async function loadComputedGroupBalances(
-  context: PendingActionContext,
-  groupId: string,
-): Promise<Record<string, number>> {
-  const [expensesResult, settlementsResult] = await Promise.all([
-    context.db
-      .from("expenses")
-      .select(
-        "id, ledger, amount_twd, paid_by_user_id, created_by_user_id, expense_date, deleted_at, expense_splits(user_id, amount_twd)",
-      )
-      .eq("couple_id", context.user.couple_id)
-      .eq("group_id", groupId)
-      .eq("ledger", "shared"),
-    context.db
-      .from("settlements")
-      .select("from_user_id, to_user_id, amount_twd")
-      .eq("couple_id", context.user.couple_id)
-      .eq("group_id", groupId),
-  ]);
-  if (expensesResult.error || settlementsResult.error) {
-    throw new Error("group balance lookup failed");
-  }
-  const expenses = z
-    .array(
-      z.object({
-        id: z.string().uuid(),
-        ledger: z.literal("shared"),
-        amount_twd: z.number().int(),
-        paid_by_user_id: z.string().uuid(),
-        created_by_user_id: z.string().uuid(),
-        expense_date: z.string(),
-        deleted_at: z.string().nullable(),
-        expense_splits: z.array(
-          z.object({
-            user_id: z.string().uuid(),
-            amount_twd: z.number().int(),
-          }),
-        ),
-      }),
-    )
-    .parse(expensesResult.data ?? [])
-    .map<LedgerExpense>((row) => ({
-      id: row.id,
-      ledger: "shared",
-      amountTwd: row.amount_twd,
-      paidByUserId: row.paid_by_user_id,
-      createdByUserId: row.created_by_user_id,
-      expenseDate: row.expense_date,
-      deleted: Boolean(row.deleted_at),
-      splits: Object.fromEntries(
-        row.expense_splits.map((split) => [split.user_id, split.amount_twd]),
-      ),
-    }));
-  const settlements = z
-    .array(pendingSettlementRowSchema)
-    .parse(settlementsResult.data ?? [])
-    .map<Settlement>((row) => ({
-      fromUserId: row.from_user_id,
-      toUserId: row.to_user_id,
-      amountTwd: row.amount_twd,
-    }));
-  return calculateBalances(expenses, settlements);
 }
 
 function resolveSplits(

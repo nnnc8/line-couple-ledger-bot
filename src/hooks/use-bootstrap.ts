@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useState } from "react";
 import type { Bootstrap } from "@/lib/types";
-import { applyOptimistic, type PendingActionInput } from "@/lib/optimistic";
+import { applyOptimistic } from "@/lib/optimistic";
+import type { ActionInput } from "@/lib/pending-action-types";
 import { api, get } from "@/lib/api";
 
 interface ActionResult {
@@ -54,7 +55,7 @@ export function useBootstrap() {
     [data, load],
   );
 
-  const propose = useCallback(async (body: PendingActionInput) => {
+  const propose = useCallback(async (body: ActionInput) => {
     setBusy(true);
     const snapshot = data;
     try {

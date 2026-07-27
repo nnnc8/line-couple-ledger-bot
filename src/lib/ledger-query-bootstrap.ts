@@ -60,7 +60,7 @@ export async function loadBootstrap(context: {
   const [
     sharedResult,
     privateResult,
-    balancesResult,
+    groupBalancesResult,
     settlementsResult,
     recurringResult,
     notificationsResult,
@@ -82,19 +82,28 @@ export async function loadBootstrap(context: {
       .gte("expense_date", `${sixMonthsAgo}-01`)
       .order("expense_date", { ascending: false })
       .limit(300),
-    loadGroupBalances(db, activeGroupId)
-      .then((data) => ({ data, error: null as null }))
+    Promise.all(
+      groups
+        .filter((group) => !group.archived_at)
+        .map(async (group) => [group.id, await loadGroupBalances(db, group.id)] as const),
+    )
+      .then((entries) => ({ data: Object.fromEntries(entries), error: null as null }))
       .catch((error: unknown) => ({
-        data: null as Array<{ userId: string; balanceTwd: number }> | null,
+        data: null as Record<
+          string,
+          Array<{ userId: string; balanceTwd: number }>
+        > | null,
         error: error instanceof Error ? error : new Error(String(error)),
       })),
     db
       .from("settlements")
-      .select("id, group_id, from_user_id, to_user_id, amount_twd, created_at")
+      .select(
+        "id, group_id, from_user_id, to_user_id, amount_twd, intent, occurred_on, notes, voided_at, voided_by_user_id, version, created_at, source_action:pending_actions!settlements_source_action_id_fkey(requested_by_user_id)",
+      )
       .eq("couple_id", user.couple_id)
       .eq("group_id", activeGroupId)
       .order("created_at", { ascending: false })
-      .limit(100),
+      .limit(200),
     db
       .from("recurring_expenses")
       .select(
@@ -126,7 +135,7 @@ export async function loadBootstrap(context: {
   if (
     sharedResult.error ||
     privateResult.error ||
-    balancesResult.error ||
+    groupBalancesResult.error ||
     settlementsResult.error ||
     recurringResult.error ||
     notificationsResult.error
@@ -143,10 +152,19 @@ export async function loadBootstrap(context: {
   );
   const activeShared = sharedExpenses.filter((expense) => !expense.deleted_at);
   const activePrivate = privateExpenses.filter((expense) => !expense.deleted_at);
-  const balances = (balancesResult.data ?? []).map((row) => ({
-    user_id: row.userId,
-    balance_twd: row.balanceTwd,
-  }));
+  const groupBalances: Record<
+    string,
+    Array<{ user_id: string; balance_twd: number }>
+  > = Object.fromEntries(
+    Object.entries(groupBalancesResult.data ?? {}).map(([groupId, rows]) => [
+      groupId,
+      rows.map((row) => ({
+        user_id: row.userId,
+        balance_twd: row.balanceTwd,
+      })),
+    ]),
+  );
+  const balances = groupBalances[activeGroupId] ?? [];
   const settlements = z
     .array(z.object({
       id: z.string().uuid(),
@@ -154,9 +172,22 @@ export async function loadBootstrap(context: {
       from_user_id: z.string().uuid(),
       to_user_id: z.string().uuid(),
       amount_twd: z.coerce.number().int().positive(),
+      intent: z.enum(["settle", "transfer"]),
+      occurred_on: z.iso.date(),
+      notes: z.string().nullable(),
+      voided_at: z.string().nullable(),
+      voided_by_user_id: z.string().uuid().nullable(),
+      version: z.coerce.number().int().positive(),
       created_at: z.string(),
+      source_action: z
+        .object({ requested_by_user_id: z.string().uuid() })
+        .nullable(),
     }))
-    .parse(settlementsResult.data ?? []);
+    .parse(settlementsResult.data ?? [])
+    .map(({ source_action: sourceAction, ...settlement }) => ({
+      ...settlement,
+      recorded_by_user_id: sourceAction?.requested_by_user_id ?? null,
+    }));
   return {
     today: taipeiToday(),
     month,
@@ -168,6 +199,7 @@ export async function loadBootstrap(context: {
     sharedExpenses,
     privateExpenses,
     balances,
+    groupBalances,
     settlements,
     recurring: recurringResult.data,
     notifications: notificationsResult.data,

@@ -5,21 +5,21 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Segmented } from "@/components/ui/segmented";
 import { Empty } from "@/components/ui/empty";
-import { Inbox, Plus, TrendingDown } from "lucide-react";
+import { ArrowLeftRight, CircleCheckBig, Inbox, Plus, TrendingDown } from "lucide-react";
 import { useCategoryAnalytics } from "@/hooks/use-analytics";
 import { SecretaryTaskCard } from "@/components/dashboard/secretary-task-card";
 import { AgentTaskBar } from "@/components/dashboard/agent-task-bar";
 import { RecentDecisions } from "@/components/dashboard/recent-decisions";
-import { donutGradient, money, moneyAbs, shortMoney, monthShort } from "@/lib/format";
+import { money, moneyAbs, shortMoney, monthShort } from "@/lib/format";
 import { tagColor, tagTint, displayTag } from "@/lib/categories";
 import type { Bootstrap, Expense, User } from "@/lib/types";
 import { CategoryPieChart } from "./category-pie-chart";
-import { SpendingTrend } from "./spending-trend";
 import { TagBarChart } from "./tag-bar-chart";
 
 interface DashboardProps {
   data: Bootstrap;
-  onSettle: (amount: number) => void;
+  onTransfer: () => void;
+  onSettle: () => void;
   onAdd: () => void;
   onEdit: (expense: Expense) => void;
   onRefresh?: () => void;
@@ -29,13 +29,13 @@ type Range = "this_month" | "six_months" | "all";
 
 export function Dashboard({
   data,
+  onTransfer,
   onSettle,
   onAdd,
   onEdit,
   onRefresh,
 }: DashboardProps) {
   const [range, setRange] = React.useState<Range>("this_month");
-  const [partial, setPartial] = React.useState("");
   const [selectedCategory, setSelectedCategory] = React.useState<string | null>(null);
   const [selectedMonth, setSelectedMonth] = React.useState<string | null>(null);
 
@@ -74,8 +74,7 @@ export function Dashboard({
         groupColor={activeGroup.color || "#142a47"}
         balance={mine}
         owed={owed}
-        partial={partial}
-        setPartial={setPartial}
+        onTransfer={onTransfer}
         onSettle={onSettle}
         onAdd={onAdd}
         sharedMonthly={data.dashboard.monthlyTotalTwd}
@@ -273,8 +272,7 @@ function BalanceCard({
   groupColor,
   balance,
   owed,
-  partial,
-  setPartial,
+  onTransfer,
   onSettle,
   onAdd,
   sharedMonthly,
@@ -284,9 +282,8 @@ function BalanceCard({
   groupColor: string;
   balance: number;
   owed: number;
-  partial: string;
-  setPartial: (v: string) => void;
-  onSettle: (amount: number) => void;
+  onTransfer: () => void;
+  onSettle: () => void;
   onAdd: () => void;
   sharedMonthly: number;
   privateMonthly: number;
@@ -310,41 +307,31 @@ function BalanceCard({
             : `你欠另一半 ${moneyAbs(owed)}`}
       </p>
 
-      {balance < 0 ? (
-        <div className="relative mt-4 space-y-2.5">
-          <div className="flex gap-2">
-            <input
-              aria-label="轉帳金額"
-              type="number"
-              inputMode="numeric"
-              min={1}
-              max={owed}
-              step={1}
-              value={partial}
-              onChange={(event) => setPartial(event.target.value)}
-              placeholder={`全部 ${owed.toLocaleString()}`}
-              className="h-10 min-w-0 flex-1 rounded-lg border border-white/25 bg-white/10 px-3 text-sm text-white placeholder:text-white/60 focus:border-white focus:outline-none"
-            />
-            <Button
-              variant="primary"
-              size="sm"
-              className="h-10 bg-white/25 text-white hover:bg-white/35"
-              disabled={!partial || !Number.isSafeInteger(Number(partial)) || Number(partial) < 1 || Number(partial) > owed}
-              onClick={() => onSettle(Number(partial))}
-            >
-              記錄已轉帳
-            </Button>
-          </div>
+      <div className="relative mt-4 grid grid-cols-2 gap-2">
+        <Button
+          variant="secondary"
+          size="sm"
+          className="h-10 bg-white/20 text-white hover:bg-white/30"
+          onClick={onTransfer}
+        >
+          <ArrowLeftRight className="size-4" /> 記錄轉帳
+        </Button>
+        {balance !== 0 ? (
           <Button
             variant="secondary"
             size="sm"
-            className="h-9 bg-white/15 text-white hover:bg-white/25"
-            onClick={() => onSettle(owed)}
+            className="h-10 bg-white/15 text-white hover:bg-white/25"
+            onClick={onSettle}
           >
-            全部結清（NT${owed.toLocaleString()}）
+            <CircleCheckBig className="size-4" />
+            {balance < 0 ? "全部結清" : "已收到全部欠款"}
           </Button>
-        </div>
-      ) : null}
+        ) : (
+          <div className="flex h-10 items-center justify-center rounded-lg bg-white/10 px-2 text-[12px] font-semibold text-white/75">
+            目前沒有待結清欠款
+          </div>
+        )}
+      </div>
 
       <Button
         variant="secondary"

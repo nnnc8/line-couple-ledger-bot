@@ -8,13 +8,17 @@ import { HistorySection } from "@/components/history/history-section";
 import { PrivateLedger } from "@/components/private/private-ledger";
 import { SettingsSection } from "@/components/settings/settings-section";
 import { ExpenseForm } from "@/components/expense/expense-form";
+import {
+  TransferSheet,
+} from "@/components/transfer/transfer-sheet";
 import { Sheet } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { OnboardingFlow } from "@/components/onboarding/onboarding-flow";
-import type { Expense } from "@/lib/types";
-import type { PendingActionInput } from "@/lib/optimistic";
+import type { Expense, SettlementView } from "@/lib/types";
+import type { ActionInput } from "@/lib/pending-action-types";
 import { api } from "@/lib/api";
 import { toast } from "sonner";
+import { ArrowLeftRight, CircleCheckBig, ReceiptText } from "lucide-react";
 
 const TAB_KEYS: TabKey[] = ["dashboard", "history", "private", "settings"];
 
@@ -98,7 +102,6 @@ export default function Home() {
     data,
     error,
     busy,
-    setError,
     load,
     reload,
     mutate,
@@ -107,8 +110,12 @@ export default function Home() {
 
   const [tab, setTab] = React.useState<TabKey>(() => tabFromUrl());
   const [loginError, setLoginError] = React.useState("");
+  const [recordOpen, setRecordOpen] = React.useState(false);
   const [expenseOpen, setExpenseOpen] = React.useState(false);
+  const [transferOpen, setTransferOpen] = React.useState(false);
   const [editExpense, setEditExpense] = React.useState<Expense | null>(null);
+  const settleRequestRef = React.useRef<{ fingerprint: string; key: string } | null>(null);
+  const voidRequestKeysRef = React.useRef(new Map<string, string>());
 
   React.useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -153,7 +160,6 @@ export default function Home() {
 
   React.useEffect(() => {
     if (data) return;
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     void startLiff().catch(() => undefined);
   }, [data, startLiff]);
 
@@ -181,6 +187,16 @@ export default function Home() {
     setExpenseOpen(true);
   }
 
+  function openTransfer() {
+    setRecordOpen(false);
+    setTransferOpen(true);
+  }
+
+  function openExpenseFromRecord() {
+    setRecordOpen(false);
+    openAdd();
+  }
+
   const openEdit = React.useCallback((expense: Expense) => {
     setEditExpense(expense);
     setExpenseOpen(true);
@@ -193,7 +209,7 @@ export default function Home() {
   }
 
   function runAction(
-    body: PendingActionInput,
+    body: ActionInput,
     options: { success?: string; onSuccess?: () => void } = {},
   ) {
     void propose(body).then(({ success }) => {
@@ -201,6 +217,55 @@ export default function Home() {
       toast.success(options.success ?? "已完成");
       options.onSuccess?.();
     });
+  }
+
+  function settleAll(onSuccess?: () => void) {
+    if (!data) return;
+    const mine =
+      data.balances.find((balance) => balance.user_id === data.user.id)
+        ?.balance_twd ?? 0;
+    if (mine === 0) return;
+    const direction = mine < 0 ? "me_to_partner" : "partner_to_me";
+    const fingerprint = `${data.activeGroupId}:${direction}:${mine}`;
+    const idempotencyKey =
+      settleRequestRef.current?.fingerprint === fingerprint
+        ? settleRequestRef.current.key
+        : crypto.randomUUID();
+    settleRequestRef.current = { fingerprint, key: idempotencyKey };
+    runAction(
+      {
+        type: "settle",
+        groupId: data.activeGroupId,
+        direction,
+        idempotencyKey,
+      },
+      {
+        success: mine < 0 ? "已全部結清" : "已記錄收到全部欠款",
+        onSuccess: () => {
+          settleRequestRef.current = null;
+          onSuccess?.();
+        },
+      },
+    );
+  }
+
+  function voidSettlement(settlement: SettlementView) {
+    const requestId = `${settlement.id}:${settlement.version}`;
+    const idempotencyKey =
+      voidRequestKeysRef.current.get(requestId) ?? crypto.randomUUID();
+    voidRequestKeysRef.current.set(requestId, idempotencyKey);
+    runAction(
+      {
+        type: "void_settlement",
+        settlementId: settlement.id,
+        expectedVersion: settlement.version,
+        idempotencyKey,
+      },
+      {
+        success: "已撤銷轉帳",
+        onSuccess: () => voidRequestKeysRef.current.delete(requestId),
+      },
+    );
   }
 
   React.useEffect(() => {
@@ -237,6 +302,10 @@ export default function Home() {
   if (!data.user || data.groups.filter((g) => !g.archived_at).length === 0) {
     return <OnboardingFlow onDone={() => void reload()} />;
   }
+
+  const currentBalance =
+    data.balances.find((balance) => balance.user_id === data.user.id)
+      ?.balance_twd ?? 0;
 
   return (
     <main className="mx-auto flex min-h-dvh max-w-[640px] flex-col pb-nav">
@@ -280,16 +349,8 @@ export default function Home() {
           {tab === "dashboard" && (
             <Dashboard
               data={data}
-              onSettle={(amount) =>
-                runAction(
-                  {
-                    type: "settle",
-                    groupId: data.activeGroupId,
-                    amountTwd: amount,
-                  },
-                  { success: "已結清" },
-                )
-              }
+              onTransfer={openTransfer}
+              onSettle={() => settleAll()}
               onAdd={openAdd}
               onEdit={openEdit}
               onRefresh={reload}
@@ -297,6 +358,7 @@ export default function Home() {
           )}
           {tab === "history" && (
             <HistorySection
+              key={data.activeGroupId}
               expenses={data.sharedExpenses}
               users={data.users}
               settlements={data.settlements}
@@ -311,6 +373,10 @@ export default function Home() {
                   { success: expense.deleted_at ? "已復原" : "已刪除" },
                 )
               }
+              onVoid={voidSettlement}
+              currentUserId={data.user.id}
+              currentBalance={currentBalance}
+              busy={busy}
             />
           )}
           {tab === "private" && (
@@ -341,7 +407,49 @@ export default function Home() {
         </div>
       </div>
 
-      <NavBar tab={tab} onChange={setTab} onAdd={openAdd} />
+      <NavBar tab={tab} onChange={setTab} onAdd={() => setRecordOpen(true)} />
+
+      <Sheet
+        open={recordOpen}
+        onClose={() => setRecordOpen(false)}
+        title="記一筆"
+        subtitle="花費與เงินจริง轉帳分開記錄"
+        labelledBy="record-sheet-title"
+      >
+        <div className="space-y-2">
+          <Button
+            variant="outline"
+            size="block"
+            className="h-14 justify-start px-4 text-[15px] font-bold"
+            onClick={openExpenseFromRecord}
+          >
+            <ReceiptText className="size-5" /> 新增花費
+          </Button>
+          <Button
+            variant="outline"
+            size="block"
+            className="h-14 justify-start px-4 text-[15px] font-bold"
+            onClick={openTransfer}
+          >
+            <ArrowLeftRight className="size-5" /> 記錄轉帳
+          </Button>
+          {currentBalance !== 0 ? (
+            <Button
+              variant="outline"
+              size="block"
+              disabled={busy}
+              className="h-14 justify-start px-4 text-[15px] font-bold"
+              onClick={() => settleAll(() => setRecordOpen(false))}
+            >
+              <CircleCheckBig className="size-5" />
+              {currentBalance < 0 ? "全部結清" : "已收到全部欠款"}
+              <span className="ml-auto text-[12px] font-semibold text-[var(--muted-foreground)]">
+                NT${Math.abs(currentBalance).toLocaleString()}
+              </span>
+            </Button>
+          ) : null}
+        </div>
+      </Sheet>
 
       {/* Add/Edit expense sheet */}
       <Sheet
@@ -357,6 +465,10 @@ export default function Home() {
           busy={busy}
           editExpense={editExpense}
           onExit={closeExpense}
+          onTransfer={() => {
+            closeExpense();
+            openTransfer();
+          }}
           onSubmit={(body) => {
             runAction(body, {
               success: editExpense ? "已更新" : "已記帳",
@@ -378,6 +490,25 @@ export default function Home() {
           }
         />
       </Sheet>
+
+      {transferOpen ? (
+        <TransferSheet
+          open
+          groups={data.groups}
+          initialGroupId={data.activeGroupId}
+          currentUserId={data.user.id}
+          groupBalances={data.groupBalances}
+          today={data.today}
+          busy={busy}
+          onClose={() => setTransferOpen(false)}
+          onSubmit={(body) =>
+            runAction(body, {
+              success: "已記錄轉帳",
+              onSuccess: () => setTransferOpen(false),
+            })
+          }
+        />
+      ) : null}
     </main>
   );
 }

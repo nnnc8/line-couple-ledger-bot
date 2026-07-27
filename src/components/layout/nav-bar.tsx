@@ -47,11 +47,12 @@ export function NavBar({ tab, onChange, unread, onAdd }: NavProps) {
         />
       ))}
       <button
-        aria-label="新增支出"
+        aria-label="記一筆"
         onClick={onAdd}
-        className="-mt-7 flex size-14 shrink-0 items-center justify-center rounded-full bg-accent text-accent-foreground shadow-[var(--shadow-fab)] transition active:scale-95"
+        className="-mt-7 flex h-14 min-w-[72px] shrink-0 flex-col items-center justify-center rounded-2xl bg-accent px-2 text-accent-foreground shadow-[var(--shadow-fab)] transition active:scale-95"
       >
-        <Plus className="size-7" strokeWidth={2.4} />
+        <Plus className="size-5" strokeWidth={2.6} />
+        <span className="text-[11px] font-bold leading-none">記一筆</span>
       </button>
       {tabItems.slice(2).map((item) => (
         <NavButton

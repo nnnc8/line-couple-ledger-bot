@@ -46,10 +46,56 @@ export const restoreExpenseCommandSchema = z.object({
   expectedVersion: z.number().int().positive(),
 });
 
+export const transferDirectionSchema = z.enum([
+  "me_to_partner",
+  "partner_to_me",
+]);
+
+const commandIdempotencyKeySchema = z
+  .string()
+  .trim()
+  .min(1)
+  .max(100)
+  .optional();
+
+const occurredOnSchema = z.iso.date().refine(
+  (date) =>
+    date <=
+    new Intl.DateTimeFormat("en-CA", {
+      timeZone: "Asia/Taipei",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).format(new Date()),
+  "日期不得晚於台北當日",
+);
+
+export const transferCommandSchema = z.object({
+  type: z.literal("transfer"),
+  groupId: z.string().uuid(),
+  direction: transferDirectionSchema,
+  amountTwd: z.number().int().min(1).max(100_000_000),
+  occurredOn: occurredOnSchema,
+  notes: z.string().trim().max(200).optional(),
+  // Existing callers send this in the Idempotency-Key header. Keeping the
+  // field optional preserves those callers while allowing the public command
+  // itself to carry the same key.
+  idempotencyKey: commandIdempotencyKeySchema,
+});
+
 export const createSettlementCommandSchema = z.object({
   type: z.literal("settle"),
   groupId: z.string().uuid(),
-  amountTwd: z.number().int().positive().max(100_000_000),
+  direction: transferDirectionSchema.optional(),
+  amountTwd: z.number().int().min(1).max(100_000_000).optional(),
+  idempotencyKey: commandIdempotencyKeySchema,
+});
+
+export const voidSettlementCommandSchema = z.object({
+  type: z.literal("void_settlement"),
+  settlementId: z.string().uuid(),
+  expectedVersion: z.number().int().positive(),
+  idempotencyKey: commandIdempotencyKeySchema,
 });
 
 export const pendingLedgerCommandSchema = z.discriminatedUnion("type", [
@@ -58,7 +104,9 @@ export const pendingLedgerCommandSchema = z.discriminatedUnion("type", [
   updateExpenseCommandSchema,
   deleteExpenseCommandSchema,
   restoreExpenseCommandSchema,
+  transferCommandSchema,
   createSettlementCommandSchema,
+  voidSettlementCommandSchema,
 ]);
 
 export const pendingActionEnvelopeSchema = z.object({
@@ -80,8 +128,13 @@ export type BatchCreateExpensesCommand = z.infer<
 export type UpdateExpenseCommand = z.infer<typeof updateExpenseCommandSchema>;
 export type DeleteExpenseCommand = z.infer<typeof deleteExpenseCommandSchema>;
 export type RestoreExpenseCommand = z.infer<typeof restoreExpenseCommandSchema>;
+export type TransferDirection = z.infer<typeof transferDirectionSchema>;
+export type TransferCommand = z.infer<typeof transferCommandSchema>;
 export type CreateSettlementCommand = z.infer<
   typeof createSettlementCommandSchema
+>;
+export type VoidSettlementCommand = z.infer<
+  typeof voidSettlementCommandSchema
 >;
 export type PendingLedgerCommand = z.infer<typeof pendingLedgerCommandSchema>;
 export type PendingActionEnvelope = z.infer<typeof pendingActionEnvelopeSchema>;
@@ -113,10 +166,21 @@ export interface LedgerBalanceRow {
 
 export interface LedgerSettlementDraft {
   groupId: string;
+  direction: TransferDirection;
   fromUserId: string;
   toUserId: string;
   amountTwd: number;
   expectedBalanceTwd: number;
+}
+
+export interface LedgerTransferDraft {
+  groupId: string;
+  direction: TransferDirection;
+  fromUserId: string;
+  toUserId: string;
+  amountTwd: number;
+  occurredOn: string;
+  notes: string | null;
 }
 
 export interface PendingActionExpenseRow {
@@ -214,28 +278,70 @@ export class LedgerCommandService {
       actorUserId?: string;
     },
   ): LedgerSettlementDraft {
-    const debtor = input.balances.find((item) => item.balanceTwd < 0);
-    const creditor = input.balances.find((item) => item.balanceTwd > 0);
-    if (!debtor || !creditor) {
-      throw new Error("目前沒有可結清的欠款");
+    const direction = command.direction ?? "me_to_partner";
+    const actor = input.actorUserId
+      ? input.balances.find((item) => item.userId === input.actorUserId)
+      : null;
+    const partner = input.actorUserId
+      ? input.balances.find((item) => item.userId !== input.actorUserId)
+      : null;
+    const debtor = input.actorUserId
+      ? direction === "me_to_partner"
+        ? actor
+        : partner
+      : input.balances.find((item) => item.balanceTwd < 0);
+    const creditor = input.actorUserId
+      ? direction === "me_to_partner"
+        ? partner
+        : actor
+      : input.balances.find((item) => item.balanceTwd > 0);
+    if (
+      !debtor ||
+      !creditor ||
+      debtor.balanceTwd >= 0 ||
+      creditor.balanceTwd !== -debtor.balanceTwd
+    ) {
+      if (input.actorUserId && direction === "me_to_partner") {
+        const mine = actor?.balanceTwd ?? 0;
+        throw new Error(
+          `目前你不需要結清（你的餘額為 NT$${mine}）。對方可能欠你 NT$${Math.abs(mine)}。`,
+        );
+      }
+      throw new Error("指定方向目前沒有可結清的欠款");
     }
-    if (input.actorUserId && debtor.userId !== input.actorUserId) {
-      const mine =
-        input.balances.find((item) => item.userId === input.actorUserId)
-          ?.balanceTwd ?? 0;
-      throw new Error(
-        `目前你不需要結清（你的餘額為 NT$${mine}）。對方欠你 NT$${Math.abs(mine)}。`,
-      );
-    }
-    if (command.amountTwd > Math.abs(debtor.balanceTwd)) {
+    const amountTwd = command.amountTwd ?? Math.abs(debtor.balanceTwd);
+    if (amountTwd > Math.abs(debtor.balanceTwd)) {
       throw new Error("結清金額超過目前欠款");
     }
     return {
       groupId: command.groupId,
+      direction,
       fromUserId: debtor.userId,
       toUserId: creditor.userId,
-      amountTwd: command.amountTwd,
+      amountTwd,
       expectedBalanceTwd: debtor.balanceTwd,
+    };
+  }
+
+  buildTransferDraft(
+    command: TransferCommand,
+    input: { actorUserId: string; partnerUserId: string },
+  ): LedgerTransferDraft {
+    const fromUserId =
+      command.direction === "me_to_partner"
+        ? input.actorUserId
+        : input.partnerUserId;
+    return {
+      groupId: command.groupId,
+      direction: command.direction,
+      fromUserId,
+      toUserId:
+        fromUserId === input.actorUserId
+          ? input.partnerUserId
+          : input.actorUserId,
+      amountTwd: command.amountTwd,
+      occurredOn: command.occurredOn,
+      notes: command.notes?.trim() || null,
     };
   }
 }
@@ -280,10 +386,23 @@ export function expenseDraftToLegacyPayload(draft: LedgerExpenseDraft) {
 export function settlementDraftToLegacyPayload(draft: LedgerSettlementDraft) {
   return {
     group_id: draft.groupId,
+    direction: draft.direction,
     from_user_id: draft.fromUserId,
     to_user_id: draft.toUserId,
     amount_twd: draft.amountTwd,
     expected_balance_twd: draft.expectedBalanceTwd,
+  };
+}
+
+export function transferDraftToLegacyPayload(draft: LedgerTransferDraft) {
+  return {
+    group_id: draft.groupId,
+    direction: draft.direction,
+    from_user_id: draft.fromUserId,
+    to_user_id: draft.toUserId,
+    amount_twd: draft.amountTwd,
+    occurred_on: draft.occurredOn,
+    notes: draft.notes,
   };
 }
 

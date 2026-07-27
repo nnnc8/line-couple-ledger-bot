@@ -149,7 +149,7 @@ export async function categoryExpenses(
 
 /**
  * For a shared expense, refuse any change that would convert it to
- * private while a settlement exists. Private expenses always return
+ * private while an active settlement exists in its group. Private expenses return
  * `{ settled: false }`.
  */
 export async function checkExpenseInSettlements(
@@ -169,13 +169,15 @@ export async function checkExpenseInSettlements(
   const settlements = await context.db
     .from("settlements")
     .select("id", { count: "exact", head: true })
-    .eq("couple_id", context.user.couple_id);
+    .eq("couple_id", context.user.couple_id)
+    .eq("group_id", expense.data.group_id)
+    .is("voided_at", null);
   const hasSettlements =
     !settlements.error && (settlements.count ?? 0) > 0;
   return {
     settled: hasSettlements,
     message: hasSettlements
-      ? "此帳已包含在結清紀錄中，無法改為私人帳。請先復原該筆結清才能修改。"
+      ? "此帳已包含在結清紀錄中，且該紀錄仍有效，無法改為私人帳。請先撤銷該筆結清才能修改。"
       : "",
   };
 }

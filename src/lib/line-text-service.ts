@@ -15,6 +15,7 @@ export async function handleLineTextMessage(
   user: LineUser,
   replyToken: string,
   dependencies: BotDependencies,
+  eventTimestamp?: number,
 ): Promise<void> {
   if (text.length > MAX_MESSAGE_LENGTH) {
     await replyText(dependencies.lineClient, replyToken, "訊息太長，請縮短後再試。");
@@ -57,6 +58,7 @@ export async function handleLineTextMessage(
   await runLineSecretaryTurn({
     text,
     sourceEventId: eventId,
+    sourceEventTimestamp: eventTimestamp,
     user,
     dependencies,
     reply: (replyMsg) => replyMessages(dependencies.lineClient, replyToken, replyMsg),

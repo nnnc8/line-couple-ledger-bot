@@ -1,3 +1,5 @@
+import { createHash } from "node:crypto";
+
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
@@ -22,12 +24,21 @@ import { exportCsv } from "@/lib/export-service";
 import { getOpenTasks, completeTask, dismissTask, snoozeTask } from "@/lib/secretary-tasks";
 import { RuleService } from "@/lib/rule-service";
 import { getRecentEvents } from "@/lib/agent-event-service";
+import { taipeiToday } from "@/lib/ledger-shared";
+import { actionResultErrorMessage } from "@/lib/pending-action-utils";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
 
 interface RouteContext {
   params: Promise<{ path: string[] }>;
+}
+
+function deterministicOnboardingGroupId(coupleId: number) {
+  const hash = createHash("sha256")
+    .update(`couple-ledger:onboarding-group:${coupleId}`)
+    .digest("hex");
+  return `${hash.slice(0, 8)}-${hash.slice(8, 12)}-5${hash.slice(13, 16)}-a${hash.slice(17, 20)}-${hash.slice(20, 32)}`;
 }
 
 export async function GET(request: Request, route: RouteContext) {
@@ -166,66 +177,179 @@ export async function POST(request: Request, route: RouteContext) {
       }
     }
     if (path[0] === "onboarding") {
-      const input = z.object({
-        pairCode: z.string().min(1).max(200),
-        groupName: z.string().min(1).max(50),
-        firstExpense: z.string().max(200).optional(),
-        firstAmount: z.number().int().positive().optional(),
-      }).parse(body);
+      const input = z
+        .object({
+          pairCode: z.string().min(1).max(200),
+          groupName: z.string().trim().min(1).max(40),
+          firstExpense: z.preprocess(
+            (value) =>
+              typeof value === "string" && value.trim() === ""
+                ? undefined
+                : value,
+            z.string().trim().min(1).max(100).optional(),
+          ),
+          firstAmount: z.number().int().min(1).max(100_000_000).optional(),
+        })
+        .refine(
+          (value) => Boolean(value.firstExpense) === Boolean(value.firstAmount),
+          { message: "第一筆花費的說明與金額必須一起填寫" },
+        )
+        .parse(body);
 
       if (!safeSecretEqual(input.pairCode.trim(), env.COUPLE_SETUP_CODE)) {
         throw new HttpError(403, "配對碼不正確");
       }
 
-      const { data: existingGroups } = await context.db
+      const { data: existingGroups, error: existingGroupsError } = await context.db
         .from("groups")
         .select("id")
         .eq("couple_id", context.user.couple_id)
         .is("archived_at", null);
 
-      if (existingGroups && existingGroups.length > 0) {
-        return json({ ok: true, message: "已有群組" });
-      }
-
-      const { data: newGroup, error: groupError } = await context.db
-        .from("groups")
-        .insert({
-          couple_id: context.user.couple_id,
-          name: input.groupName,
-          created_by_user_id: context.user.id,
-        })
-        .select("id, name")
-        .single();
-
-      if (groupError || !newGroup) {
-        throw new HttpError(500, "建立群組失敗");
+      if (existingGroupsError) {
+        throw new HttpError(500, "讀取群組失敗");
       }
 
       if (input.firstExpense && input.firstAmount) {
-        await context.db
-          .from("expenses")
-          .insert({
-            couple_id: context.user.couple_id,
-            group_id: newGroup.id,
-            ledger: "shared",
-            description: input.firstExpense,
-            amount_twd: input.firstAmount,
-            paid_by_user_id: context.user.id,
-            created_by_user_id: context.user.id,
-            expense_date: new Date().toISOString().slice(0, 10),
-            split_method: "equal",
-            tag: "其他",
-          });
+        const members = await context.db
+          .from("users")
+          .select("id")
+          .eq("couple_id", context.user.couple_id);
+        if (members.error || (members.data ?? []).length !== 2) {
+          throw new HttpError(
+            409,
+            "請先讓另一半加入，再記第一筆共同花費；也可以留空完成設定",
+          );
+        }
       }
 
-      await context.db
+      let groupId = existingGroups?.[0]?.id ?? null;
+      if (!groupId) {
+        const candidateGroupId = deterministicOnboardingGroupId(
+          context.user.couple_id,
+        );
+        const { data: newGroup, error: groupError } = await context.db
+          .from("groups")
+          .insert({
+            id: candidateGroupId,
+            couple_id: context.user.couple_id,
+            name: input.groupName,
+            created_by_user_id: context.user.id,
+          })
+          .select("id")
+          .single();
+
+        if (!groupError && newGroup) {
+          groupId = newGroup.id;
+        } else if (groupError?.code === "23505") {
+          const concurrentGroup = await context.db
+            .from("groups")
+            .select("id")
+            .eq("id", candidateGroupId)
+            .eq("couple_id", context.user.couple_id)
+            .is("archived_at", null)
+            .maybeSingle();
+          if (concurrentGroup.error || !concurrentGroup.data) {
+            throw new HttpError(500, "建立群組失敗");
+          }
+          groupId = concurrentGroup.data.id;
+        } else {
+          throw new HttpError(500, "建立群組失敗");
+        }
+      }
+
+      if (input.firstExpense && input.firstAmount) {
+        const idempotencyKey = `onboarding:${groupId}:first-expense`;
+        const existingAction = await context.db
+          .from("pending_actions")
+          .select("payload")
+          .eq("requested_by_user_id", context.user.id)
+          .eq("action_type", "create_expense")
+          .eq("idempotency_key", idempotencyKey)
+          .maybeSingle();
+        if (existingAction.error) {
+          throw new HttpError(500, "讀取第一筆花費狀態失敗");
+        }
+        const storedExpenseDate = z
+          .object({
+            payload: z.object({ expense_date: z.iso.date() }).passthrough(),
+          })
+          .safeParse(existingAction.data).data?.payload.expense_date;
+        const proposeFirstExpense = () =>
+          pendingActionService.proposeAction(
+            context,
+            {
+              type: "create_expense",
+              expense: {
+                ledger: "shared",
+                groupId,
+                description: input.firstExpense,
+                merchant: null,
+                notes: null,
+                tag: "其他",
+                amountTwd: input.firstAmount,
+                paidBy: "self",
+                expenseDate: storedExpenseDate ?? taipeiToday(),
+                splitMethod: "equal",
+                selfValue: null,
+                partnerValue: null,
+              },
+            },
+            {
+              source: "onboarding",
+              idempotencyKey,
+            },
+          );
+        try {
+          await proposeFirstExpense();
+        } catch (error) {
+          if (
+            !(error instanceof HttpError) ||
+            error.status !== 409 ||
+            error.message !== actionResultErrorMessage({ result: "expired" })
+          ) {
+            throw error;
+          }
+          const expiredAction = await context.db
+            .from("pending_actions")
+            .select("id")
+            .eq("requested_by_user_id", context.user.id)
+            .eq("action_type", "create_expense")
+            .eq("idempotency_key", idempotencyKey)
+            .maybeSingle();
+          if (expiredAction.error || !expiredAction.data) {
+            throw new HttpError(500, "讀取第一筆花費狀態失敗");
+          }
+          const revivedAction = await context.db
+            .from("pending_actions")
+            .update({
+              status: "pending",
+              expires_at: new Date(Date.now() + 5 * 60 * 1_000).toISOString(),
+              processed_at: null,
+            })
+            .eq("id", expiredAction.data.id)
+            .eq("requested_by_user_id", context.user.id)
+            .eq("action_type", "create_expense")
+            .eq("idempotency_key", idempotencyKey)
+            .eq("status", "expired");
+          if (revivedAction.error) {
+            throw new HttpError(500, "恢復第一筆花費失敗");
+          }
+          await proposeFirstExpense();
+        }
+      }
+
+      const preference = await context.db
         .from("user_preferences")
         .upsert({
           user_id: context.user.id,
-          active_group_id: newGroup.id,
+          active_group_id: groupId,
         });
+      if (preference.error) {
+        throw new HttpError(500, "儲存使用者偏好失敗");
+      }
 
-      return json({ ok: true, groupId: newGroup.id });
+      return json({ ok: true, groupId });
     }
     throw new HttpError(404, "Not found");
   } catch (error) {

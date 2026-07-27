@@ -65,11 +65,16 @@ export async function activeGroupId(context: PendingActionContext) {
     .active_group_id;
 }
 
-export async function hasAnySettlement(context: PendingActionContext) {
+export async function hasActiveSettlementInGroup(
+  context: PendingActionContext,
+  groupId: string,
+) {
   const result = await context.db
     .from("settlements")
     .select("id", { count: "exact", head: true })
-    .eq("couple_id", context.user.couple_id);
+    .eq("couple_id", context.user.couple_id)
+    .eq("group_id", groupId)
+    .is("voided_at", null);
   if (result.error) throw new Error("settlement lookup failed");
   return (result.count ?? 0) > 0;
 }

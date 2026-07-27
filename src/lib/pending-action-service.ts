@@ -24,7 +24,7 @@ import {
 import { buildConfirmPlan } from "./pending-action-plans";
 import { applyConfirmedActionSideEffects } from "./pending-action-side-effects";
 import { actionResultErrorMessage } from "./pending-action-utils";
-import { loadGroupBalances } from "./balance-loader";
+import { pendingActionRequestFingerprint } from "./pending-action-idempotency";
 import {
   buildCreateExpenseAction,
   buildSettleAction,
@@ -40,6 +40,10 @@ import {
   proposeDeleteExpenseHelper,
   proposeRestoreExpenseHelper,
   proposeSettlement as proposeSettlementHelper,
+  proposeSettlementPending as proposeSettlementPendingHelper,
+  proposeTransfer as proposeTransferHelper,
+  proposeTransferPending as proposeTransferPendingHelper,
+  proposeVoidSettlement as proposeVoidSettlementHelper,
   proposeUpdateExpenseHelper,
 } from "./pending-action-proposals";
 
@@ -179,15 +183,24 @@ export class PendingActionService {
     const actionIds: string[] = [];
     for (const action of actions) {
       const payload = this.retargetPayload(action.payload, context.user.id, parsed);
+      const requestFingerprint = pendingActionRequestFingerprint({
+        actionType: action.action_type,
+        groupId: null,
+        payload,
+      });
       const update = await context.db
         .from("pending_actions")
         .update({
           group_id: null,
           payload,
+          request_fingerprint: requestFingerprint,
         })
         .eq("id", action.id)
-        .eq("status", "pending");
-      if (!update.error) {
+        .eq("status", "pending")
+        .select("id")
+        .maybeSingle();
+      if (update.error) throw new Error("pending action update failed");
+      if (update.data) {
         count += Array.isArray(payload.items) ? payload.items.length : 1;
         actionIds.push(action.id);
       }
@@ -221,12 +234,24 @@ export class PendingActionService {
       throw new HttpError(400, "這個待確認草稿不能改帳本");
     }
     const payload = this.retargetPayload(row.payload, context.user.id, parsed);
+    const requestFingerprint = pendingActionRequestFingerprint({
+      actionType: row.action_type,
+      groupId: null,
+      payload,
+    });
     const update = await context.db
       .from("pending_actions")
-      .update({ group_id: null, payload })
+      .update({
+        group_id: null,
+        payload,
+        request_fingerprint: requestFingerprint,
+      })
       .eq("id", row.id)
-      .eq("status", "pending");
+      .eq("status", "pending")
+      .select("id")
+      .maybeSingle();
     if (update.error) throw new Error("pending action update failed");
+    if (!update.data) throw new HttpError(409, "待確認草稿已被處理，請重新整理");
     return {
       count: Array.isArray(payload.items) ? payload.items.length : 1,
       actionId: row.id,
@@ -258,6 +283,37 @@ export class PendingActionService {
   }
 
   async insert(context: PendingActionContext, input: PendingActionInsertInput) {
+    const requestFingerprint = pendingActionRequestFingerprint(input);
+    if (input.idempotencyKey) {
+      const prior = await context.db
+        .from("pending_actions")
+        .select("id, action_type, request_fingerprint")
+        .eq("requested_by_user_id", context.user.id)
+        .eq("action_type", input.actionType)
+        .eq("idempotency_key", input.idempotencyKey)
+        .maybeSingle();
+      if (prior.data) {
+        const row = z
+          .object({
+            id: z.string(),
+            action_type: z.string(),
+            request_fingerprint: z.string().nullable(),
+          })
+          .parse(prior.data);
+        if (
+          row.action_type === input.actionType &&
+          row.request_fingerprint === requestFingerprint
+        ) {
+          return row.id;
+        }
+        throw new HttpError(409, "idempotency_conflict");
+      }
+    }
+    const actionSeconds = ["transfer", "settle", "void_settlement"].includes(
+      input.actionType,
+    )
+      ? 10 * 60
+      : this.actionSeconds;
     const insert = await context.db
       .from("pending_actions")
       .insert({
@@ -268,7 +324,8 @@ export class PendingActionService {
         payload: input.payload,
         source_event_id: input.sourceEventId,
         idempotency_key: input.idempotencyKey ?? null,
-        expires_at: new Date(Date.now() + this.actionSeconds * 1_000).toISOString(),
+        request_fingerprint: requestFingerprint,
+        expires_at: new Date(Date.now() + actionSeconds * 1_000).toISOString(),
       })
       .select("id")
       .single();
@@ -278,11 +335,21 @@ export class PendingActionService {
     if (input.idempotencyKey) {
       const existing = await context.db
         .from("pending_actions")
-        .select("id")
+        .select("id, action_type, request_fingerprint")
+        .eq("requested_by_user_id", context.user.id)
+        .eq("action_type", input.actionType)
         .eq("idempotency_key", input.idempotencyKey)
-        .single();
-      if (!existing.error) {
-        return z.object({ id: z.string() }).parse(existing.data).id;
+        .maybeSingle();
+      if (existing.data) {
+        const row = z
+          .object({
+            id: z.string(),
+            action_type: z.string(),
+            request_fingerprint: z.string().nullable(),
+          })
+          .parse(existing.data);
+        if (row.request_fingerprint === requestFingerprint) return row.id;
+        throw new HttpError(409, "idempotency_conflict");
       }
     }
     throw new Error("pending action insert failed");
@@ -295,6 +362,9 @@ export class PendingActionService {
     );
     if (result.result === "confirmed" || result.result === "already_done") {
       return result;
+    }
+    if (input.actionType === "void_settlement" && result.result === "stale") {
+      throw new HttpError(409, "stale_action");
     }
     throw new HttpError(409, actionResultErrorMessage(result));
   }
@@ -317,20 +387,40 @@ export class PendingActionService {
     }
     const action = pendingActionRowSchema.parse(actionResult.data);
     if (action.status !== "pending") {
-      return { result: "already_done", action_type: action.action_type };
+      const completedResult = {
+        result:
+          action.status === "expired"
+            ? "expired"
+            : action.status === "cancelled"
+              ? "cancelled"
+              : "already_done",
+        action_type: action.action_type,
+      } as const;
+      if (
+        action.status === "confirmed" &&
+        ["create_expense", "update_expense"].includes(action.action_type)
+      ) {
+        // The ledger commit and this normalization used to be separated.
+        // Replays repair a crash in that narrow post-commit window.
+        await applyConfirmedActionSideEffects(context, id);
+      }
+      return completedResult;
     }
     if (action.expires_at <= new Date().toISOString()) {
-      await this.updatePendingActionStatus(context, id, "expired");
-      return { result: "expired", action_type: action.action_type };
+      return this.updatePendingActionStatus(context, id, "expired");
     }
     if (!confirm) {
-      await this.updatePendingActionStatus(context, id, "cancelled");
-      return { result: "cancelled", action_type: action.action_type };
+      return this.updatePendingActionStatus(context, id, "cancelled");
     }
 
     let plan: PendingActionPlan;
     try {
       plan = await buildConfirmPlan(context, action);
+      plan.expected_request_fingerprint = pendingActionRequestFingerprint({
+        actionType: action.action_type,
+        groupId: action.group_id,
+        payload: action.payload,
+      });
     } catch (error) {
       if (error instanceof StaleActionError || error instanceof z.ZodError) {
         return { result: "stale", action_type: action.action_type };
@@ -357,10 +447,15 @@ export class PendingActionService {
         throw error;
       }
     }
+    if (
+      ["confirmed", "already_done"].includes(value.result) &&
+      ["create_expense", "update_expense"].includes(action.action_type)
+    ) {
+      // Idempotent repair: if the process died after the ledger transaction
+      // committed, a webhook replay must still finish tag normalization.
+      await applyConfirmedActionSideEffects(context, id);
+    }
     if (value.result === "confirmed") {
-      if (["create_expense", "update_expense"].includes(action.action_type)) {
-        await applyConfirmedActionSideEffects(context, id);
-      }
       if (this.onConfirmed) await this.onConfirmed(context);
     }
     return value;
@@ -370,7 +465,7 @@ export class PendingActionService {
     context: PendingActionContext,
     actionId: string,
     status: "cancelled" | "expired",
-  ) {
+  ): Promise<ActionResult> {
     const result = await context.db
       .from("pending_actions")
       .update({
@@ -378,8 +473,39 @@ export class PendingActionService {
         processed_at: new Date().toISOString(),
       })
       .eq("id", actionId)
-      .eq("requested_by_user_id", context.user.id);
+      .eq("requested_by_user_id", context.user.id)
+      .eq("status", "pending")
+      .select("status, action_type")
+      .maybeSingle();
     if (result.error) throw new Error("pending action status update failed");
+    if (result.data) {
+      return {
+        result: status,
+        action_type: z.string().parse(result.data.action_type),
+      };
+    }
+
+    const latest = await context.db
+      .from("pending_actions")
+      .select("status, action_type")
+      .eq("id", actionId)
+      .eq("requested_by_user_id", context.user.id)
+      .maybeSingle();
+    if (latest.error) throw new Error("pending action status reload failed");
+    if (!latest.data) return { result: "not_found", action_type: null };
+    const row = z.object({
+      status: z.enum(["pending", "confirmed", "cancelled", "expired"]),
+      action_type: z.string(),
+    }).parse(latest.data);
+    return {
+      result:
+        row.status === "confirmed"
+          ? "already_done"
+          : row.status === "pending"
+            ? "stale"
+            : row.status,
+      action_type: row.action_type,
+    };
   }
 
   // -------------------------------------------------------------------------
@@ -415,6 +541,54 @@ export class PendingActionService {
     },
   ) {
     return proposeSettlementHelper(this, context, input, metadata);
+  }
+
+  proposeSettlementPending(
+    context: PendingActionContext,
+    input: Parameters<typeof proposeSettlementHelper>[2],
+    metadata: {
+      source: string;
+      sourceEventId: string;
+      idempotencyKey: string;
+    },
+  ) {
+    return proposeSettlementPendingHelper(this, context, input, metadata);
+  }
+
+  proposeTransfer(
+    context: PendingActionContext,
+    input: Parameters<typeof proposeTransferHelper>[2],
+    metadata?: {
+      source?: string;
+      sourceEventId?: string;
+      idempotencyKey?: string | null;
+    },
+  ) {
+    return proposeTransferHelper(this, context, input, metadata);
+  }
+
+  proposeTransferPending(
+    context: PendingActionContext,
+    input: Parameters<typeof proposeTransferHelper>[2],
+    metadata: {
+      source: string;
+      sourceEventId: string;
+      idempotencyKey: string;
+    },
+  ) {
+    return proposeTransferPendingHelper(this, context, input, metadata);
+  }
+
+  proposeVoidSettlement(
+    context: PendingActionContext,
+    input: Parameters<typeof proposeVoidSettlementHelper>[2],
+    metadata?: {
+      source?: string;
+      sourceEventId?: string;
+      idempotencyKey?: string | null;
+    },
+  ) {
+    return proposeVoidSettlementHelper(this, context, input, metadata);
   }
 
   proposeCreateExpenseHelper(

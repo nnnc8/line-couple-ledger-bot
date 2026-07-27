@@ -38,7 +38,11 @@ export function actionResultMessage(result: ActionResult): string {
             ? "分類整理已套用。"
             : result.action_type === "delete_expense"
               ? "已刪除。"
-              : "已結清。",
+              : result.action_type === "transfer"
+                ? "已記錄轉帳。"
+                : result.action_type === "void_settlement"
+                  ? "已撤銷轉帳。"
+                  : "已結清。",
     cancelled: "已取消。",
     expired: "操作已過期，請重新操作。",
     stale: "帳目已變動，請重新操作。",

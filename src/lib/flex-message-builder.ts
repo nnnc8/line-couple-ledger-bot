@@ -35,12 +35,18 @@ export type FlexComponent =
   | { type: "separator"; margin?: string }
   | { type: "spacer"; size?: string }
   | { type: "box"; layout: "vertical" | "horizontal"; contents: FlexComponent[]; spacing?: string; margin?: string; flex?: number }
-  | { type: "button"; action: FlexAction; style?: "link" | "primary" | "secondary"; color?: string; margin?: string; height?: string }
+  | { type: "button"; action: FlexAction; style?: "link" | "primary" | "secondary"; color?: string; margin?: string; height?: string; flex?: number }
   | { type: "image"; url: string; size?: string; aspectMode?: "cover" | "fit"; flex?: number; margin?: string };
 
 export type FlexAction =
   | { type: "message"; label: string; text: string }
-  | { type: "uri"; label: string; uri: string };
+  | { type: "uri"; label: string; uri: string }
+  | {
+      type: "postback";
+      label: string;
+      data: string;
+      displayText?: string;
+    };
 
 export type LineReplyMessage =
   | { type: "text"; text: string }
@@ -284,6 +290,130 @@ export function flexNeedsGroup(
           ...buttons,
           hint,
         ],
+        paddingAll: "md",
+      },
+    },
+  };
+}
+
+export interface TransferConfirmParams {
+  actionId: string;
+  intent: "transfer" | "settle";
+  directionLabel: string;
+  amountTwd: number;
+  groupName: string;
+  beforeBalanceText: string;
+  afterBalanceText: string;
+  warning?: string;
+}
+
+export function flexTransferConfirm(
+  params: TransferConfirmParams,
+): LineReplyMessage {
+  const title = params.intent === "settle" ? "確認還款" : "確認轉帳";
+  const detailRows: FlexComponent[] = [
+    ["方向", params.directionLabel],
+    ["群組", params.groupName],
+    ["目前餘額", params.beforeBalanceText],
+    ["記錄後", params.afterBalanceText],
+  ].map(([label, value]) => ({
+    type: "box" as const,
+    layout: "horizontal" as const,
+    contents: [
+      { type: "text", text: label!, size: "sm", color: "#777777", flex: 2 },
+      {
+        type: "text",
+        text: value!,
+        size: "sm",
+        weight: "bold",
+        align: "end",
+        flex: 4,
+        wrap: true,
+      },
+    ],
+    margin: "sm",
+  }));
+  const actionData = (decision: "confirm" | "cancel") =>
+    `decision=${decision}&id=${encodeURIComponent(params.actionId)}`;
+
+  return {
+    type: "flex",
+    altText: `${title} ${params.directionLabel} NT$${params.amountTwd.toLocaleString()}`,
+    contents: {
+      type: "bubble",
+      header: {
+        type: "box",
+        layout: "vertical",
+        contents: [
+          { type: "text", text: title, size: "lg", weight: "bold" },
+          {
+            type: "text",
+            text: `NT$${params.amountTwd.toLocaleString()}`,
+            size: "xxl",
+            weight: "bold",
+            color: "#1D4ED8",
+            margin: "xs",
+          },
+        ],
+        paddingAll: "md",
+        backgroundColor: "#EFF6FF",
+      },
+      body: {
+        type: "box",
+        layout: "vertical",
+        contents: [
+          ...detailRows,
+          ...(params.warning
+            ? [{
+                type: "text" as const,
+                text: params.warning,
+                size: "sm",
+                color: "#B45309",
+                margin: "md",
+                wrap: true,
+              }]
+            : []),
+          {
+            type: "text",
+            text: "10 分鐘內有效；確認前不會入帳。",
+            size: "xs",
+            color: "#999999",
+            margin: "md",
+            wrap: true,
+          },
+        ],
+        paddingAll: "md",
+      },
+      footer: {
+        type: "box",
+        layout: "horizontal",
+        contents: [
+          {
+            type: "button",
+            action: {
+              type: "postback",
+              label: "取消",
+              data: actionData("cancel"),
+              displayText: "取消這筆轉帳",
+            },
+            style: "secondary",
+            flex: 1,
+          },
+          {
+            type: "button",
+            action: {
+              type: "postback",
+              label: "確認",
+              data: actionData("confirm"),
+              displayText: "確認這筆轉帳",
+            },
+            style: "primary",
+            color: "#2563EB",
+            margin: "sm",
+            flex: 1,
+          },
+        ],
+        spacing: "sm",
         paddingAll: "md",
       },
     },

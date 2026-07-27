@@ -157,6 +157,7 @@ export function PrivateLedger({
         expenses={privateExpenses}
         users={data.users}
         settlements={[]}
+        includeTransfers={false}
         onEdit={onEdit}
         onDelete={onDelete}
 

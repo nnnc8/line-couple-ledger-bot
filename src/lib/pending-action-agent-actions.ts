@@ -33,7 +33,7 @@ import type { PendingActionService } from "./pending-action-service";
 
 type ServiceForAgentActions = Pick<
   PendingActionService,
-  "execute" | "buildStoredPayload"
+  "execute" | "insert" | "buildStoredPayload"
 > & {
   ledgerCommandService: PendingActionService["ledgerCommandService"];
 };

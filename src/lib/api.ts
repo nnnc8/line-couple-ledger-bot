@@ -1,13 +1,25 @@
 type ApiResult = Record<string, unknown>;
 
-const idempotencyKey = () => crypto.randomUUID();
+const idempotencyKey = (body: unknown) => {
+  if (
+    body &&
+    typeof body === "object" &&
+    "idempotencyKey" in body &&
+    typeof body.idempotencyKey === "string" &&
+    body.idempotencyKey.length >= 1 &&
+    body.idempotencyKey.length <= 100
+  ) {
+    return body.idempotencyKey;
+  }
+  return crypto.randomUUID();
+};
 
 export async function api(path: string, body?: unknown): Promise<ApiResult> {
   const response = await fetch(path, {
     method: "POST",
     headers: {
       "content-type": "application/json",
-      "idempotency-key": idempotencyKey(),
+      "idempotency-key": idempotencyKey(body),
     },
     body: body === undefined ? undefined : JSON.stringify(body),
     credentials: "same-origin",
