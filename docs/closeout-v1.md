@@ -8,6 +8,87 @@
 > physical phone cannot be impersonated by this run. Complete the two rows in
 > "Operator-only acceptance" after checking them with the production accounts.
 
+## 2026-07-27 LINE quick-action release candidate
+
+### Release identity
+
+- **Branch**: `codex/v1-transfer-flow`.
+- **Candidate SHA**:
+  `443b4726047dbfa32223f4305655beb996a263c2`
+  (`feat: add LINE quick ledger flows`).
+- **Preview**:
+  `dpl_7uGMM5zFgptBaciHkwtu1domXCwr`
+  (`https://line-couple-ledger-pcu9w2rkp-ncnc8.vercel.app`), `READY`.
+- **Production**: not promoted. The production alias still points to the
+  previously verified first-class transfer release below.
+
+### Product changes
+
+- Category analytics now maps the ranked category `label` back to the public
+  `tag` contract. Distinct stored categories no longer collapse to `其他` or
+  share one fallback color.
+- All accidental Thai prose was replaced with Traditional Chinese. The
+  remaining Thai Unicode match is the intentional `฿` currency symbol in the
+  THB parser.
+- LINE now has a strict, versioned, stateless postback flow for quick shared or
+  private expenses, both transfer directions, and full settlement.
+- Quick actions collect group, payer, category, item, and amount with
+  Quick Reply buttons. Custom values open a validated, prefilled LIFF form.
+- Every financial result is a 10-minute pending action with confirm/cancel;
+  menu postbacks never write directly. Requester identity comes from the signed
+  LINE event, group ownership is rechecked, and webhook-event-derived
+  idempotency keys prevent retry duplicates.
+- Image messages now return an explanatory Flex card with quick-entry and LIFF
+  actions instead of advertising unsupported receipt OCR.
+- Two reproducible 2500×1686 Rich Menu assets and
+  `render` / `validate` / `plan` / `apply` / `rollback` commands were added.
+  The release aliases are `ledger-record-v1` and `ledger-manage-v1`.
+- Next.js and `eslint-config-next` were patched from 16.2.9 to 16.2.11 in
+  response to the July 2026 security release.
+
+### Verification
+
+| Gate | Result |
+| :--- | :--- |
+| `pnpm typecheck` | clean |
+| `pnpm test` | 198 / 198 |
+| real PostgreSQL transaction tests | 26 / 26 |
+| `pnpm test:e2e` | 8 / 8 |
+| `pnpm build` | success on Next.js 16.2.11 |
+| changed production-file ESLint | clean |
+| `git diff --check` | clean |
+| Rich Menu render / validation | 2 / 2 assets valid, full non-overlapping coverage, both under 1 MB |
+| Preview HTTP | root and `/invite` return 200; no browser console or request errors |
+
+### Live gates still open
+
+- Vercel has no Preview environment variables. A real mobile Chromium visit to
+  the preview correctly renders `尚未設定 LIFF ID`; therefore this artifact was
+  not promoted and is not claimed as a working LIFF preview.
+- The locally available LINE Channel Access Token is invalid, and Vercel does
+  not reveal sensitive production values. `pnpm rich-menu:plan` validates the
+  release but reports `LINE token unavailable`; no live Rich Menu alias or
+  default menu was changed.
+- A valid LINE Channel Access Token and a deliberately configured Preview
+  environment are required before real LINE OA, physical-phone LIFF, database
+  side-effect, and same-artifact promotion evidence can be completed.
+- `pnpm audit --prod` no longer reports the patched Next.js advisories, but
+  still reports nine inherited transitive advisories (seven high, two
+  moderate) through Sharp, Google GenAI/MCP, and the `shadcn` CLI dependency.
+  They were not force-overridden because compatible upstream releases must be
+  tested separately.
+
+### Safe continuation and rollback
+
+1. Configure branch-scoped Preview values without copying secrets to all
+   previews, redeploy this SHA, and repeat the browser/mobile smoke.
+2. Supply a valid token only through the operator environment, then run
+   `pnpm rich-menu:plan` and `pnpm rich-menu:apply`. The apply command refuses
+   dirty worktrees and writes a mode-600 rollback manifest before changing
+   aliases or the default menu.
+3. Promote only the exact verified preview artifact. Until then, application
+   rollback is unnecessary because production was not changed.
+
 ## 2026-07-27 first-class transfer release
 
 ### Release identity
