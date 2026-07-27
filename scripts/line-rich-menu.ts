@@ -463,9 +463,23 @@ function requireEnv(name: string) {
 }
 
 function gitSha() {
-  return execFileSync("git", ["rev-parse", "--short=8", "HEAD"], {
-    encoding: "utf8",
-  }).trim();
+  return execFileSync(
+    "git",
+    [
+      "log",
+      "-1",
+      "--format=%h",
+      "--",
+      "assets/line-rich-menu",
+      "src/app/page.tsx",
+      "src/components/expense/expense-form.tsx",
+      "src/components/transfer/transfer-sheet.tsx",
+      "src/lib/flex-message-builder.ts",
+      "src/lib/line-menu-service.ts",
+      "src/lib/line-webhook-service.ts",
+    ],
+    { encoding: "utf8" },
+  ).trim();
 }
 
 async function main() {
