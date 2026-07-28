@@ -1,7 +1,12 @@
 import { execFileSync } from "node:child_process";
+import { existsSync } from "node:fs";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { chromium } from "@playwright/test";
+
+if (existsSync(".env.local")) {
+  process.loadEnvFile(".env.local");
+}
 
 const WIDTH = 2500;
 const HEIGHT = 1686;
