@@ -3,24 +3,31 @@
 > The newest release record is first. Older sections are retained as historical
 > evidence and must not be read as the current deployment or rollback target.
 >
-> **Operator action still required**: the automated and database proofs below
-> are complete. A real LINE OA signature flow and a logged-in LIFF session on a
-> physical phone cannot be impersonated by this run. Complete the two rows in
-> "Operator-only acceptance" after checking them with the production accounts.
+> Automated, database, production, LINE API, Rich Menu, and logged-in LIFF
+> proofs are complete. The remaining operator-only row is deliberately limited
+> to interaction details that require a physical LINE client.
 
-## 2026-07-27 LINE quick-action release candidate
+## 2026-07-28 LINE quick-action production release
 
 ### Release identity
 
 - **Branch**: `codex/v1-transfer-flow`.
-- **Candidate SHA**:
+- **Runtime source SHA**:
   `443b4726047dbfa32223f4305655beb996a263c2`
   (`feat: add LINE quick ledger flows`).
-- **Preview**:
-  `dpl_7uGMM5zFgptBaciHkwtu1domXCwr`
-  (`https://line-couple-ledger-pcu9w2rkp-ncnc8.vercel.app`), `READY`.
-- **Production**: not promoted. The production alias still points to the
-  previously verified first-class transfer release below.
+- **Verified preview artifact**:
+  `dpl_7aLNZSefZUtejZDikcyUW3J7w6GX`
+  (`https://line-couple-ledger-4f9dwrctd-ncnc8.vercel.app`), `READY`.
+- **Promoted production copy**:
+  `dpl_C9nNfzrpSZEkr2SjJHYebyYDWAFB`
+  (`https://line-couple-ledger-kk3ylezqg-ncnc8.vercel.app`), `READY`.
+- **Production alias**:
+  `https://line-couple-ledger-bot.vercel.app`.
+- **Operational branch head**:
+  `e19dd473385b4154b99850ca7a592e1c38d88e98`. Its only runtime-adjacent
+  difference from the promoted artifact is loading ignored `.env.local` in
+  the standalone Rich Menu operator script; the app runtime remains
+  `443b4726047dbfa32223f4305655beb996a263c2`.
 
 ### Product changes
 
@@ -58,36 +65,48 @@
 | changed production-file ESLint | clean |
 | `git diff --check` | clean |
 | Rich Menu render / validation | 2 / 2 assets valid, full non-overlapping coverage, both under 1 MB |
-| Preview HTTP | root and `/invite` return 200; no browser console or request errors |
+| Preview HTTP | root and signed empty webhook return 200 |
+| Production HTTP | alias root and signed empty webhook return 200 |
+| Logged-in LIFF | LINE OAuth login succeeds and production bootstrap renders real ledger data |
+| Live classification | `維修保養`, `車貸`, `油資`, `信用卡費`; four categories, four labels/colors |
+| Rich Menu API | two aliases resolve, both release menus exist, record menu is default |
 
-### Live gates still open
+### Live release evidence
 
-- Vercel has no Preview environment variables. A real mobile Chromium visit to
-  the preview correctly renders `尚未設定 LIFF ID`; therefore this artifact was
-  not promoted and is not claimed as a working LIFF preview.
-- The locally available LINE Channel Access Token is invalid, and Vercel does
-  not reveal sensitive production values. `pnpm rich-menu:plan` validates the
-  release but reports `LINE token unavailable`; no live Rich Menu alias or
-  default menu was changed.
-- A valid LINE Channel Access Token and a deliberately configured Preview
-  environment are required before real LINE OA, physical-phone LIFF, database
-  side-effect, and same-artifact promotion evidence can be completed.
+- The production LINE Channel Access Token was validated with the bot-info
+  endpoint. Production channel token and secret were refreshed without
+  printing either value.
+- The exact verified preview artifact was promoted; the production alias now
+  resolves to the promoted production copy above. The prior production
+  deployment remains the application rollback target.
+- `ledger-record-v1` resolves to
+  `richmenu-9b3a0ce7a9e69a6853662b0ca8e87969`;
+  `ledger-manage-v1` resolves to
+  `richmenu-713ef684d4c6b44160c9d4734665bdff`. The record menu is the default.
+  Both menu names use the stable runtime release ID `443b4726`.
+- `output/rich-menu-rollback.json` was written mode `600` before the menu
+  switch and remains outside Git.
+- A real LINE OAuth session opened the production LIFF URL and loaded the
+  authenticated dashboard. The category card showed four distinct stored
+  categories, the `記一筆` sheet showed separate expense/transfer/settle
+  actions, and no Thai prose was present.
+- Branch-scoped Preview values were removed after promotion. `vercel env ls
+  preview codex/v1-transfer-flow` returns no variables, so production secrets
+  are not left attached to future branch previews.
 - `pnpm audit --prod` no longer reports the patched Next.js advisories, but
   still reports nine inherited transitive advisories (seven high, two
   moderate) through Sharp, Google GenAI/MCP, and the `shadcn` CLI dependency.
   They were not force-overridden because compatible upstream releases must be
   tested separately.
 
-### Safe continuation and rollback
+### Rollback
 
-1. Configure branch-scoped Preview values without copying secrets to all
-   previews, redeploy this SHA, and repeat the browser/mobile smoke.
-2. Supply a valid token only through the operator environment, then run
-   `pnpm rich-menu:plan` and `pnpm rich-menu:apply`. The apply command refuses
-   dirty worktrees and writes a mode-600 rollback manifest before changing
-   aliases or the default menu.
-3. Promote only the exact verified preview artifact. Until then, application
-   rollback is unnecessary because production was not changed.
+1. Application: promote or alias
+   `dpl_3S23pfx2NPCR3FGKWbHVnCWuQwbn`.
+2. Rich Menu: run `pnpm rich-menu:rollback`. It restores the captured prior
+   default and aliases from the mode-600 manifest.
+3. Database: no migration or data mutation belongs to this UI release, so no
+   database rollback is required.
 
 ## 2026-07-27 first-class transfer release
 
