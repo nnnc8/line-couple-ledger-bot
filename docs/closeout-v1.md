@@ -7,6 +7,92 @@
 > proofs are complete. The remaining operator-only row is deliberately limited
 > to interaction details that require a physical LINE client.
 
+## 2026-07-29 LIFF and Rich Menu experience release
+
+### Release identity
+
+- **Branch**: `codex/v1-transfer-flow`, pushed to origin.
+- **Runtime source SHA**:
+  `8602c8891497cb9e04dfe452166b3e22cbfef94c`
+  (`feat: rebuild v1 LIFF and LINE menu flows`).
+- **Verified preview**:
+  `dpl_8cJhEGNEW4eoHTPGtQ8QnW9Ap7BL`
+  (`https://line-couple-ledger-cogrcelt2-ncnc8.vercel.app`), `READY`.
+- **Promoted production copy**:
+  `dpl_Hx4dfKEGwJMjKiW6YuCi5RVyJX5q`
+  (`https://line-couple-ledger-qsuq8l7h0-ncnc8.vercel.app`), `READY`.
+- **Production alias**:
+  `https://line-couple-ledger-bot.vercel.app`.
+- **Application rollback target**:
+  `dpl_C9nNfzrpSZEkr2SjJHYebyYDWAFB`.
+
+### Product and defect fixes
+
+- Rich Menu switch postbacks (`tab=record` and `tab=manage`) are now handled
+  silently before user or database lookup. They no longer produce repeated
+  「這個操作無效或已更新」messages.
+- Every Rich Menu and chatbot LIFF action now uses the official
+  `https://liff.line.me/{LIFF_ID}/` entry point. This preserves LINE's LIFF
+  browser instead of sending users directly to the Vercel URL in Safari.
+- Rich Menu quick actions now cover expense, both transfer directions, and
+  settlement using strict, versioned postbacks. Financial writes still require
+  the existing pending-action confirmation and remain idempotent.
+- LIFF navigation is now `首頁 / 流水 / 記一筆 / 分析 / 設定`. The dashboard,
+  forms, unified history, analysis drilldown, and settings information
+  hierarchy were rebuilt around frequent ledger tasks.
+- Category ranking and drilldown use the same server-side classification
+  contract and stable distinct colors. Stored categories no longer render as
+  repeated same-color `其他`.
+- Accidental Thai prose is absent from product UI. The intentional `฿`
+  currency symbol remains in the THB currency parser.
+
+### Verification
+
+| Gate | Result |
+| :--- | :--- |
+| `pnpm typecheck` | clean |
+| `pnpm test` | 203 / 203 |
+| real PostgreSQL transaction tests | 26 / 26 |
+| `pnpm test:e2e` | 11 / 11 |
+| `pnpm build` | success on Next.js 16.2.11 |
+| changed-file ESLint | clean |
+| `git diff --check` | clean |
+| Rich Menu render / validation | both assets valid and deterministic |
+| Preview HTTP | root 200, webhook GET 405 |
+| Production HTTP | root 200, webhook GET 405 |
+| Production bundle | new navigation and financial-action labels present |
+| Rich Menu API | release aliases resolve and record menu is default |
+
+The production build ran on Node 22 as configured by the Vercel project.
+Vercel selected pnpm 10 for the remote build because the repository does not
+currently pin a package-manager version; the same lockfile installed cleanly
+and all production build gates passed. Pinning the remote pnpm major is a
+separate toolchain change and was not mixed into this UI release.
+
+### Live release evidence
+
+- `ledger-record-v1` resolves to
+  `richmenu-a08bcdcc97732f11126a1534898a931b`;
+  `ledger-manage-v1` resolves to
+  `richmenu-1afa29e4ba9799652d76a7bdd5c7a97c`.
+- Both live Rich Menu names include release `8602c889`; the record menu is the
+  default. Manage-menu actions point to the official LIFF endpoint, while
+  record-menu actions use `menu=quick` postbacks.
+- `output/rich-menu-rollback.json` was captured with mode `600` before the
+  switch and remains outside Git.
+- Direct HTTP, deployment metadata, built-label, webhook-method, and LINE API
+  checks are complete. Final tactile checks for LINE's in-app window, menu tab
+  switching, keyboard, and safe-area behavior require a physical LINE client
+  and are not claimed as machine-observed.
+
+### Rollback
+
+1. Application: promote or alias
+   `dpl_C9nNfzrpSZEkr2SjJHYebyYDWAFB`.
+2. Rich Menu: run `pnpm rich-menu:rollback` to restore the captured default and
+   aliases.
+3. Database: this release has no migration or data mutation.
+
 ## 2026-07-28 LINE quick-action production release
 
 ### Release identity
