@@ -49,6 +49,10 @@ import {
   parseLineMenuPostback,
   parseLineMenuPostbackDetailed,
 } from "./line-menu-service";
+import {
+  isLineMenuAmountCancel,
+  parseLineMenuAmount,
+} from "./line-menu-amount-draft";
 import { buildLiffUrl, requireLiffId } from "./liff-url";
 
 function replyTextOf(reply: any): string {
@@ -75,6 +79,19 @@ function collectAllTexts(container: any): string[] {
   }
   walk(container);
   return texts;
+}
+
+function noLineAmountDraftDb() {
+  const query: any = {
+    select: () => query,
+    eq: () => query,
+    in: () => query,
+    gte: () => query,
+    order: () => query,
+    limit: () => query,
+    maybeSingle: async () => ({ data: null, error: null }),
+  };
+  return { from: () => query };
 }
 
 export interface FakeTxCall {
@@ -1473,6 +1490,306 @@ test("LINE menu postback shares a strict stage contract with its encoder", () =>
       }),
     /invalid expense ledger state/,
   );
+});
+
+test("LINE menu amount parser accepts common TWD formats and rejects commands", () => {
+  for (const [text, amount] of [
+    ["415", 415],
+    ["415元", 415],
+    ["NT$415", 415],
+    ["NT$ 415", 415],
+    ["$415", 415],
+    ["1,200", 1200],
+    ["４１５", 415],
+  ] as const) {
+    assert.equal(parseLineMenuAmount(text), amount, text);
+  }
+  for (const text of [
+    "0",
+    "-1",
+    "1.5",
+    "100,00",
+    "100000001",
+    "晚餐415",
+    "415 幫我記帳",
+    "415 500",
+  ]) {
+    assert.equal(parseLineMenuAmount(text), null, text);
+  }
+  assert.equal(isLineMenuAmountCancel("取消"), true);
+  assert.equal(isLineMenuAmountCancel("不要了"), true);
+  assert.equal(isLineMenuAmountCancel("算了"), true);
+  assert.equal(isLineMenuAmountCancel("取消晚餐"), false);
+});
+
+test("LINE expense and transfer choices open the keyboard and start amount drafts", async () => {
+  const group = { id: GROUP, name: "吃飽喝足" };
+  const user = {
+    id: CORE_OWNER,
+    couple_id: 1,
+    line_user_id: "line-owner",
+    role: "owner" as const,
+  };
+  const rpcCalls: Array<{ name: string; params: any }> = [];
+  const now = new Date().toISOString();
+  const draft = (payload: any, eventId: string) => ({
+    id: "00000000-0000-4000-8000-000000000071",
+    couple_id: 1,
+    group_id: payload.ledger === "private" ? null : GROUP,
+    requested_by_user_id: CORE_OWNER,
+    draft_type: payload.type,
+    draft_version: 1,
+    payload,
+    status: "active",
+    started_by_event_id: eventId,
+    finished_by_event_id: null,
+    amount_twd: null,
+    expires_at: new Date(Date.now() + 600_000).toISOString(),
+    finished_at: null,
+    created_at: now,
+    updated_at: now,
+  });
+  const groupQuery: any = {
+    select: () => groupQuery,
+    eq: () => groupQuery,
+    is: () => groupQuery,
+    order: async () => ({ data: [group], error: null }),
+  };
+  const db: any = {
+    from: () => groupQuery,
+    rpc: async (name: string, params: any) => {
+      rpcCalls.push({ name, params });
+      return {
+        data: draft(params.p_payload, params.p_source_event_id),
+        error: null,
+      };
+    },
+  };
+
+  const tagMenu = parseLineMenuPostback(
+    `m=1&a=expense_tag&l=s&g=${GROUP}&p=m&t=f`,
+  );
+  assert.ok(tagMenu);
+  const descriptions = await handleLineMenuPostback({
+    menu: tagMenu,
+    user,
+    db,
+    liffId: "1234567890-test",
+    sourceEventId: "event-tag",
+    sourceEventTimestamp: Date.now(),
+  });
+  const descriptionActions = (descriptions as any).quickReply.items.map(
+    (item: any) => item.action,
+  );
+  const descriptionPostbacks = descriptionActions.filter(
+    (action: any) => action.type === "postback",
+  );
+  assert.ok(descriptionPostbacks.length > 0);
+  assert.ok(
+    descriptionPostbacks.every(
+      (action: any) => action.inputOption === "openKeyboard",
+    ),
+  );
+
+  const expenseMenu = parseLineMenuPostback(
+    `m=1&a=expense_description&l=s&g=${GROUP}&p=m&t=f&d=di`,
+  );
+  assert.ok(expenseMenu);
+  const expensePrompt = await handleLineMenuPostback({
+    menu: expenseMenu,
+    user,
+    db,
+    liffId: "1234567890-test",
+    sourceEventId: "event-expense-draft",
+    sourceEventTimestamp: Date.now(),
+  });
+  assert.match(String(expensePrompt), /晚餐｜吃飽喝足｜我付款/);
+  assert.match(String(expensePrompt), /請輸入金額，例如 415/);
+  assert.doesNotMatch(String(expensePrompt), /NT\$100|NT\$500|自訂金額/);
+
+  const directionMenu = parseLineMenuPostback(
+    `m=1&a=transfer_group&g=${GROUP}`,
+  );
+  assert.ok(directionMenu);
+  const directions = await handleLineMenuPostback({
+    menu: directionMenu,
+    user,
+    db,
+    liffId: "1234567890-test",
+    sourceEventId: "event-direction",
+    sourceEventTimestamp: Date.now(),
+  });
+  assert.ok(
+    (directions as any).quickReply.items.every(
+      (item: any) => item.action.inputOption === "openKeyboard",
+    ),
+  );
+
+  const transferMenu = parseLineMenuPostback(
+    `m=1&a=transfer_direction&g=${GROUP}&r=p`,
+  );
+  assert.ok(transferMenu);
+  const transferPrompt = await handleLineMenuPostback({
+    menu: transferMenu,
+    user,
+    db,
+    liffId: "1234567890-test",
+    sourceEventId: "event-transfer-draft",
+    sourceEventTimestamp: Date.now(),
+  });
+  assert.match(String(transferPrompt), /吃飽喝足｜另一半轉給我/);
+  assert.equal(rpcCalls.length, 2);
+  assert.deepEqual(
+    rpcCalls.map((call) => [call.name, call.params.p_draft_type]),
+    [
+      ["start_line_menu_amount_draft", "expense"],
+      ["start_line_menu_amount_draft", "transfer"],
+    ],
+  );
+});
+
+test("LINE text amount consumes the draft before the agent and creates one pending expense", async () => {
+  setupMockEnv();
+  const { handleLineTextMessage } = await import("./line-text-service");
+  const { pendingActionService } = await import("./services");
+  const originalPropose = pendingActionService.proposeCreateExpensePending;
+  let proposed: any = null;
+  pendingActionService.proposeCreateExpensePending = async (
+    _context,
+    command,
+    metadata,
+  ) => {
+    proposed = { command, metadata };
+    return {
+      result: "pending",
+      action_id: "00000000-0000-4000-8000-000000000099",
+      action_type: "create_expense",
+      expense: {
+        ledger: command.ledger,
+        group_id: command.groupId,
+        description: command.description,
+        tag: command.tag,
+        amount_twd: command.amountTwd,
+        paid_by_user_id: CORE_OWNER,
+        expense_date: command.expenseDate,
+      },
+    };
+  };
+
+  const now = new Date().toISOString();
+  const activeDraft: any = {
+    id: "00000000-0000-4000-8000-000000000071",
+    couple_id: 1,
+    group_id: GROUP,
+    requested_by_user_id: CORE_OWNER,
+    draft_type: "expense",
+    draft_version: 1,
+    payload: {
+      type: "expense",
+      ledger: "shared",
+      paidBy: "self",
+      tag: "餐飲",
+      description: "晚餐",
+    },
+    status: "active",
+    started_by_event_id: "event-description",
+    finished_by_event_id: null,
+    amount_twd: null,
+    expires_at: new Date(Date.now() + 600_000).toISOString(),
+    finished_at: null,
+    created_at: now,
+    updated_at: now,
+  };
+  const amountQueries: any[] = [];
+  const db: any = {
+    from: (table: string) => {
+      if (table === "groups") {
+        const groupQuery: any = {
+          select: () => groupQuery,
+          eq: () => groupQuery,
+          is: () => groupQuery,
+          order: async () => ({
+            data: [{ id: GROUP, name: "吃飽喝足" }],
+            error: null,
+          }),
+        };
+        return groupQuery;
+      }
+      const filters = new Map<string, unknown>();
+      const query: any = {
+        select: () => query,
+        eq: (key: string, value: unknown) => {
+          filters.set(key, value);
+          return query;
+        },
+        in: () => query,
+        gte: () => query,
+        order: () => query,
+        limit: () => query,
+        maybeSingle: async () => {
+          amountQueries.push([...filters]);
+          return filters.has("finished_by_event_id")
+            ? { data: null, error: null }
+            : { data: activeDraft, error: null };
+        },
+      };
+      return query;
+    },
+    rpc: async (name: string, params: any) => {
+      assert.equal(name, "finish_line_menu_amount_draft");
+      return {
+        data: {
+          ...activeDraft,
+          status: "consumed",
+          finished_by_event_id: params.p_source_event_id,
+          amount_twd: params.p_amount_twd,
+          finished_at: now,
+        },
+        error: null,
+      };
+    },
+  };
+  let reply: any = null;
+  try {
+    await handleLineTextMessage(
+      "415",
+      "event-amount",
+      {
+        id: CORE_OWNER,
+        couple_id: 1,
+        line_user_id: "line-owner",
+        role: "owner",
+      },
+      "reply-amount",
+      {
+        lineClient: {
+          replyMessage: async (payload: any) => {
+            reply = payload;
+          },
+        },
+        supabase: db,
+        gemini: new Proxy(
+          {},
+          {
+            get() {
+              throw new Error("Gemini must not run for an active amount draft");
+            },
+          },
+        ),
+      } as any,
+      Date.UTC(2026, 6, 29, 12),
+    );
+    assert.equal(proposed.command.description, "晚餐");
+    assert.equal(proposed.command.amountTwd, 415);
+    assert.equal(proposed.command.groupId, GROUP);
+    assert.equal(proposed.command.paidBy, "self");
+    assert.match(proposed.metadata.idempotencyKey, /^line-menu:/);
+    assert.equal(reply.messages[0].type, "flex");
+    assert.match(reply.messages[0].altText, /晚餐/);
+    assert.equal(amountQueries.length, 2);
+  } finally {
+    pendingActionService.proposeCreateExpensePending = originalPropose;
+  }
 });
 
 test("LINE rich-menu switches are strict and silent", async () => {
@@ -7476,7 +7793,7 @@ test("line text service: search command calls ledgerQueryService.searchExpenses 
           repliedText = params.messages[0].text;
         },
       },
-      supabase: {} as any,
+      supabase: noLineAmountDraftDb() as any,
     };
 
     const user = {
@@ -7541,7 +7858,7 @@ test("line text service: pending retarget confirms every returned actionId", asy
           repliedText = params.messages[0].text;
         },
       },
-      supabase: {} as any,
+      supabase: noLineAmountDraftDb() as any,
     };
 
     const user = {

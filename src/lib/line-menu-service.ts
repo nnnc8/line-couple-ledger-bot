@@ -11,6 +11,12 @@ import {
   type QuickReplyAction,
 } from "./flex-message-builder";
 import type { LineUser, ReplyPayload } from "./line-bot-shared";
+import {
+  startLineMenuAmountDraft,
+  supersedeLineMenuAmountDraft,
+  type LineMenuAmountDraft,
+  type LineMenuAmountDraftPayload,
+} from "./line-menu-amount-draft";
 import { buildLiffUrl } from "./liff-url";
 import { pendingActionService } from "./services";
 
@@ -311,6 +317,11 @@ export async function handleLineMenuPostback(
 ): Promise<ReplyPayload> {
   const { menu } = input;
   if (menu.a === "expense") {
+    await supersedeLineMenuAmountDraft(
+      input.db,
+      input.user,
+      input.sourceEventTimestamp,
+    );
     return quickReplyText("這筆要記在哪一本帳？", [
       postback("共同花費", data({ a: "expense_ledger", l: "s" })),
       postback("私人花費", data({ a: "expense_ledger", l: "p" })),
@@ -340,25 +351,39 @@ export async function handleLineMenuPostback(
 
   if (menu.a === "expense_description") {
     await validateExpenseState(input.db, input.user, menu);
-    return amountReply(menu, input.liffId);
+    return beginExpenseAmountInput(input, menu);
   }
 
   if (menu.a === "expense_amount") {
     return proposeExpense({ ...input, menu });
   }
 
-  if (menu.a === "transfer") return chooseTransferGroup(input);
+  if (menu.a === "transfer") {
+    await supersedeLineMenuAmountDraft(
+      input.db,
+      input.user,
+      input.sourceEventTimestamp,
+    );
+    return chooseTransferGroup(input);
+  }
   if (menu.a === "transfer_group") {
     const group = await requireMenuGroup(input.db, input.user, menu.g);
     return directionReply(group);
   }
   if (menu.a === "transfer_direction") {
     await requireMenuGroup(input.db, input.user, menu.g);
-    return amountReply(menu, input.liffId);
+    return beginTransferAmountInput(input, menu);
   }
   if (menu.a === "transfer_amount") return proposeTransfer({ ...input, menu });
 
-  if (menu.a === "settle") return chooseSettleGroup(input);
+  if (menu.a === "settle") {
+    await supersedeLineMenuAmountDraft(
+      input.db,
+      input.user,
+      input.sourceEventTimestamp,
+    );
+    return chooseSettleGroup(input);
+  }
   return proposeSettle({ ...input, menu });
 }
 
@@ -369,11 +394,13 @@ function data(values: LineMenuPostback): string {
 function postback(
   label: string,
   postbackData: string,
+  options?: { openKeyboard?: boolean },
 ): QuickReplyAction {
   return {
     type: "postback",
     label: label.slice(0, 20),
     data: postbackData,
+    ...(options?.openKeyboard ? { inputOption: "openKeyboard" as const } : {}),
   };
 }
 
@@ -484,6 +511,7 @@ function descriptionReply(
         t: tagCode,
         d: code,
       }),
+      { openKeyboard: true },
     ),
   );
   actions.push(
@@ -510,52 +538,71 @@ type TransferDirectionMenu = Extract<
   { a: "transfer_direction" }
 >;
 
-function amountReply(
-  state: ExpenseDescriptionMenu | TransferDirectionMenu,
-  liffId: string,
-): LineReplyMessage {
-  const amounts = [100, 200, 500, 1000];
-  const actions = amounts.map((amount) =>
-    postback(
-      `NT$${amount.toLocaleString()}`,
-      state.a === "expense_description"
-        ? data({
-            a: "expense_amount",
-            l: state.l,
-            g: state.g,
-            p: state.p,
-            t: state.t,
-            d: state.d,
-            n: amount,
-          })
-        : data({
-            a: "transfer_amount",
-            g: state.g,
-            r: state.r,
-            n: amount,
-          }),
-    ),
-  );
-  actions.push(
-    uri(
-      "自訂金額",
-      state.a === "expense_description"
-        ? buildLiffUrl(liffId, {
-            action: "expense",
-            ledger: state.l === "p" ? "private" : "shared",
-            groupId: state.g,
-            paidBy: state.p === "o" ? "partner" : "self",
-            tag: TAGS[state.t],
-            description: DESCRIPTIONS[state.d],
-          })
-        : buildLiffUrl(liffId, {
-            action: "transfer",
-            groupId: state.g,
-            direction: state.r === "p" ? "partner_to_me" : "me_to_partner",
-          }),
-    ),
-  );
-  return quickReplyText("選擇金額", actions);
+async function beginExpenseAmountInput(
+  input: LineMenuInput,
+  menu: ExpenseDescriptionMenu,
+): Promise<ReplyPayload> {
+  const group =
+    menu.l === "s"
+      ? await requireMenuGroup(input.db, input.user, menu.g)
+      : null;
+  const payload: LineMenuAmountDraftPayload = {
+    type: "expense",
+    ledger: menu.l === "p" ? "private" : "shared",
+    paidBy: menu.p === "o" ? "partner" : "self",
+    tag: TAGS[menu.t],
+    description: DESCRIPTIONS[menu.d],
+  };
+  const draft = await startLineMenuAmountDraft({
+    db: input.db,
+    user: input.user,
+    groupId: group?.id ?? null,
+    sourceEventId: input.sourceEventId,
+    payload,
+  });
+  if (draft.status !== "active") {
+    return lineMenuRestartReply("這個金額步驟已被更新，請重新開始。");
+  }
+  return [
+    [
+      payload.description,
+      group?.name ?? "私人帳",
+      payload.paidBy === "self" ? "我付款" : "另一半付款",
+    ].join("｜"),
+    "請輸入金額，例如 415。",
+    "輸入「取消」可離開。",
+  ].join("\n");
+}
+
+async function beginTransferAmountInput(
+  input: LineMenuInput,
+  menu: TransferDirectionMenu,
+): Promise<ReplyPayload> {
+  const group = await requireMenuGroup(input.db, input.user, menu.g);
+  const payload: LineMenuAmountDraftPayload = {
+    type: "transfer",
+    direction: menu.r === "p" ? "partner_to_me" : "me_to_partner",
+  };
+  const draft = await startLineMenuAmountDraft({
+    db: input.db,
+    user: input.user,
+    groupId: group.id,
+    sourceEventId: input.sourceEventId,
+    payload,
+  });
+  if (draft.status !== "active") {
+    return lineMenuRestartReply("這個金額步驟已被更新，請重新開始。");
+  }
+  return [
+    [
+      group.name,
+      payload.direction === "me_to_partner"
+        ? "我轉給另一半"
+        : "另一半轉給我",
+    ].join("｜"),
+    "請輸入金額，例如 415。",
+    "輸入「取消」可離開。",
+  ].join("\n");
 }
 
 async function validateExpenseState(
@@ -577,23 +624,44 @@ async function proposeExpense(
   input: Omit<LineMenuInput, "menu"> & { menu: ExpenseAmountMenu },
 ): Promise<LineReplyMessage> {
   const menu = input.menu;
-  await validateExpenseState(input.db, input.user, menu);
-  const ledger: "private" | "shared" = menu.l === "p" ? "private" : "shared";
+  return proposeExpensePayload({
+    ...input,
+    groupId: menu.g ?? null,
+    amountTwd: menu.n,
+    payload: {
+      type: "expense",
+      ledger: menu.l === "p" ? "private" : "shared",
+      paidBy: menu.p === "o" ? "partner" : "self",
+      tag: TAGS[menu.t],
+      description: DESCRIPTIONS[menu.d],
+    },
+  });
+}
+
+async function proposeExpensePayload(input: {
+  db: SupabaseClient;
+  user: LineUser;
+  groupId: string | null;
+  payload: Extract<LineMenuAmountDraftPayload, { type: "expense" }>;
+  amountTwd: number;
+  sourceEventId: string;
+  sourceEventTimestamp: number;
+}): Promise<LineReplyMessage> {
+  const { payload } = input;
   const group =
-    ledger === "shared"
-      ? await requireMenuGroup(input.db, input.user, menu.g)
+    payload.ledger === "shared"
+      ? await requireMenuGroup(input.db, input.user, input.groupId ?? undefined)
       : null;
-  const tag = TAGS[menu.t!];
-  const description = DESCRIPTIONS[menu.d!];
   const command = {
-    ledger,
+    ledger: payload.ledger,
     groupId: group?.id ?? null,
-    description,
+    description: payload.description,
     merchant: null,
     notes: null,
-    tag,
-    amountTwd: menu.n!,
-    paidBy: ledger === "private" || menu.p !== "o" ? "self" as const : "partner" as const,
+    tag: payload.tag,
+    amountTwd: input.amountTwd,
+    paidBy:
+      payload.ledger === "private" ? "self" as const : payload.paidBy,
     expenseDate: taipeiDate(input.sourceEventTimestamp),
     splitMethod: "equal" as const,
     selfValue: null,
@@ -626,7 +694,7 @@ async function proposeExpense(
     amountTwd: proposed.expense.amount_twd,
     tag: proposed.expense.tag,
     paidByLabel: command.paidBy === "self" ? "你付" : "另一半付",
-    ledgerLabel: ledger === "private" ? "私人帳" : "共同帳",
+    ledgerLabel: payload.ledger === "private" ? "私人帳" : "共同帳",
     groupName: group?.name,
   });
 }
@@ -653,10 +721,12 @@ function directionReply(group: Group): LineReplyMessage {
     postback(
       "我轉給另一半",
       data({ a: "transfer_direction", g: group.id, r: "m" }),
+      { openKeyboard: true },
     ),
     postback(
       "另一半轉給我",
       data({ a: "transfer_direction", g: group.id, r: "p" }),
+      { openKeyboard: true },
     ),
   ]);
 }
@@ -669,14 +739,33 @@ type TransferAmountMenu = Extract<
 async function proposeTransfer(
   input: Omit<LineMenuInput, "menu"> & { menu: TransferAmountMenu },
 ): Promise<LineReplyMessage> {
-  const group = await requireMenuGroup(input.db, input.user, input.menu.g);
-  const direction =
-    input.menu.r === "p" ? "partner_to_me" as const : "me_to_partner" as const;
+  return proposeTransferPayload({
+    ...input,
+    groupId: input.menu.g,
+    amountTwd: input.menu.n,
+    payload: {
+      type: "transfer",
+      direction:
+        input.menu.r === "p" ? "partner_to_me" : "me_to_partner",
+    },
+  });
+}
+
+async function proposeTransferPayload(input: {
+  db: SupabaseClient;
+  user: LineUser;
+  groupId: string;
+  payload: Extract<LineMenuAmountDraftPayload, { type: "transfer" }>;
+  amountTwd: number;
+  sourceEventId: string;
+  sourceEventTimestamp: number;
+}): Promise<LineReplyMessage> {
+  const group = await requireMenuGroup(input.db, input.user, input.groupId);
   const command = {
     type: "transfer" as const,
     groupId: group.id,
-    direction,
-    amountTwd: input.menu.n!,
+    direction: input.payload.direction,
+    amountTwd: input.amountTwd,
     occurredOn: taipeiDate(input.sourceEventTimestamp),
   };
   const proposed = await pendingActionService.proposeTransferPending(
@@ -685,6 +774,33 @@ async function proposeTransfer(
     lineMetadata(input.sourceEventId, command),
   );
   return moneyMovementCard(proposed, input.user.id, group.name);
+}
+
+export async function completeLineMenuAmountDraft(input: {
+  draft: LineMenuAmountDraft;
+  db: SupabaseClient;
+  user: LineUser;
+  sourceEventId: string;
+  sourceEventTimestamp: number;
+}): Promise<LineReplyMessage> {
+  if (input.draft.status !== "consumed" || input.draft.amount_twd === null) {
+    throw new Error("LINE amount draft is not consumable");
+  }
+  if (input.draft.payload.type === "expense") {
+    return proposeExpensePayload({
+      ...input,
+      groupId: input.draft.group_id,
+      payload: input.draft.payload,
+      amountTwd: input.draft.amount_twd,
+    });
+  }
+  if (!input.draft.group_id) throw new LineMenuStateError("group_unavailable");
+  return proposeTransferPayload({
+    ...input,
+    groupId: input.draft.group_id,
+    payload: input.draft.payload,
+    amountTwd: input.draft.amount_twd,
+  });
 }
 
 async function chooseSettleGroup(

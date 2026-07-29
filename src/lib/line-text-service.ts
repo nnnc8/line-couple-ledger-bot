@@ -7,6 +7,17 @@ import { safeSecretEqual } from "./security";
 import { parseSearchCommand, parsePendingRetargetCommand } from "./line-message-parsers";
 import type { BotDependencies } from "./line-webhook-service";
 import { buildLiffUrl, requireLiffId } from "./liff-url";
+import {
+  finishLineMenuAmountDraft,
+  isLineMenuAmountCancel,
+  loadLineMenuAmountDraft,
+  parseLineMenuAmount,
+} from "./line-menu-amount-draft";
+import {
+  completeLineMenuAmountDraft,
+  lineMenuRestartReply,
+  LineMenuStateError,
+} from "./line-menu-service";
 
 const MAX_MESSAGE_LENGTH = 500;
 
@@ -20,6 +31,19 @@ export async function handleLineTextMessage(
 ): Promise<void> {
   if (text.length > MAX_MESSAGE_LENGTH) {
     await replyText(dependencies.lineClient, replyToken, "訊息太長，請縮短後再試。");
+    return;
+  }
+
+  if (
+    await handleLineMenuAmountText({
+      text,
+      eventId,
+      eventTimestamp: eventTimestamp ?? Date.now(),
+      user,
+      replyToken,
+      dependencies,
+    })
+  ) {
     return;
   }
 
@@ -64,6 +88,125 @@ export async function handleLineTextMessage(
     dependencies,
     reply: (replyMsg) => replyMessages(dependencies.lineClient, replyToken, replyMsg),
   });
+}
+
+async function handleLineMenuAmountText(input: {
+  text: string;
+  eventId: string;
+  eventTimestamp: number;
+  user: LineUser;
+  replyToken: string;
+  dependencies: BotDependencies;
+}): Promise<boolean> {
+  const amountTwd = parseLineMenuAmount(input.text);
+  const cancelled = isLineMenuAmountCancel(input.text);
+  const draft = await loadLineMenuAmountDraft({
+    db: input.dependencies.supabase,
+    user: input.user,
+    sourceEventId: input.eventId,
+    retryForNewAmount: amountTwd !== null || cancelled,
+  });
+  if (!draft) return false;
+
+  if (draft.status === "consumed") {
+    await replyCompletedAmountDraft(input, draft);
+    return true;
+  }
+  if (draft.status === "cancelled") {
+    await replyText(
+      input.dependencies.lineClient,
+      input.replyToken,
+      "已取消這次快速輸入，沒有建立任何紀錄。",
+    );
+    return true;
+  }
+  if (draft.status === "expired" || draft.status === "superseded") {
+    if (amountTwd === null && !cancelled) return false;
+    await replyMessages(
+      input.dependencies.lineClient,
+      input.replyToken,
+      lineMenuRestartReply("金額輸入已逾時或被新流程取代，請重新開始。"),
+    );
+    return true;
+  }
+
+  if (cancelled) {
+    const finished = await finishLineMenuAmountDraft({
+      db: input.dependencies.supabase,
+      user: input.user,
+      sourceEventId: input.eventId,
+      status: "cancelled",
+    });
+    await replyText(
+      input.dependencies.lineClient,
+      input.replyToken,
+      finished
+        ? "已取消這次快速輸入，沒有建立任何紀錄。"
+        : "這個金額步驟已完成或逾時，請重新開始。",
+    );
+    return true;
+  }
+
+  if (amountTwd === null) {
+    await replyText(
+      input.dependencies.lineClient,
+      input.replyToken,
+      "金額格式不正確。請輸入 1～100,000,000 的整數，例如 415；輸入「取消」可離開。",
+    );
+    return true;
+  }
+
+  const finished = await finishLineMenuAmountDraft({
+    db: input.dependencies.supabase,
+    user: input.user,
+    sourceEventId: input.eventId,
+    status: "consumed",
+    amountTwd,
+  });
+  if (!finished) {
+    await replyMessages(
+      input.dependencies.lineClient,
+      input.replyToken,
+      lineMenuRestartReply("這個金額步驟已完成或逾時，請重新開始。"),
+    );
+    return true;
+  }
+  await replyCompletedAmountDraft(input, finished);
+  return true;
+}
+
+async function replyCompletedAmountDraft(
+  input: {
+    eventId: string;
+    eventTimestamp: number;
+    user: LineUser;
+    replyToken: string;
+    dependencies: BotDependencies;
+  },
+  draft: Awaited<ReturnType<typeof loadLineMenuAmountDraft>>,
+): Promise<void> {
+  if (!draft) return;
+  try {
+    const response = await completeLineMenuAmountDraft({
+      draft,
+      db: input.dependencies.supabase,
+      user: input.user,
+      sourceEventId: input.eventId,
+      sourceEventTimestamp: input.eventTimestamp,
+    });
+    await replyMessages(
+      input.dependencies.lineClient,
+      input.replyToken,
+      response,
+    );
+  } catch (error) {
+    if (!(error instanceof LineMenuStateError)) throw error;
+    await replyMessages(
+      input.dependencies.lineClient,
+      input.replyToken,
+      lineMenuRestartReply("群組已變更，請重新開始。"),
+    );
+  }
 }
 
 async function replySearch(

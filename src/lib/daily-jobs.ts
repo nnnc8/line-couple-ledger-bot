@@ -18,6 +18,7 @@ import {
   flushQueuedNotifications,
   scanProactiveInsights,
 } from "./notification-service";
+import { cleanupLineMenuAmountDrafts } from "./line-menu-amount-draft";
 
 type ServerEnvironment = ReturnType<typeof serverEnvironment>;
 
@@ -28,6 +29,7 @@ export async function runCoreDailyJobs(options: {
 }) {
   const { env, db, today } = options;
   const expiredPendingActions = await expirePendingActions(db);
+  const lineMenuAmountDrafts = await cleanupLineMenuAmountDrafts(db);
   const drafts = await recurringService.runDue({
     env,
     db,
@@ -51,7 +53,14 @@ export async function runCoreDailyJobs(options: {
   }
   const insightNotifications = await scanProactiveInsights(db, today);
   await flushQueuedNotifications({ env, db });
-  return { drafts, purgedReceipts, accountantReports, insightNotifications, expiredPendingActions };
+  return {
+    drafts,
+    purgedReceipts,
+    accountantReports,
+    insightNotifications,
+    expiredPendingActions,
+    lineMenuAmountDrafts,
+  };
 }
 
 export async function expirePendingActions(db: SupabaseClient, now = new Date()): Promise<number> {

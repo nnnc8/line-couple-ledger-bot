@@ -48,6 +48,8 @@ export type FlexAction =
       label: string;
       data: string;
       displayText?: string;
+      inputOption?: "closeRichMenu" | "openRichMenu" | "openKeyboard" | "openVoice";
+      fillInText?: string;
     };
 
 export type QuickReplyAction = FlexAction;
