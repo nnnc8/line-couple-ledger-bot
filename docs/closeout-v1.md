@@ -59,7 +59,7 @@
 | `git diff --check` | clean |
 | Rich Menu render / validation | both assets valid and deterministic |
 | Preview HTTP | root 200, webhook GET 405 |
-| Production HTTP | root 200, webhook GET 405 |
+| Production HTTP | root 200, webhook GET 405, signed menu-switch POST 200 |
 | Production bundle | new navigation and financial-action labels present |
 | Rich Menu API | release aliases resolve and record menu is default |
 
@@ -84,6 +84,9 @@ separate toolchain change and was not mixed into this UI release.
   checks are complete. Final tactile checks for LINE's in-app window, menu tab
   switching, keyboard, and safe-area behavior require a physical LINE client
   and are not claimed as machine-observed.
+- A signed production webhook smoke containing both `tab=record` and
+  `tab=manage` returned `{"ok":true}` with HTTP 200. These events exit before
+  user lookup, reply, pending-action creation, or ledger mutation.
 - The live codebase-memory service no longer lists the previously indexed
   `Users-nc8-Documents-New-project`; it currently lists only
   `Users-nc8-subscription-billing`. No replacement index was created because
