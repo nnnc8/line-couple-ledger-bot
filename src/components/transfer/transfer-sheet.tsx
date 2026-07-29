@@ -182,6 +182,20 @@ export function TransferSheet({
       variant="full"
     >
       <div className="space-y-5 pt-1">
+        <div className="space-y-1 text-center">
+          <p className="text-[13px] font-semibold text-[var(--muted-foreground)]">
+            金額（TWD）
+          </p>
+          <input
+            aria-label="轉帳金額（TWD）"
+            inputMode="numeric"
+            value={amount}
+            onChange={(event) => setAmount(event.target.value)}
+            placeholder="0"
+            className="w-full border-0 border-b-2 border-[var(--border)] bg-transparent py-2 text-center text-[40px] font-extrabold tracking-tight placeholder:text-[var(--muted-foreground)]/40 focus:border-accent focus:outline-none focus:ring-0"
+          />
+        </div>
+
         <div>
           <Label htmlFor="transfer-group" className="mb-2">群組</Label>
           <Select
@@ -208,20 +222,6 @@ export function TransferSheet({
               { value: "me_to_partner", label: "我轉給另一半" },
               { value: "partner_to_me", label: "另一半轉給我" },
             ]}
-          />
-        </div>
-
-        <div className="space-y-1 text-center">
-          <p className="text-[12px] font-semibold text-[var(--muted-foreground)]">
-            金額（TWD）
-          </p>
-          <input
-            aria-label="轉帳金額（TWD）"
-            inputMode="numeric"
-            value={amount}
-            onChange={(event) => setAmount(event.target.value)}
-            placeholder="0"
-            className="w-full border-0 border-b-2 border-[var(--border)] bg-transparent py-2 text-center text-[40px] font-extrabold tracking-tight placeholder:text-[var(--muted-foreground)]/40 focus:border-accent focus:outline-none focus:ring-0"
           />
         </div>
 
@@ -282,15 +282,17 @@ export function TransferSheet({
           <p className="text-[13px] font-medium text-destructive">{error}</p>
         ) : null}
 
-        <Button
-          variant="primary"
-          size="block"
-          disabled={busy}
-          onClick={submit}
-          className="font-bold"
-        >
-          記錄這筆轉帳
-        </Button>
+        <div className="sticky bottom-0 z-10 -mx-1 bg-[var(--card)]/95 px-1 pb-[max(4px,env(safe-area-inset-bottom))] pt-2 backdrop-blur-xl">
+          <Button
+            variant="primary"
+            size="block"
+            disabled={busy}
+            onClick={submit}
+            className="font-bold"
+          >
+            記錄這筆轉帳
+          </Button>
+        </div>
       </div>
     </Sheet>
   );

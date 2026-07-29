@@ -29,6 +29,7 @@ import {
   loadAccountantSnapshot,
   userRowSchema,
 } from "./accountant-loaders";
+import { buildLiffUrl, requireLiffId } from "./liff-url";
 import { getModel } from "./model-provider";
 import type { ServerContext } from "./server-runtime";
 
@@ -167,6 +168,7 @@ export async function generateMonthlyReports(
     input: Parameters<typeof generateReport>[1],
   ) => ReturnType<typeof generateReport>,
 ) {
+  const analysisUrl = buildLiffUrl(requireLiffId(), { tab: "analysis" });
   const [usersResult, groupsResult] = await Promise.all([
     db.from("users").select("id, couple_id, line_user_id, role").order("role"),
     db.from("groups").select("id, couple_id").is("archived_at", null),
@@ -198,7 +200,7 @@ export async function generateMonthlyReports(
             group_id: group.id,
             kind: "accountant",
             title: "AI 會計師月報",
-            body: `${report.title}\n${env.APP_URL}/?tab=accountant`,
+            body: `${report.title}\n${analysisUrl}`,
             entity_type: "accountant_report",
             entity_id: report.id,
             dedupe_key: `accountant-report:${report.id}:user:${recipient.id}`,
@@ -229,7 +231,7 @@ export async function generateMonthlyReports(
           group_id: null,
           kind: "accountant",
           title: "AI 私人帳月報",
-          body: `${report.title}\n${env.APP_URL}/?tab=accountant`,
+          body: `${report.title}\n${analysisUrl}`,
           entity_type: "accountant_report",
           entity_id: report.id,
           dedupe_key: `accountant-report:${report.id}:user:${user.id}`,

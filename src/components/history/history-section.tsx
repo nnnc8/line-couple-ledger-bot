@@ -12,6 +12,7 @@ import { dateFormat } from "@/lib/format";
 import type { Expense, SettlementView, User } from "@/lib/types";
 
 type HistoryFilter = "all" | "expense" | "transfer";
+type HistoryScope = "combined" | "shared" | "private";
 type SettlementRecord = SettlementView;
 type TimelineItem =
   | { kind: "expense"; date: string; sortKey: string; expense: Expense }
@@ -26,6 +27,7 @@ interface HistorySectionProps {
   expenses: Expense[];
   users: User[];
   settlements: SettlementView[];
+  initialQuery?: string;
   onEdit: (expense: Expense) => void;
   onDelete: (expense: Expense) => void;
   onVoid?: (settlement: SettlementRecord) => void;
@@ -46,6 +48,7 @@ export function HistorySection({
   expenses,
   users,
   settlements,
+  initialQuery = "",
   onEdit,
   onDelete,
   onVoid,
@@ -54,8 +57,9 @@ export function HistorySection({
   includeTransfers = true,
   busy = false,
 }: HistorySectionProps) {
-  const [query, setQuery] = React.useState("");
+  const [query, setQuery] = React.useState(initialQuery);
   const [filter, setFilter] = React.useState<HistoryFilter>("all");
+  const [scope, setScope] = React.useState<HistoryScope>("combined");
   const [showDeleted, setShowDeleted] = React.useState(false);
   const [voidTarget, setVoidTarget] = React.useState<SettlementRecord | null>(null);
 
@@ -64,6 +68,7 @@ export function HistorySection({
     const expenseItems: TimelineItem[] = filter === "transfer"
       ? []
       : expenses
+          .filter((expense) => scope === "combined" || expense.ledger === scope)
           .filter((expense) =>
             showDeleted ? !!expense.deleted_at : !expense.deleted_at,
           )
@@ -81,7 +86,10 @@ export function HistorySection({
           }));
 
     const transferItems: TimelineItem[] =
-      !includeTransfers || showDeleted || filter === "expense"
+      !includeTransfers ||
+      scope === "private" ||
+      showDeleted ||
+      filter === "expense"
         ? []
         : settlements
             .map((item) => item as SettlementRecord)
@@ -104,7 +112,16 @@ export function HistorySection({
     return [...expenseItems, ...transferItems].sort((a, b) =>
       b.sortKey.localeCompare(a.sortKey),
     );
-  }, [expenses, filter, includeTransfers, query, settlements, showDeleted, users]);
+  }, [
+    expenses,
+    filter,
+    includeTransfers,
+    query,
+    scope,
+    settlements,
+    showDeleted,
+    users,
+  ]);
 
   const groups: Array<{ date: string; items: TimelineItem[] }> = [];
   for (const item of timeline) {
@@ -127,18 +144,40 @@ export function HistorySection({
     <div className="space-y-3 pt-1">
       <div className="space-y-2">
         {includeTransfers ? (
-          <Segmented
-            value={filter}
-            onValueChange={(value) => {
-              setFilter(value as HistoryFilter);
-              if (value === "transfer") setShowDeleted(false);
-            }}
-            options={[
-              { value: "all", label: "全部" },
-              { value: "expense", label: "花費" },
-              { value: "transfer", label: "轉帳" },
-            ]}
-          />
+          <>
+            <Segmented
+              ariaLabel="流水類型"
+              value={filter}
+              onValueChange={(value) => {
+                setFilter(value as HistoryFilter);
+                if (value === "transfer") {
+                  setScope("shared");
+                  setShowDeleted(false);
+                }
+              }}
+              options={[
+                { value: "all", label: "全部" },
+                { value: "expense", label: "花費" },
+                { value: "transfer", label: "轉帳" },
+              ]}
+            />
+            <Segmented
+              ariaLabel="帳本範圍"
+              value={scope}
+              onValueChange={(value) => {
+                const next = value as HistoryScope;
+                setScope(next);
+                if (next === "private" && filter === "transfer") {
+                  setFilter("expense");
+                }
+              }}
+              options={[
+                { value: "combined", label: "全部帳本" },
+                { value: "shared", label: "共同" },
+                { value: "private", label: "私人" },
+              ]}
+            />
+          </>
         ) : null}
         <div className="relative">
           <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-[var(--muted-foreground)]" />

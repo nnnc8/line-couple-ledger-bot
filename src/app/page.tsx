@@ -4,8 +4,8 @@ import * as React from "react";
 import { useBootstrap } from "@/hooks/use-bootstrap";
 import { NavBar, type TabKey } from "@/components/layout/nav-bar";
 import { Dashboard } from "@/components/dashboard/dashboard";
+import { AnalysisSection } from "@/components/analysis/analysis-section";
 import { HistorySection } from "@/components/history/history-section";
-import { PrivateLedger } from "@/components/private/private-ledger";
 import { SettingsSection } from "@/components/settings/settings-section";
 import {
   ExpenseForm,
@@ -18,13 +18,18 @@ import {
 import { Sheet } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { OnboardingFlow } from "@/components/onboarding/onboarding-flow";
-import type { Bootstrap, Expense, SettlementView } from "@/lib/types";
+import type {
+  Bootstrap,
+  CategoryAnalytics,
+  Expense,
+  SettlementView,
+} from "@/lib/types";
 import type { ActionInput } from "@/lib/pending-action-types";
 import { api } from "@/lib/api";
 import { toast } from "sonner";
 import { ArrowLeftRight, CircleCheckBig, ReceiptText } from "lucide-react";
 
-const TAB_KEYS: TabKey[] = ["dashboard", "history", "private", "settings"];
+const TAB_KEYS: TabKey[] = ["dashboard", "history", "analysis", "settings"];
 
 declare global {
   interface Window {
@@ -52,7 +57,13 @@ function urlParam(name: string): string | null {
 
 function tabFromUrl(): TabKey {
   const v = urlParam("tab");
+  if (urlParam("search")) return "history";
+  if (v === "private") return "analysis";
   return TAB_KEYS.includes(v as TabKey) ? (v as TabKey) : "dashboard";
+}
+
+function analysisScopeFromUrl(): CategoryAnalytics["scope"] {
+  return urlParam("tab") === "private" ? "private" : "combined";
 }
 
 let liffStartPromise: Promise<void> | null = null;
@@ -126,6 +137,8 @@ export default function Home() {
   } = useBootstrap();
 
   const [tab, setTab] = React.useState<TabKey>(() => tabFromUrl());
+  const [analysisScope, setAnalysisScope] =
+    React.useState<CategoryAnalytics["scope"]>(() => analysisScopeFromUrl());
   const [loginError, setLoginError] = React.useState("");
   const [recordOpen, setRecordOpen] = React.useState(false);
   const [expenseOpen, setExpenseOpen] = React.useState(false);
@@ -145,6 +158,7 @@ export default function Home() {
       const next = tabFromUrl();
       return current === next ? current : next;
     });
+    setAnalysisScope(analysisScopeFromUrl());
   }, []);
 
   const startLiff = React.useCallback(() => {
@@ -376,37 +390,35 @@ export default function Home() {
     <main className="mx-auto flex min-h-dvh max-w-[640px] flex-col pb-nav">
       <header className="sticky top-0 z-30 flex items-center justify-between gap-3 bg-background/85 px-4 pb-3 pt-[max(16px,env(safe-area-inset-top))] backdrop-blur-xl">
         <div>
-          <p className="text-[11px] font-semibold uppercase tracking-[0.06em] text-[var(--muted-foreground)]">
+          <p className="text-[13px] font-semibold uppercase tracking-[0.06em] text-[var(--muted-foreground)]">
             共同帳本
           </p>
           <h1 className="text-lg font-bold tracking-tight">{titleFor(tab)}</h1>
         </div>
-        {tab !== "private" && (
-          <label className="flex items-center gap-2">
-            <span className="text-[11px] font-medium text-[var(--muted-foreground)]">
-              群組
-            </span>
-            <select
-              aria-label="切換群組"
-              value={data.activeGroupId}
-              onChange={(e) =>
-                void mutate("/api/app/groups", {
-                  operation: "activate",
-                  groupId: e.target.value,
-                })
-              }
-              className="h-9 rounded-lg border-[1.5px] border-[var(--border)] bg-[var(--card)] px-2 py-1 text-[13px] font-semibold text-foreground focus:border-accent focus:outline-none focus:ring-2 focus:ring-[var(--accent-glow)]"
-            >
-              {data.groups
-                .filter((g) => !g.archived_at)
-                .map((g) => (
-                  <option key={g.id} value={g.id}>
-                    {g.name}
-                  </option>
-                ))}
-            </select>
-          </label>
-        )}
+        <label className="flex min-w-0 items-center gap-2">
+          <span className="text-[13px] font-medium text-[var(--muted-foreground)]">
+            群組
+          </span>
+          <select
+            aria-label="切換群組"
+            value={data.activeGroupId}
+            onChange={(e) =>
+              void mutate("/api/app/groups", {
+                operation: "activate",
+                groupId: e.target.value,
+              })
+            }
+            className="h-11 max-w-[164px] truncate rounded-xl border-[1.5px] border-[var(--border)] bg-[var(--card)] px-3 py-1 text-[14px] font-semibold text-foreground focus:border-accent focus:outline-none focus:ring-2 focus:ring-[var(--accent-glow)]"
+          >
+            {data.groups
+              .filter((g) => !g.archived_at)
+              .map((g) => (
+                <option key={g.id} value={g.id}>
+                  {g.name}
+                </option>
+              ))}
+          </select>
+        </label>
       </header>
 
       <div className="flex-1 px-4 pb-4">
@@ -418,15 +430,17 @@ export default function Home() {
               onSettle={() => settleAll()}
               onAdd={openAdd}
               onEdit={openEdit}
+              onViewHistory={() => setTab("history")}
               onRefresh={reload}
             />
           )}
           {tab === "history" && (
             <HistorySection
               key={data.activeGroupId}
-              expenses={data.sharedExpenses}
+              expenses={data.expenses}
               users={data.users}
               settlements={data.settlements}
+              initialQuery={boundedParam("search", 100)}
               onEdit={openEdit}
               onDelete={(expense) =>
                 runAction(
@@ -444,20 +458,11 @@ export default function Home() {
               busy={busy}
             />
           )}
-          {tab === "private" && (
-            <PrivateLedger
+          {tab === "analysis" && (
+            <AnalysisSection
               data={data}
-              onEdit={openEdit}
-              onDelete={(expense) =>
-                runAction(
-                  {
-                    type: expense.deleted_at ? "restore_expense" : "delete_expense",
-                    expenseId: expense.id,
-                    expectedVersion: expense.version,
-                  },
-                  { success: expense.deleted_at ? "已復原" : "已刪除" },
-                )
-              }
+              scope={analysisScope}
+              onScopeChange={setAnalysisScope}
             />
           )}
           {tab === "settings" && (
@@ -508,7 +513,7 @@ export default function Home() {
             >
               <CircleCheckBig className="size-5" />
               {currentBalance < 0 ? "全部結清" : "已收到全部欠款"}
-              <span className="ml-auto text-[12px] font-semibold text-[var(--muted-foreground)]">
+              <span className="ml-auto text-[13px] font-semibold text-[var(--muted-foreground)]">
                 NT${Math.abs(currentBalance).toLocaleString()}
               </span>
             </Button>
@@ -626,11 +631,11 @@ function clearActionParams() {
 function titleFor(tab: TabKey): string {
   switch (tab) {
     case "dashboard":
-      return "總覽";
+      return "首頁";
     case "history":
       return "帳務流水";
-    case "private":
-      return "私人帳";
+    case "analysis":
+      return "分析";
     case "settings":
       return "設定";
   }

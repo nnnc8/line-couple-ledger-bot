@@ -17,8 +17,11 @@ import { serverEnvironment } from "./server-runtime";
 import { pendingActionService } from "./services";
 import {
   handleLineMenuPostback,
-  parseLineMenuPostback,
+  lineMenuRestartReply,
+  LineMenuStateError,
+  parseLineMenuPostbackDetailed,
 } from "./line-menu-service";
+import { requireLiffId } from "./liff-url";
 
 export interface BotDependencies {
   lineClient: Pick<LineBotClient, "replyMessage" | "getMessageContent" | "pushMessage">;
@@ -37,6 +40,7 @@ export async function handleLineEvent(
 
   try {
     if (event.type === "postback") {
+      if (parseRichMenuSwitchPostback(event.postback.data)) return;
       const user = await findUser(dependencies.supabase, userId);
       if (!user) {
         await replyText(
@@ -59,6 +63,19 @@ export async function handleLineEvent(
             decision.confirm,
           ),
         );
+        if (
+          result.result === "expired" ||
+          result.result === "stale" ||
+          result.result === "not_found" ||
+          result.result === "already_done"
+        ) {
+          await replyMessages(
+            dependencies.lineClient,
+            replyToken,
+            lineMenuRestartReply(actionResultMessage(result)),
+          );
+          return;
+        }
         await replyText(
           dependencies.lineClient,
           replyToken,
@@ -66,24 +83,42 @@ export async function handleLineEvent(
         );
         return;
       }
-      const menu = parseLineMenuPostback(event.postback.data);
-      if (!menu) {
-        await replyText(
+      const parsedMenu = parseLineMenuPostbackDetailed(event.postback.data);
+      if (!parsedMenu.ok) {
+        console.warn("LINE menu postback rejected", {
+          eventId: event.webhookEventId,
+          reason: parsedMenu.reason,
+        });
+        await replyMessages(
           dependencies.lineClient,
           replyToken,
-          "這個操作無效或已更新，請重新開啟帳務選單。",
+          lineMenuRestartReply("這個操作無效或已更新，請重新開始。"),
         );
         return;
       }
-      const env = serverEnvironment();
-      const response = await handleLineMenuPostback({
-        menu,
-        user,
-        db: dependencies.supabase,
-        appUrl: env.APP_URL,
-        sourceEventId: event.webhookEventId,
-        sourceEventTimestamp: event.timestamp,
-      });
+      let response;
+      try {
+        response = await handleLineMenuPostback({
+          menu: parsedMenu.menu,
+          user,
+          db: dependencies.supabase,
+          liffId: requireLiffId(),
+          sourceEventId: event.webhookEventId,
+          sourceEventTimestamp: event.timestamp,
+        });
+      } catch (error) {
+        if (!(error instanceof LineMenuStateError)) throw error;
+        console.warn("LINE menu state rejected", {
+          eventId: event.webhookEventId,
+          reason: error.reason,
+        });
+        await replyMessages(
+          dependencies.lineClient,
+          replyToken,
+          lineMenuRestartReply("群組已變更，請重新開始。"),
+        );
+        return;
+      }
       await replyMessages(
         dependencies.lineClient,
         replyToken,
@@ -173,6 +208,16 @@ export async function handleLineEvent(
       "暫時無法處理，請稍後再試。",
     );
   }
+}
+
+export function parseRichMenuSwitchPostback(
+  data: string,
+): { tab: "record" | "manage" } | null {
+  if (data.length > 32) return null;
+  const entries = [...new URLSearchParams(data).entries()];
+  if (entries.length !== 1 || entries[0]?.[0] !== "tab") return null;
+  const tab = entries[0][1];
+  return tab === "record" || tab === "manage" ? { tab } : null;
 }
 
 const UUID_PATTERN =

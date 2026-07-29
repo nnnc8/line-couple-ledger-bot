@@ -30,6 +30,7 @@ import {
   loadLineActionPlan,
   persistLineActionPlan,
 } from "./line-action-plan-service";
+import { requireLiffId } from "./liff-url";
 
 export interface LineUser {
   id: string;
@@ -612,7 +613,7 @@ export async function handleLineImageTurn(input: {
   reply: (message: ReplyPayload) => Promise<void>;
 }): Promise<void> {
   const replyText = "圖片暫不自動入帳，請使用快速記帳或完整表單。";
-  await input.reply(flexImageUnsupported(serverEnvironment().APP_URL));
+  await input.reply(flexImageUnsupported(requireLiffId()));
   await logAgentEvent(input.dependencies.supabase, {
     coupleId: input.user.couple_id,
     groupId: null,

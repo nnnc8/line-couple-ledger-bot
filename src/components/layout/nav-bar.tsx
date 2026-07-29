@@ -5,13 +5,13 @@ import {
   Home as IconHome,
   List as IconList,
   Plus,
-  User,
+  ChartNoAxesCombined,
   Settings,
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-export type TabKey = "dashboard" | "history" | "private" | "settings";
+export type TabKey = "dashboard" | "history" | "analysis" | "settings";
 
 interface NavProps {
   tab: TabKey;
@@ -25,9 +25,9 @@ const tabItems: Array<{
   label: string;
   Icon: LucideIcon;
 }> = [
-  { key: "dashboard", label: "總覽", Icon: IconHome },
+  { key: "dashboard", label: "首頁", Icon: IconHome },
   { key: "history", label: "流水", Icon: IconList },
-  { key: "private", label: "私人", Icon: User },
+  { key: "analysis", label: "分析", Icon: ChartNoAxesCombined },
   { key: "settings", label: "設定", Icon: Settings },
 ];
 
@@ -47,12 +47,13 @@ export function NavBar({ tab, onChange, unread, onAdd }: NavProps) {
         />
       ))}
       <button
+        type="button"
         aria-label="記一筆"
         onClick={onAdd}
         className="-mt-7 flex h-14 min-w-[72px] shrink-0 flex-col items-center justify-center rounded-2xl bg-accent px-2 text-accent-foreground shadow-[var(--shadow-fab)] transition active:scale-95"
       >
         <Plus className="size-5" strokeWidth={2.6} />
-        <span className="text-[11px] font-bold leading-none">記一筆</span>
+        <span className="text-[13px] font-bold leading-none">記一筆</span>
       </button>
       {tabItems.slice(2).map((item) => (
         <NavButton
@@ -86,14 +87,14 @@ function NavButton({
       type="button"
       onClick={onClick}
       className={cn(
-        "relative flex flex-1 flex-col items-center gap-0.5 rounded-xl py-1 text-[11px] font-semibold transition",
+        "relative flex min-h-12 flex-1 flex-col items-center justify-center gap-0.5 rounded-xl py-1 text-[13px] font-semibold transition",
         active ? "text-primary" : "text-[var(--muted-foreground)]",
       )}
     >
       <span className="relative">
         {icon}
         {badge && badge > 0 ? (
-          <span className="absolute -right-2 -top-1 min-w-4 rounded-full bg-destructive px-1 text-center text-[10px] font-bold leading-4 text-destructive-foreground">
+          <span className="absolute -right-2 -top-1 min-w-5 rounded-full bg-destructive px-1 text-center text-[13px] font-bold leading-5 text-destructive-foreground">
             {badge > 99 ? "99+" : badge}
           </span>
         ) : null}

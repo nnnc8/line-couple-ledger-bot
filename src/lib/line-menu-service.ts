@@ -11,7 +11,10 @@ import {
   type QuickReplyAction,
 } from "./flex-message-builder";
 import type { LineUser, ReplyPayload } from "./line-bot-shared";
+import { buildLiffUrl } from "./liff-url";
 import { pendingActionService } from "./services";
+
+export const LINE_MENU_PROTOCOL = "quick";
 
 const MENU_ACTIONS = [
   "expense",
@@ -65,108 +68,258 @@ const DESCRIPTION_CHOICES: Record<keyof typeof TAGS, Array<keyof typeof DESCRIPT
   ot: ["other"],
 };
 
-const menuPostbackSchema = z
-  .object({
-    m: z.literal("1"),
-    a: z.enum(MENU_ACTIONS),
-    l: z.enum(["s", "p"]).optional(),
-    g: z.string().uuid().optional(),
-    p: z.enum(["m", "o"]).optional(),
-    t: z.enum(Object.keys(TAGS) as [keyof typeof TAGS, ...(keyof typeof TAGS)[]]).optional(),
-    d: z
-      .enum(
-        Object.keys(DESCRIPTIONS) as [
-          keyof typeof DESCRIPTIONS,
-          ...(keyof typeof DESCRIPTIONS)[],
-        ],
-      )
-      .optional(),
-    r: z.enum(["m", "p"]).optional(),
-    n: z
+const tagSchema = z.enum(
+  Object.keys(TAGS) as [keyof typeof TAGS, ...(keyof typeof TAGS)[]],
+);
+const descriptionSchema = z.enum(
+  Object.keys(DESCRIPTIONS) as [
+    keyof typeof DESCRIPTIONS,
+    ...(keyof typeof DESCRIPTIONS)[],
+  ],
+);
+const groupIdSchema = z.string().uuid();
+const payerSchema = z.enum(["m", "o"]);
+const amountSchema = z
+  .union([
+    z.number(),
+    z
       .string()
       .regex(/^\d{1,9}$/)
-      .transform(Number)
-      .pipe(z.number().int().min(1).max(100_000_000))
-      .optional(),
-  })
-  .strict();
+      .transform(Number),
+  ])
+  .pipe(z.number().int().min(1).max(100_000_000));
+
+const menuPostbackSchema = z
+  .discriminatedUnion("a", [
+    z.object({ a: z.literal("expense") }).strict(),
+    z
+      .object({
+        a: z.literal("expense_ledger"),
+        l: z.enum(["s", "p"]),
+      })
+      .strict(),
+    z
+      .object({
+        a: z.literal("expense_group"),
+        l: z.literal("s"),
+        g: groupIdSchema,
+      })
+      .strict(),
+    z
+      .object({
+        a: z.literal("expense_payer"),
+        l: z.literal("s"),
+        g: groupIdSchema,
+        p: payerSchema,
+      })
+      .strict(),
+    z
+      .object({
+        a: z.literal("expense_tag"),
+        l: z.enum(["s", "p"]),
+        g: groupIdSchema.optional(),
+        p: payerSchema,
+        t: tagSchema,
+      })
+      .strict(),
+    z
+      .object({
+        a: z.literal("expense_description"),
+        l: z.enum(["s", "p"]),
+        g: groupIdSchema.optional(),
+        p: payerSchema,
+        t: tagSchema,
+        d: descriptionSchema,
+      })
+      .strict(),
+    z
+      .object({
+        a: z.literal("expense_amount"),
+        l: z.enum(["s", "p"]),
+        g: groupIdSchema.optional(),
+        p: payerSchema,
+        t: tagSchema,
+        d: descriptionSchema,
+        n: amountSchema,
+      })
+      .strict(),
+    z.object({ a: z.literal("transfer") }).strict(),
+    z
+      .object({
+        a: z.literal("transfer_group"),
+        g: groupIdSchema,
+      })
+      .strict(),
+    z
+      .object({
+        a: z.literal("transfer_direction"),
+        g: groupIdSchema,
+        r: z.enum(["m", "p"]),
+      })
+      .strict(),
+    z
+      .object({
+        a: z.literal("transfer_amount"),
+        g: groupIdSchema,
+        r: z.enum(["m", "p"]),
+        n: amountSchema,
+      })
+      .strict(),
+    z.object({ a: z.literal("settle") }).strict(),
+    z
+      .object({
+        a: z.literal("settle_group"),
+        g: groupIdSchema,
+      })
+      .strict(),
+  ])
+  .superRefine((menu, context) => {
+    if (
+      (menu.a === "expense_tag" ||
+        menu.a === "expense_description" ||
+        menu.a === "expense_amount") &&
+      ((menu.l === "s" && !menu.g) ||
+        (menu.l === "p" && (menu.g !== undefined || menu.p !== "m")))
+    ) {
+      context.addIssue({
+        code: "custom",
+        message: "invalid expense ledger state",
+      });
+    }
+    if (
+      (menu.a === "expense_description" || menu.a === "expense_amount") &&
+      !DESCRIPTION_CHOICES[menu.t].includes(menu.d)
+    ) {
+      context.addIssue({
+        code: "custom",
+        message: "description does not match category",
+      });
+    }
+  });
 
 export type LineMenuPostback = z.infer<typeof menuPostbackSchema>;
 
-const ACTION_KEYS: Record<LineMenuPostback["a"], string[]> = {
-  expense: ["m", "a"],
-  expense_ledger: ["m", "a", "l"],
-  expense_group: ["m", "a", "l", "g"],
-  expense_payer: ["m", "a", "l", "g", "p"],
-  expense_tag: ["m", "a", "l", "g", "p", "t"],
-  expense_description: ["m", "a", "l", "g", "p", "t", "d"],
-  expense_amount: ["m", "a", "l", "g", "p", "t", "d", "n"],
-  transfer: ["m", "a"],
-  transfer_group: ["m", "a", "g"],
-  transfer_direction: ["m", "a", "g", "r"],
-  transfer_amount: ["m", "a", "g", "r", "n"],
-  settle: ["m", "a"],
-  settle_group: ["m", "a", "g"],
-};
+export type LineMenuRejectReason =
+  | "too_long"
+  | "duplicate_key"
+  | "unsupported_protocol"
+  | "missing_action"
+  | "unknown_action"
+  | "unexpected_key"
+  | "invalid_stage";
 
-export function parseLineMenuPostback(data: string): LineMenuPostback | null {
-  if (data.length > 300) return null;
+export type LineMenuParseResult =
+  | { ok: true; menu: LineMenuPostback }
+  | { ok: false; reason: LineMenuRejectReason };
+
+const MENU_KEYS = new Set([
+  "menu",
+  "m",
+  "a",
+  "l",
+  "g",
+  "p",
+  "t",
+  "d",
+  "r",
+  "n",
+]);
+
+export function parseLineMenuPostbackDetailed(
+  data: string,
+): LineMenuParseResult {
+  if (data.length > 300) return { ok: false, reason: "too_long" };
   const params = new URLSearchParams(data);
   const entries = [...params.entries()];
   const keys = entries.map(([key]) => key);
-  if (new Set(keys).size !== keys.length) return null;
-  const parsed = menuPostbackSchema.safeParse(Object.fromEntries(entries));
-  if (!parsed.success) return null;
-  const expected =
-    parsed.data.l === "p"
-      ? ACTION_KEYS[parsed.data.a].filter((key) => key !== "g")
-      : ACTION_KEYS[parsed.data.a];
-  if (
-    keys.length !== expected.length ||
-    keys.some((key) => !expected.includes(key))
-  ) {
-    return null;
+  if (new Set(keys).size !== keys.length) {
+    return { ok: false, reason: "duplicate_key" };
   }
-  if (parsed.data.l === "p" && parsed.data.g) return null;
-  if (parsed.data.l === "p" && parsed.data.p === "o") return null;
+  const protocol = params.get("menu");
+  const legacyProtocol = params.get("m");
   if (
-    (parsed.data.a === "expense_group" ||
-      parsed.data.a === "expense_payer") &&
-    parsed.data.l !== "s"
+    (protocol !== null && legacyProtocol !== null) ||
+    (protocol !== LINE_MENU_PROTOCOL && legacyProtocol !== "1")
   ) {
-    return null;
+    return { ok: false, reason: "unsupported_protocol" };
   }
-  if (
-    parsed.data.t &&
-    parsed.data.d &&
-    !DESCRIPTION_CHOICES[parsed.data.t].includes(parsed.data.d)
-  ) {
-    return null;
+  const action = params.get("a");
+  if (!action) return { ok: false, reason: "missing_action" };
+  if (!MENU_ACTIONS.includes(action as LineMenuPostback["a"])) {
+    return { ok: false, reason: "unknown_action" };
   }
-  return parsed.data;
+  if (keys.some((key) => !MENU_KEYS.has(key))) {
+    return { ok: false, reason: "unexpected_key" };
+  }
+  const parsed = menuPostbackSchema.safeParse(
+    Object.fromEntries(
+      entries.filter(([key]) => key !== "menu" && key !== "m"),
+    ),
+  );
+  if (!parsed.success) return { ok: false, reason: "invalid_stage" };
+  return { ok: true, menu: parsed.data };
+}
+
+export function parseLineMenuPostback(data: string): LineMenuPostback | null {
+  const parsed = parseLineMenuPostbackDetailed(data);
+  return parsed.ok ? parsed.menu : null;
+}
+
+export function encodeLineMenuPostback(values: LineMenuPostback): string {
+  const menu = menuPostbackSchema.parse(values);
+  const params = new URLSearchParams({ menu: LINE_MENU_PROTOCOL });
+  for (const [key, value] of Object.entries(menu)) {
+    if (value !== undefined) params.set(key, String(value));
+  }
+  const encoded = params.toString();
+  if (encoded.length > 300) throw new Error("LINE menu postback is too long");
+  return encoded;
 }
 
 type Group = { id: string; name: string };
 
-export async function handleLineMenuPostback(input: {
+type LineMenuInput = {
   menu: LineMenuPostback;
   user: LineUser;
   db: SupabaseClient;
-  appUrl: string;
+  liffId: string;
   sourceEventId: string;
   sourceEventTimestamp: number;
-}): Promise<ReplyPayload> {
+};
+
+export class LineMenuStateError extends Error {
+  constructor(
+    readonly reason: "group_unavailable",
+  ) {
+    super(reason);
+    this.name = "LineMenuStateError";
+  }
+}
+
+export function lineMenuRestartReply(
+  text = "這個操作已失效，請重新開始。",
+): LineReplyMessage {
+  return quickReplyText(text, [
+    postback("快速記帳", data({ a: "expense" })),
+    postback("記錄轉帳", data({ a: "transfer" })),
+    postback("全部結清", data({ a: "settle" })),
+  ]);
+}
+
+export async function handleLineMenuPostback(
+  input: LineMenuInput,
+): Promise<ReplyPayload> {
   const { menu } = input;
   if (menu.a === "expense") {
     return quickReplyText("這筆要記在哪一本帳？", [
-      postback("共同花費", data({ a: "expense_ledger", l: "s" }), "共同花費"),
-      postback("私人花費", data({ a: "expense_ledger", l: "p" }), "私人花費"),
-      uri("完整表單", prefillUrl(input.appUrl, { action: "expense" })),
+      postback("共同花費", data({ a: "expense_ledger", l: "s" })),
+      postback("私人花費", data({ a: "expense_ledger", l: "p" })),
+      uri("完整表單", buildLiffUrl(input.liffId, { action: "expense" })),
     ]);
   }
 
   if (menu.a === "expense_ledger") {
-    if (menu.l === "p") return categoryReply({ l: "p", p: "m" }, input.appUrl);
+    if (menu.l === "p") return categoryReply({ l: "p", p: "m" }, input.liffId);
     return chooseExpenseGroup(input);
   }
 
@@ -176,22 +329,22 @@ export async function handleLineMenuPostback(input: {
   }
 
   if (menu.a === "expense_payer") {
-    await validateExpenseState(input);
-    return categoryReply(menu, input.appUrl);
+    await validateExpenseState(input.db, input.user, menu);
+    return categoryReply(menu, input.liffId);
   }
 
   if (menu.a === "expense_tag") {
-    await validateExpenseState(input);
-    return descriptionReply(menu, input.appUrl);
+    await validateExpenseState(input.db, input.user, menu);
+    return descriptionReply(menu, input.liffId);
   }
 
   if (menu.a === "expense_description") {
-    await validateExpenseState(input);
-    return amountReply(menu, input.appUrl, "expense");
+    await validateExpenseState(input.db, input.user, menu);
+    return amountReply(menu, input.liffId);
   }
 
   if (menu.a === "expense_amount") {
-    return proposeExpense(input);
+    return proposeExpense({ ...input, menu });
   }
 
   if (menu.a === "transfer") return chooseTransferGroup(input);
@@ -201,36 +354,26 @@ export async function handleLineMenuPostback(input: {
   }
   if (menu.a === "transfer_direction") {
     await requireMenuGroup(input.db, input.user, menu.g);
-    return amountReply(menu, input.appUrl, "transfer");
+    return amountReply(menu, input.liffId);
   }
-  if (menu.a === "transfer_amount") return proposeTransfer(input);
+  if (menu.a === "transfer_amount") return proposeTransfer({ ...input, menu });
 
   if (menu.a === "settle") return chooseSettleGroup(input);
-  return proposeSettle(input);
+  return proposeSettle({ ...input, menu });
 }
 
-function data(
-  values: Omit<LineMenuPostback, "m"> & { a: LineMenuPostback["a"] },
-): string {
-  const params = new URLSearchParams({ m: "1" });
-  for (const [key, value] of Object.entries(values)) {
-    if (value !== undefined) params.set(key, String(value));
-  }
-  const encoded = params.toString();
-  if (encoded.length > 300) throw new Error("LINE menu postback is too long");
-  return encoded;
+function data(values: LineMenuPostback): string {
+  return encodeLineMenuPostback(values);
 }
 
 function postback(
   label: string,
   postbackData: string,
-  displayText = label,
 ): QuickReplyAction {
   return {
     type: "postback",
     label: label.slice(0, 20),
     data: postbackData,
-    displayText,
   };
 }
 
@@ -256,10 +399,10 @@ async function requireMenuGroup(
   user: LineUser,
   groupId: string | undefined,
 ): Promise<Group> {
-  if (!groupId) throw new Error("group is required");
+  if (!groupId) throw new LineMenuStateError("group_unavailable");
   const groups = await listGroups(db, user);
   const group = groups.find((item) => item.id === groupId);
-  if (!group) throw new Error("group is unavailable");
+  if (!group) throw new LineMenuStateError("group_unavailable");
   return group;
 }
 
@@ -275,7 +418,6 @@ async function chooseExpenseGroup(
       postback(
         group.name,
         data({ a: "expense_group", l: "s", g: group.id }),
-        `群組：${group.name}`,
       ),
     ),
   );
@@ -286,19 +428,17 @@ function payerReply(group: Group): LineReplyMessage {
     postback(
       "我付",
       data({ a: "expense_payer", l: "s", g: group.id, p: "m" }),
-      "我付款",
     ),
     postback(
       "另一半付",
       data({ a: "expense_payer", l: "s", g: group.id, p: "o" }),
-      "另一半付款",
     ),
   ]);
 }
 
 function categoryReply(
-  state: Pick<LineMenuPostback, "l" | "g" | "p">,
-  appUrl: string,
+  state: { l: "s" | "p"; g?: string; p: "m" | "o" },
+  liffId: string,
 ): LineReplyMessage {
   const actions = Object.entries(TAGS).map(([code, label]) =>
     postback(
@@ -310,13 +450,12 @@ function categoryReply(
         p: state.p,
         t: code as keyof typeof TAGS,
       }),
-      `分類：${label}`,
     ),
   );
   actions.push(
     uri(
       "自訂",
-      prefillUrl(appUrl, {
+      buildLiffUrl(liffId, {
         action: "expense",
         ledger: state.l === "p" ? "private" : "shared",
         groupId: state.g,
@@ -327,11 +466,13 @@ function categoryReply(
   return quickReplyText("選擇分類", actions);
 }
 
+type ExpenseTagMenu = Extract<LineMenuPostback, { a: "expense_tag" }>;
+
 function descriptionReply(
-  state: LineMenuPostback,
-  appUrl: string,
+  state: ExpenseTagMenu,
+  liffId: string,
 ): LineReplyMessage {
-  const tagCode = state.t!;
+  const tagCode = state.t;
   const actions: QuickReplyAction[] = DESCRIPTION_CHOICES[tagCode].map((code) =>
     postback(
       DESCRIPTIONS[code],
@@ -343,13 +484,12 @@ function descriptionReply(
         t: tagCode,
         d: code,
       }),
-      `項目：${DESCRIPTIONS[code]}`,
     ),
   );
   actions.push(
     uri(
       "自訂說明",
-      prefillUrl(appUrl, {
+      buildLiffUrl(liffId, {
         action: "expense",
         ledger: state.l === "p" ? "private" : "shared",
         groupId: state.g,
@@ -361,36 +501,54 @@ function descriptionReply(
   return quickReplyText("這筆是什麼？", actions);
 }
 
+type ExpenseDescriptionMenu = Extract<
+  LineMenuPostback,
+  { a: "expense_description" }
+>;
+type TransferDirectionMenu = Extract<
+  LineMenuPostback,
+  { a: "transfer_direction" }
+>;
+
 function amountReply(
-  state: LineMenuPostback,
-  appUrl: string,
-  flow: "expense" | "transfer",
+  state: ExpenseDescriptionMenu | TransferDirectionMenu,
+  liffId: string,
 ): LineReplyMessage {
   const amounts = [100, 200, 500, 1000];
   const actions = amounts.map((amount) =>
     postback(
       `NT$${amount.toLocaleString()}`,
-      data({
-        ...state,
-        a: flow === "expense" ? "expense_amount" : "transfer_amount",
-        n: amount,
-      }),
-      `金額 NT$${amount.toLocaleString()}`,
+      state.a === "expense_description"
+        ? data({
+            a: "expense_amount",
+            l: state.l,
+            g: state.g,
+            p: state.p,
+            t: state.t,
+            d: state.d,
+            n: amount,
+          })
+        : data({
+            a: "transfer_amount",
+            g: state.g,
+            r: state.r,
+            n: amount,
+          }),
     ),
   );
   actions.push(
     uri(
       "自訂金額",
-      flow === "expense"
-        ? prefillUrl(appUrl, {
+      state.a === "expense_description"
+        ? buildLiffUrl(liffId, {
             action: "expense",
             ledger: state.l === "p" ? "private" : "shared",
             groupId: state.g,
             paidBy: state.p === "o" ? "partner" : "self",
-            tag: state.t ? TAGS[state.t] : undefined,
-            description: state.d ? DESCRIPTIONS[state.d] : undefined,
+            tag: TAGS[state.t],
+            description: DESCRIPTIONS[state.d],
           })
-        : prefillUrl(appUrl, {
+        : buildLiffUrl(liffId, {
             action: "transfer",
             groupId: state.g,
             direction: state.r === "p" ? "partner_to_me" : "me_to_partner",
@@ -401,18 +559,25 @@ function amountReply(
 }
 
 async function validateExpenseState(
-  input: Parameters<typeof handleLineMenuPostback>[0],
+  db: SupabaseClient,
+  user: LineUser,
+  menu: { l: "s" | "p"; g?: string },
 ) {
-  if (input.menu.l === "s") {
-    await requireMenuGroup(input.db, input.user, input.menu.g);
+  if (menu.l === "s") {
+    await requireMenuGroup(db, user, menu.g);
   }
 }
 
+type ExpenseAmountMenu = Extract<
+  LineMenuPostback,
+  { a: "expense_amount" }
+>;
+
 async function proposeExpense(
-  input: Parameters<typeof handleLineMenuPostback>[0],
+  input: Omit<LineMenuInput, "menu"> & { menu: ExpenseAmountMenu },
 ): Promise<LineReplyMessage> {
   const menu = input.menu;
-  await validateExpenseState(input);
+  await validateExpenseState(input.db, input.user, menu);
   const ledger: "private" | "shared" = menu.l === "p" ? "private" : "shared";
   const group =
     ledger === "shared"
@@ -478,7 +643,6 @@ async function chooseTransferGroup(
       postback(
         group.name,
         data({ a: "transfer_group", g: group.id }),
-        `群組：${group.name}`,
       ),
     ),
   );
@@ -489,18 +653,21 @@ function directionReply(group: Group): LineReplyMessage {
     postback(
       "我轉給另一半",
       data({ a: "transfer_direction", g: group.id, r: "m" }),
-      "我轉給另一半",
     ),
     postback(
       "另一半轉給我",
       data({ a: "transfer_direction", g: group.id, r: "p" }),
-      "另一半轉給我",
     ),
   ]);
 }
 
+type TransferAmountMenu = Extract<
+  LineMenuPostback,
+  { a: "transfer_amount" }
+>;
+
 async function proposeTransfer(
-  input: Parameters<typeof handleLineMenuPostback>[0],
+  input: Omit<LineMenuInput, "menu"> & { menu: TransferAmountMenu },
 ): Promise<LineReplyMessage> {
   const group = await requireMenuGroup(input.db, input.user, input.menu.g);
   const direction =
@@ -526,7 +693,10 @@ async function chooseSettleGroup(
   const groups = await listGroups(input.db, input.user);
   if (groups.length === 0) return "目前沒有可用的共同群組。";
   if (groups.length === 1) {
-    return proposeSettle({ ...input, menu: { m: "1", a: "settle_group", g: groups[0]!.id } });
+    return proposeSettle({
+      ...input,
+      menu: { a: "settle_group", g: groups[0]!.id },
+    });
   }
   return quickReplyText(
     "要結清哪個群組？",
@@ -534,14 +704,18 @@ async function chooseSettleGroup(
       postback(
         group.name,
         data({ a: "settle_group", g: group.id }),
-        `結清群組：${group.name}`,
       ),
     ),
   );
 }
 
+type SettleGroupMenu = Extract<
+  LineMenuPostback,
+  { a: "settle_group" }
+>;
+
 async function proposeSettle(
-  input: Parameters<typeof handleLineMenuPostback>[0],
+  input: Omit<LineMenuInput, "menu"> & { menu: SettleGroupMenu },
 ): Promise<ReplyPayload> {
   const group = await requireMenuGroup(input.db, input.user, input.menu.g);
   const balances = await loadGroupBalances(input.db, group.id);
@@ -631,15 +805,4 @@ function taipeiDate(timestamp: number): string {
     month: "2-digit",
     day: "2-digit",
   }).format(new Date(timestamp));
-}
-
-function prefillUrl(
-  appUrl: string,
-  values: Record<string, string | undefined>,
-): string {
-  const url = new URL(appUrl);
-  for (const [key, value] of Object.entries(values)) {
-    if (value) url.searchParams.set(key, value);
-  }
-  return url.toString();
 }

@@ -2,7 +2,10 @@ import { execFileSync } from "node:child_process";
 import { existsSync } from "node:fs";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { pathToFileURL } from "node:url";
 import { chromium } from "@playwright/test";
+import { buildLiffUrl, requireLiffId } from "../src/lib/liff-url";
+import { encodeLineMenuPostback } from "../src/lib/line-menu-service";
 
 if (existsSync(".env.local")) {
   process.loadEnvFile(".env.local");
@@ -20,7 +23,7 @@ const RECORD_ALIAS = "ledger-record-v1";
 const MANAGE_ALIAS = "ledger-manage-v1";
 
 type RichMenuAction =
-  | { type: "postback"; data: string; displayText: string }
+  | { type: "postback"; data: string }
   | { type: "uri"; uri: string }
   | { type: "richmenuswitch"; richMenuAliasId: string; data: string };
 
@@ -37,7 +40,7 @@ type RichMenuDefinition = {
   areas: Area[];
 };
 
-function recordMenu(name: string): RichMenuDefinition {
+export function recordMenu(name: string): RichMenuDefinition {
   return {
     size: { width: WIDTH, height: HEIGHT },
     selected: true,
@@ -46,18 +49,15 @@ function recordMenu(name: string): RichMenuDefinition {
     areas: [
       area(0, 0, WIDTH, 700, {
         type: "postback",
-        data: "m=1&a=expense",
-        displayText: "快速新增花費",
+        data: encodeLineMenuPostback({ a: "expense" }),
       }),
       area(0, 700, WIDTH / 2, CONTENT_HEIGHT - 700, {
         type: "postback",
-        data: "m=1&a=transfer",
-        displayText: "記錄轉帳",
+        data: encodeLineMenuPostback({ a: "transfer" }),
       }),
       area(WIDTH / 2, 700, WIDTH / 2, CONTENT_HEIGHT - 700, {
         type: "postback",
-        data: "m=1&a=settle",
-        displayText: "全部結清",
+        data: encodeLineMenuPostback({ a: "settle" }),
       }),
       area(0, CONTENT_HEIGHT, WIDTH / 2, TAB_HEIGHT, {
         type: "richmenuswitch",
@@ -73,12 +73,8 @@ function recordMenu(name: string): RichMenuDefinition {
   };
 }
 
-function manageMenu(name: string, appUrl: string): RichMenuDefinition {
-  const url = (tab: string) => {
-    const target = new URL(appUrl);
-    target.searchParams.set("tab", tab);
-    return target.toString();
-  };
+export function manageMenu(name: string, liffId: string): RichMenuDefinition {
+  const url = (tab: string) => buildLiffUrl(liffId, { tab });
   return {
     size: { width: WIDTH, height: HEIGHT },
     selected: true,
@@ -192,11 +188,13 @@ function menuHtml(page: "record" | "manage") {
   </nav></body></html>`;
 }
 
-async function validate() {
-  const appUrl = process.env.APP_URL || "https://example.com";
+async function validate(
+  liffId = process.env.NEXT_PUBLIC_LIFF_ID?.trim() ||
+    "0000000000-rich-menu-validation",
+) {
   const definitions = [
     recordMenu("ledger-v1-record-validation"),
-    manageMenu("ledger-v1-manage-validation", appUrl),
+    manageMenu("ledger-v1-manage-validation", liffId),
   ];
   for (const [index, definition] of definitions.entries()) {
     validateDefinition(definition);
@@ -256,8 +254,9 @@ function overlaps(left: Area["bounds"], right: Area["bounds"]) {
   );
 }
 
-async function plan() {
-  await validate();
+export async function plan() {
+  const liffId = requireLiffId();
+  await validate(liffId);
   const sha = gitSha();
   const localPlan = {
     release: sha,
@@ -297,15 +296,15 @@ async function plan() {
   );
 }
 
-async function apply() {
-  await validate();
+export async function apply() {
+  const liffId = requireLiffId();
+  await validate(liffId);
   if (
     execFileSync("git", ["status", "--porcelain"], { encoding: "utf8" }).trim()
   ) {
     throw new Error("Commit and verify the release before applying Rich Menu.");
   }
   const token = requireEnv("LINE_CHANNEL_ACCESS_TOKEN");
-  const appUrl = requireEnv("APP_URL");
   const sha = gitSha();
   const existing = await lineJson<{
     richmenus?: Array<{ richMenuId: string; name: string }>;
@@ -339,7 +338,7 @@ async function apply() {
   const manageId = await ensureMenu(
     token,
     existing.richmenus ?? [],
-    manageMenu(`ledger-v1-manage-${sha}`, appUrl),
+    manageMenu(`ledger-v1-manage-${sha}`, liffId),
     path.join(ASSET_DIR, "manage.png"),
   );
   await upsertAlias(token, aliases.aliases ?? [], RECORD_ALIAS, recordId);
@@ -501,4 +500,9 @@ async function main() {
   }
 }
 
-void main();
+if (
+  process.argv[1] &&
+  import.meta.url === pathToFileURL(process.argv[1]).href
+) {
+  void main();
+}

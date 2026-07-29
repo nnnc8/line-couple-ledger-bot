@@ -11,7 +11,11 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
 import { HttpError } from "./http-error";
 import { searchExpenseRows } from "./expense-search";
-import { filterAgentExpenses, type AgentTimeRange } from "./ledger-agent";
+import {
+  categoryLabelForExpense,
+  filterAgentExpenses,
+  type AgentTimeRange,
+} from "./ledger-agent";
 import { shiftMonth, taipeiToday } from "./ledger-shared";
 import {
   categoryExpensesInputSchema,
@@ -118,9 +122,8 @@ export async function categoryExpenses(
     );
   }
   const label = parsed.label;
-  const expenseById = new Map(allExpenses.map((expense) => [expense.id, expense]));
   const filtered = expenses
-    .filter((expense) => expense.tag === label)
+    .filter((expense) => categoryLabelForExpense(expense) === label)
     .sort((left, right) => {
       const amountDiff = right.amount_twd - left.amount_twd;
       return amountDiff || right.expense_date.localeCompare(left.expense_date);
@@ -131,19 +134,16 @@ export async function categoryExpenses(
     total: filtered.length,
     offset: parsed.offset,
     limit: parsed.limit,
-    expenses: slice.map((expense) => {
-      const full = expenseById.get(expense.id);
-      return {
-        id: expense.id,
-        description: expense.description,
-        merchant: expense.merchant,
-        amount_twd: expense.amount_twd,
-        expense_date: expense.expense_date,
-        tag: expense.tag,
-        paid_by_user_id: expense.paid_by_user_id,
-        version: expense.version,
-      };
-    }),
+    expenses: slice.map((expense) => ({
+      id: expense.id,
+      description: expense.description,
+      merchant: expense.merchant,
+      amount_twd: expense.amount_twd,
+      expense_date: expense.expense_date,
+      tag: expense.tag,
+      paid_by_user_id: expense.paid_by_user_id,
+      version: expense.version,
+    })),
   };
 }
 

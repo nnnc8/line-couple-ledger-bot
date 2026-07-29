@@ -6,6 +6,7 @@ import { claimUser } from "./claim-user";
 import { safeSecretEqual } from "./security";
 import { parseSearchCommand, parsePendingRetargetCommand } from "./line-message-parsers";
 import type { BotDependencies } from "./line-webhook-service";
+import { buildLiffUrl, requireLiffId } from "./liff-url";
 
 const MAX_MESSAGE_LENGTH = 500;
 
@@ -71,14 +72,16 @@ async function replySearch(
   replyToken: string,
   dependencies: BotDependencies,
 ) {
-  const env = serverEnvironment();
   const params = new URLSearchParams({ q: query, limit: "5" });
   const result = await ledgerQueryService.searchExpenses(
     { db: dependencies.supabase, user },
     params,
   );
   const expenses = result.expenses.slice(0, 5);
-  const link = `${env.APP_URL}/?search=${encodeURIComponent(query)}`;
+  const link = buildLiffUrl(requireLiffId(), {
+    tab: "history",
+    search: query,
+  });
   const lines = expenses.length
     ? [
         `找到 ${expenses.length} 筆：`,

@@ -7,6 +7,7 @@ import {
   parsePendingRetargetCommand,
   parseFixedIntent,
   parseInlineExpenseItems,
+  parseRichMenuSwitchPostback,
   resolveMentionedGroupTurn,
   selectMentionedGroup,
 } from "./line-webhook-service";
@@ -43,9 +44,12 @@ import { setMockWithTx } from "./db/tx";
 import { TransactionStaleError } from "./pending-action-executor";
 import { tagColor } from "./categories";
 import {
+  encodeLineMenuPostback,
   handleLineMenuPostback,
   parseLineMenuPostback,
+  parseLineMenuPostbackDetailed,
 } from "./line-menu-service";
+import { buildLiffUrl, requireLiffId } from "./liff-url";
 
 function replyTextOf(reply: any): string {
   if (reply == null) return "";
@@ -1310,17 +1314,114 @@ test("LINE postback confirms only the signed-in user's pending action", async ()
   );
 });
 
-test("LINE menu postback accepts only the versioned whitelist", () => {
+test("LINE invalid and stale actions return one safe restart card", async () => {
+  const db = fakeNotificationDb();
+  const replies: Array<{ messages: any[] }> = [];
+  const warnings: unknown[][] = [];
+  const originalWarn = console.warn;
+  console.warn = (...args: unknown[]) => {
+    warnings.push(args);
+  };
+  const dependencies = {
+    lineClient: {
+      replyMessage: async (payload: any) => {
+        replies.push(payload);
+        return { sentMessages: [] };
+      },
+      getMessageContent: async () => {
+        throw new Error("unused");
+      },
+      pushMessage: async () => ({ sentMessages: [] }),
+    },
+    supabase: db as never,
+    gemini: {} as never,
+    setupCode: "x".repeat(24),
+  };
+  const event = (data: string, id: string) =>
+    ({
+      type: "postback",
+      webhookEventId: id,
+      replyToken: `reply-${id}`,
+      source: { type: "user", userId: "line-owner" },
+      timestamp: 0,
+      mode: "active",
+      postback: { data },
+    }) as never;
+
+  try {
+    await handleLineEvent(
+      event(
+        "menu=quick&a=expense&n=500&g=00000000-0000-4000-8000-000000000099&secret=do-not-log",
+        "event-invalid-menu",
+      ),
+      dependencies,
+    );
+  } finally {
+    console.warn = originalWarn;
+  }
+
+  const warningText = JSON.stringify(warnings);
+  assert.doesNotMatch(warningText, /do-not-log|00000000-0000-4000-8000-000000000099|500/);
+  assert.match(warningText, /unexpected_key/);
+  assert.equal(replies[0]?.messages.length, 1);
+  assert.equal(replies[0]?.messages[0].quickReply.items.length, 3);
+
+  const { pendingActionService } = await import("./services");
+  const originalConfirm = pendingActionService.confirm;
+  pendingActionService.confirm = async () => ({
+    result: "stale",
+    action_type: "transfer",
+  });
+  try {
+    await withServerEnv(async () => {
+      await handleLineEvent(
+        event(
+          "decision=confirm&id=00000000-0000-4000-8000-000000000099",
+          "event-stale-action",
+        ),
+        dependencies,
+      );
+    });
+  } finally {
+    pendingActionService.confirm = originalConfirm;
+  }
+  assert.equal(replies[1]?.messages.length, 1);
+  assert.match(replies[1]?.messages[0].text, /帳目已變動/);
+  assert.equal(replies[1]?.messages[0].quickReply.items.length, 3);
+  for (const item of replies[1]?.messages[0].quickReply.items ?? []) {
+    assert.equal("displayText" in item.action, false);
+    assert.ok(parseLineMenuPostback(item.action.data));
+  }
+});
+
+test("LINE menu postback shares a strict stage contract with its encoder", () => {
   assert.deepEqual(parseLineMenuPostback("m=1&a=expense"), {
-    m: "1",
     a: "expense",
+  });
+  const encoded = encodeLineMenuPostback({
+    a: "expense_amount",
+    l: "p",
+    p: "m",
+    t: "f",
+    d: "di",
+    n: 500,
+  });
+  assert.match(encoded, /^menu=quick&a=expense_amount&/);
+  assert.deepEqual(parseLineMenuPostback(encoded), {
+    a: "expense_amount",
+    l: "p",
+    p: "m",
+    t: "f",
+    d: "di",
+    n: 500,
   });
   assert.equal(parseLineMenuPostback("m=1&a=expense&userId=forged"), null);
   assert.equal(parseLineMenuPostback("m=1&m=1&a=expense"), null);
+  const legacyAmount = parseLineMenuPostback(
+    "m=1&a=expense_amount&l=p&p=m&t=f&d=di&n=500",
+  );
   assert.equal(
-    parseLineMenuPostback(
-      "m=1&a=expense_amount&l=p&p=m&t=f&d=di&n=500",
-    )?.n,
+    legacyAmount?.a === "expense_amount" ? legacyAmount.n : null,
     500,
   );
   assert.equal(
@@ -1341,6 +1442,227 @@ test("LINE menu postback accepts only the versioned whitelist", () => {
     ),
     null,
   );
+  assert.deepEqual(
+    parseLineMenuPostbackDetailed("menu=quick&a=expense&token=do-not-log"),
+    { ok: false, reason: "unexpected_key" },
+  );
+  assert.deepEqual(
+    parseLineMenuPostbackDetailed("menu=quick&a=expense&a=transfer"),
+    { ok: false, reason: "duplicate_key" },
+  );
+  assert.deepEqual(
+    parseLineMenuPostbackDetailed("menu=quick&a=unknown"),
+    { ok: false, reason: "unknown_action" },
+  );
+  assert.deepEqual(
+    parseLineMenuPostbackDetailed("menu=quick"),
+    { ok: false, reason: "missing_action" },
+  );
+  assert.deepEqual(
+    parseLineMenuPostbackDetailed("x".repeat(301)),
+    { ok: false, reason: "too_long" },
+  );
+  assert.throws(
+    () =>
+      encodeLineMenuPostback({
+        a: "expense_tag",
+        l: "p",
+        g: "00000000-0000-4000-8000-000000000099",
+        p: "m",
+        t: "f",
+      }),
+    /invalid expense ledger state/,
+  );
+});
+
+test("LINE rich-menu switches are strict and silent", async () => {
+  assert.deepEqual(parseRichMenuSwitchPostback("tab=record"), {
+    tab: "record",
+  });
+  assert.deepEqual(parseRichMenuSwitchPostback("tab=manage"), {
+    tab: "manage",
+  });
+  assert.equal(parseRichMenuSwitchPostback("tab=record&tab=manage"), null);
+  assert.equal(parseRichMenuSwitchPostback("tab=record&extra=1"), null);
+  assert.equal(parseRichMenuSwitchPostback("tab=unknown"), null);
+
+  let dbCalls = 0;
+  let replyCalls = 0;
+  await handleLineEvent(
+    {
+      type: "postback",
+      webhookEventId: "event-rich-menu-switch",
+      replyToken: "reply-rich-menu-switch",
+      source: { type: "user", userId: "line-owner" },
+      timestamp: 0,
+      mode: "active",
+      postback: { data: "tab=manage" },
+    } as never,
+    {
+      lineClient: {
+        replyMessage: async () => {
+          replyCalls += 1;
+          return { sentMessages: [] };
+        },
+        getMessageContent: async () => {
+          throw new Error("unused");
+        },
+        pushMessage: async () => ({ sentMessages: [] }),
+      },
+      supabase: {
+        from: () => {
+          dbCalls += 1;
+          throw new Error("rich-menu switch must not query the database");
+        },
+      } as never,
+      gemini: {} as never,
+      setupCode: "x".repeat(24),
+    },
+  );
+  assert.equal(dbCalls, 0);
+  assert.equal(replyCalls, 0);
+});
+
+test("LINE category actions round-trip and custom actions stay inside LIFF", async () => {
+  const liffId = "1234567890-test";
+  const groupId = "00000000-0000-4000-8000-000000000099";
+  const user = {
+    id: CORE_OWNER,
+    couple_id: 1,
+    line_user_id: "line-owner",
+    role: "owner" as const,
+  };
+  const chain: any = {
+    select: () => chain,
+    eq: () => chain,
+    is: () => chain,
+    order: async () => ({
+      data: [{ id: groupId, name: "共同帳" }],
+      error: null,
+    }),
+  };
+  const cases = [
+    {
+      menu: parseLineMenuPostback("m=1&a=expense_ledger&l=p"),
+      db: {} as never,
+      ledger: "p",
+    },
+    {
+      menu: parseLineMenuPostback(
+        `m=1&a=expense_payer&l=s&g=${groupId}&p=m`,
+      ),
+      db: { from: () => chain } as never,
+      ledger: "s",
+    },
+  ] as const;
+
+  for (const current of cases) {
+    assert.ok(current.menu);
+    const response = await handleLineMenuPostback({
+      menu: current.menu,
+      user,
+      db: current.db,
+      liffId,
+      sourceEventId: `event-category-${current.ledger}`,
+      sourceEventTimestamp: 0,
+    });
+    const items = (response as any).quickReply.items as Array<{
+      action: Record<string, unknown>;
+    }>;
+    const postbacks = items
+      .map((item) => item.action)
+      .filter((action) => action.type === "postback");
+    assert.equal(postbacks.length, 8);
+    assert.deepEqual(
+      postbacks
+        .map((action) => parseLineMenuPostback(String(action.data)))
+        .map((menu) => menu?.a === "expense_tag" ? menu.t : null)
+        .sort(),
+      ["en", "f", "fu", "med", "ot", "pk", "sh", "tr"],
+    );
+    for (const action of postbacks) {
+      assert.equal("displayText" in action, false);
+      const parsed = parseLineMenuPostback(String(action.data));
+      assert.equal(parsed?.a, "expense_tag");
+      if (parsed?.a === "expense_tag") assert.equal(parsed.l, current.ledger);
+    }
+    const custom = items
+      .map((item) => item.action)
+      .find((action) => action.type === "uri");
+    assert.ok(custom);
+    const target = new URL(String(custom.uri));
+    assert.equal(target.origin, "https://liff.line.me");
+    assert.equal(target.pathname, `/${liffId}/`);
+    assert.equal(target.searchParams.get("action"), "expense");
+    assert.equal(
+      target.searchParams.get("ledger"),
+      current.ledger === "p" ? "private" : "shared",
+    );
+  }
+});
+
+test("LIFF URL helper preserves deep-link state and rejects missing IDs", () => {
+  const target = new URL(
+    buildLiffUrl("1234567890-test", {
+      tab: "history",
+      action: "expense",
+      description: "晚餐 & 飲料",
+    }),
+  );
+  assert.equal(target.origin, "https://liff.line.me");
+  assert.equal(target.pathname, "/1234567890-test/");
+  assert.equal(target.searchParams.get("tab"), "history");
+  assert.equal(target.searchParams.get("action"), "expense");
+  assert.equal(target.searchParams.get("description"), "晚餐 & 飲料");
+  assert.throws(() => requireLiffId({}), /NEXT_PUBLIC_LIFF_ID is required/);
+  assert.throws(
+    () => requireLiffId({ NEXT_PUBLIC_LIFF_ID: "bad/id" }),
+    /NEXT_PUBLIC_LIFF_ID is invalid/,
+  );
+});
+
+test("Rich Menu actions round-trip and plan/apply require a LIFF ID", async () => {
+  const {
+    apply: applyRichMenu,
+    manageMenu,
+    plan: planRichMenu,
+    recordMenu,
+  } = await import("../../scripts/line-rich-menu");
+  const liffId = "1234567890-test";
+  const record = recordMenu("record-test");
+  for (const area of record.areas.filter(
+    (item) => item.action.type === "postback",
+  )) {
+    assert.equal("displayText" in area.action, false);
+    assert.ok(
+      area.action.type === "postback" &&
+        parseLineMenuPostback(area.action.data),
+    );
+  }
+  const manage = manageMenu("manage-test", liffId);
+  for (const area of manage.areas.filter(
+    (item) => item.action.type === "uri",
+  )) {
+    assert.equal(area.action.type, "uri");
+    if (area.action.type !== "uri") continue;
+    const target = new URL(area.action.uri);
+    assert.equal(target.origin, "https://liff.line.me");
+    assert.equal(target.pathname, `/${liffId}/`);
+    assert.ok(target.searchParams.get("tab"));
+  }
+
+  const originalLiffId = process.env.NEXT_PUBLIC_LIFF_ID;
+  delete process.env.NEXT_PUBLIC_LIFF_ID;
+  try {
+    await assert.rejects(planRichMenu, /NEXT_PUBLIC_LIFF_ID is required/);
+    await assert.rejects(applyRichMenu, /NEXT_PUBLIC_LIFF_ID is required/);
+  } finally {
+    if (originalLiffId === undefined) {
+      delete process.env.NEXT_PUBLIC_LIFF_ID;
+    } else {
+      process.env.NEXT_PUBLIC_LIFF_ID = originalLiffId;
+    }
+  }
 });
 
 test("LINE quick expense creates a pending action and never confirms directly", async () => {
@@ -1388,7 +1710,7 @@ test("LINE quick expense creates a pending action and never confirms directly", 
         role: "owner",
       },
       db: {} as never,
-      appUrl: "https://example.com",
+      liffId: "1234567890-test",
       sourceEventId: "event-menu-expense",
       sourceEventTimestamp: Date.UTC(2026, 6, 27, 12),
     });
@@ -1454,7 +1776,7 @@ test("LINE quick transfer preserves direction and uses pending confirmation", as
         role: "owner",
       },
       db: { from: () => chain } as never,
-      appUrl: "https://example.com",
+      liffId: "1234567890-test",
       sourceEventId: "event-menu-transfer",
       sourceEventTimestamp: Date.UTC(2026, 6, 27, 12),
     });
@@ -1496,11 +1818,11 @@ test("LINE menu rejects a forged group outside the requester's couple", async ()
           role: "owner",
         },
         db: { from: () => chain } as never,
-        appUrl: "https://example.com",
+        liffId: "1234567890-test",
         sourceEventId: "event-forged-group",
         sourceEventTimestamp: Date.now(),
       }),
-    /group is unavailable/,
+    /group_unavailable/,
   );
 });
 
@@ -5968,6 +6290,7 @@ function setupMockEnv() {
   process.env.COUPLE_SETUP_CODE = "x".repeat(24);
   process.env.LIFF_SESSION_SECRET = "x".repeat(32);
   process.env.APP_URL = "https://app.example.com";
+  process.env.NEXT_PUBLIC_LIFF_ID = "1234567890-test";
   process.env.CRON_SECRET = "x".repeat(16);
 }
 
@@ -6823,6 +7146,17 @@ test("handleLineImageTurn rejects image without downloading or calling LLM", asy
 
     assert.equal(replied.type, "flex");
     assert.equal(replied.altText, "目前不支援收據圖片辨識");
+    const imageActions = replied.contents.footer.contents.map(
+      (item: any) => item.action,
+    );
+    assert.equal("displayText" in imageActions[0], false);
+    assert.deepEqual(parseLineMenuPostback(imageActions[0].data), {
+      a: "expense",
+    });
+    const imageFormUrl = new URL(imageActions[1].uri);
+    assert.equal(imageFormUrl.origin, "https://liff.line.me");
+    assert.equal(imageFormUrl.pathname, "/1234567890-test/");
+    assert.equal(imageFormUrl.searchParams.get("action"), "expense");
     assert.equal(getMessageContentCalls, 0);
     assert.equal(runCalled, false);
 
@@ -7164,7 +7498,10 @@ test("line text service: search command calls ledgerQueryService.searchExpenses 
     assert.equal(searchParams?.get("q"), "午餐");
     assert.match(repliedText, /找到 1 筆：/);
     assert.match(repliedText, /午餐 NT\$120｜2026-06-25/);
-    assert.match(repliedText, /看更多：https:\/\/app.example.com\/\?search=%E5%8D%88%E9%A4%90/);
+    assert.match(
+      repliedText,
+      /看更多：https:\/\/liff\.line\.me\/1234567890-test\/\?tab=history&search=%E5%8D%88%E9%A4%90/,
+    );
   } finally {
     ledgerQueryService.searchExpenses = originalSearch;
   }
@@ -9135,12 +9472,12 @@ test("accountant: generateMonthlyReports() notification titles + dedupe keys per
       /^accountant-report:00000000-0000-4000-8000-00000000940[23]:user:/,
     );
   }
-  // Notification body carries the APP_URL deep link. In production the
-  // body is `<title>\n<APP_URL>?tab=accountant`; the test mock sets
-  // titles to `shared-<userId>` or `private-<userId>`, so we just
-  // assert the URL suffix is present on every notification.
+  // Notification body carries a LIFF deep link to the analysis page.
   for (const n of notifications) {
-    assert.match(String(n.body), /https:\/\/example\.com\/\?tab=accountant/);
+    assert.match(
+      String(n.body),
+      /https:\/\/liff\.line\.me\/1234567890-test\/\?tab=analysis/,
+    );
   }
 });
 
@@ -9938,10 +10275,10 @@ test("ledger-query split: categoryExpenses() returns the documented shape for si
     couple_id: 1,
     group_id: activeGroupId,
     ledger: "shared" as const,
-    description: "shared1",
+    description: "晚餐",
     merchant: null,
     notes: null,
-    tag: "餐飲",
+    tag: "其他",
     mirror_kind: null,
     mirror_source_expense_id: null,
     amount_twd: 500,

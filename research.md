@@ -1,106 +1,120 @@
-# v1 分類圖表與 LINE 操作體驗研究
+# v1 LINE／LIFF 穩定性與 UI 重構研究
 
-日期：2026-07-27  
-分支：`codex/v1-transfer-flow`  
-研究基線：`8d0d981`
+日期：2026-07-28
+
+分支：`codex/v1-transfer-flow`
+
+研究基線：`66d758b8b77ebd2896343c113bfbd70dc852120b`
 
 ## 需求
 
-1. 修正分類圓餅圖把不同分類全部顯示成「其他」且同色。
-2. 重做 LINE Rich Menu。
-3. 增加 Flex／Quick Reply，讓常用記帳、轉帳和結清能直接點選。
-4. 移除 LIFF 中誤混入的泰文。
-5. 保留 v1 的 pending action、transaction、冪等與通知路徑，不復活 v2。
+1. 修正分類分析把不同分類顯示成「其他」且使用同色。
+2. 重做 LINE Rich Menu 與按鈕式記帳流程。
+3. 修正 Rich Menu 操作後重複出現「這個操作無效或已更新」。
+4. Rich Menu 與聊天中的 LIFF 入口留在 LINE，不跳 Safari。
+5. 重構整套 LIFF，保留 v1 帳務、pending action、transaction、冪等與通知契約。
+6. 移除誤混入介面的泰文，不復活 finance v2。
 
-## 現況與根因
+## 根因
 
-### 分類圖表
+### Rich Menu 重複錯誤
 
-- 正式資料不是全部為「其他」。唯讀彙總可見油資、停車費、餐飲、維修保養、交通、醫療等多種 `tag`。
-- `rankCategoryLabels()` 回傳 `{ label, totalTwd, count }`。
-- `categoryAnalytics()` 目前直接 spread 該物件，因此 API 回傳 `label`。
-- 前端 `CategoryAnalytics` 契約與 Dashboard、私人帳都讀取 `tag`，讀不到時 fallback 為「其他」。
-- `tagColor()` 依 tag 產生顏色；所有項目 fallback 成同一個 tag 後，自然全部同色。
+Rich Menu 底部分頁使用 `richmenuswitch`，data 為 `tab=record`／
+`tab=manage`。LINE 切換分頁時仍會把 data 送成 webhook postback；
+舊 webhook 只接受 pending decision 或 `m=1` 選單協定，因此每次切換
+都被當成無效操作並回覆錯誤。
 
-結論：修正 API 邊界，把 `item.label` 明確映射成 `tag`；不需修改或回填資料庫。
+修復原則：
 
-### 泰文
+- 只接受完整且唯一的 `tab=record` 或 `tab=manage`。
+- 在使用者與資料庫查詢前靜默結束，不產生聊天泡泡。
+- 其他 `tab`、重複 key 或額外 key 仍拒絕。
 
-`src/` 內有三處 `เงินจริง`：
+### 跳到 Safari
 
-- 記一筆 sheet 副標題。
-- 轉帳反方向警告。
-- 轉帳 sheet 副標題。
+Rich Menu 與部分聊天訊息使用一般 Vercel endpoint URL。這是一般網頁
+連結，不是 LIFF 入口。所有 LINE → Web App 連結必須統一為：
 
-統一替換成「實際轉帳」或「實際金流」，並加入 Thai Unicode 靜態回歸測試。
+```text
+https://liff.line.me/{LIFF_ID}/?...
+```
 
-### LINE Rich Menu
+前端需同時讀取直接 query 與 LINE 包裝後的 `liff.state`，並保留舊
+`tab=private` 深連結。
 
-- 工作區有一張未納入 Git 的 `output/rich-menu.png`，尺寸 2500×1686，內容與目前截圖一致。
-- Repo 沒有可重現的 Rich Menu 版型、熱區 manifest、部署或 rollback 腳本。
-- 現有「收據／直接傳圖片」入口與實際 bot 行為矛盾：圖片目前只會被拒絕，不會 OCR 入帳。
-- Vercel production 有 `LINE_CHANNEL_ACCESS_TOKEN` 變數名稱，但 CLI pull 取得空值；本機 token 已失效，因此目前無法驗證或切換線上 Rich Menu。
+### 分類全部是「其他」
 
-結論：建立可重現產圖、嚴格 manifest、validate/plan/apply/rollback 腳本；取得有效 token 前不得聲稱正式 Rich Menu 已切換。
+歷史資料中有不少 generic tag；舊圖表直接讀取原始 tag，因此不同花費
+會合併成同一個「其他」，顏色雜湊也自然相同。
 
-### LINE 訊息與寫入路徑
+現有 server-side 分類器已能依說明、商家與規則產生 fallback label。
+分類彙總和明細下鑽必須共用同一個 label 函式，避免排行榜顯示「餐飲」，
+展開後卻找不到資料。
 
-- webhook 目前只把 postback 解讀為 pending action 的確認／取消。
-- Flex 已有花費成功、查帳、群組選擇、錯誤與轉帳確認卡。
-- LINE 寫入最終必須走既有 pending action executor；不得建立直接寫 expense/settlement 或額外 partner push。
-- webhook 已有 `webhookEventId`，可用來建立穩定 idempotency key。
+### LIFF 資訊架構
 
-結論：新增嚴格白名單的 menu postback parser，使用 Flex／Quick Reply 收集選項；最後仍建立既有 pending action。
+舊首頁同時放餘額、三個操作、任務、決策、分類圓餅、趨勢、排行與最近
+流水，首屏沒有單一任務；分類圓餅、清單與長條圖也在重複同一份資訊。
+私人帳則被做成另一套頁面，不像同一個財務系統的範圍。
 
-## 最佳實作
+## 選定方案
 
-### 分類與文案
+### LINE
 
-- `categoryAnalytics()` 回傳 `{ tag: item.label, totalTwd, count, percent }`。
-- 修改錯誤的 `.label` 測試為 `.tag`，並確認 public response 不再暴露 `label`。
-- 保留 `tagColor(tag)`，新增多分類不同色的元件測試。
-- 清除所有 Thai Unicode。
+- 保留 stateless postback，不新增選單 session table。
+- emitter 與 parser 共用 discriminated stage schema。
+- 新協定發出 `menu=quick`，繼續接受既有 `m=1`。
+- 快速花費依序選帳本、群組、付款人、分類、說明與常用金額。
+- 自訂內容開啟預填 LIFF。
+- 轉帳保留兩個方向；結清仍依最新餘額。
+- 最後只建立 pending action，確認前不得入帳。
+- 過期或 stale 只回一張可重新開始的 Quick Reply。
+- postback 不帶 `displayText`，避免每次點擊產生聊天雜訊。
 
-### 按鈕式記帳
+### LIFF
 
-- 使用 stateless、版本化 postback，不新增資料表或半成品 session。
-- 每一步把已選的白名單值帶入下一個 postback；group 永遠重新驗證 couple ownership。
-- 快速花費只支援平均分帳與固定分類／說明／金額；自訂內容改開預填 LIFF。
-- 常用金額為 NT$100、200、500、1,000。
-- 最後建立 pending action 並顯示確認／取消，確認前不入帳。
-- 轉帳保留兩個方向、無欠款、反向與超額；結清仍依最新餘額限制。
+導覽改為：
 
-### 雙頁 Rich Menu
+1. 首頁：餘額、主要動作、本月共同／私人／合計、一則洞察、高優先待辦、
+   最近五筆。
+2. 流水：全部／花費／轉帳，加上全部帳本／共同／私人。
+3. 記一筆：中央入口，分開新增花費、記錄轉帳與全部結清。
+4. 分析：共同／私人／合併，近六個月趨勢、分類排行與明細下鑽。
+5. 設定：可用功能優先；未開放功能移到「即將推出」。
 
-兩張 2500×1686 PNG：
+表單採 action-first：
 
-- 記帳頁：大型「快速新增花費」、次要「記錄轉帳」、「全部結清」，底部切換記帳／管理。
-- 管理頁：本月總覽、流水、私人帳、設定，底部切換記帳／管理。
-- aliases：`ledger-record-v1`、`ledger-manage-v1`。
-- 以 Playwright 從固定 HTML/CSS 產圖，不新增繪圖 dependency。
-- 移除收據入口；圖片訊息改回說明 Flex，提供快速記帳與 LIFF 按鈕。
+- 花費先填金額與說明，日期、商家、付款人、分帳與備註放進進階區。
+- 轉帳先填金額，再選群組、方向、日期與備註。
+- 送出按鈕固定在 safe area 上方。
+- 100/0 仍合法，但明確提醒轉帳應使用「記錄轉帳」。
+
+### 視覺
+
+- 深海軍藍作財務主色，單一鈷藍作互動色。
+- 減少陰影與重複卡片，主要文字至少 15px、次要文字至少 13px。
+- 點擊區至少 44px。
+- 分類色以實際分類 label 穩定雜湊，非 generic fallback。
 
 ## 安全與資料邊界
 
 - requester 只取自 LINE webhook source，不接受 postback 傳 user ID。
-- postback 長度、keys、enum、UUID、金額與文字全部用 Zod／白名單驗證。
-- group 必須屬於 requester 的 couple 且未封存。
-- webhook retry 使用 event ID 與 canonical payload 衍生冪等 key。
-- 不記錄 token、完整 postback、帳目描述或個資到 deployment log。
-- 不新增 Supabase schema；現有 RLS、transaction 與 notification queue 不變。
+- postback 長度、keys、enum、UUID、金額與 stage 全部白名單驗證。
+- group 每一步重新驗證 couple ownership 與未封存狀態。
+- webhook retry 使用 event ID 與 canonical command 衍生穩定冪等 key。
+- log 只留安全 reason code，不記完整 postback、金額、group ID 或文字。
+- 所有 money write 仍走 pending action executor 與既有 notification queue。
+- 不新增 Supabase schema、不建立新的轉帳 table、不引入狀態管理套件。
 
-## 驗收
+## 驗收門檻
 
-- 分類圖顯示真實分類與不同顏色。
-- `src/` 無 Thai Unicode。
-- Rich Menu 與快速操作的所有 money write 都在確認後才發生且恰好一次。
-- LIFF deep link 能預填，不能繞過現有驗證。
-- `pnpm typecheck`、`pnpm test`、`pnpm test:tx`、`pnpm test:e2e`、`pnpm build` 全部通過。
-- preview、真實手機 LIFF、真實 LINE、資料庫 row/activity/notification 都有證據。
-- 沒有有效 LINE token 時停在 Rich Menu `plan`，不得冒充 live complete。
-
-## 研究基線
-
-- `pnpm typecheck`：通過。
-- `pnpm test`：193/193 通過。
-- Supabase 2026-07 breaking changes 與本次 server-side 既有 Data API 使用無直接衝突。
+- `tab=record|manage` 切換不查 DB、不回訊息。
+- 所有 Rich Menu、Quick Reply、搜尋與月報連結使用 LIFF URL。
+- `liff.state`、舊 `tab=private`、搜尋與預填表單深連結皆可用。
+- generic 歷史分類能在分析頁分開顯示、使用不同顏色並正確下鑽。
+- 390×844 與 430×932 無水平溢位，核心按鈕與 sticky submit 可用。
+- `src/` 不含誤植的泰文字母。
+- `pnpm typecheck`、`pnpm test`、真實 DB transaction tests、
+  `pnpm test:e2e`、Rich Menu validate 與 `pnpm build` 全部通過。
+- preview 與同一 artifact promotion 後，真實 LINE／LIFF、Rich Menu aliases、
+  production alias、runtime logs 與 rollback 證據一致。

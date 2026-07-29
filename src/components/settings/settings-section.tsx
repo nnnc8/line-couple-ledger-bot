@@ -37,24 +37,6 @@ export function SettingsSection({
 
   return (
     <div className="space-y-3 pt-1">
-      {/* Quick actions */}
-      <div className="grid grid-cols-2 gap-3">
-        <QuickAction
-          icon={<CreditCard />}
-          title="匯入帳單"
-          subtitle="CSV 待開放"
-          disabled
-          onClick={() => {}}
-        />
-        <QuickAction
-          icon={<Tag />}
-          title="分類標籤"
-          subtitle="整理自訂標籤"
-          disabled
-          onClick={() => {}}
-        />
-      </div>
-
       {/* Groups */}
       <Card>
         <CardHeader className="pb-2">
@@ -129,14 +111,36 @@ export function SettingsSection({
         </CardContent>
       </Card>
 
-      {/* Agent Rules / Memories */}
-      <AgentRulesCard />
-
       {/* Recurring expenses */}
       <RecurringEditor data={data} onSave={onRecurring} />
 
+      {/* Agent Rules / Memories */}
+      <AgentRulesCard />
+
       {/* Export */}
       <ExportCard />
+
+      <div className="pt-2">
+        <p className="mb-2 px-1 text-[13px] font-semibold text-[var(--muted-foreground)]">
+          即將推出
+        </p>
+        <div className="grid grid-cols-2 gap-3">
+          <QuickAction
+            icon={<CreditCard />}
+            title="匯入帳單"
+            subtitle="CSV 匯入"
+            disabled
+            onClick={() => {}}
+          />
+          <QuickAction
+            icon={<Tag />}
+            title="分類管理"
+            subtitle="整理自訂分類"
+            disabled
+            onClick={() => {}}
+          />
+        </div>
+      </div>
     </div>
   );
 }

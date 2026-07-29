@@ -66,16 +66,49 @@ test.beforeEach(async ({ page }) => {
   await page.route("**/api/app/agent/memories", (route) =>
     route.fulfill({ json: { memories: [] } }),
   );
-  await page.route("**/api/app/analytics/categories**", (route) =>
+  await page.route("**/api/app/analytics/categories**", (route) => {
+    const url = new URL(route.request().url());
+    const range = url.searchParams.get("range") ?? "this_month";
+    const scope = url.searchParams.get("scope") ?? "shared";
+    const combined = scope === "combined";
+    const privateOnly = scope === "private";
+    return route.fulfill({
+      json: {
+        range,
+        scope,
+        totalTwd: combined ? 1490 : privateOnly ? 430 : 1060,
+        count: combined ? 3 : privateOnly ? 1 : 2,
+        categories: privateOnly
+          ? [{ tag: "餐飲", totalTwd: 430, count: 1, percent: 100 }]
+          : combined
+            ? [
+                { tag: "晚餐", totalTwd: 860, count: 1, percent: 58 },
+                { tag: "餐飲", totalTwd: 430, count: 1, percent: 29 },
+                { tag: "捷運", totalTwd: 200, count: 1, percent: 13 },
+              ]
+            : [
+                { tag: "晚餐", totalTwd: 860, count: 1, percent: 81 },
+                { tag: "捷運", totalTwd: 200, count: 1, percent: 19 },
+              ],
+      },
+    });
+  });
+  await page.route("**/api/app/analytics/expenses**", (route) =>
     route.fulfill({
       json: {
-        range: "this_month",
-        scope: "shared",
-        totalTwd: 1060,
-        count: 2,
-        categories: [
-          { tag: "晚餐", totalTwd: 860, count: 1, percent: 81 },
-          { tag: "捷運", totalTwd: 200, count: 1, percent: 19 },
+        label: "晚餐",
+        total: 1,
+        offset: 0,
+        limit: 50,
+        expenses: [
+          {
+            id: "00000000-0000-4000-8000-000000000010",
+            description: "晚餐",
+            merchant: "小吃店",
+            amount_twd: 860,
+            expense_date: "2026-06-22",
+            tag: "晚餐",
+          },
         ],
       },
     }),
@@ -89,7 +122,7 @@ test("mobile dashboard, history, and direct expense flow", async ({
   page,
 }) => {
   await page.goto("/");
-  await expect(page.getByRole("heading", { name: "總覽" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "首頁" })).toBeVisible();
   await expect(page.getByText("另一半欠你 NT$430")).toBeVisible();
   await expect(page.getByRole("button", { name: /記錄已轉帳/ })).toHaveCount(0);
   await expect(page.getByText("NT$1,060").first()).toBeVisible();
@@ -101,30 +134,34 @@ test("mobile dashboard, history, and direct expense flow", async ({
   await expect(page.getByText("交通預付款")).toBeVisible();
   await expect(page.getByRole("button", { name: /晚餐/ })).toHaveCount(0);
 
-  await page.getByRole("button", { name: /私人/ }).click();
-  await expect(page.getByRole("heading", { name: "私人帳" })).toBeVisible();
-  await expect(page.getByText("共同分攤")).toBeVisible();
+  await page.getByRole("button", { name: "分析" }).click();
+  await expect(page.getByRole("heading", { name: "分析" })).toBeVisible();
+  await expect(page.getByText("你的支出結構")).toBeVisible();
+  await page.getByRole("tab", { name: "私人" }).click();
+  await expect(page.getByRole("tab", { name: "私人" })).toHaveAttribute(
+    "aria-selected",
+    "true",
+  );
 
   await page.getByRole("button", { name: "記一筆" }).click();
   await page.getByRole("button", { name: "新增花費" }).click();
-  await page.getByLabel("說明").fill("晚餐");
   await page.getByLabel("金額（TWD）").fill("860");
-  await page.getByRole("button", { name: "直接記帳" }).click();
+  await page.getByLabel("說明").fill("晚餐");
+  await page.getByRole("button", { name: "記錄這筆支出" }).click();
   await expect(page.getByText("已記帳")).toBeVisible();
   await expect(page.getByLabel("說明")).toHaveCount(0);
 });
 
-test("dashboard fallback keeps free category labels and centered add button", async ({
+test("analysis keeps category labels distinct and centered add button", async ({
   page,
 }) => {
-  await page.route("**/api/app/analytics/categories**", (route) =>
-    route.fulfill({ status: 500, json: { error: "failed" } }),
-  );
-
   await page.goto("/");
-  await expect(page.getByText("晚餐", { exact: true })).toHaveCount(2);
+  await page.getByRole("button", { name: "分析" }).click();
+  await expect(page.getByText("晚餐", { exact: true }).first()).toBeVisible();
   await expect(page.getByText("捷運", { exact: true }).first()).toBeVisible();
   await expect(page.getByText("transport", { exact: true })).toHaveCount(0);
+  await page.getByRole("button", { name: /晚餐/ }).first().click();
+  await expect(page.getByText("1 筆")).toBeVisible();
 
   const centerOffset = await page
     .locator("nav")
@@ -134,6 +171,22 @@ test("dashboard fallback keeps free category labels and centered add button", as
       return Math.abs(rect.left + rect.width / 2 - window.innerWidth / 2);
     });
   expect(centerOffset).toBeLessThan(3);
+});
+
+test("history separates shared, private, and transfer scopes", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: "流水" }).click();
+
+  await page.getByRole("tab", { name: "私人" }).click();
+  await expect(page.getByText("共同分攤")).toBeVisible();
+  await expect(page.getByText("交通預付款")).toHaveCount(0);
+
+  await page.getByRole("tab", { name: "轉帳" }).click();
+  await expect(page.getByRole("tab", { name: "共同" })).toHaveAttribute(
+    "aria-selected",
+    "true",
+  );
+  await expect(page.getByText("交通預付款")).toBeVisible();
 });
 
 test("general transfer is separate from expenses and previews crossing zero", async ({
@@ -205,7 +258,7 @@ test("LIFF waits for a delayed SDK and still creates one session", async ({ page
   });
 
   await page.goto("/");
-  await expect(page.getByRole("heading", { name: "總覽" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "首頁" })).toBeVisible();
   expect(sessionBodies).toHaveLength(1);
 });
 
@@ -250,7 +303,7 @@ test("LIFF expense deep link validates and prefills the form", async ({ page }) 
   await expect(page.getByRole("heading", { name: "新增支出" })).toBeVisible();
   await expect(page.getByLabel("金額（TWD）")).toHaveValue("500");
   await expect(page.getByLabel("說明")).toHaveValue("午餐");
-  await expect(page.getByLabel("標籤")).toHaveValue("餐飲");
+  await expect(page.getByLabel("分類")).toHaveValue("餐飲");
   await expect(page.getByRole("tab", { name: /私人/ })).toHaveAttribute(
     "aria-selected",
     "true",
@@ -270,6 +323,50 @@ test("LIFF transfer deep link prefills only an authorized group", async ({ page 
     "true",
   );
   await expect(page).not.toHaveURL(/action=transfer/);
+});
+
+test("legacy private and wrapped liff.state links keep their destination", async ({
+  page,
+}) => {
+  await page.goto("/?tab=private");
+  await expect(page.getByRole("heading", { name: "分析" })).toBeVisible();
+  await expect(page.getByRole("tab", { name: "私人" })).toHaveAttribute(
+    "aria-selected",
+    "true",
+  );
+
+  const state = encodeURIComponent("?tab=history&search=晚餐");
+  await page.goto(`/?liff.state=${state}`);
+  await expect(page.getByRole("heading", { name: "帳務流水" })).toBeVisible();
+  await expect(
+    page.getByPlaceholder("搜尋說明、商家或轉帳備註"),
+  ).toHaveValue("晚餐");
+});
+
+test("LIFF layout stays usable on common iPhone viewport sizes", async ({
+  page,
+}) => {
+  for (const viewport of [
+    { width: 390, height: 844 },
+    { width: 430, height: 932 },
+  ]) {
+    await page.setViewportSize(viewport);
+    await page.goto("/");
+    await expect(page.getByRole("heading", { name: "首頁" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "記一筆" })).toBeVisible();
+    await expect
+      .poll(() =>
+        page.evaluate(
+          () => document.documentElement.scrollWidth <= window.innerWidth + 1,
+        ),
+      )
+      .toBe(true);
+
+    await page.getByRole("button", { name: "記一筆" }).click();
+    await expect(page.getByRole("dialog", { name: "記一筆" })).toBeVisible();
+    await expect(page.getByText(/[\u0E00-\u0E7F]/)).toHaveCount(0);
+    await page.getByRole("button", { name: "關閉" }).click();
+  }
 });
 
 

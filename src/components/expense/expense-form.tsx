@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select } from "@/components/ui/select";
 import { Segmented } from "@/components/ui/segmented";
-import { ArrowLeftRight, Trash2 } from "lucide-react";
+import { ArrowLeftRight, SlidersHorizontal, Trash2 } from "lucide-react";
 import { tagPreset } from "@/lib/categories";
 import type { Bootstrap, Expense } from "@/lib/types";
 import type { PendingActionInput } from "@/lib/optimistic";
@@ -194,19 +194,31 @@ export function ExpenseForm({
         />
       </div>
 
+      {/* Description */}
+      <div>
+        <Label htmlFor="description" className="mb-2">說明</Label>
+        <Input
+          id="description"
+          value={state.description}
+          onChange={(e) => patch("description", e.target.value)}
+          placeholder="例如：晚餐"
+          maxLength={100}
+        />
+      </div>
 
       {/* Ledger toggle */}
       <div>
         <Label className="mb-2">帳本</Label>
         <Segmented
+          ariaLabel="帳本"
           value={state.ledger}
           onValueChange={(v) => {
             patch("ledger", v);
             if (v === "private") patch("paidBy", "self");
           }}
           options={[
-            { value: "shared", label: "💕 共同" },
-            { value: "private", label: "👤 私人" },
+            { value: "shared", label: "共同" },
+            { value: "private", label: "私人" },
           ]}
         />
       </div>
@@ -224,27 +236,15 @@ export function ExpenseForm({
         </div>
       ) : null}
 
-      {/* Description */}
-      <div>
-        <Label htmlFor="description" className="mb-2">說明</Label>
-        <Input
-          id="description"
-          value={state.description}
-          onChange={(e) => patch("description", e.target.value)}
-          placeholder="例如：晚餐"
-          maxLength={100}
-        />
-      </div>
-
       {/* Tag input */}
       <div>
-        <Label htmlFor="tag" className="mb-2">標籤</Label>
+        <Label htmlFor="tag" className="mb-2">分類</Label>
         <Input
           id="tag"
           list="tag-suggestions"
           value={state.tag}
           onChange={(e) => patch("tag", e.target.value)}
-          placeholder="例如：餐飲、交通、購物"
+          placeholder="餐飲、交通、購物"
           maxLength={30}
         />
         <datalist id="tag-suggestions">
@@ -254,85 +254,111 @@ export function ExpenseForm({
         </datalist>
       </div>
 
-      {/* Date + Merchant */}
-      <div className="grid grid-cols-2 gap-3">
-        <div>
-          <Label htmlFor="expenseDate" className="mb-2">日期</Label>
-          <Input
-            id="expenseDate"
-            type="date"
-            value={state.expenseDate}
-            onChange={(e) => patch("expenseDate", e.target.value)}
-          />
-        </div>
-        <div>
-          <Label htmlFor="merchant" className="mb-2">商家</Label>
-          <Input
-            id="merchant"
-            value={state.merchant}
-            onChange={(e) => patch("merchant", e.target.value)}
-            placeholder="選填"
-            maxLength={100}
-          />
-        </div>
-      </div>
+      <details
+        open={editExpense ? true : undefined}
+        className="group rounded-2xl border border-[var(--border)] bg-[var(--card)]"
+      >
+        <summary className="flex min-h-12 cursor-pointer list-none items-center gap-2 px-4 py-3 text-[14px] font-semibold">
+          <SlidersHorizontal className="size-4 text-accent" />
+          日期、付款與分帳
+          <span className="ml-auto text-[13px] font-medium text-[var(--muted-foreground)] group-open:hidden">
+            展開
+          </span>
+          <span className="ml-auto hidden text-[13px] font-medium text-[var(--muted-foreground)] group-open:inline">
+            收合
+          </span>
+        </summary>
+        <div className="space-y-4 border-t border-[var(--border)] px-4 pb-4 pt-4">
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label htmlFor="expenseDate" className="mb-2">日期</Label>
+              <Input
+                id="expenseDate"
+                type="date"
+                value={state.expenseDate}
+                onChange={(e) => patch("expenseDate", e.target.value)}
+              />
+            </div>
+            <div>
+              <Label htmlFor="merchant" className="mb-2">商家</Label>
+              <Input
+                id="merchant"
+                value={state.merchant}
+                onChange={(e) => patch("merchant", e.target.value)}
+                placeholder="選填"
+                maxLength={100}
+              />
+            </div>
+          </div>
 
-      {/* PaidBy + SplitMethod */}
-      <div className="grid grid-cols-2 gap-3">
-        <div>
-          <Label className="mb-2">付款人</Label>
-          <Select
-            value={state.paidBy}
-            onValueChange={(v) => patch("paidBy", v as PaidBy)}
-            disabled={state.ledger === "private"}
-            options={[
-              { value: "self", label: "你" },
-              { value: "partner", label: "另一半" },
-            ]}
-          />
-        </div>
-        <div>
-          <Label className="mb-2">分帳方式</Label>
-          <Select
-            value={state.splitMethod}
-            onValueChange={(v) => patch("splitMethod", v as SplitMethod)}
-            disabled={state.ledger === "private"}
-            options={[
-              { value: "equal", label: "平均" },
-              { value: "exact", label: "指定金額" },
-              { value: "percentage", label: "百分比" },
-            ]}
-          />
-        </div>
-      </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label className="mb-2">付款人</Label>
+              <Select
+                value={state.paidBy}
+                onValueChange={(v) => patch("paidBy", v as PaidBy)}
+                disabled={state.ledger === "private"}
+                options={[
+                  { value: "self", label: "你" },
+                  { value: "partner", label: "另一半" },
+                ]}
+              />
+            </div>
+            <div>
+              <Label className="mb-2">分帳方式</Label>
+              <Select
+                value={state.splitMethod}
+                onValueChange={(v) => patch("splitMethod", v as SplitMethod)}
+                disabled={state.ledger === "private"}
+                options={[
+                  { value: "equal", label: "平均" },
+                  { value: "exact", label: "指定金額" },
+                  { value: "percentage", label: "百分比" },
+                ]}
+              />
+            </div>
+          </div>
 
-      {/* Split values */}
-      {state.ledger === "shared" && state.splitMethod !== "equal" ? (
-        <div className="grid grid-cols-2 gap-3">
+          {state.ledger === "shared" && state.splitMethod !== "equal" ? (
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label className="mb-2">
+                  你的{state.splitMethod === "exact" ? "金額" : "比例 %"}
+                </Label>
+                <Input
+                  value={state.selfValue}
+                  onChange={(e) => patch("selfValue", e.target.value)}
+                  inputMode="decimal"
+                  placeholder={state.splitMethod === "exact" ? "0" : "50"}
+                />
+              </div>
+              <div>
+                <Label className="mb-2">
+                  另一半{state.splitMethod === "exact" ? "金額" : "比例 %"}
+                </Label>
+                <Input
+                  value={state.partnerValue}
+                  onChange={(e) => patch("partnerValue", e.target.value)}
+                  inputMode="decimal"
+                  placeholder={state.splitMethod === "exact" ? "0" : "50"}
+                />
+              </div>
+            </div>
+          ) : null}
+
           <div>
-            <Label className="mb-2">
-              你的{state.splitMethod === "exact" ? "金額" : "比例 %"}
-            </Label>
-            <Input
-              value={state.selfValue}
-              onChange={(e) => patch("selfValue", e.target.value)}
-              inputMode="decimal"
-              placeholder={state.splitMethod === "exact" ? "0" : "50"}
+            <Label htmlFor="notes" className="mb-2">備註</Label>
+            <Textarea
+              id="notes"
+              value={state.notes}
+              onChange={(e) => patch("notes", e.target.value)}
+              placeholder="選填"
+              maxLength={500}
+              className="min-h-[72px]"
             />
           </div>
-          <div>
-            <Label className="mb-2">
-              另一半{state.splitMethod === "exact" ? "金額" : "比例 %"}
-            </Label>
-            <Input
-              value={state.partnerValue}
-              onChange={(e) => patch("partnerValue", e.target.value)}
-              inputMode="decimal"
-              placeholder={state.splitMethod === "exact" ? "0" : "50"}
-            />
-          </div>
         </div>
-      ) : null}
+      </details>
 
       {looksLikeTransfer ? (
         <div
@@ -354,33 +380,21 @@ export function ExpenseForm({
         </div>
       ) : null}
 
-      {/* Notes */}
-      <div>
-        <Label htmlFor="notes" className="mb-2">備註</Label>
-        <Textarea
-          id="notes"
-          value={state.notes}
-          onChange={(e) => patch("notes", e.target.value)}
-          placeholder="選填"
-          maxLength={500}
-          className="min-h-[72px]"
-        />
-      </div>
-
       {err ? (
         <p className="text-[13px] font-medium text-destructive">{err}</p>
       ) : null}
 
-      {/* Submit */}
-      <Button
-        variant="primary"
-        size="block"
-        disabled={busy}
-        onClick={submit}
-        className="font-bold"
-      >
-        {editExpense ? "直接更新" : "直接記帳"}
-      </Button>
+      <div className="sticky bottom-0 z-10 -mx-1 bg-[var(--card)]/95 px-1 pb-[max(4px,env(safe-area-inset-bottom))] pt-2 backdrop-blur-xl">
+        <Button
+          variant="primary"
+          size="block"
+          disabled={busy}
+          onClick={submit}
+          className="font-bold"
+        >
+          {editExpense ? "儲存變更" : "記錄這筆支出"}
+        </Button>
+      </div>
 
       {editExpense && onDelete ? (
         <Button

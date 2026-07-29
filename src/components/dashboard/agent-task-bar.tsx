@@ -44,7 +44,7 @@ export function AgentTaskBar({ tasks, onRefresh }: AgentTaskBarProps) {
         <div className="flex items-center gap-2">
           <ListTodo className="h-4 w-4 text-primary" />
           <CardTitle className="text-base">待處理事項</CardTitle>
-          <Badge variant="secondary" className="ml-auto h-5 px-1.5 text-xs">
+          <Badge variant="secondary" className="ml-auto h-6 px-2 text-[13px]">
             {tasks.length}
           </Badge>
         </div>
@@ -58,7 +58,7 @@ export function AgentTaskBar({ tasks, onRefresh }: AgentTaskBarProps) {
             >
               <div className="mt-0.5 shrink-0">
                 {task.priority === "high" ? (
-                  <Badge variant="danger" className="h-4 px-1 text-[10px]">
+                  <Badge variant="danger" className="h-6 px-2 text-[13px]">
                     急
                   </Badge>
                 ) : (
@@ -66,9 +66,9 @@ export function AgentTaskBar({ tasks, onRefresh }: AgentTaskBarProps) {
                 )}
               </div>
               <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-medium">{task.title}</p>
+                <p className="truncate text-[14px] font-medium">{task.title}</p>
                 {task.summary && (
-                  <p className="mt-0.5 truncate text-xs text-muted-foreground">
+                  <p className="mt-0.5 truncate text-[13px] text-muted-foreground">
                     {task.summary}
                   </p>
                 )}
@@ -77,7 +77,8 @@ export function AgentTaskBar({ tasks, onRefresh }: AgentTaskBarProps) {
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="h-7 w-7 p-0"
+                  aria-label={`完成「${task.title}」`}
+                  className="h-11 w-11 p-0"
                   disabled={busyId === task.id}
                   onClick={() => void handleAction(task.id, "complete")}
                 >
@@ -86,7 +87,8 @@ export function AgentTaskBar({ tasks, onRefresh }: AgentTaskBarProps) {
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="h-7 w-7 p-0"
+                  aria-label={`略過「${task.title}」`}
+                  className="h-11 w-11 p-0"
                   disabled={busyId === task.id}
                   onClick={() => void handleAction(task.id, "dismiss")}
                 >

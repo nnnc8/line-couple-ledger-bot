@@ -11,6 +11,8 @@
  * `replyMessages` in `line-bot-shared.ts`.
  */
 
+import { buildLiffUrl } from "./liff-url";
+
 export type FlexContainer = {
   type: "bubble";
   header?: FlexBox;
@@ -261,7 +263,6 @@ export function flexExpensePending(
               type: "postback",
               label: "取消",
               data: actionData("cancel"),
-              displayText: "取消這筆花費",
             },
             style: "secondary",
             flex: 1,
@@ -272,7 +273,6 @@ export function flexExpensePending(
               type: "postback",
               label: "確認",
               data: actionData("confirm"),
-              displayText: "確認這筆花費",
             },
             style: "primary",
             color: "#2563EB",
@@ -287,7 +287,7 @@ export function flexExpensePending(
   };
 }
 
-export function flexImageUnsupported(appUrl: string): LineReplyMessage {
+export function flexImageUnsupported(liffId: string): LineReplyMessage {
   return {
     type: "flex",
     altText: "目前不支援收據圖片辨識",
@@ -324,7 +324,6 @@ export function flexImageUnsupported(appUrl: string): LineReplyMessage {
               type: "postback",
               label: "快速記帳",
               data: "m=1&a=expense",
-              displayText: "快速記帳",
             },
             style: "primary",
             color: "#2563EB",
@@ -334,7 +333,7 @@ export function flexImageUnsupported(appUrl: string): LineReplyMessage {
             action: {
               type: "uri",
               label: "開啟完整表單",
-              uri: `${appUrl}/?action=expense`,
+              uri: buildLiffUrl(liffId, { action: "expense" }),
             },
             style: "link",
             margin: "sm",
@@ -592,7 +591,6 @@ export function flexTransferConfirm(
               type: "postback",
               label: "取消",
               data: actionData("cancel"),
-              displayText: "取消這筆轉帳",
             },
             style: "secondary",
             flex: 1,
@@ -603,7 +601,6 @@ export function flexTransferConfirm(
               type: "postback",
               label: "確認",
               data: actionData("confirm"),
-              displayText: "確認這筆轉帳",
             },
             style: "primary",
             color: "#2563EB",

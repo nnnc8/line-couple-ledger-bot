@@ -106,7 +106,7 @@ export function filterAgentExpenses(input: {
 export function rankCategoryLabels(expenses: AgentExpense[]): CategoryRank[] {
   const totals = new Map<string, CategoryRank>();
   for (const expense of expenses) {
-    const label = rankLabel(expense);
+    const label = categoryLabelForExpense(expense);
     const current = totals.get(label) ?? { label, totalTwd: 0, count: 0 };
     current.totalTwd += expense.amount_twd;
     current.count += 1;
@@ -120,7 +120,7 @@ export function rankCategoryLabels(expenses: AgentExpense[]): CategoryRank[] {
   );
 }
 
-function rankLabel(expense: AgentExpense) {
+export function categoryLabelForExpense(expense: AgentExpense) {
   const label = normalizeLabel(expense.tag);
   if (label && !isGenericCategoryTag(label)) return label;
   return fallbackCategoryClassification({
