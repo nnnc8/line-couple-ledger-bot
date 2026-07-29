@@ -7,6 +7,103 @@
 > proofs are complete. The remaining operator-only row is deliberately limited
 > to interaction details that require a physical LINE client.
 
+## 2026-07-29 LINE amount-draft continuation release
+
+### Release identity
+
+- **Branch**: `codex/v1-transfer-flow`, pushed to origin.
+- **Runtime source SHA**:
+  `dee5df1b26e38a7755b267e77db70b7a86253c2c`
+  (`fix(line): continue quick-entry amount drafts`).
+- **Preview**:
+  `dpl_EtpUAcdcueg5RUjsBSr89zqmwxop`
+  (`https://line-couple-ledger-hzid3ch2o-ncnc8.vercel.app`), `READY`.
+  Its root returned 200. Preview intentionally has no production LINE secrets,
+  so it was not used for webhook validation or promotion.
+- **Verified staged production artifact**:
+  `dpl_7bDi3a3YHQMyDj3LWiiJ6ZLvG3dT`
+  (`https://line-couple-ledger-ri5s6nrvw-ncnc8.vercel.app`), `READY`.
+- **Production alias**:
+  `https://line-couple-ledger-bot.vercel.app`, promoted to the staged artifact
+  above without another build.
+- **Application rollback target**:
+  `dpl_Hx4dfKEGwJMjKiW6YuCi5RVyJX5q`.
+- **Database migration**:
+  `20260729030618_add_line_menu_amount_drafts`, applied and present in both
+  local and linked migration history.
+
+### Product and write-path changes
+
+- Quick expense and transfer flows now persist a ten-minute,
+  per-user `awaiting_amount` draft after the item or direction is selected.
+- LINE postbacks request `inputOption: openKeyboard`; new messages no longer
+  show fixed NT$100 / 200 / 500 / 1,000 or custom-amount buttons.
+- A text amount is parsed deterministically before the secretary agent. Common
+  TWD formats and full-width digits are accepted; invalid, ambiguous, decimal,
+  zero, negative, or out-of-range values never reach Gemini.
+- `取消`, `不要了`, and `算了` cancel the draft. Starting expense, transfer, or
+  settlement supersedes an older active amount draft.
+- Consuming a draft reuses the existing pending-action confirmation path.
+  Confirmation remains mandatory; no expense, settlement, or notification is
+  written while the action is only pending.
+- Old `expense_amount` and `transfer_amount` postbacks remain accepted for
+  messages already present in LINE history. The Rich Menu image and aliases
+  were not changed.
+
+### Database and security proof
+
+- `public.line_menu_amount_drafts` has RLS enabled and zero policies.
+  `anon`, `authenticated`, and `ledger_runtime` have no table or RPC access;
+  `service_role` alone has the required table and function privileges.
+- `start_line_menu_amount_draft` and `finish_line_menu_amount_draft` are
+  security-invoker RPCs. Replayed start/finish events returned the same draft,
+  `415` was consumed once, and both partners could hold separate active drafts.
+- All RPC checks ran inside rollback transactions. Smoke rows remaining after
+  verification: `0`.
+- Pre-migration core schema/data backup:
+  `/Users/nc8/Backups/line-ledger/20260729-line-amount-drafts`
+  (`core-schema.sql` and `core-data.sql`, mode `600`). The managed CLI's full
+  dump path required Docker, so the fallback dump explicitly covers users,
+  groups, expenses, splits, settlements, and pending actions.
+
+### Verification
+
+| Gate | Result |
+| :--- | :--- |
+| `pnpm typecheck` | clean |
+| `pnpm test` | 206 / 206 |
+| real PostgreSQL transaction tests | 26 / 26, 0 skipped |
+| `pnpm test:e2e` | 11 / 11 |
+| `pnpm build` | success on Next.js 16.2.11 |
+| changed production-file ESLint | clean |
+| `git diff --check` | clean |
+| migration dry-run / apply / history | clean / applied / aligned |
+| staged production HTTP | root 200, unsigned webhook 401, signed webhook 200 |
+| production HTTP | root 200, unsigned webhook 401, signed webhook 200 |
+| production error scan after promotion | no errors found |
+
+### Live amount-flow evidence
+
+- A signed staged-production LINE postback selected
+  `共同帳 → 餐飲 → 晚餐 → 我付款` and created one active amount draft.
+- A second signed text event containing only `415` consumed that same draft,
+  retained its group/category/item/payer context, and created exactly one
+  pending `create_expense` action.
+- Before confirmation, the action had zero matching expense rows. The test
+  pending action and draft were then deleted; no smoke data remains.
+- Physical-client behavior still requiring the account owner:
+  confirm that LINE iOS/Android visibly opens the keyboard and that a real
+  reply token renders the pending Flex card. Server-side postback, text,
+  persistence, idempotency, and zero-before-confirmation behavior are proven.
+
+### Rollback
+
+1. Application: promote `dpl_Hx4dfKEGwJMjKiW6YuCi5RVyJX5q`.
+2. Database: the migration is additive and may remain in place after an app
+   rollback. Do not drop the table once real amount drafts exist.
+3. Rich Menu: no rollback is needed because this release did not change the
+   image, aliases, or default menu.
+
 ## 2026-07-29 LIFF and Rich Menu experience release
 
 ### Release identity
