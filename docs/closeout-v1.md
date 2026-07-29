@@ -84,6 +84,11 @@ separate toolchain change and was not mixed into this UI release.
   checks are complete. Final tactile checks for LINE's in-app window, menu tab
   switching, keyboard, and safe-area behavior require a physical LINE client
   and are not claimed as machine-observed.
+- The live codebase-memory service no longer lists the previously indexed
+  `Users-nc8-Documents-New-project`; it currently lists only
+  `Users-nc8-subscription-billing`. No replacement index was created because
+  the release contract explicitly forbids creating a second index. Refresh
+  remains an external indexing-service follow-up.
 
 ### Rollback
 
