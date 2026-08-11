@@ -54,6 +54,7 @@ import {
   parseLineMenuAmount,
 } from "./line-menu-amount-draft";
 import { buildLiffUrl, requireLiffId } from "./liff-url";
+import { shiftMonth, taipeiToday } from "./ledger-shared";
 
 function replyTextOf(reply: any): string {
   if (reply == null) return "";
@@ -10300,6 +10301,8 @@ test("ledger-query split: loadBootstrap() still separates shared/private/balance
   const partnerId = "00000000-0000-4000-8000-000000000a02";
   const activeGroupId = "00000000-0000-4000-8000-000000000a03";
   const archivedGroupId = "00000000-0000-4000-8000-000000000a04";
+  const currentMonth = taipeiToday().slice(0, 7);
+  const currentMonthDate = `${currentMonth}-05`;
   let settlementGroupId: unknown = null;
 
   const sharedExpense = {
@@ -10316,11 +10319,11 @@ test("ledger-query split: loadBootstrap() still separates shared/private/balance
     amount_twd: 600,
     paid_by_user_id: userId,
     created_by_user_id: userId,
-    expense_date: "2026-07-05",
+    expense_date: currentMonthDate,
     split_method: "equal" as const,
     version: 1,
     deleted_at: null,
-    created_at: "2026-07-05T00:00:00.000Z",
+    created_at: `${currentMonthDate}T00:00:00.000Z`,
     expense_splits: [
       { user_id: userId, amount_twd: 300 },
       { user_id: partnerId, amount_twd: 300 },
@@ -10964,6 +10967,10 @@ test("accountant category cleanup: suggestCategoryUpdates only returns visible o
 
 test("accountant category analytics: six_months still filters to the last six months window", async () => {
   const { categoryAnalytics } = await import("./accountant-category-cleanup");
+  const currentMonth = taipeiToday().slice(0, 7);
+  const sixMonthsStart = shiftMonth(currentMonth, -5);
+  const inWindowDate = `${sixMonthsStart}-02`;
+  const outOfWindowDate = `${shiftMonth(currentMonth, -6)}-28`;
 
   const expenses = [
     {
@@ -10980,11 +10987,11 @@ test("accountant category analytics: six_months still filters to the last six mo
       amount_twd: 100,
       paid_by_user_id: CORE_OWNER,
       created_by_user_id: CORE_OWNER,
-      expense_date: "2026-02-01",
+      expense_date: inWindowDate,
       split_method: "equal",
       version: 1,
       deleted_at: null,
-      created_at: "2026-02-01T00:00:00.000Z",
+      created_at: `${inWindowDate}T00:00:00.000Z`,
       expense_splits: [],
     },
     {
@@ -11001,11 +11008,11 @@ test("accountant category analytics: six_months still filters to the last six mo
       amount_twd: 1000,
       paid_by_user_id: CORE_OWNER,
       created_by_user_id: CORE_OWNER,
-      expense_date: "2026-01-31",
+      expense_date: outOfWindowDate,
       split_method: "equal",
       version: 1,
       deleted_at: null,
-      created_at: "2026-01-31T00:00:00.000Z",
+      created_at: `${outOfWindowDate}T00:00:00.000Z`,
       expense_splits: [],
     },
   ];
