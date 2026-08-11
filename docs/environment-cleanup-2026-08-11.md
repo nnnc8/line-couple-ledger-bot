@@ -24,7 +24,8 @@ the backup retention window is over.
 
 - Project: `line-couple-ledger-bot`
 - Production branch: `main`
-- Remaining deployment: `dpl_wi7XXqrjUCkG37vRnYwhQ6B8wPrq`
+- Remaining deployments: exactly one `READY` production deployment (the live
+  deployment API is the source of truth for its generated ID)
 - Deployment state: `READY`, target `production`
 - Source ref: `main` (verify the exact SHA from the remaining deployment)
 - Production alias: `https://line-couple-ledger-bot.vercel.app`
