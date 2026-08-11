@@ -57,13 +57,12 @@ an indication that the abandoned finance schema still exists.
 - Node `v22.23.1`
 - pnpm `11.1.2`
 - GitHub CLI `2.93.0`
-- Vercel CLI `54.17.1`
-- Supabase CLI `2.108.0`
+- Vercel CLI `58.9.0`
+- Supabase CLI `2.113.0`
 
-The Vercel and Supabase CLIs report newer versions. Updating those local
-operator tools is separate from the environment unification and should be
-done in a follow-up after confirming the installation method and release
-compatibility.
+The CLI versions above are installed through the pnpm global toolchain. GitHub
+CLI `2.93.0` is installed through Homebrew and is also the current verified
+operator version.
 
 ## Security note
 
