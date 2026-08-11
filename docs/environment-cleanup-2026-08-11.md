@@ -8,7 +8,9 @@ source, one production artifact, and one Supabase project.
 - GitHub repository: `nnnc8/line-couple-ledger-bot`
 - Default branch: `main`
 - Local branch: `main`
-- Canonical commit: `3a255c5897dedbad4bbcdf139dac35f761a125e9`
+- Cleanup baseline commit: `3a255c5897dedbad4bbcdf139dac35f761a125e9`
+- Canonical commit: the current tip of `main` (the deployment API is the
+  source of truth for its exact SHA)
 - Remote branches: `main` only
 - Tags and open pull requests: none
 - Pre-cleanup Git bundle: `/Users/nc8/Backups/line-ledger/20260811-environment-cleanup/github-pre-cleanup.bundle`
@@ -24,7 +26,7 @@ the backup retention window is over.
 - Production branch: `main`
 - Remaining deployment: `dpl_wi7XXqrjUCkG37vRnYwhQ6B8wPrq`
 - Deployment state: `READY`, target `production`
-- Source ref/SHA: `main` / `3a255c5897dedbad4bbcdf139dac35f761a125e9`
+- Source ref: `main` (verify the exact SHA from the remaining deployment)
 - Production alias: `https://line-couple-ledger-bot.vercel.app`
 - Live checks: root HTTP 200; unsigned LINE webhook HTTP 401
 
