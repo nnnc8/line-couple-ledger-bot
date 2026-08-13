@@ -40,7 +40,7 @@ export async function runCoreDailyJobs(options: {
     ? await runDueV2RecurringRules(today)
     : 0;
   const v2Notifications = env.V2_LEDGER_ENABLED === "1"
-    ? await dispatchV2NotificationOutbox({ db, lineChannelAccessToken: env.LINE_CHANNEL_ACCESS_TOKEN })
+    ? await dispatchV2NotificationOutbox({ db, lineChannelAccessToken: env.LINE_CHANNEL_ACCESS_TOKEN }, 50)
     : 0;
   const v2Inbox = env.V2_LINE_INBOX_ENABLED === "1"
     ? await dispatchV2LineInbox({
@@ -48,7 +48,7 @@ export async function runCoreDailyJobs(options: {
         supabase: db,
         gemini: new GoogleGenAI({ apiKey: env.GEMINI_API_KEY }),
         setupCode: env.COUPLE_SETUP_CODE,
-      })
+      }, 50)
     : 0;
   let drafts = 0;
   if (env.V2_LEDGER_ENABLED !== "1") {

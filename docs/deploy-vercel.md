@@ -11,14 +11,16 @@ V2 inbox and notification workers intentionally do not use a separate per-minute
 Vercel Cron. Vercel Hobby rejects schedules more frequent than once per day at
 deployment time. When `V2_LINE_INBOX_ENABLED=1`, a signed webhook is committed
 to `ledger_v2.line_inbox` and then opportunistically drained by the same request
-through `after()`. The daily cron is the safety sweep and drains both the inbox
-and notification outbox again. A failed attempt is persisted with exponential
+through `after()`. The daily cron is the safety sweep and drains up to 50 rows
+from each of the inbox and notification outbox again. A failed attempt is persisted with exponential
 backoff of 120s, 240s, 480s, 960s, 1920s, 3600s, then 3600s, and a maximum of
 eight attempts. On Hobby, the next scheduled sweep is the actual upper bound
-for a retry that was not drained opportunistically: at most about 24h59m,
-allowing for Vercel's ±59 minute daily scheduling window. Seven failed sweeps
-can therefore take at most about 7d6h53m before the eighth attempt is
-dead-lettered. With an external scheduler (or Vercel Pro) polling
+for the first eligible row when the queue is not backlogged: at most about
+24h59m, allowing for Vercel's ±59 minute daily scheduling window. If a row is
+behind `n` batches of 50, its sweep delay is `n × 24h59m`; a continuously
+unbounded backlog has no finite scheduler-only maximum and must use the
+external scheduler path. With no backlog, seven failed sweeps can therefore
+take at most about 7d6h53m before the eighth attempt is dead-lettered. With an external scheduler (or Vercel Pro) polling
 `/api/cron/v2-workers` every minute, each due retry adds at most one minute of
 scheduler delay to the persisted backoff. The endpoint remains available for
 that tighter cadence, but is not registered as a Vercel Cron on Hobby.
