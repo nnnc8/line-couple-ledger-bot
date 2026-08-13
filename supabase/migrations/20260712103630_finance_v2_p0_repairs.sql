@@ -118,8 +118,8 @@ grant execute on function public.sync_private_mirrors_for_expense(uuid) to servi
 
 -- Keep the backfill in this transaction and record each newly derived mirror.
 -- The temporary table must survive until the later activity-event insert;
--- `ON COMMIT DROP` would remove it before that statement because this file
--- is applied inside one migration transaction.
+-- some local/direct migration runners commit each statement, so an explicit
+-- `ON COMMIT DROP` would remove it immediately after the CREATE statement.
 create temporary table finance_v2_missing_mirrors as
 select
   e.couple_id,
