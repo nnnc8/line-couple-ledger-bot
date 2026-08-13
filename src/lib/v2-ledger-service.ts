@@ -360,24 +360,24 @@ async function loadLedger(client: PoolClient, coupleId: number, ledgerId: string
   if (!row) throw new HttpError(404, "Ledger 不存在");
   if (row.status !== "active") throw new HttpError(409, "Ledger 已封存");
 
-  const [memberResult, defaultResult, transactionResult, paymentResult, shareResult] = await Promise.all([
-    client.query<MemberRow>(
+  const memberResult = await client.query<MemberRow>(
       `select lm.user_id, u.role
          from ledger_v2.ledger_members lm
          join public.users u on u.id = lm.user_id and u.couple_id = lm.couple_id
         where lm.ledger_id = $1 and lm.couple_id = $2
         order by case u.role when 'owner' then 0 else 1 end`,
       [ledgerId, coupleId],
-    ),
-    client.query<DefaultShareRow>(
+    );
+  const defaultResult = await client.query<DefaultShareRow>(
       `select user_id, weight
          from ledger_v2.ledger_default_shares
         where ledger_id = $1 and couple_id = $2
         order by user_id`,
       [ledgerId, coupleId],
-    ),
-    client.query<TransactionRow>(
-      `select id, ledger_id, couple_id, type, amount_twd, occurred_on,
+    );
+  const transactionResult = await client.query<TransactionRow>(
+      `select id, ledger_id, couple_id, type, amount_twd,
+              to_char(occurred_on, 'YYYY-MM-DD') as occurred_on,
               description, category, category_id, note, split_method, status, version,
               created_by_user_id, created_at, updated_at,
               replaces_transaction_id,
@@ -390,20 +390,19 @@ async function loadLedger(client: PoolClient, coupleId: number, ledgerId: string
         where ledger_id = $1 and couple_id = $2
         order by occurred_on desc, created_at desc, id desc`,
       [ledgerId, coupleId],
-    ),
-    client.query<ChildRow>(
+    );
+  const paymentResult = await client.query<ChildRow>(
       `select transaction_id, user_id, amount_twd
          from ledger_v2.transaction_payments
         where ledger_id = $1 and couple_id = $2`,
       [ledgerId, coupleId],
-    ),
-    client.query<ChildRow>(
+    );
+  const shareResult = await client.query<ChildRow>(
       `select transaction_id, user_id, amount_twd
          from ledger_v2.transaction_shares
         where ledger_id = $1 and couple_id = $2`,
       [ledgerId, coupleId],
-    ),
-  ]);
+    );
 
   if (memberResult.rows.length !== 2 || defaultResult.rows.length !== 2) {
     throw new HttpError(500, "Ledger 成員或預設分攤設定損壞");
@@ -827,7 +826,8 @@ export async function listV2LedgerTransactions(
         : DEFAULT_TRANSACTION_PAGE_SIZE;
     const queryLimit = requestedLimit === null ? "" : `limit ${requestedLimit + 1}`;
     const result = await client.query<TransactionRow>(
-      `select t.id, t.ledger_id, t.couple_id, t.type, t.amount_twd, t.occurred_on,
+      `select t.id, t.ledger_id, t.couple_id, t.type, t.amount_twd,
+              to_char(t.occurred_on, 'YYYY-MM-DD') as occurred_on,
               t.description, t.category, t.category_id, t.note, t.split_method, t.status, t.version,
               t.created_by_user_id, t.created_at, t.updated_at,
               t.replaces_transaction_id,
@@ -845,22 +845,22 @@ export async function listV2LedgerTransactions(
     const hasMore = requestedLimit !== null && result.rows.length > requestedLimit;
     const rows = requestedLimit === null ? result.rows : result.rows.slice(0, requestedLimit);
     const transactionIds = rows.map((row) => row.id);
-    const [paymentResult, shareResult] = transactionIds.length
-      ? await Promise.all([
-          client.query<ChildRow>(
+    const paymentResult = transactionIds.length
+      ? await client.query<ChildRow>(
             `select transaction_id, user_id, amount_twd
                from ledger_v2.transaction_payments
               where ledger_id = $1 and couple_id = $2 and transaction_id = any($3::uuid[])`,
             [ledgerId, coupleId, transactionIds],
-          ),
-          client.query<ChildRow>(
+          )
+      : { rows: [] as ChildRow[] };
+    const shareResult = transactionIds.length
+      ? await client.query<ChildRow>(
             `select transaction_id, user_id, amount_twd
                from ledger_v2.transaction_shares
               where ledger_id = $1 and couple_id = $2 and transaction_id = any($3::uuid[])`,
             [ledgerId, coupleId, transactionIds],
-          ),
-        ])
-      : [{ rows: [] as ChildRow[] }, { rows: [] as ChildRow[] }];
+          )
+      : { rows: [] as ChildRow[] };
     const paymentsByTransaction = new Map<string, V2Payment[]>();
     for (const payment of paymentResult.rows) {
       const list = paymentsByTransaction.get(payment.transaction_id) ?? [];
@@ -1262,6 +1262,11 @@ export async function createV2Ledger(coupleId: number, actorUserId: string, rawI
 function serializedRecurringRule(row: RecurringRuleRow) {
   const payments = z.array(participantAmountSchema).parse(row.payments);
   const shares = z.array(participantAmountSchema).parse(row.shares);
+  const dateValue = (value: string | Date | null): string | null => {
+    if (!value) return null;
+    if (typeof value === "string") return value;
+    return value.toISOString().slice(0, 10);
+  };
   return {
     id: row.id,
     ledgerId: row.ledger_id,
@@ -1269,8 +1274,8 @@ function serializedRecurringRule(row: RecurringRuleRow) {
     amountTwd: twdToString(asBigint(row.amount_twd)),
     frequency: row.frequency,
     anchorDay: row.anchor_day,
-    nextRunDate: row.next_run_date,
-    endDate: row.end_date,
+    nextRunDate: dateValue(row.next_run_date)!,
+    endDate: dateValue(row.end_date),
     active: row.active,
     splitMethod: row.split_method,
     categoryId: row.category_id,
@@ -1299,7 +1304,8 @@ export async function listV2RecurringRules(coupleId: number, userId: string, led
     if (!access.rows[0]) throw new HttpError(404, "Ledger 不存在或無權限");
     const result = await client.query<RecurringRuleRow>(
       `select r.id, r.couple_id, r.ledger_id, r.created_by_user_id, r.name, r.amount_twd,
-              r.frequency, r.anchor_day, r.next_run_date, r.end_date, r.active,
+              r.frequency, r.anchor_day, to_char(r.next_run_date, 'YYYY-MM-DD') as next_run_date,
+              to_char(r.end_date, 'YYYY-MM-DD') as end_date, r.active,
               r.split_method, r.payments, r.shares, r.category_id, r.version, r.created_at, r.updated_at
          from ledger_v2.recurring_rules
         where couple_id = $1 and ledger_id = $2
@@ -1420,7 +1426,8 @@ export async function runDueV2RecurringRules(today: string, limit = 100): Promis
     if (!writer.rows[0]) return 0;
     const due = await client.query<RecurringRuleRow>(
       `select r.id, r.couple_id, r.ledger_id, r.created_by_user_id, r.name, r.amount_twd,
-              r.frequency, r.anchor_day, r.next_run_date, r.end_date, r.active,
+              r.frequency, r.anchor_day, to_char(r.next_run_date, 'YYYY-MM-DD') as next_run_date,
+              to_char(r.end_date, 'YYYY-MM-DD') as end_date, r.active,
               r.split_method, r.payments, r.shares, r.category_id, r.version, r.created_at, r.updated_at
         from ledger_v2.recurring_rules r
         join ledger_v2.writer_control wc on wc.couple_id = r.couple_id

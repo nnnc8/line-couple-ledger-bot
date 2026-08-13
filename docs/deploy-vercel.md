@@ -7,6 +7,26 @@
 3. Copy every variable from `.env.example` into Project Settings → Environment Variables. For `LIFF_SESSION_SECRET` and `CRON_SECRET`, generate with `openssl rand -hex 32` and `openssl rand -hex 16` respectively. For `COUPLE_SETUP_CODE`, generate with `openssl rand -hex 12`.
 4. Deploy. The included `vercel.json` schedules `/api/cron/daily` at 17:15 UTC (01:15 Asia/Taipei).
 
+V2 inbox and notification workers intentionally do not use a separate per-minute
+Vercel Cron. Vercel Hobby rejects schedules more frequent than once per day at
+deployment time. When `V2_LINE_INBOX_ENABLED=1`, a signed webhook is committed
+to `ledger_v2.line_inbox` and then opportunistically drained by the same request
+through `after()`. The daily cron is the safety sweep and drains both the inbox
+and notification outbox again. A failed attempt is persisted with exponential
+backoff of 120s, 240s, 480s, 960s, 1920s, 3600s, then 3600s, and a maximum of
+eight attempts. On Hobby, the next scheduled sweep is the actual upper bound
+for a retry that was not drained opportunistically: at most about 24h59m,
+allowing for Vercel's ±59 minute daily scheduling window. Seven failed sweeps
+can therefore take at most about 7d6h53m before the eighth attempt is
+dead-lettered. With an external scheduler (or Vercel Pro) polling
+`/api/cron/v2-workers` every minute, each due retry adds at most one minute of
+scheduler delay to the persisted backoff. The endpoint remains available for
+that tighter cadence, but is not registered as a Vercel Cron on Hobby.
+
+For isolated PostgreSQL rehearsal, use `V2_TEST_DATABASE_URL` with
+`pnpm test:precutover`. The test refuses non-localhost URLs; it must never
+receive the linked Supabase `DATABASE_URL`.
+
 ## 2. Supabase
 
 1. Create a project, copy the `DATABASE_URL` from Project Settings → Database → Connection string → **Direct** (not the pooler; we use a single connection per request).

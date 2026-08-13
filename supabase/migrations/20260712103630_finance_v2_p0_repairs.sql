@@ -117,7 +117,10 @@ revoke all on function public.sync_private_mirrors_for_expense(uuid) from public
 grant execute on function public.sync_private_mirrors_for_expense(uuid) to service_role;
 
 -- Keep the backfill in this transaction and record each newly derived mirror.
-create temporary table finance_v2_missing_mirrors on commit drop as
+-- The temporary table must survive until the later activity-event insert;
+-- `ON COMMIT DROP` would remove it before that statement because this file
+-- is applied inside one migration transaction.
+create temporary table finance_v2_missing_mirrors as
 select
   e.couple_id,
   e.group_id,

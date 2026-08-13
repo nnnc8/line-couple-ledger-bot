@@ -16,6 +16,7 @@ import { loadV2LegacySnapshot } from "../src/lib/v2-migration-db";
 
 const coupleId = Number(process.env.V2_COUPLE_ID ?? "1");
 const shouldApply = process.argv.includes("--apply");
+const DEFAULT_CATEGORY_NAMES = ["餐飲", "交通", "居家", "旅遊", "娛樂", "購物", "醫療", "其他"];
 
 function requiredEnv(name: string): string {
   const value = process.env[name];
@@ -96,6 +97,14 @@ async function ensureLedger(client: PoolClient, ledger: V2MigrationLedger): Prom
       [ledger.id, ledger.coupleId, userId, ledger.defaultWeights[ledger.memberIds.indexOf(userId)]!.toString()],
     );
   }
+  for (const name of DEFAULT_CATEGORY_NAMES) {
+    await client.query(
+      `insert into ledger_v2.categories (couple_id, ledger_id, name, is_default)
+       values ($1, $2, $3, true)
+       on conflict (ledger_id, couple_id, name) do nothing`,
+      [ledger.coupleId, ledger.id, name],
+    );
+  }
   const members = await client.query<{ user_id: string }>(
     `select user_id from ledger_v2.ledger_members where ledger_id = $1 order by user_id`,
     [ledger.id],
@@ -131,6 +140,7 @@ async function ensureTransaction(client: PoolClient, transaction: V2MigrationTra
     occurred_on: string;
     description: string;
     category: string | null;
+    category_id: string | null;
     note: string | null;
     split_method: string;
     status: string;
@@ -141,7 +151,7 @@ async function ensureTransaction(client: PoolClient, transaction: V2MigrationTra
     source_id: string | null;
   }>(
     `select couple_id, ledger_id, type, amount_twd, occurred_on, description,
-            category, note, split_method, status, version, voided_at, created_at,
+            category, category_id, note, split_method, status, version, voided_at, created_at,
             source_table, source_id
        from ledger_v2.transactions where id = $1 for update`,
     [transaction.id],
@@ -149,6 +159,14 @@ async function ensureTransaction(client: PoolClient, transaction: V2MigrationTra
   let inserted = false;
   if (existing.rows[0]) {
     const row = existing.rows[0];
+    const categoryId = transaction.category
+      ? (await client.query<{ id: string }>(
+          `select id
+             from ledger_v2.categories
+            where couple_id = $1 and ledger_id = $2 and name = $3`,
+          [coupleId, transaction.ledgerId, transaction.category],
+        )).rows[0]?.id ?? null
+      : null;
     if (
       row.couple_id !== coupleId ||
       row.ledger_id !== transaction.ledgerId ||
@@ -157,6 +175,7 @@ async function ensureTransaction(client: PoolClient, transaction: V2MigrationTra
       row.occurred_on !== transaction.occurredOn ||
       row.description !== transaction.description ||
       row.category !== transaction.category ||
+      row.category_id !== categoryId ||
       row.note !== transaction.note ||
       row.split_method !== transaction.splitMethod ||
       row.status !== transaction.status ||
@@ -184,14 +203,22 @@ async function ensureTransaction(client: PoolClient, transaction: V2MigrationTra
     }
     return;
   } else {
+    const categoryId = transaction.category
+      ? (await client.query<{ id: string }>(
+          `select id
+             from ledger_v2.categories
+            where couple_id = $1 and ledger_id = $2 and name = $3`,
+          [coupleId, transaction.ledgerId, transaction.category],
+        )).rows[0]?.id ?? null
+      : null;
     await client.query(
       `insert into ledger_v2.transactions
         (id, couple_id, ledger_id, type, amount_twd, occurred_on, description,
-         category, note, split_method, status, version, created_by_user_id,
+         category, category_id, note, split_method, status, version, created_by_user_id,
          idempotency_key, legacy_group_id, source_table, source_id, voided_at,
          created_at, updated_at)
        values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13,
-               $14, $15, $16, $17, $18, $19, now())`,
+               $14, $15, $16, $17, $18, $19, $20, now())`,
       [
         transaction.id,
         coupleId,
@@ -201,6 +228,7 @@ async function ensureTransaction(client: PoolClient, transaction: V2MigrationTra
         transaction.occurredOn,
         transaction.description,
         transaction.category,
+        categoryId,
         transaction.note,
         transaction.splitMethod,
         transaction.status,
