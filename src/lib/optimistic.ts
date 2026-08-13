@@ -1,5 +1,5 @@
-import { splitEqual } from "./ledger";
 import type { ActionInput } from "./pending-action-types";
+import { splitEqual } from "./ledger";
 
 export type OptimisticExpense = {
   id: string;
@@ -122,7 +122,7 @@ function addExpense(
         ? [expense, ...data.privateExpenses]
         : data.privateExpenses,
   };
-  return refreshDashboards(next, expense);
+  return next;
 }
 
 function buildExpenseFromInput(
@@ -190,82 +190,8 @@ function patchExpense(
     privateExpenses: mapList(data.privateExpenses),
   };
   const updated = next.expenses.find((item) => item.id === expenseId);
-  return updated ? refreshDashboards(next, updated) : next;
-}
-
-function refreshDashboards(
-  data: BootstrapLike,
-  expense: OptimisticExpense,
-): BootstrapLike {
-  const activeShared = data.sharedExpenses.filter((item) => !item.deleted_at);
-  const activePrivate = data.privateExpenses.filter((item) => !item.deleted_at);
-  return {
-    ...data,
-    dashboard: buildDashboard(activeShared, data.month),
-    privateDashboard: buildDashboard(activePrivate, data.month),
-    balances: adjustBalanceForExpense(data, expense),
-  };
-}
-
-function adjustBalanceForExpense(
-  data: BootstrapLike,
-  expense: OptimisticExpense,
-): BootstrapLike["balances"] {
-  if (expense.ledger !== "shared" || expense.deleted_at) return data.balances;
-  const partnerId = data.users.find((user) => user.id !== data.user.id)?.id;
-  if (!partnerId) return data.balances;
-  const mySplit =
-    expense.expense_splits.find((split) => split.user_id === data.user.id)
-      ?.amount_twd ?? 0;
-  const partnerSplit =
-    expense.expense_splits.find((split) => split.user_id === partnerId)
-      ?.amount_twd ?? 0;
-  const delta =
-    expense.paid_by_user_id === data.user.id ? partnerSplit : -mySplit;
-  return data.balances.map((item) =>
-    item.user_id === data.user.id
-      ? { ...item, balance_twd: item.balance_twd + delta }
-      : item,
-  );
-}
-
-function buildDashboard(
-  expenses: OptimisticExpense[],
-  month: string,
-): BootstrapLike["dashboard"] {
-  const trend = Array.from({ length: 6 }, (_, index) => ({
-    month: shiftMonth(month, index - 5),
-    totalTwd: 0,
-  }));
-  const categoryTotals: Record<string, number> = {};
-  for (const expense of expenses) {
-    const expenseMonth = expense.expense_date.slice(0, 7);
-    const point = trend.find((item) => item.month === expenseMonth);
-    if (point) point.totalTwd += expense.amount_twd;
-    if (expenseMonth === month) {
-      const label = expense.tag || "其他";
-      categoryTotals[label] = (categoryTotals[label] ?? 0) + expense.amount_twd;
-    }
-  }
-  const thisMonth = expenses.filter((expense) =>
-    expense.expense_date.startsWith(month),
-  );
-  return {
-    monthlyTotalTwd: thisMonth.reduce(
-      (sum, expense) => sum + expense.amount_twd,
-      0,
-    ),
-    monthlyCount: thisMonth.length,
-    categoryTotals,
-    trend,
-    recent: expenses.slice(0, 8),
-  };
-}
-
-function shiftMonth(month: string, offset: number): string {
-  const [year, monthNumber] = month.split("-").map(Number);
-  const date = new Date(Date.UTC(year!, monthNumber! - 1 + offset, 1));
-  return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, "0")}`;
+  if (updated) updated._optimistic = true;
+  return next;
 }
 
 function tempId(prefix: string): string {

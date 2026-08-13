@@ -262,6 +262,16 @@ test("LIFF waits for a delayed SDK and still creates one session", async ({ page
   expect(sessionBodies).toHaveLength(1);
 });
 
+test("authenticated LIFF forwards the invite code in the session contract", async ({ page }) => {
+  await page.goto("/?invite=invite-code");
+  await expect(page.getByRole("heading", { name: "首頁" })).toBeVisible();
+  expect(sessionBodies).toHaveLength(1);
+  expect(sessionBodies[0]).toMatchObject({
+    idToken: "test-id-token",
+    invite: "invite-code",
+  });
+});
+
 test("external LIFF login keeps invite and tab in redirect URI", async ({ page }) => {
   await page.addInitScript(() => {
     const browser = window as TestWindow;

@@ -6,6 +6,8 @@ import { applyOptimistic } from "@/lib/optimistic";
 import type { ActionInput } from "@/lib/pending-action-types";
 import { api, get } from "@/lib/api";
 
+let mutationQueue = Promise.resolve();
+
 interface ActionResult {
   result: string;
   actionType?: string;
@@ -37,43 +39,62 @@ export function useBootstrap() {
       body: unknown,
       opts: { success?: string; optimistic?: (d: Bootstrap) => Bootstrap } = {},
     ) => {
-      setBusy(true);
-      try {
-        if (opts.optimistic && data) setData(opts.optimistic(data));
-        await api(path, body);
-        if (opts.success) setError("");
-        await load();
-        return { success: true, message: opts.success };
-      } catch (reason) {
-        setError(reason instanceof Error ? reason.message : "操作失敗");
-        if (data) setData(data);
-        return { success: false, message: reason instanceof Error ? reason.message : "操作失敗" };
-      } finally {
-        setBusy(false);
-      }
+      const run = async () => {
+        setBusy(true);
+        try {
+          if (opts.optimistic) setData((current) => current ? opts.optimistic!(current) : current);
+          await api(path, body);
+          if (opts.success) setError("");
+          await load();
+          return { success: true, message: opts.success };
+        } catch (reason) {
+          setError(reason instanceof Error ? reason.message : "操作失敗");
+          // Never restore an old bootstrap snapshot: another mutation may
+          // have committed while this request was in flight. Reconcile from
+          // the server instead; if that also fails, keep the pending row and
+          // let the next reload resolve it.
+          try {
+            await load();
+          } catch {
+            // The visible optimistic row is intentionally retained.
+          }
+          return { success: false, message: reason instanceof Error ? reason.message : "操作失敗" };
+        } finally {
+          setBusy(false);
+        }
+      };
+      const result = mutationQueue.then(run, run);
+      mutationQueue = result.then(() => undefined, () => undefined);
+      return result;
     },
-    [data, load],
+    [load],
   );
 
   const propose = useCallback(async (body: ActionInput) => {
-    setBusy(true);
-    const snapshot = data;
-    try {
-      if (snapshot) {
-        setData(applyOptimistic(snapshot, body) as Bootstrap);
+    const run = async () => {
+      setBusy(true);
+      try {
+        setData((current) => current ? applyOptimistic(current, body) as Bootstrap : current);
+        const result = (await api("/api/app/actions", body)) as unknown as ActionResult;
+        setError("");
+        await load();
+        return { success: true, result };
+      } catch (reason) {
+        setError(reason instanceof Error ? reason.message : "操作失敗");
+        try {
+          await load();
+        } catch {
+          // Keep the pending marker until a later server reconciliation.
+        }
+        return { success: false };
+      } finally {
+        setBusy(false);
       }
-      const result = (await api("/api/app/actions", body)) as unknown as ActionResult;
-      setError("");
-      await load();
-      return { success: true, result };
-    } catch (reason) {
-      if (snapshot) setData(snapshot);
-      setError(reason instanceof Error ? reason.message : "操作失敗");
-      return { success: false };
-    } finally {
-      setBusy(false);
-    }
-  }, [data, load]);
+    };
+    const result = mutationQueue.then(run, run);
+    mutationQueue = result.then(() => undefined, () => undefined);
+    return result;
+  }, [load]);
 
   const reset = useCallback(() => {
     setData(null);

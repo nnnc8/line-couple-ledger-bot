@@ -13,6 +13,13 @@ export async function GET(request: Request) {
   try {
     const result = await runDailyJobs(request);
 
+    // V2 owns the ledger and notification planes after cutover. The legacy
+    // secretary briefing reads frozen V1 groups and must not keep presenting
+    // them as the active accounting surface.
+    if (serverEnvironment().V2_LEDGER_ENABLED === "1") {
+      return NextResponse.json(result);
+    }
+
     // Secretary daily briefing — only when there are open tasks
     try {
       const env = serverEnvironment();

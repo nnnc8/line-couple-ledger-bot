@@ -24,6 +24,10 @@ All variables are read by the Next.js server at boot. `.env.local` is git-ignore
 | Variable | Purpose |
 | :--- | :--- |
 | `NEXT_PUBLIC_LINE_BASIC_ID` | Bot's LINE Basic ID (e.g. `@123xxxxx`). Used by LIFF UI to deep-link back to the chat. |
+| `V2_LEDGER_ENABLED` | Server-side Couple Ledger V2 API and writer gate. `0` (default) keeps the additive V2 plane unavailable; set to `1` only after the migration/cutover gates pass. |
+| `NEXT_PUBLIC_V2_LEDGER_UI` | Exposes the TWD-only multi-Ledger LIFF UI when set to `1`. Keep off until the server flag and target couple are ready. |
+| `V2_LINE_INBOX_ENABLED` | Persists signed LINE webhook events to the durable V2 inbox before dispatch. Keep off until the workflow migration is applied and a worker is scheduled. |
+| `V2_MIGRATION_APPLY` / `V2_CUTOVER_APPLY` | Explicit one-shot safety gates for the guarded V2 migration and writer-plane cutover scripts. Never set them as persistent deployment flags. |
 
 ## Smoke-only (Layer 3)
 

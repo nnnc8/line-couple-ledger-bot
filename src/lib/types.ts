@@ -7,6 +7,83 @@ export type Group = {
   archived_at: string | null;
 };
 
+export type V2LedgerSummary = {
+  id: string;
+  name: string;
+  color: string;
+  status: "active" | "archived";
+  version: number;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type V2AppContext = {
+  today: string;
+  user: User;
+  users: User[];
+};
+
+export type V2NextPayer = {
+  payerUserId: string;
+  payeeUserId: string;
+  amountTwd: string;
+};
+
+export type V2LedgerBootstrap = {
+  ledger: V2LedgerSummary & {
+    coupleId: number;
+    members: Array<{ userId: string; role: "owner" | "partner" }>;
+    defaultShares: Record<string, string>;
+  };
+  transactions: Array<{
+    id: string;
+    ledgerId: string;
+    type: "expense" | "income" | "transfer";
+    amountTwd: string;
+    payments: Array<{ userId: string; amountTwd: string }>;
+    shares: Array<{ userId: string; amountTwd: string }>;
+    status: "posted" | "voided" | "deleted";
+    occurredOn?: string;
+    description?: string;
+    category?: string | null;
+    note?: string | null;
+    splitMethod?: "none" | "equal" | "exact" | "percentage" | "weights";
+    createdAt?: string;
+    version?: number;
+  }>;
+  balance: Record<string, string>;
+  nextPayer: V2NextPayer | null;
+};
+
+export type V2RecurringRule = {
+  id: string;
+  ledgerId: string;
+  name: string;
+  amountTwd: string;
+  frequency: "weekly" | "monthly" | "yearly";
+  anchorDay: number;
+  nextRunDate: string;
+  endDate: string | null;
+  active: boolean;
+  splitMethod: "equal" | "exact" | "percentage" | "weights";
+  payments: Array<{ userId: string; amountTwd: string }>;
+  shares: Array<{ userId: string; amountTwd: string }>;
+  version: number;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type V2Attachment = {
+  id: string;
+  ledgerId: string;
+  transactionId: string | null;
+  mimeType: string;
+  sizeBytes: number;
+  status: "uploaded" | "ready" | "failed" | "deleted";
+  createdAt: string;
+  url: string | null;
+};
+
 export type Expense = {
   id: string;
   group_id: string | null;

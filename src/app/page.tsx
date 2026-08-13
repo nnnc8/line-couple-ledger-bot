@@ -28,6 +28,8 @@ import type { ActionInput } from "@/lib/pending-action-types";
 import { api } from "@/lib/api";
 import { toast } from "sonner";
 import { ArrowLeftRight, CircleCheckBig, ReceiptText } from "lucide-react";
+import { useV2Ledgers } from "@/hooks/use-v2-ledgers";
+import { V2LedgerHome } from "@/components/ledger/v2-ledger-home";
 
 const TAB_KEYS: TabKey[] = ["dashboard", "history", "analysis", "settings"];
 
@@ -126,6 +128,7 @@ function liffErrorMessage(reason: unknown): string {
 }
 
 export default function Home() {
+  const v2Enabled = process.env.NEXT_PUBLIC_V2_LEDGER_UI === "1";
   const {
     data,
     error,
@@ -135,6 +138,10 @@ export default function Home() {
     mutate,
     propose,
   } = useBootstrap();
+  const v2 = useV2Ledgers(v2Enabled);
+  const { context: v2Context, loadContext: loadV2Context, loadLedgers: loadV2Ledgers } = v2;
+  const [v2ProposalId] = React.useState<string | null>(() => urlParam("v2Proposal"));
+  const [v2ProposalMessage, setV2ProposalMessage] = React.useState("");
 
   const [tab, setTab] = React.useState<TabKey>(() => tabFromUrl());
   const [analysisScope, setAnalysisScope] =
@@ -161,8 +168,14 @@ export default function Home() {
     setAnalysisScope(analysisScopeFromUrl());
   }, []);
 
+  React.useEffect(() => {
+    if (!v2ProposalId || !v2Enabled) return;
+    const timer = window.setTimeout(() => setV2ProposalMessage("此 proposal 已建立；請在 Ledger 流水中確認或取消。"), 0);
+    return () => window.clearTimeout(timer);
+  }, [v2Enabled, v2ProposalId]);
+
   const startLiff = React.useCallback(() => {
-    if (data) return Promise.resolve();
+    if (data || (v2Enabled && v2Context)) return Promise.resolve();
     if (liffStartPromise) return liffStartPromise;
     liffStartPromise = (async () => {
       const liffId = process.env.NEXT_PUBLIC_LIFF_ID;
@@ -180,9 +193,18 @@ export default function Home() {
       }
       const idToken = liff.getIDToken();
       if (!idToken) throw new Error("LINE 未提供登入憑證");
-      await api("/api/app/session", { idToken });
-      const ok = await load();
-      if (!ok) throw new Error("無法讀取帳本");
+      const invite = urlParam("invite") ?? undefined;
+      await api("/api/app/session", { idToken, ...(invite ? { invite } : {}) });
+      if (v2Enabled) {
+        await loadV2Context();
+        await loadV2Ledgers();
+        // V2 can be used by a couple that has no V1 group. Loading the legacy
+        // bootstrap is best-effort only in that mode.
+        await load().catch(() => undefined);
+      } else {
+        const ok = await load();
+        if (!ok) throw new Error("無法讀取帳本");
+      }
     })()
       .catch((reason) => {
         setLoginError(liffErrorMessage(reason));
@@ -192,12 +214,12 @@ export default function Home() {
         liffStartPromise = null;
       });
     return liffStartPromise;
-  }, [data, load]);
+  }, [data, load, loadV2Context, loadV2Ledgers, v2Context, v2Enabled]);
 
   React.useEffect(() => {
-    if (data) return;
+    if (data || (v2Enabled && v2Context)) return;
     void startLiff().catch(() => undefined);
-  }, [data, startLiff]);
+  }, [data, startLiff, v2Context, v2Enabled]);
 
   React.useEffect(() => {
     if (!data) return;
@@ -353,7 +375,7 @@ export default function Home() {
   }, [error]);
 
   // ─── Login / Loading ───
-  if (!data) {
+  if (!data && !(v2Enabled && v2Context)) {
     if (loginError) {
       return (
         <main className="flex min-h-dvh flex-col items-center justify-center gap-3 px-6 text-center animate-fade-in">
@@ -378,7 +400,41 @@ export default function Home() {
     return <LoadingShell />;
   }
 
-  if (!data.user || data.groups.filter((g) => !g.archived_at).length === 0) {
+  if (!data && v2Enabled && v2Context) {
+    return (
+      <main className="mx-auto min-h-dvh max-w-[640px] px-4 pb-6 pt-[max(16px,env(safe-area-inset-top))]">
+        <header className="mb-3 flex items-center justify-between gap-3">
+          <div><p className="text-[13px] font-semibold uppercase tracking-[0.06em] text-[var(--muted-foreground)]">Couple Ledger</p><h1 className="text-lg font-bold tracking-tight">Ledger</h1></div>
+          <span className="rounded-full bg-accent-soft px-2 py-1 text-[11px] font-bold text-accent">TWD</span>
+        </header>
+        {v2ProposalMessage ? <div className="mb-3 rounded-xl border border-accent/30 bg-accent-soft p-3 text-sm">{v2ProposalMessage} <Button variant="ghost" size="sm" onClick={() => setV2ProposalMessage("")}>知道了</Button></div> : null}
+        <V2LedgerHome user={v2Context.user} users={v2Context.users} today={v2Context.today} ledgers={v2.ledgers} activeLedgerId={v2.activeLedgerId} setActiveLedgerId={v2.setActiveLedgerId} bootstrap={v2.bootstrap} error={v2.error} busy={v2.busy} reload={async () => { if (v2.activeLedgerId) return v2.loadBootstrap(v2.activeLedgerId); return v2.loadLedgers(); }} createLedger={v2.createLedger} proposalIdFromUrl={v2ProposalId} />
+      </main>
+    );
+  }
+
+  if (!data) {
+    return <LoadingShell />;
+  }
+
+  if (!data.user) {
+    return <OnboardingFlow onDone={() => void reload()} />;
+  }
+
+  if (v2Enabled) {
+    return (
+      <main className="mx-auto min-h-dvh max-w-[640px] px-4 pb-6 pt-[max(16px,env(safe-area-inset-top))]">
+        <header className="mb-3 flex items-center justify-between gap-3">
+          <div><p className="text-[13px] font-semibold uppercase tracking-[0.06em] text-[var(--muted-foreground)]">Couple Ledger</p><h1 className="text-lg font-bold tracking-tight">Ledger</h1></div>
+          <span className="rounded-full bg-accent-soft px-2 py-1 text-[11px] font-bold text-accent">TWD</span>
+        </header>
+        {v2ProposalMessage ? <div className="mb-3 rounded-xl border border-accent/30 bg-accent-soft p-3 text-sm">{v2ProposalMessage} <Button variant="ghost" size="sm" onClick={() => setV2ProposalMessage("")}>知道了</Button></div> : null}
+        <V2LedgerHome user={data.user} users={data.users} today={data.today} ledgers={v2.ledgers} activeLedgerId={v2.activeLedgerId} setActiveLedgerId={v2.setActiveLedgerId} bootstrap={v2.bootstrap} error={v2.error} busy={v2.busy} reload={async () => { if (v2.activeLedgerId) return v2.loadBootstrap(v2.activeLedgerId); return v2.loadLedgers(); }} createLedger={v2.createLedger} proposalIdFromUrl={v2ProposalId} />
+      </main>
+    );
+  }
+
+  if (data.groups.filter((g) => !g.archived_at).length === 0) {
     return <OnboardingFlow onDone={() => void reload()} />;
   }
 

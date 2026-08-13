@@ -18,6 +18,8 @@ export const envSchema = z.object({
   LIFF_SESSION_SECRET: z.string().min(32),
   APP_URL: z.url(),
   CRON_SECRET: z.string().min(16),
+  V2_LEDGER_ENABLED: z.enum(["0", "1"]).optional(),
+  V2_LINE_INBOX_ENABLED: z.enum(["0", "1"]).optional(),
 });
 
 const userSchema = z.object({

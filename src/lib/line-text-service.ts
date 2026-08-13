@@ -18,6 +18,7 @@ import {
   lineMenuRestartReply,
   LineMenuStateError,
 } from "./line-menu-service";
+import { proposeV2LineText, v2LineBalanceText, v2LineProposalText } from "./v2-line-proposal";
 
 const MAX_MESSAGE_LENGTH = 500;
 
@@ -29,27 +30,31 @@ export async function handleLineTextMessage(
   dependencies: BotDependencies,
   eventTimestamp?: number,
 ): Promise<void> {
+  const v2Enabled = serverEnvironment().V2_LEDGER_ENABLED === "1";
   if (text.length > MAX_MESSAGE_LENGTH) {
     await replyText(dependencies.lineClient, replyToken, "訊息太長，請縮短後再試。");
     return;
   }
 
-  if (
-    await handleLineMenuAmountText({
+  if (!v2Enabled) {
+    const handledMenuAmount = await handleLineMenuAmountText({
       text,
       eventId,
       eventTimestamp: eventTimestamp ?? Date.now(),
       user,
       replyToken,
       dependencies,
-    })
-  ) {
-    return;
+    });
+    if (handledMenuAmount) return;
   }
 
   // Search command (kept for LIFF integration)
   const searchQuery = parseSearchCommand(text);
   if (searchQuery) {
+    if (v2Enabled) {
+      await replyText(dependencies.lineClient, replyToken, "V2 Ledger 的流水搜尋請在 LIFF 選擇指定 Ledger 後使用；各 Ledger 不會互相抵銷。");
+      return;
+    }
     await replySearch(searchQuery, user, replyToken, dependencies);
     return;
   }
@@ -57,6 +62,10 @@ export async function handleLineTextMessage(
   // Pending retarget command
   const retarget = parsePendingRetargetCommand(text);
   if (retarget) {
+    if (v2Enabled) {
+      await replyText(dependencies.lineClient, replyToken, "V2 Ledger 不使用舊的待確認群組草稿；請用「晚餐 500 我付」建立 V2 草稿，再開 LIFF 確認。");
+      return;
+    }
     const result = await pendingActionService.retargetActions(
       { db: dependencies.supabase, user },
       retarget,
@@ -75,6 +84,39 @@ export async function handleLineTextMessage(
       result.count
         ? `已把 ${result.count} 筆待確認草稿改成私人帳｜交通，並直接入帳。`
         : "沒有找到還有效的待確認草稿，請重新傳照片或手動新增。",
+    );
+    return;
+  }
+
+  if (v2Enabled) {
+    if (/(?:誰欠誰|餘額|各本|各帳|ledger\s*(?:balance|餘額))/i.test(text)) {
+      await replyText(
+        dependencies.lineClient,
+        replyToken,
+        await v2LineBalanceText({ coupleId: user.couple_id, userId: user.id }),
+      );
+      return;
+    }
+    const v2 = await proposeV2LineText({
+      db: dependencies.supabase,
+      user,
+      text,
+      sourceEventId: eventId,
+      sourceEventTimestamp: eventTimestamp,
+      gemini: dependencies.gemini,
+    });
+    if (v2.kind !== "not_supported" || /\d/.test(text) || /記|帳|支出|收入|花費|付款|收款|退款|結清|還清|轉帳|轉給|匯給|還款|作廢|刪除|修改/.test(text)) {
+      await replyText(dependencies.lineClient, replyToken, v2LineProposalText(v2));
+      return;
+    }
+    // Never fall through to the legacy secretary writer while V2 is active.
+    // Unsupported chitchat is intentionally answered without an accounting
+    // side effect; V2 proposals must come from the explicit parser-confirm
+    // path above until a read-only AI proposal adapter is introduced.
+    await replyText(
+      dependencies.lineClient,
+      replyToken,
+      "目前使用 Couple Ledger V2；記帳請用「晚餐 500 我付」，確認草稿請開啟 LIFF。",
     );
     return;
   }

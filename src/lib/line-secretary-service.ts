@@ -561,11 +561,13 @@ function transferBalanceWarning(before: number, after: number): string | undefin
 
 export async function handleLineAudioTurn(input: {
   messageId: string;
+  replyToken?: string;
   sourceEventId?: string;
   sourceEventTimestamp?: number;
   user: LineUser;
   dependencies: LineSecretaryDependencies;
   reply: (message: ReplyPayload) => Promise<void>;
+  v2Only?: boolean;
 }): Promise<void> {
   const { messageId, user, dependencies, reply } = input;
   try {
@@ -585,6 +587,24 @@ export async function handleLineAudioTurn(input: {
     const text = await agentChatService.transcribeAudio(bytes, "audio/x-m4a");
     if (!text) {
       await reply("沒聽清楚，可以再說一次或打字嗎？");
+      return;
+    }
+
+    if (input.v2Only) {
+      const { handleLineTextMessage } = await import("./line-text-service");
+      await handleLineTextMessage(
+        text,
+        input.sourceEventId ?? `audio:${messageId}`,
+        user,
+        input.replyToken ?? "",
+        {
+          lineClient: dependencies.lineClient,
+          supabase: dependencies.supabase,
+          gemini: dependencies.gemini,
+          setupCode: "",
+        },
+        input.sourceEventTimestamp,
+      );
       return;
     }
 

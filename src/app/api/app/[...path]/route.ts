@@ -25,7 +25,29 @@ import { getOpenTasks, completeTask, dismissTask, snoozeTask } from "@/lib/secre
 import { RuleService } from "@/lib/rule-service";
 import { getRecentEvents } from "@/lib/agent-event-service";
 import { taipeiToday } from "@/lib/ledger-shared";
+import { publicUser, userSchema } from "@/lib/ledger-query-core";
 import { actionResultErrorMessage } from "@/lib/pending-action-utils";
+import {
+  createV2Ledger,
+  createV2Transaction,
+  getV2LedgerBootstrap,
+  listV2UserLedgers,
+  settleAllV2Ledger,
+  activateV2Ledger,
+  confirmV2Proposal,
+  cancelV2Proposal,
+  getV2Proposal,
+  createV2Proposal,
+  listV2LedgerTransactions,
+  exportV2LedgerCsv,
+  listV2LedgerStatistics,
+  updateV2LedgerDefaultShares,
+  mutateV2Transaction,
+  listV2RecurringRules,
+  createV2RecurringRule,
+  toggleV2RecurringRule,
+} from "@/lib/v2-ledger-service";
+import { completeV2AttachmentUpload, createV2AttachmentUpload, listV2TransactionAttachments } from "@/lib/v2-attachment-service";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -41,10 +63,83 @@ function deterministicOnboardingGroupId(coupleId: number) {
   return `${hash.slice(0, 8)}-${hash.slice(8, 12)}-5${hash.slice(13, 16)}-a${hash.slice(17, 20)}-${hash.slice(20, 32)}`;
 }
 
+function requireV2Ledger(env: ReturnType<typeof serverEnvironment>): void {
+  if (env.V2_LEDGER_ENABLED !== "1") throw new HttpError(404, "Not found");
+}
+
 export async function GET(request: Request, route: RouteContext) {
   try {
     const path = (await route.params).path;
     const context = await requireContext(request);
+    if (path[0] === "v2") requireV2Ledger(context.env);
+    if (path[0] === "v2" && path[1] === "context" && path.length === 2) {
+      const usersResult = await context.db
+        .from("users")
+        .select("id, couple_id, line_user_id, role")
+        .eq("couple_id", context.user.couple_id)
+        .order("role");
+      if (usersResult.error) throw new Error("V2 context lookup failed");
+      const users = z.array(userSchema).parse(usersResult.data ?? []);
+      if (users.length !== 2) {
+        throw new HttpError(409, "Couple 必須正好有兩位成員才能使用 V2 Ledger");
+      }
+      return json({
+        today: taipeiToday(),
+        user: publicUser(context.user, context.user.id),
+        users: users.map((user) => publicUser(user, context.user.id)),
+      });
+    }
+    if (path[0] === "v2" && path[1] === "ledgers" && path.length === 2) {
+      return json({ ledgers: await listV2UserLedgers(context.user.couple_id, context.user.id) });
+    }
+    if (path[0] === "v2" && path[1] === "ledgers" && path[2] && path[3] === "bootstrap") {
+      return json(await getV2LedgerBootstrap(context.user.couple_id, path[2]));
+    }
+    if (path[0] === "v2" && path[1] === "transactions" && path[2] && path[3] === "attachments") {
+      return json(await listV2TransactionAttachments(context.db, context.user, path[2]));
+    }
+    if (path[0] === "v2" && path[1] === "ledgers" && path[2] && path[3] === "recurring" && path.length === 4) {
+      return json(await listV2RecurringRules(context.user.couple_id, context.user.id, path[2]));
+    }
+    if (path[0] === "v2" && path[1] === "ledgers" && path[2] && path[3] === "transactions" && path.length === 4) {
+      const url = new URL(request.url);
+      return json(await listV2LedgerTransactions(context.user.couple_id, context.user.id, path[2], {
+        type: url.searchParams.get("type"),
+        category: url.searchParams.get("category"),
+        payerUserId: url.searchParams.get("payerUserId"),
+        from: url.searchParams.get("from"),
+        to: url.searchParams.get("to"),
+        q: url.searchParams.get("q"),
+      }));
+    }
+    if (path[0] === "v2" && path[1] === "ledgers" && path[2] && path[3] === "export" && path.length === 4) {
+      const url = new URL(request.url);
+      const csv = await exportV2LedgerCsv(context.user.couple_id, context.user.id, path[2], {
+        type: url.searchParams.get("type"),
+        category: url.searchParams.get("category"),
+        payerUserId: url.searchParams.get("payerUserId"),
+        from: url.searchParams.get("from"),
+        to: url.searchParams.get("to"),
+        q: url.searchParams.get("q"),
+      });
+      return new Response(csv, {
+        headers: {
+          "content-type": "text/csv; charset=utf-8",
+          "content-disposition": `attachment; filename="ledger-${path[2]}.csv"`,
+          "cache-control": "no-store",
+        },
+      });
+    }
+    if (path[0] === "v2" && path[1] === "ledgers" && path[2] && path[3] === "statistics" && path.length === 4) {
+      const url = new URL(request.url);
+      return json(await listV2LedgerStatistics(context.user.couple_id, context.user.id, path[2], {
+        from: url.searchParams.get("from"),
+        to: url.searchParams.get("to"),
+      }));
+    }
+    if (path[0] === "v2" && path[1] === "proposals" && path[2] && path.length === 3) {
+      return json(await getV2Proposal(context.user.couple_id, context.user.id, path[2]));
+    }
     if (path[0] === "bootstrap") return json(await ledgerQueryService.loadBootstrap(context));
     if (path[0] === "export") {
       const url = new URL(request.url);
@@ -133,6 +228,72 @@ export async function POST(request: Request, route: RouteContext) {
     }
 
     const context = await requireContext(request);
+    if (path[0] === "v2") requireV2Ledger(context.env);
+    if (context.env.V2_LEDGER_ENABLED === "1" && path[0] !== "v2") {
+      throw new HttpError(409, "V2 Ledger writer 已啟用；請使用 V2 Ledger API");
+    }
+    if (path[0] === "v2" && path[1] === "ledgers" && path.length === 2) {
+      const key = request.headers.get("idempotency-key");
+      return json(await createV2Ledger(context.user.couple_id, context.user.id, { ...(body as Record<string, unknown>), ...(key ? { idempotencyKey: key } : {}) }), {}, 201);
+    }
+    if (path[0] === "v2" && path[1] === "ledgers" && path[2] && path[3] === "transactions") {
+      return json(
+        await createV2Transaction(
+          context.user.couple_id,
+          context.user.id,
+          path[2],
+          body,
+          request.headers.get("idempotency-key"),
+        ),
+        {},
+        201,
+      );
+    }
+    if (path[0] === "v2" && path[1] === "ledgers" && path[2] && path[3] === "settle-all") {
+      return json(
+        await settleAllV2Ledger(context.user.couple_id, context.user.id, path[2], body, request.headers.get("idempotency-key")),
+      );
+    }
+    if (path[0] === "v2" && path[1] === "transactions" && path[2] && path[3] === "mutate" && path.length === 4) {
+      const key = request.headers.get("idempotency-key");
+      const input = body && typeof body === "object"
+        ? { ...(body as Record<string, unknown>), ...(key ? { idempotencyKey: key } : {}) }
+        : body;
+      return json(await mutateV2Transaction(context.user.couple_id, context.user.id, path[2], input));
+    }
+    if (path[0] === "v2" && path[1] === "ledgers" && path[2] && path[3] === "activate") {
+      return json(await activateV2Ledger(context.user.couple_id, context.user.id, path[2]));
+    }
+    if (path[0] === "v2" && path[1] === "ledgers" && path[2] && path[3] === "default-shares" && path.length === 4) {
+      const key = request.headers.get("idempotency-key");
+      const input = body && typeof body === "object"
+        ? { ...(body as Record<string, unknown>), ...(key ? { idempotencyKey: key } : {}) }
+        : body;
+      return json(await updateV2LedgerDefaultShares(context.user.couple_id, context.user.id, path[2], input));
+    }
+    if (path[0] === "v2" && path[1] === "attachments" && path.length === 2) {
+      return json(await createV2AttachmentUpload(context.db, context.user, body), {}, 201);
+    }
+    if (path[0] === "v2" && path[1] === "attachments" && path[2] && path[3] === "complete" && path.length === 4) {
+      return json(await completeV2AttachmentUpload(context.user, path[2]));
+    }
+    if (path[0] === "v2" && path[1] === "proposals" && path.length === 2) {
+      return json(await createV2Proposal(context.user.couple_id, context.user.id, body, request.headers.get("idempotency-key")), {}, 201);
+    }
+    if (path[0] === "v2" && path[1] === "proposals" && path[2] && path[3] === "confirm" && path.length === 4) {
+      return json(await confirmV2Proposal(context.user.couple_id, context.user.id, path[2]));
+    }
+    if (path[0] === "v2" && path[1] === "proposals" && path[2] && path[3] === "cancel" && path.length === 4) {
+      return json(await cancelV2Proposal(context.user.couple_id, context.user.id, path[2]));
+    }
+    if (path[0] === "v2" && path[1] === "ledgers" && path[2] && path[3] === "recurring" && path.length === 4) {
+      const key = request.headers.get("idempotency-key");
+      const input = body && typeof body === "object" ? { ...(body as Record<string, unknown>), ...(key ? { idempotencyKey: key } : {}) } : body;
+      return json(await createV2RecurringRule(context.user.couple_id, context.user.id, path[2], input), {}, 201);
+    }
+    if (path[0] === "v2" && path[1] === "recurring" && path[2] && path[3] === "toggle" && path.length === 4) {
+      return json(await toggleV2RecurringRule(context.user.couple_id, context.user.id, path[2], body));
+    }
     if (path[0] === "actions" && path.length === 1) {
       const key = request.headers.get("idempotency-key")?.slice(0, 100);
       return json(await pendingActionService.proposeAction(context, body, { source: "liff", idempotencyKey: key }));

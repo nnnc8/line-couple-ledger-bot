@@ -5,6 +5,8 @@ import { after, NextResponse } from "next/server";
 import { z } from "zod";
 
 import { handleLineEvent } from "@/lib/line-webhook-service";
+import { withTx } from "@/lib/db/tx";
+import { dispatchV2LineInbox } from "@/lib/v2-line-inbox-dispatch";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -63,6 +65,38 @@ export async function POST(request: Request): Promise<Response> {
     setupCode: environment.data.COUPLE_SETUP_CODE,
   };
 
+  if (environment.data.V2_LINE_INBOX_ENABLED === "1") {
+    try {
+      await withTx(async (client) => {
+        for (const event of callback.events) {
+          const source = typeof event === "object" && event !== null && "source" in event
+            ? (event as { source?: unknown }).source
+            : null;
+          const sourceUserId = source && typeof source === "object" && "userId" in source
+            ? String((source as { userId: unknown }).userId)
+            : null;
+          await client.query(
+            `insert into ledger_v2.line_inbox
+              (channel, webhook_event_id, source_user_id, payload)
+             values ($1, $2, $3, $4::jsonb)
+             on conflict (provider, channel, webhook_event_id) do nothing`,
+            ["production", event.webhookEventId, sourceUserId, JSON.stringify(event)],
+          );
+        }
+      });
+    } catch (error) {
+      console.error("LINE inbox write failed", { error: error instanceof Error ? error.name : "unknown" });
+      return NextResponse.json({ error: "Inbox unavailable" }, { status: 503 });
+    }
+    after(async () => {
+      try {
+        await dispatchV2LineInbox(dependencies);
+      } catch (error) {
+        console.error("V2 LINE inbox dispatch failed", { error: error instanceof Error ? error.name : "unknown" });
+      }
+    });
+    return NextResponse.json({ ok: true });
+  }
   after(async () => {
     await Promise.allSettled(
       callback.events.map((event) =>

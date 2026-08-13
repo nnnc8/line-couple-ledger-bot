@@ -1,4 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { GoogleGenAI } from "@google/genai";
+import { LineBotClient } from "@line/bot-sdk";
 import { HttpError } from "./http-error";
 import {
   serverDatabase,
@@ -19,6 +21,9 @@ import {
   scanProactiveInsights,
 } from "./notification-service";
 import { cleanupLineMenuAmountDrafts } from "./line-menu-amount-draft";
+import { runDueV2RecurringRules } from "./v2-ledger-service";
+import { dispatchV2NotificationOutbox } from "./v2-outbox-dispatch";
+import { dispatchV2LineInbox } from "./v2-line-inbox-dispatch";
 
 type ServerEnvironment = ReturnType<typeof serverEnvironment>;
 
@@ -30,29 +35,50 @@ export async function runCoreDailyJobs(options: {
   const { env, db, today } = options;
   const expiredPendingActions = await expirePendingActions(db);
   const lineMenuAmountDrafts = await cleanupLineMenuAmountDrafts(db);
-  const drafts = await recurringService.runDue({
-    env,
-    db,
-    today,
-    executePendingAction: (context, input) => pendingActionService.execute(context, input),
-    logError: (recurringId, error) => {
-      console.error("recurring auto-post failed", {
-        recurringId,
-        error: error instanceof Error ? error.message : String(error),
-      });
-    },
-  });
+  const v2Recurring = env.V2_LEDGER_ENABLED === "1"
+    ? await runDueV2RecurringRules(today)
+    : 0;
+  const v2Notifications = env.V2_LEDGER_ENABLED === "1"
+    ? await dispatchV2NotificationOutbox({ db, lineChannelAccessToken: env.LINE_CHANNEL_ACCESS_TOKEN })
+    : 0;
+  const v2Inbox = env.V2_LINE_INBOX_ENABLED === "1"
+    ? await dispatchV2LineInbox({
+        lineClient: LineBotClient.fromChannelAccessToken({ channelAccessToken: env.LINE_CHANNEL_ACCESS_TOKEN }),
+        supabase: db,
+        gemini: new GoogleGenAI({ apiKey: env.GEMINI_API_KEY }),
+        setupCode: env.COUPLE_SETUP_CODE,
+      })
+    : 0;
+  let drafts = 0;
+  if (env.V2_LEDGER_ENABLED !== "1") {
+    drafts = await recurringService.runDue({
+      env,
+      db,
+      today,
+      executePendingAction: (context, input) => pendingActionService.execute(context, input),
+      logError: (recurringId, error) => {
+        console.error("recurring auto-post failed", {
+          recurringId,
+          error: error instanceof Error ? error.message : String(error),
+        });
+      },
+    });
+  }
   const purgedReceipts = await purgeDeletedReceipts(db);
   let accountantReports = 0;
-  if (today.endsWith("-01")) {
+  if (env.V2_LEDGER_ENABLED !== "1" && today.endsWith("-01")) {
     accountantReports = await accountantService.generateMonthlyReports(
       env,
       db,
       shiftMonth(today.slice(0, 7), -1),
     );
   }
-  const insightNotifications = await scanProactiveInsights(db, today);
-  await flushQueuedNotifications({ env, db });
+  const insightNotifications = env.V2_LEDGER_ENABLED === "1"
+    ? 0
+    : await scanProactiveInsights(db, today);
+  if (env.V2_LEDGER_ENABLED !== "1") {
+    await flushQueuedNotifications({ env, db });
+  }
   return {
     drafts,
     purgedReceipts,
@@ -60,6 +86,9 @@ export async function runCoreDailyJobs(options: {
     insightNotifications,
     expiredPendingActions,
     lineMenuAmountDrafts,
+    v2Recurring,
+    v2Notifications,
+    v2Inbox,
   };
 }
 

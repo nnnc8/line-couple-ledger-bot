@@ -52,6 +52,14 @@ export async function handleLineEvent(
       }
       const decision = parsePendingActionPostback(event.postback.data);
       if (decision) {
+        if (process.env.V2_LEDGER_ENABLED === "1") {
+          await replyText(
+            dependencies.lineClient,
+            replyToken,
+            "V2 Ledger 的記帳請用文字格式，例如「晚餐 500 我付」；確認草稿請開啟 LIFF。",
+          );
+          return;
+        }
         const result = actionResultSchema.parse(
           await pendingActionService.confirm(
             {
@@ -80,6 +88,14 @@ export async function handleLineEvent(
           dependencies.lineClient,
           replyToken,
           actionResultMessage(result),
+        );
+        return;
+      }
+      if (process.env.V2_LEDGER_ENABLED === "1") {
+        await replyText(
+          dependencies.lineClient,
+          replyToken,
+          "V2 Ledger 的記帳請用文字格式，例如「晚餐 500 我付」；確認草稿請開啟 LIFF。",
         );
         return;
       }
@@ -189,11 +205,13 @@ export async function handleLineEvent(
       }
       await handleLineAudioTurn({
         messageId: event.message.id,
+        replyToken,
         sourceEventId: event.webhookEventId,
         sourceEventTimestamp: event.timestamp,
         user,
         dependencies,
         reply: (msg) => replyMessages(dependencies.lineClient, replyToken, msg),
+        v2Only: process.env.V2_LEDGER_ENABLED === "1",
       });
       return;
     }
