@@ -3,6 +3,10 @@
     {
       "path": "/api/cron/daily",
       "schedule": "15 17 * * *"
+    },
+    {
+      "path": "/api/cron/v2-workers",
+      "schedule": "* * * * *"
     }
   ]
 }

@@ -12,7 +12,18 @@ export type V2LedgerSummary = {
   name: string;
   color: string;
   status: "active" | "archived";
+  activeForUser?: boolean;
   version: number;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type V2Category = {
+  id: string;
+  ledgerId: string;
+  name: string;
+  status: "active" | "archived";
+  isDefault: boolean;
   createdAt: string;
   updatedAt: string;
 };
@@ -46,10 +57,13 @@ export type V2LedgerBootstrap = {
     occurredOn?: string;
     description?: string;
     category?: string | null;
+    categoryId?: string | null;
     note?: string | null;
     splitMethod?: "none" | "equal" | "exact" | "percentage" | "weights";
     createdAt?: string;
     version?: number;
+    replacesTransactionId?: string | null;
+    replacedByTransactionId?: string | null;
   }>;
   balance: Record<string, string>;
   nextPayer: V2NextPayer | null;
@@ -66,6 +80,7 @@ export type V2RecurringRule = {
   endDate: string | null;
   active: boolean;
   splitMethod: "equal" | "exact" | "percentage" | "weights";
+  categoryId?: string | null;
   payments: Array<{ userId: string; amountTwd: string }>;
   shares: Array<{ userId: string; amountTwd: string }>;
   version: number;

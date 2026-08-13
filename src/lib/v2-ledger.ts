@@ -32,10 +32,15 @@ export interface V2Transaction {
   occurredOn?: string;
   description?: string;
   category?: string | null;
+  categoryId?: string | null;
   note?: string | null;
   splitMethod?: V2SplitMethod;
   createdAt?: string;
   version?: number;
+  /** Immutable lineage pointer for a void-and-replace edit. */
+  replacesTransactionId?: string | null;
+  /** Present when this row is the predecessor of a replacement row. */
+  replacedByTransactionId?: string | null;
 }
 
 export interface V2LedgerMemberSet {

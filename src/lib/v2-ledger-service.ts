@@ -5,6 +5,7 @@ import { z } from "zod";
 import { HttpError } from "./http-error";
 import { withTx } from "./db/tx";
 import { nextRecurringDate } from "./ledger";
+import { taipeiToday } from "./ledger-shared";
 import {
   buildSettleAllTransfer,
   calculateLedgerBalance,
@@ -30,6 +31,7 @@ const twdInputSchema = z.union([
 ]);
 
 const idempotencyKeySchema = z.string().trim().min(1).max(100);
+const DEFAULT_LEDGER_CATEGORIES = ["餐飲", "交通", "居家", "旅遊", "娛樂", "購物", "醫療", "其他"] as const;
 
 export const createLedgerInputSchema = z.object({
   name: z.string().trim().min(1).max(40),
@@ -58,6 +60,7 @@ const v2TransactionTypeFields = {
   occurredOn: z.iso.date(),
   description: z.string().trim().min(1).max(120),
   category: z.string().trim().min(1).max(40).nullable().optional(),
+  categoryId: z.string().uuid().nullable().optional(),
   note: z.string().trim().max(1000).nullable().optional(),
   splitMethod: z.enum(["none", "equal", "exact", "percentage", "weights"]).optional(),
   payments: z.array(participantAmountSchema).min(1).max(2),
@@ -89,6 +92,7 @@ export const v2LineProposalDraftSchema = z.object({
   shares: z.array(participantAmountSchema).min(1).max(2).optional(),
   splitMethod: z.enum(["none", "equal", "exact", "percentage", "weights"]).optional(),
   category: z.string().trim().min(1).max(40).nullable().optional(),
+  categoryId: z.string().uuid().nullable().optional(),
   note: z.string().trim().max(1000).nullable().optional(),
 }).strict();
 
@@ -106,16 +110,32 @@ export const createV2RecurringRuleInputSchema = z.object({
   splitMethod: z.enum(["equal", "exact", "percentage", "weights"]),
   payments: z.array(participantAmountSchema).min(1).max(2),
   shares: z.array(participantAmountSchema).min(1).max(2).optional(),
+  percentages: z.tuple([z.number().min(0).max(100), z.number().min(0).max(100)]).optional(),
+  categoryId: z.string().uuid().nullable().optional(),
   idempotencyKey: idempotencyKeySchema.optional(),
 }).strict().superRefine((value, context) => {
-  if (!value.shares && value.splitMethod !== "weights") {
-    context.addIssue({ code: "custom", path: ["shares"], message: "非 weights recurring rule 必須指定 shares" });
+  if (value.splitMethod === "exact" && !value.shares) {
+    context.addIssue({ code: "custom", path: ["shares"], message: "exact recurring rule 必須指定 shares" });
+  }
+  if (value.splitMethod === "percentage" && !value.shares && !value.percentages) {
+    context.addIssue({ code: "custom", path: ["percentages"], message: "percentage recurring rule 必須指定 percentages" });
   }
 });
 
 export const toggleV2RecurringRuleInputSchema = z.object({
   active: z.boolean(),
 }).strict();
+
+export const createV2CategoryInputSchema = z.object({
+  name: z.string().trim().min(1).max(40),
+  idempotencyKey: idempotencyKeySchema.optional(),
+}).strict();
+
+export const updateV2CategoryInputSchema = z.object({
+  name: z.string().trim().min(1).max(40).optional(),
+  status: z.enum(["active", "archived"]).optional(),
+  idempotencyKey: idempotencyKeySchema.optional(),
+}).strict().refine((value) => Boolean(value.name || value.status), { message: "類別更新至少需要名稱或狀態" });
 
 export const mutateV2TransactionInputSchema = z.object({
   action: z.enum(["void", "restore", "replace"]),
@@ -137,6 +157,15 @@ export type CreateLedgerInput = z.infer<typeof createLedgerInputSchema>;
 export type CreateV2TransactionInput = z.infer<typeof createV2TransactionInputSchema>;
 export type CreateV2ProposalInput = z.infer<typeof createV2ProposalInputSchema>;
 export type UpdateV2LedgerDefaultSharesInput = z.infer<typeof updateV2LedgerDefaultSharesInputSchema>;
+export type V2Category = {
+  id: string;
+  ledgerId: string;
+  name: string;
+  status: "active" | "archived";
+  isDefault: boolean;
+  createdAt: string;
+  updatedAt: string;
+};
 
 interface RecurringRuleRow extends QueryResultRow {
   id: string;
@@ -153,6 +182,7 @@ interface RecurringRuleRow extends QueryResultRow {
   split_method: "equal" | "exact" | "percentage" | "weights";
   payments: unknown;
   shares: unknown;
+  category_id: string | null;
   version: number;
   created_at: string;
   updated_at: string;
@@ -189,6 +219,7 @@ interface TransactionRow extends QueryResultRow {
   occurred_on: string;
   description: string;
   category: string | null;
+  category_id: string | null;
   note: string | null;
   split_method: "none" | "equal" | "exact" | "percentage" | "weights";
   status: "posted" | "voided" | "deleted";
@@ -196,6 +227,8 @@ interface TransactionRow extends QueryResultRow {
   created_by_user_id: string;
   created_at: string;
   updated_at: string;
+  replaces_transaction_id: string | null;
+  replaced_by_transaction_id: string | null;
 }
 
 interface TransactionMutationRow extends QueryResultRow {
@@ -205,6 +238,24 @@ interface TransactionMutationRow extends QueryResultRow {
   status: V2TransactionStatus;
   version: number;
   voided_at: string | null;
+}
+
+export interface V2TransactionCursor {
+  occurredOn: string;
+  createdAt: string;
+  id: string;
+}
+
+export interface V2TransactionListFilters {
+  type?: string | null;
+  category?: string | null;
+  categoryId?: string | null;
+  payerUserId?: string | null;
+  from?: string | null;
+  to?: string | null;
+  q?: string | null;
+  cursor?: string | null;
+  limit?: number | null;
 }
 
 interface ChildRow extends QueryResultRow {
@@ -229,6 +280,26 @@ function asBigint(value: string | number | bigint): bigint {
   return typeof value === "bigint" ? value : BigInt(value);
 }
 
+const DEFAULT_TRANSACTION_PAGE_SIZE = 50;
+const MAX_TRANSACTION_PAGE_SIZE = 100;
+
+export function encodeV2TransactionCursor(cursor: V2TransactionCursor): string {
+  return Buffer.from(JSON.stringify(cursor), "utf8").toString("base64url");
+}
+
+export function decodeV2TransactionCursor(value: string): V2TransactionCursor {
+  try {
+    const parsed = z.object({
+      occurredOn: z.iso.date(),
+      createdAt: z.string().min(1).max(100),
+      id: z.string().uuid(),
+    }).parse(JSON.parse(Buffer.from(value, "base64url").toString("utf8")));
+    return parsed;
+  } catch {
+    throw new HttpError(400, "交易 cursor 無效");
+  }
+}
+
 function serializedTransaction(transaction: V2Transaction) {
   return {
     ...transaction,
@@ -241,6 +312,8 @@ function serializedTransaction(transaction: V2Transaction) {
       ...share,
       amountTwd: twdToString(share.amountTwd),
     })),
+    replacesTransactionId: transaction.replacesTransactionId ?? null,
+    replacedByTransactionId: transaction.replacedByTransactionId ?? null,
   };
 }
 
@@ -305,8 +378,14 @@ async function loadLedger(client: PoolClient, coupleId: number, ledgerId: string
     ),
     client.query<TransactionRow>(
       `select id, ledger_id, couple_id, type, amount_twd, occurred_on,
-              description, category, note, split_method, status, version,
-              created_by_user_id, created_at, updated_at
+              description, category, category_id, note, split_method, status, version,
+              created_by_user_id, created_at, updated_at,
+              replaces_transaction_id,
+              (select replacement.id
+                 from ledger_v2.transactions replacement
+                where replacement.replaces_transaction_id = transactions.id
+                order by replacement.created_at desc, replacement.id desc
+                limit 1) as replaced_by_transaction_id
          from ledger_v2.transactions
         where ledger_id = $1 and couple_id = $2
         order by occurred_on desc, created_at desc, id desc`,
@@ -366,10 +445,13 @@ async function loadLedger(client: PoolClient, coupleId: number, ledgerId: string
     occurredOn: transaction.occurred_on,
     description: transaction.description,
     category: transaction.category,
+    categoryId: transaction.category_id,
     note: transaction.note,
     splitMethod: transaction.split_method,
     createdAt: transaction.created_at,
     version: transaction.version,
+    replacesTransactionId: transaction.replaces_transaction_id,
+    replacedByTransactionId: transaction.replaced_by_transaction_id,
   }));
   return {
     row,
@@ -461,6 +543,7 @@ async function insertTransaction(
   ledger: LoadedLedger,
   actorUserId: string,
   input: CreateV2TransactionInput,
+  lineage: { replacesTransactionId?: string | null } = {},
 ): Promise<{ transaction: V2Transaction; balance: Record<string, bigint> }> {
   const shares = buildShares(input, ledger);
   const transaction: V2Transaction = {
@@ -472,17 +555,19 @@ async function insertTransaction(
     occurredOn: input.occurredOn,
     description: input.description,
     category: input.category ?? null,
+    categoryId: input.categoryId ?? null,
     note: input.note ?? null,
     splitMethod: input.type === "transfer" ? "none" : input.splitMethod ?? "weights",
     version: 1,
+    replacesTransactionId: lineage.replacesTransactionId ?? null,
   };
   calculateTransactionDelta(transaction, ledger.members);
   const id = randomUUID();
   await client.query(
     `insert into ledger_v2.transactions
       (id, couple_id, ledger_id, type, amount_twd, occurred_on, description,
-       category, note, split_method, created_by_user_id)
-     values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
+       category, category_id, note, split_method, created_by_user_id, replaces_transaction_id)
+     values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`,
     [
       id,
       ledger.row.couple_id,
@@ -492,9 +577,11 @@ async function insertTransaction(
       input.occurredOn,
       input.description,
       input.category ?? null,
+      input.categoryId ?? null,
       input.note ?? null,
       input.type === "transfer" ? "none" : input.splitMethod ?? "weights",
       actorUserId,
+      lineage.replacesTransactionId ?? null,
     ],
   );
   for (const payment of transaction.payments) {
@@ -610,6 +697,7 @@ export async function listV2UserLedgers(coupleId: number, userId: string) {
       name: row.name,
       color: row.color,
       status: row.status,
+      activeForUser: row.active_for_user,
       version: row.version,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
@@ -645,7 +733,7 @@ export async function listV2LedgerStatistics(
       payment_twd: string | number;
       share_twd: string | number;
     }>(
-      `select t.id, t.type, t.category, t.amount_twd, u.id as user_id,
+      `select t.id, t.type, coalesce(c.name, t.category) as category, t.amount_twd, u.id as user_id,
               coalesce(p.amount_twd, 0) as payment_twd,
               coalesce(s.amount_twd, 0) as share_twd
          from ledger_v2.transactions t
@@ -655,6 +743,8 @@ export async function listV2LedgerStatistics(
            on p.transaction_id = t.id and p.user_id = u.id
          left join ledger_v2.transaction_shares s
            on s.transaction_id = t.id and s.user_id = u.id
+         left join ledger_v2.categories c
+           on c.id = t.category_id and c.ledger_id = t.ledger_id and c.couple_id = t.couple_id
         where ${where.join(" and ")}
           and t.type <> 'transfer'
         order by t.id, u.id`,
@@ -683,7 +773,7 @@ export async function listV2LedgerTransactions(
   coupleId: number,
   userId: string,
   ledgerId: string,
-  filters: { type?: string | null; category?: string | null; payerUserId?: string | null; from?: string | null; to?: string | null; q?: string | null } = {},
+  filters: V2TransactionListFilters = {},
 ) {
   return withTx(async (client) => {
     await assertLedgerMember(client, coupleId, userId, ledgerId);
@@ -696,6 +786,11 @@ export async function listV2LedgerTransactions(
     if (filters.category?.trim()) {
       values.push(filters.category.trim());
       where.push(`t.category = $${values.length}`);
+    }
+    if (filters.categoryId?.trim()) {
+      const categoryId = z.string().uuid().parse(filters.categoryId.trim());
+      values.push(categoryId);
+      where.push(`t.category_id = $${values.length}`);
     }
     if (filters.payerUserId) {
       values.push(filters.payerUserId);
@@ -713,17 +808,43 @@ export async function listV2LedgerTransactions(
       values.push(`%${filters.q.trim()}%`);
       where.push(`(t.description ilike $${values.length} or coalesce(t.note, '') ilike $${values.length} or coalesce(t.category, '') ilike $${values.length})`);
     }
+    const cursor = filters.cursor ? decodeV2TransactionCursor(filters.cursor) : null;
+    if (cursor) {
+      values.push(cursor.occurredOn, cursor.createdAt, cursor.id);
+      const dateParam = values.length - 2;
+      const createdAtParam = values.length - 1;
+      const idParam = values.length;
+      where.push(`(
+        t.occurred_on < $${dateParam}
+        or (t.occurred_on = $${dateParam} and t.created_at < $${createdAtParam})
+        or (t.occurred_on = $${dateParam} and t.created_at = $${createdAtParam} and t.id < $${idParam})
+      )`);
+    }
+    const requestedLimit = filters.limit === null
+      ? null
+      : Number.isFinite(filters.limit)
+        ? Math.min(Math.max(Math.trunc(filters.limit ?? DEFAULT_TRANSACTION_PAGE_SIZE), 1), MAX_TRANSACTION_PAGE_SIZE)
+        : DEFAULT_TRANSACTION_PAGE_SIZE;
+    const queryLimit = requestedLimit === null ? "" : `limit ${requestedLimit + 1}`;
     const result = await client.query<TransactionRow>(
       `select t.id, t.ledger_id, t.couple_id, t.type, t.amount_twd, t.occurred_on,
-              t.description, t.category, t.note, t.split_method, t.status, t.version,
-              t.created_by_user_id, t.created_at, t.updated_at
+              t.description, t.category, t.category_id, t.note, t.split_method, t.status, t.version,
+              t.created_by_user_id, t.created_at, t.updated_at,
+              t.replaces_transaction_id,
+              (select replacement.id
+                 from ledger_v2.transactions replacement
+                where replacement.replaces_transaction_id = t.id
+                order by replacement.created_at desc, replacement.id desc
+                limit 1) as replaced_by_transaction_id
          from ledger_v2.transactions t
         where ${where.join(" and ")}
         order by t.occurred_on desc, t.created_at desc, t.id desc
-        limit 200`,
+        ${queryLimit}`,
       values,
     );
-    const transactionIds = result.rows.map((row) => row.id);
+    const hasMore = requestedLimit !== null && result.rows.length > requestedLimit;
+    const rows = requestedLimit === null ? result.rows : result.rows.slice(0, requestedLimit);
+    const transactionIds = rows.map((row) => row.id);
     const [paymentResult, shareResult] = transactionIds.length
       ? await Promise.all([
           client.query<ChildRow>(
@@ -752,7 +873,7 @@ export async function listV2LedgerTransactions(
       list.push({ userId: share.user_id, amountTwd: asBigint(share.amount_twd) });
       sharesByTransaction.set(share.transaction_id, list);
     }
-    return { transactions: result.rows.map((row) => ({
+    const transactions = rows.map((row) => ({
       id: row.id,
       ledgerId: row.ledger_id,
       type: row.type,
@@ -762,11 +883,22 @@ export async function listV2LedgerTransactions(
       occurredOn: row.occurred_on,
       description: row.description,
       category: row.category,
+      categoryId: row.category_id,
       note: row.note,
       splitMethod: row.split_method,
       status: row.status,
       version: row.version,
-    })) };
+      createdAt: row.created_at,
+      replacesTransactionId: row.replaces_transaction_id,
+      replacedByTransactionId: row.replaced_by_transaction_id,
+    }));
+    const last = rows.at(-1);
+    return {
+      transactions,
+      nextCursor: hasMore && last
+        ? encodeV2TransactionCursor({ occurredOn: last.occurred_on, createdAt: last.created_at, id: last.id })
+        : null,
+    };
   });
 }
 
@@ -812,10 +944,126 @@ export async function updateV2LedgerDefaultShares(
   });
 }
 
+function serializedV2Category(row: { id: string; ledger_id: string; name: string; status: "active" | "archived"; is_default: boolean; created_at: string; updated_at: string }): V2Category {
+  return { id: row.id, ledgerId: row.ledger_id, name: row.name, status: row.status, isDefault: row.is_default, createdAt: row.created_at, updatedAt: row.updated_at };
+}
+
+export async function listV2LedgerCategories(coupleId: number, userId: string, ledgerId: string) {
+  return withTx(async (client) => {
+    await assertLedgerMember(client, coupleId, userId, ledgerId);
+    const result = await client.query<{ id: string; ledger_id: string; name: string; status: "active" | "archived"; is_default: boolean; created_at: string; updated_at: string }>(
+      `select id, ledger_id, name, status, is_default, created_at, updated_at
+         from ledger_v2.categories
+        where couple_id = $1 and ledger_id = $2
+        order by status asc, is_default desc, name asc, id asc`,
+      [coupleId, ledgerId],
+    );
+    return { categories: result.rows.map(serializedV2Category) };
+  });
+}
+
+export async function createV2LedgerCategory(coupleId: number, actorUserId: string, ledgerId: string, rawInput: unknown) {
+  const input = createV2CategoryInputSchema.parse(rawInput);
+  const key = input.idempotencyKey ?? `category:${ledgerId}:${randomUUID()}`;
+  const hash = requestHash({ ledgerId, name: input.name });
+  return withTx(async (client) => {
+    await assertV2Writer(client, coupleId);
+    const existing = await findReceipt(client, coupleId, key, hash);
+    if (existing) return existing;
+    await assertLedgerMember(client, coupleId, actorUserId, ledgerId);
+    const row = await client.query<{ id: string; ledger_id: string; name: string; status: "active" | "archived"; is_default: boolean; created_at: string; updated_at: string }>(
+      `insert into ledger_v2.categories (couple_id, ledger_id, name)
+       values ($1, $2, $3)
+       returning id, ledger_id, name, status, is_default, created_at, updated_at`,
+      [coupleId, ledgerId, input.name],
+    );
+    const result = { category: serializedV2Category(row.rows[0]!) };
+    await saveReceipt(client, coupleId, ledgerId, key, hash, result, actorUserId);
+    return result;
+  });
+}
+
+export async function updateV2LedgerCategory(coupleId: number, actorUserId: string, categoryId: string, rawInput: unknown) {
+  const id = z.string().uuid().parse(categoryId);
+  const input = updateV2CategoryInputSchema.parse(rawInput);
+  const key = input.idempotencyKey ?? `category:update:${id}:${randomUUID()}`;
+  const hash = requestHash({ categoryId: id, name: input.name ?? null, status: input.status ?? null });
+  return withTx(async (client) => {
+    await assertV2Writer(client, coupleId);
+    const existing = await findReceipt(client, coupleId, key, hash);
+    if (existing) return existing;
+    const row = await client.query<{ id: string; ledger_id: string; name: string; status: "active" | "archived"; is_default: boolean; created_at: string; updated_at: string }>(
+      `update ledger_v2.categories c
+          set name = coalesce($2, c.name), status = coalesce($3, c.status), updated_at = now()
+        where c.id = $1 and c.couple_id = $4
+          and exists (select 1 from ledger_v2.ledger_members lm where lm.ledger_id = c.ledger_id and lm.couple_id = c.couple_id and lm.user_id = $5)
+      returning c.id, c.ledger_id, c.name, c.status, c.is_default, c.created_at, c.updated_at`,
+      [id, input.name ?? null, input.status ?? null, coupleId, actorUserId],
+    );
+    if (!row.rows[0]) throw new HttpError(404, "Category 不存在或無權限");
+    const result = { category: serializedV2Category(row.rows[0]) };
+    await saveReceipt(client, coupleId, row.rows[0].ledger_id, key, hash, result, actorUserId);
+    return result;
+  });
+}
+
 function csvCell(value: unknown): string {
   const raw = typeof value === "string" ? value : JSON.stringify(value ?? "");
   const text = /^[=+\-@]/.test(raw) ? `'${raw}` : raw;
   return `"${text.replaceAll('"', '""')}"`;
+}
+
+export interface V2LedgerCsvRow {
+  id: string;
+  occurredOn: string;
+  type: V2TransactionType;
+  description: string;
+  category?: string | null;
+  categoryId?: string | null;
+  amountTwd: string;
+  payments: Array<{ userId: string; amountTwd: string }>;
+  shares: Array<{ userId: string; amountTwd: string }>;
+  note?: string | null;
+  status: V2TransactionStatus;
+  splitMethod?: string | null;
+  replacesTransactionId?: string | null;
+  replacedByTransactionId?: string | null;
+}
+
+export function buildV2LedgerCsv(rows: V2LedgerCsvRow[]): string {
+  const header = [
+    "transaction_id",
+    "occurred_on",
+    "type",
+    "description",
+    "category",
+    "category_id",
+    "amount_twd",
+    "payments",
+    "shares",
+    "note",
+    "split_method",
+    "status",
+    "replaces_transaction_id",
+    "replaced_by_transaction_id",
+  ];
+  const body = rows.map((row) => [
+    row.id,
+    row.occurredOn,
+    row.type,
+    row.description,
+    row.category ?? "",
+    row.categoryId ?? "",
+    row.amountTwd,
+    row.payments,
+    row.shares,
+    row.note ?? "",
+    row.splitMethod ?? "",
+    row.status,
+    row.replacesTransactionId ?? "",
+    row.replacedByTransactionId ?? "",
+  ].map(csvCell).join(","));
+  return [header.map(csvCell).join(","), ...body].join("\n") + "\n";
 }
 
 export async function exportV2LedgerCsv(
@@ -824,20 +1072,8 @@ export async function exportV2LedgerCsv(
   ledgerId: string,
   filters: Parameters<typeof listV2LedgerTransactions>[3] = {},
 ): Promise<string> {
-  const rows = (await listV2LedgerTransactions(coupleId, userId, ledgerId, filters)).transactions;
-  const header = ["occurred_on", "type", "description", "category", "amount_twd", "payments", "shares", "note", "status"];
-  const body = rows.map((row) => [
-    row.occurredOn,
-    row.type,
-    row.description,
-    row.category ?? "",
-    row.amountTwd,
-    row.payments,
-    row.shares,
-    row.note ?? "",
-    row.status,
-  ].map(csvCell).join(","));
-  return [header.map(csvCell).join(","), ...body].join("\n") + "\n";
+  const rows = (await listV2LedgerTransactions(coupleId, userId, ledgerId, { ...filters, cursor: null, limit: null })).transactions;
+  return buildV2LedgerCsv(rows);
 }
 
 export async function mutateV2Transaction(
@@ -905,7 +1141,7 @@ export async function mutateV2Transaction(
         [coupleId, row.ledger_id, id, actorUserId, JSON.stringify({ status: row.status, version: row.version }), JSON.stringify({ status: "voided", version: row.version + 1, replacement: serializedTransaction(replacementTransaction) })],
       );
       const refreshedLedger = await loadLedger(client, coupleId, row.ledger_id, true);
-      const written = await insertTransaction(client, refreshedLedger, actorUserId, replacement);
+      const written = await insertTransaction(client, refreshedLedger, actorUserId, replacement, { replacesTransactionId: id });
       refreshedLedger.row.version += 1;
       const result = { ok: true, replacedTransactionId: id, transaction: serializedTransaction(written.transaction), balance: serializedBalance(written.balance), version: row.version + 1, ledgerVersion: refreshedLedger.row.version };
       await saveReceipt(client, coupleId, row.ledger_id, idempotencyKey, hash, result, actorUserId);
@@ -1000,6 +1236,14 @@ export async function createV2Ledger(coupleId: number, actorUserId: string, rawI
         [ledgerId, coupleId, member.user_id],
       );
     }
+    for (const name of DEFAULT_LEDGER_CATEGORIES) {
+      await client.query(
+        `insert into ledger_v2.categories (couple_id, ledger_id, name, is_default)
+         values ($1, $2, $3, true)
+         on conflict (ledger_id, couple_id, name) do nothing`,
+        [coupleId, ledgerId, name],
+      );
+    }
     const result = {
       ledger: {
         id: ledgerId,
@@ -1029,6 +1273,7 @@ function serializedRecurringRule(row: RecurringRuleRow) {
     endDate: row.end_date,
     active: row.active,
     splitMethod: row.split_method,
+    categoryId: row.category_id,
     payments: payments.map((payment) => ({ userId: payment.userId, amountTwd: twdToString(payment.amountTwd) })),
     shares: shares.map((share) => ({ userId: share.userId, amountTwd: twdToString(share.amountTwd) })),
     version: row.version,
@@ -1055,7 +1300,7 @@ export async function listV2RecurringRules(coupleId: number, userId: string, led
     const result = await client.query<RecurringRuleRow>(
       `select r.id, r.couple_id, r.ledger_id, r.created_by_user_id, r.name, r.amount_twd,
               r.frequency, r.anchor_day, r.next_run_date, r.end_date, r.active,
-              r.split_method, r.payments, r.shares, r.version, r.created_at, r.updated_at
+              r.split_method, r.payments, r.shares, r.category_id, r.version, r.created_at, r.updated_at
          from ledger_v2.recurring_rules
         where couple_id = $1 and ledger_id = $2
         order by active desc, next_run_date asc, created_at asc, id asc`,
@@ -1082,8 +1327,11 @@ export async function createV2RecurringRule(
     await assertLedgerMember(client, coupleId, actorUserId, ledgerId);
     const shares = input.shares
       ? input.shares.map((share) => ({ userId: share.userId, amountTwd: share.amountTwd }))
-      : Object.entries(splitWeights(input.amountTwd, ledger.members.memberIds, ledger.defaultWeights))
-        .map(([userId, amountTwd]) => ({ userId, amountTwd }));
+      : input.splitMethod === "equal"
+        ? Object.entries(splitEqual(input.amountTwd, ledger.members.memberIds)).map(([userId, amountTwd]) => ({ userId, amountTwd }))
+        : input.splitMethod === "percentage"
+          ? Object.entries(splitPercentage(input.amountTwd, ledger.members.memberIds, input.percentages!)).map(([userId, amountTwd]) => ({ userId, amountTwd }))
+          : Object.entries(splitWeights(input.amountTwd, ledger.members.memberIds, ledger.defaultWeights)).map(([userId, amountTwd]) => ({ userId, amountTwd }));
     const payments = input.payments.map((payment) => ({ userId: payment.userId, amountTwd: payment.amountTwd }));
     calculateTransactionDelta({
       ledgerId,
@@ -1099,11 +1347,11 @@ export async function createV2RecurringRule(
     const row = await client.query<RecurringRuleRow>(
       `insert into ledger_v2.recurring_rules
         (id, couple_id, ledger_id, created_by_user_id, name, amount_twd,
-         frequency, anchor_day, next_run_date, end_date, split_method, payments, shares)
-       values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12::jsonb, $13::jsonb)
+         frequency, anchor_day, next_run_date, end_date, split_method, payments, shares, category_id)
+       values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12::jsonb, $13::jsonb, $14)
        returning id, couple_id, ledger_id, created_by_user_id, name, amount_twd,
                  frequency, anchor_day, next_run_date, end_date, active,
-                 split_method, payments, shares, version, created_at, updated_at`,
+                 split_method, payments, shares, category_id, version, created_at, updated_at`,
       [
         id,
         coupleId,
@@ -1118,6 +1366,7 @@ export async function createV2RecurringRule(
         input.splitMethod,
         JSON.stringify(recurringParticipants(payments)),
         JSON.stringify(recurringParticipants(shares)),
+        input.categoryId ?? null,
       ],
     );
     const result = { recurring: serializedRecurringRule(row.rows[0]!) };
@@ -1146,7 +1395,7 @@ export async function toggleV2RecurringRule(
           )
       returning id, couple_id, ledger_id, created_by_user_id, name, amount_twd,
                 frequency, anchor_day, next_run_date, end_date, active,
-                split_method, payments, shares, version, created_at, updated_at`,
+                split_method, payments, shares, category_id, version, created_at, updated_at`,
       [input.active, ruleId, coupleId, actorUserId],
     );
     if (!result.rows[0]) throw new HttpError(404, "Recurring rule 不存在或無權限");
@@ -1172,7 +1421,7 @@ export async function runDueV2RecurringRules(today: string, limit = 100): Promis
     const due = await client.query<RecurringRuleRow>(
       `select r.id, r.couple_id, r.ledger_id, r.created_by_user_id, r.name, r.amount_twd,
               r.frequency, r.anchor_day, r.next_run_date, r.end_date, r.active,
-              r.split_method, r.payments, r.shares, r.version, r.created_at, r.updated_at
+              r.split_method, r.payments, r.shares, r.category_id, r.version, r.created_at, r.updated_at
         from ledger_v2.recurring_rules r
         join ledger_v2.writer_control wc on wc.couple_id = r.couple_id
         where r.active and r.next_run_date <= $1
@@ -1217,6 +1466,7 @@ export async function runDueV2RecurringRules(today: string, limit = 100): Promis
           occurredOn: rule.next_run_date,
           description: rule.name,
           category: null,
+          categoryId: rule.category_id,
           note: "V2 recurring rule",
           splitMethod: rule.split_method,
           payments,
@@ -1266,8 +1516,17 @@ export async function createV2ProposalFromLine(
   const idempotencyKey = `line:v2:${createHash("sha256").update(sourceEventId).digest("hex").slice(0, 80)}`;
   const draft = v2LineProposalDraftSchema.safeParse(input);
   const proposal = draft.success
-    ? { ledgerId: draft.data.ledgerId, commands: [draft.data] }
-    : createV2ProposalInputSchema.parse(input);
+    ? {
+        ledgerId: draft.data.ledgerId,
+        commands: [(({ ledgerId: _ledgerId, ...command }) => { void _ledgerId; return command; })(draft.data)],
+      }
+    : (() => {
+        const parsed = createV2ProposalInputSchema.parse(input);
+        return {
+          ...parsed,
+          commands: parsed.commands,
+        };
+      })();
   return createV2Proposal(coupleId, actorUserId, proposal, idempotencyKey);
 }
 
@@ -1374,7 +1633,7 @@ export async function settleAllV2Ledger(
     const settleInput: CreateV2TransactionInput = {
       type: "transfer",
       amountTwd: transfer.amountTwd.toString(),
-      occurredOn: new Date().toISOString().slice(0, 10),
+      occurredOn: taipeiToday(),
       description: "全部結清",
       category: null,
       note: null,

@@ -46,8 +46,11 @@ import {
   listV2RecurringRules,
   createV2RecurringRule,
   toggleV2RecurringRule,
+  listV2LedgerCategories,
+  createV2LedgerCategory,
+  updateV2LedgerCategory,
 } from "@/lib/v2-ledger-service";
-import { completeV2AttachmentUpload, createV2AttachmentUpload, listV2TransactionAttachments } from "@/lib/v2-attachment-service";
+import { completeV2AttachmentUpload, createV2AttachmentUpload, deleteV2Attachment, listV2TransactionAttachments } from "@/lib/v2-attachment-service";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -101,15 +104,23 @@ export async function GET(request: Request, route: RouteContext) {
     if (path[0] === "v2" && path[1] === "ledgers" && path[2] && path[3] === "recurring" && path.length === 4) {
       return json(await listV2RecurringRules(context.user.couple_id, context.user.id, path[2]));
     }
+    if (path[0] === "v2" && path[1] === "ledgers" && path[2] && path[3] === "categories" && path.length === 4) {
+      return json(await listV2LedgerCategories(context.user.couple_id, context.user.id, path[2]));
+    }
     if (path[0] === "v2" && path[1] === "ledgers" && path[2] && path[3] === "transactions" && path.length === 4) {
       const url = new URL(request.url);
       return json(await listV2LedgerTransactions(context.user.couple_id, context.user.id, path[2], {
         type: url.searchParams.get("type"),
         category: url.searchParams.get("category"),
+        categoryId: url.searchParams.get("categoryId"),
         payerUserId: url.searchParams.get("payerUserId"),
         from: url.searchParams.get("from"),
         to: url.searchParams.get("to"),
         q: url.searchParams.get("q"),
+        cursor: url.searchParams.get("cursor"),
+        limit: url.searchParams.get("limit") && /^\d+$/.test(url.searchParams.get("limit")!)
+          ? Number(url.searchParams.get("limit"))
+          : undefined,
       }));
     }
     if (path[0] === "v2" && path[1] === "ledgers" && path[2] && path[3] === "export" && path.length === 4) {
@@ -117,6 +128,7 @@ export async function GET(request: Request, route: RouteContext) {
       const csv = await exportV2LedgerCsv(context.user.couple_id, context.user.id, path[2], {
         type: url.searchParams.get("type"),
         category: url.searchParams.get("category"),
+        categoryId: url.searchParams.get("categoryId"),
         payerUserId: url.searchParams.get("payerUserId"),
         from: url.searchParams.get("from"),
         to: url.searchParams.get("to"),
@@ -290,6 +302,16 @@ export async function POST(request: Request, route: RouteContext) {
       const key = request.headers.get("idempotency-key");
       const input = body && typeof body === "object" ? { ...(body as Record<string, unknown>), ...(key ? { idempotencyKey: key } : {}) } : body;
       return json(await createV2RecurringRule(context.user.couple_id, context.user.id, path[2], input), {}, 201);
+    }
+    if (path[0] === "v2" && path[1] === "ledgers" && path[2] && path[3] === "categories" && path.length === 4) {
+      const key = request.headers.get("idempotency-key");
+      const input = body && typeof body === "object" ? { ...(body as Record<string, unknown>), ...(key ? { idempotencyKey: key } : {}) } : body;
+      return json(await createV2LedgerCategory(context.user.couple_id, context.user.id, path[2], input), {}, 201);
+    }
+    if (path[0] === "v2" && path[1] === "categories" && path[2] && path.length === 3) {
+      const key = request.headers.get("idempotency-key");
+      const input = body && typeof body === "object" ? { ...(body as Record<string, unknown>), ...(key ? { idempotencyKey: key } : {}) } : body;
+      return json(await updateV2LedgerCategory(context.user.couple_id, context.user.id, path[2], input));
     }
     if (path[0] === "v2" && path[1] === "recurring" && path[2] && path[3] === "toggle" && path.length === 4) {
       return json(await toggleV2RecurringRule(context.user.couple_id, context.user.id, path[2], body));
@@ -511,6 +533,22 @@ export async function POST(request: Request, route: RouteContext) {
       }
 
       return json({ ok: true, groupId });
+    }
+    throw new HttpError(404, "Not found");
+  } catch (error) {
+    return errorResponse(error);
+  }
+}
+
+export async function DELETE(request: Request, route: RouteContext) {
+  try {
+    const path = (await route.params).path;
+    const env = serverEnvironment();
+    assertSameOrigin(request, env.APP_URL);
+    const context = await requireContext(request);
+    if (path[0] === "v2") requireV2Ledger(context.env);
+    if (path[0] === "v2" && path[1] === "attachments" && path[2] && path.length === 3) {
+      return json(await deleteV2Attachment(context.db, context.user, path[2]));
     }
     throw new HttpError(404, "Not found");
   } catch (error) {

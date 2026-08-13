@@ -172,3 +172,65 @@ export async function completeV2AttachmentUpload(
     };
   });
 }
+
+export async function deleteV2Attachment(
+  db: SupabaseClient,
+  user: { id: string; couple_id: number },
+  attachmentId: string,
+) {
+  const parsedAttachmentId = z.string().uuid().parse(attachmentId);
+  const attachment = await withTx(async (client) => {
+    const result = await client.query<{ id: string; storage_path: string }>(
+      `update ledger_v2.attachments a
+          set status = 'deleted', updated_at = now()
+        where a.id = $1
+          and a.couple_id = $2
+          and a.status <> 'deleted'
+          and exists (
+            select 1 from ledger_v2.ledger_members lm
+             where lm.ledger_id = a.ledger_id and lm.couple_id = a.couple_id and lm.user_id = $3
+          )
+      returning a.id, a.storage_path`,
+      [parsedAttachmentId, user.couple_id, user.id],
+    );
+    const row = result.rows[0];
+    if (!row) throw new HttpError(404, "附件不存在、已刪除或無權限");
+    return row;
+  });
+  const removed = await db.storage.from("receipts").remove([attachment.storage_path]);
+  if (removed.error) {
+    // Keep the DB tombstone even when object cleanup is temporarily unavailable;
+    // the scheduled orphan cleanup can retry without exposing the attachment.
+    return { deleted: true, storageCleanup: false };
+  }
+  return { deleted: true, storageCleanup: true };
+}
+
+/** Remove abandoned V2 upload rows and their private objects. This is safe to
+ * run repeatedly; ready attachments and active tombstones are untouched. */
+export async function cleanupV2AbandonedAttachments(
+  db: SupabaseClient,
+  olderThan = new Date(Date.now() - 24 * 60 * 60 * 1_000),
+) {
+  const rows = await withTx(async (client) => {
+    const result = await client.query<{ id: string; storage_path: string }>(
+      `select id, storage_path
+         from ledger_v2.attachments
+        where status in ('uploaded', 'failed') and created_at < $1
+        order by created_at asc, id asc
+        limit 200`,
+      [olderThan.toISOString()],
+    );
+    return result.rows;
+  });
+  if (!rows.length) return 0;
+  const removed = await db.storage.from("receipts").remove(rows.map((row) => row.storage_path));
+  if (removed.error) return 0;
+  await withTx(async (client) => {
+    await client.query(
+      `delete from ledger_v2.attachments where id = any($1::uuid[]) and status in ('uploaded', 'failed')`,
+      [rows.map((row) => row.id)],
+    );
+  });
+  return rows.length;
+}

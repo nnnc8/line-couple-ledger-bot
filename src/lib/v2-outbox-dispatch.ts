@@ -1,10 +1,11 @@
-import { claimV2NotificationOutbox, finishV2NotificationOutbox } from "./v2-outbox-worker";
+import { claimV2NotificationOutbox, finishV2NotificationOutbox, resetStaleV2NotificationOutboxLeases } from "./v2-outbox-worker";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 export async function dispatchV2NotificationOutbox(input: {
   db: SupabaseClient;
   lineChannelAccessToken: string;
 }, limit = 20): Promise<number> {
+  await resetStaleV2NotificationOutboxLeases();
   const rows = await claimV2NotificationOutbox(limit);
   let sent = 0;
   for (const row of rows) {

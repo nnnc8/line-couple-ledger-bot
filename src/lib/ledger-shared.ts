@@ -61,13 +61,17 @@ export async function notifyPartner(
   });
 }
 
-export function taipeiToday(): string {
+export function taipeiDateFromInstant(instant: Date): string {
   return new Intl.DateTimeFormat("en-CA", {
     timeZone: "Asia/Taipei",
     year: "numeric",
     month: "2-digit",
     day: "2-digit",
-  }).format(new Date());
+  }).format(instant);
+}
+
+export function taipeiToday(): string {
+  return taipeiDateFromInstant(new Date());
 }
 
 export function shiftMonth(month: string, offset: number): string {
@@ -86,5 +90,4 @@ export function expensesCsv(
 ): string {
   return queryExpensesCsv(expenses, users);
 }
-
 

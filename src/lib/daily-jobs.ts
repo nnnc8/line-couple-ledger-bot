@@ -22,6 +22,7 @@ import {
 } from "./notification-service";
 import { cleanupLineMenuAmountDrafts } from "./line-menu-amount-draft";
 import { runDueV2RecurringRules } from "./v2-ledger-service";
+import { cleanupV2AbandonedAttachments } from "./v2-attachment-service";
 import { dispatchV2NotificationOutbox } from "./v2-outbox-dispatch";
 import { dispatchV2LineInbox } from "./v2-line-inbox-dispatch";
 
@@ -65,6 +66,9 @@ export async function runCoreDailyJobs(options: {
     });
   }
   const purgedReceipts = await purgeDeletedReceipts(db);
+  const v2AbandonedAttachments = env.V2_LEDGER_ENABLED === "1"
+    ? await cleanupV2AbandonedAttachments(db)
+    : 0;
   let accountantReports = 0;
   if (env.V2_LEDGER_ENABLED !== "1" && today.endsWith("-01")) {
     accountantReports = await accountantService.generateMonthlyReports(
@@ -89,6 +93,7 @@ export async function runCoreDailyJobs(options: {
     v2Recurring,
     v2Notifications,
     v2Inbox,
+    v2AbandonedAttachments,
   };
 }
 

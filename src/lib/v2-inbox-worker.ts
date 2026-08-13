@@ -14,6 +14,7 @@ export async function claimV2LineInbox(limit = 20): Promise<V2InboxRow[]> {
          select id
            from ledger_v2.line_inbox
           where status in ('received', 'failed')
+            and attempt_count < max_attempts
             and next_attempt_at <= now()
             and (lease_until is null or lease_until < now())
           order by received_at, id
@@ -37,11 +38,11 @@ export async function finishV2LineInbox(id: number, status: "processed" | "faile
   return withTx(async (client) => {
     await client.query(
       `update ledger_v2.line_inbox
-          set status = $2,
+          set status = case when $2 = 'failed' and attempt_count >= max_attempts then 'dead_letter' else $2 end,
               lease_until = null,
               last_error = $3,
               processed_at = case when $2 in ('processed', 'ignored') then now() else null end,
-              next_attempt_at = case when $2 = 'failed' then now() + interval '1 minute' else next_attempt_at end
+              next_attempt_at = case when $2 = 'failed' and attempt_count < max_attempts then now() + make_interval(secs => least(3600, greatest(60, (power(2::double precision, least(attempt_count, 6)) * 60)::int))) else next_attempt_at end
         where id = $1`,
       [id, status, error ?? null],
     );
@@ -52,9 +53,10 @@ export async function resetStaleV2LineInboxLeases() {
   return withTx(async (client) => {
     const result = await client.query(
       `update ledger_v2.line_inbox
-          set status = 'failed', lease_until = null,
+          set status = case when attempt_count >= max_attempts then 'dead_letter' else 'failed' end,
+              lease_until = null,
               last_error = coalesce(last_error, 'worker lease expired'),
-              next_attempt_at = now()
+              next_attempt_at = case when attempt_count >= max_attempts then next_attempt_at else now() end
         where status = 'processing' and lease_until < now()
       returning id`,
     );

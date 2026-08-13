@@ -14,12 +14,13 @@ const idempotencyKey = (body: unknown) => {
   return crypto.randomUUID();
 };
 
-export async function api(path: string, body?: unknown): Promise<ApiResult> {
+export async function api(path: string, body?: unknown, options: { method?: string; headers?: Record<string, string> } = {}): Promise<ApiResult> {
   const response = await fetch(path, {
-    method: "POST",
+    method: options.method ?? "POST",
     headers: {
-      "content-type": "application/json",
-      "idempotency-key": idempotencyKey(body),
+      ...(body === undefined ? {} : { "content-type": "application/json" }),
+      ...(options.method === "DELETE" ? {} : { "idempotency-key": idempotencyKey(body) }),
+      ...options.headers,
     },
     body: body === undefined ? undefined : JSON.stringify(body),
     credentials: "same-origin",

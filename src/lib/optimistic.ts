@@ -22,7 +22,7 @@ export type OptimisticExpense = {
   _optimistic?: boolean;
 };
 
-type BootstrapLike = {
+export type BootstrapLike = {
   user: { id: string };
   users: Array<{ id: string; label: string }>;
   activeGroupId: string;
@@ -31,6 +31,7 @@ type BootstrapLike = {
   sharedExpenses: OptimisticExpense[];
   privateExpenses: OptimisticExpense[];
   balances: Array<{ user_id: string; balance_twd: number }>;
+  groupBalances: Record<string, Array<{ user_id: string; balance_twd: number }>>;
   dashboard: {
     monthlyTotalTwd: number;
     monthlyCount: number;
@@ -122,7 +123,7 @@ function addExpense(
         ? [expense, ...data.privateExpenses]
         : data.privateExpenses,
   };
-  return next;
+  return applyExpenseBalanceDelta(next, null, expense);
 }
 
 function buildExpenseFromInput(
@@ -183,6 +184,7 @@ function patchExpense(
 ): BootstrapLike {
   const mapList = (items: OptimisticExpense[]) =>
     items.map((item) => (item.id === expenseId ? updater(item) : item));
+  const previous = data.expenses.find((item) => item.id === expenseId) ?? null;
   const next = {
     ...data,
     expenses: mapList(data.expenses),
@@ -191,7 +193,48 @@ function patchExpense(
   };
   const updated = next.expenses.find((item) => item.id === expenseId);
   if (updated) updated._optimistic = true;
-  return next;
+  return updated ? applyExpenseBalanceDelta(next, previous, updated) : next;
+}
+
+/**
+ * Keep the legacy UI's visible balance projection in sync with an optimistic
+ * expense mutation. The server remains authoritative; this only applies the
+ * exact payment-minus-share delta for the affected shared group.
+ */
+export function applyExpenseBalanceDelta(
+  data: BootstrapLike,
+  before: OptimisticExpense | null,
+  after: OptimisticExpense | null,
+): BootstrapLike {
+  const deltasByGroup = new Map<string, Map<string, number>>();
+  const add = (expense: OptimisticExpense | null, sign: number) => {
+    if (!expense || expense.ledger !== "shared" || expense.deleted_at || !expense.group_id) return;
+    const delta = deltasByGroup.get(expense.group_id) ?? new Map<string, number>();
+    delta.set(expense.paid_by_user_id, (delta.get(expense.paid_by_user_id) ?? 0) + sign * expense.amount_twd);
+    for (const split of expense.expense_splits) {
+      delta.set(split.user_id, (delta.get(split.user_id) ?? 0) - sign * split.amount_twd);
+    }
+    deltasByGroup.set(expense.group_id, delta);
+  };
+  add(before, -1);
+  add(after, 1);
+  if (!deltasByGroup.size) return data;
+
+  const groupBalances = { ...data.groupBalances };
+  const affectedGroups = new Set([before?.group_id, after?.group_id].filter((value): value is string => Boolean(value)));
+  for (const groupId of affectedGroups) {
+    const current = groupBalances[groupId] ?? [];
+    const delta = deltasByGroup.get(groupId) ?? new Map<string, number>();
+    groupBalances[groupId] = current.map((row) => ({
+      ...row,
+      balance_twd: row.balance_twd + (delta.get(row.user_id) ?? 0),
+    }));
+  }
+  const activeDelta = data.activeGroupId ? deltasByGroup.get(data.activeGroupId) : null;
+  const balances = activeDelta
+    ? data.balances.map((row) => ({ ...row, balance_twd: row.balance_twd + (activeDelta.get(row.user_id) ?? 0) }))
+    : data.balances;
+  return { ...data, balances, groupBalances };
 }
 
 function tempId(prefix: string): string {
