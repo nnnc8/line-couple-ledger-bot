@@ -7,6 +7,7 @@
  */
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
+import type { webhook } from "@line/bot-sdk";
 import { Pool } from "pg";
 import test, { after, before } from "node:test";
 
@@ -23,6 +24,7 @@ import {
   confirmV2Proposal,
   mutateV2Transaction,
 } from "./v2-ledger-service";
+import { handleLineEvent } from "./line-webhook-service";
 import { dispatchV2LineInbox } from "./v2-line-inbox-dispatch";
 import { V2_FINANCIAL_MAINTENANCE_MESSAGE, V2IncidentFreezeError } from "./v2-incident-freeze";
 import { getBuildVersion } from "./version";
@@ -163,6 +165,61 @@ test("current production schema supports bootstrap reads, safe writes, freeze, a
   await assert.rejects(() => confirmV2Proposal(coupleId, ownerId, proposalId!), V2IncidentFreezeError);
   await assert.rejects(() => toggleV2RecurringRule(coupleId, ownerId, recurringId!, { active: false }), V2IncidentFreezeError);
   assert.equal(await runDueV2RecurringRules("2026-08-14"), 0);
+
+  const beforeLineTransactions = await query<{ count: string }>(
+    "select count(*)::text as count from ledger_v2.transactions where ledger_id = $1",
+    [ledgerId],
+  );
+  const lineEvent = {
+    type: "message",
+    webhookEventId: `${testKey}:deterministic-line`,
+    timestamp: Date.now(),
+    replyToken: `${testKey}:reply`,
+    source: { type: "user", userId: `line-${ownerId}` },
+    message: { type: "text", id: `${testKey}:message`, text: "晚餐 1 我付" },
+  } as unknown as webhook.Event;
+  const lineSupabase = {
+    from(table: string) {
+      assert.equal(table, "users");
+      return {
+        select() {
+          return this;
+        },
+        eq() {
+          return this;
+        },
+        async maybeSingle() {
+          return {
+            data: {
+              id: ownerId,
+              couple_id: coupleId,
+              role: "owner",
+              line_user_id: `line-${ownerId}`,
+            },
+            error: null,
+          };
+        },
+      };
+    },
+  } as never;
+  await assert.rejects(
+    () => handleLineEvent(lineEvent, {
+      lineClient: {
+        replyMessage: async () => undefined as never,
+        getMessageContent: async () => undefined as never,
+        pushMessage: async () => undefined as never,
+      } as never,
+      supabase: lineSupabase,
+      gemini: undefined as never,
+      setupCode: "bootstrap-test",
+    }),
+    (error: unknown) => error instanceof V2IncidentFreezeError && error.status === 503,
+  );
+  const afterLineTransactions = await query<{ count: string }>(
+    "select count(*)::text as count from ledger_v2.transactions where ledger_id = $1",
+    [ledgerId],
+  );
+  assert.equal(afterLineTransactions.rows[0]?.count, beforeLineTransactions.rows[0]?.count);
 
   const inbox = await query<{ id: number }>(
     `insert into ledger_v2.line_inbox (channel, webhook_event_id, source_user_id, payload)
