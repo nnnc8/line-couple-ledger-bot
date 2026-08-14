@@ -49,6 +49,28 @@ export async function finishV2LineInbox(id: number, status: "processed" | "faile
   });
 }
 
+/**
+ * Put a claimed event back at the front of the queue when an incident freeze
+ * races with the worker claim. This deliberately reverses the claim's
+ * attempt increment so maintenance does not consume retries or create a
+ * dead-letter record.
+ */
+export async function releaseV2LineInboxForMaintenance(id: number) {
+  return withTx(async (client) => {
+    await client.query(
+      `update ledger_v2.line_inbox
+          set status = 'received',
+              attempt_count = greatest(0, attempt_count - 1),
+              lease_until = null,
+              next_attempt_at = now(),
+              last_error = $2,
+              processed_at = null
+        where id = $1 and status = 'processing'`,
+      [id, "financial writes frozen; event retained for retry"],
+    );
+  });
+}
+
 export async function resetStaleV2LineInboxLeases() {
   return withTx(async (client) => {
     const result = await client.query(

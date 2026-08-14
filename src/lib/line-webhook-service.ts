@@ -22,6 +22,11 @@ import {
   parseLineMenuPostbackDetailed,
 } from "./line-menu-service";
 import { requireLiffId } from "./liff-url";
+import {
+  isV2IncidentBootstrapOnly,
+  isV2IncidentFreezeError,
+  V2IncidentFreezeError,
+} from "./v2-incident-freeze";
 
 export interface BotDependencies {
   lineClient: Pick<LineBotClient, "replyMessage" | "getMessageContent" | "pushMessage">;
@@ -162,6 +167,10 @@ export async function handleLineEvent(
         return;
       }
 
+      if (isV2IncidentBootstrapOnly() && process.env.V2_LEDGER_ENABLED === "1") {
+        throw new V2IncidentFreezeError();
+      }
+
       await handleLineTextMessage(
         text,
         event.webhookEventId,
@@ -183,6 +192,9 @@ export async function handleLineEvent(
         );
         return;
       }
+      if (isV2IncidentBootstrapOnly() && process.env.V2_LEDGER_ENABLED === "1") {
+        throw new V2IncidentFreezeError();
+      }
       await handleLineImageTurn({
         messageId: event.message.id,
         sourceEventId: event.webhookEventId,
@@ -203,6 +215,9 @@ export async function handleLineEvent(
         );
         return;
       }
+      if (isV2IncidentBootstrapOnly() && process.env.V2_LEDGER_ENABLED === "1") {
+        throw new V2IncidentFreezeError();
+      }
       await handleLineAudioTurn({
         messageId: event.message.id,
         replyToken,
@@ -216,6 +231,9 @@ export async function handleLineEvent(
       return;
     }
   } catch (error) {
+    // Durable V2 inbox dispatch must retain the event while maintenance is
+    // active. Do not mark it processed or send a generic failure reply.
+    if (isV2IncidentFreezeError(error)) throw error;
     console.error("LINE event failed", {
       eventId: event.webhookEventId,
       error: error instanceof Error ? error.name : "unknown",

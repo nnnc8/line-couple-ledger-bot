@@ -4,6 +4,7 @@ import { z } from "zod";
 
 import { HttpError } from "./http-error";
 import { withTx } from "./db/tx";
+import { isV2IncidentBootstrapOnly, V2IncidentFreezeError } from "./v2-incident-freeze";
 import { nextRecurringDate } from "./ledger";
 import { taipeiToday } from "./ledger-shared";
 import {
@@ -322,14 +323,23 @@ function serializedBalance(balance: Record<string, bigint>) {
 }
 
 async function assertV2Writer(client: PoolClient, coupleId: number): Promise<void> {
-  const result = await client.query<{ active_plane: string; mutation_fence: boolean }>(
-    `select active_plane, mutation_fence
+  const result = await client.query<{
+    active_plane: string;
+    mutation_fence: boolean;
+    financial_writes_enabled: boolean;
+  }>(
+    `select active_plane, mutation_fence,
+            coalesce((to_jsonb(writer_control)->>'financial_writes_enabled')::boolean, true)
+              as financial_writes_enabled
        from ledger_v2.writer_control
       where couple_id = $1
       for update`,
     [coupleId],
   );
   const control = result.rows[0];
+  if (control && !control.financial_writes_enabled) {
+    throw new V2IncidentFreezeError();
+  }
   if (!control || control.active_plane !== "v2" || control.mutation_fence) {
     throw new HttpError(409, "V2 writer 尚未啟用或目前正在切換");
   }
@@ -376,19 +386,29 @@ async function loadLedger(client: PoolClient, coupleId: number, ledgerId: string
       [ledgerId, coupleId],
     );
   const transactionResult = await client.query<TransactionRow>(
-      `select id, ledger_id, couple_id, type, amount_twd,
-              to_char(occurred_on, 'YYYY-MM-DD') as occurred_on,
-              description, category, category_id, note, split_method, status, version,
-              created_by_user_id, created_at, updated_at,
-              replaces_transaction_id,
-              (select replacement.id
-                 from ledger_v2.transactions replacement
-                where replacement.replaces_transaction_id = transactions.id
-                order by replacement.created_at desc, replacement.id desc
-                limit 1) as replaced_by_transaction_id
-         from ledger_v2.transactions
-        where ledger_id = $1 and couple_id = $2
-        order by occurred_on desc, created_at desc, id desc`,
+      isV2IncidentBootstrapOnly()
+        ? `select id, ledger_id, couple_id, type, amount_twd,
+                  to_char(occurred_on, 'YYYY-MM-DD') as occurred_on,
+                  description, category, null::uuid as category_id, note,
+                  split_method, status, version, created_by_user_id,
+                  created_at, updated_at, null::uuid as replaces_transaction_id,
+                  null::uuid as replaced_by_transaction_id
+             from ledger_v2.transactions
+            where ledger_id = $1 and couple_id = $2
+            order by occurred_on desc, created_at desc, id desc`
+        : `select id, ledger_id, couple_id, type, amount_twd,
+                  to_char(occurred_on, 'YYYY-MM-DD') as occurred_on,
+                  description, category, category_id, note, split_method, status, version,
+                  created_by_user_id, created_at, updated_at,
+                  replaces_transaction_id,
+                  (select replacement.id
+                     from ledger_v2.transactions replacement
+                    where replacement.replaces_transaction_id = transactions.id
+                    order by replacement.created_at desc, replacement.id desc
+                    limit 1) as replaced_by_transaction_id
+             from ledger_v2.transactions
+            where ledger_id = $1 and couple_id = $2
+            order by occurred_on desc, created_at desc, id desc`,
       [ledgerId, coupleId],
     );
   const paymentResult = await client.query<ChildRow>(
@@ -537,6 +557,16 @@ async function assertLedgerMember(client: PoolClient, coupleId: number, userId: 
   if (!result.rows[0]) throw new HttpError(404, "Ledger 不存在或無權限");
 }
 
+function assertBootstrapTransactionCompatibility(
+  input: CreateV2TransactionInput,
+  lineage: { replacesTransactionId?: string | null },
+): void {
+  if (!isV2IncidentBootstrapOnly()) return;
+  if (input.categoryId || lineage.replacesTransactionId) {
+    throw new V2IncidentFreezeError();
+  }
+}
+
 async function insertTransaction(
   client: PoolClient,
   ledger: LoadedLedger,
@@ -544,6 +574,7 @@ async function insertTransaction(
   input: CreateV2TransactionInput,
   lineage: { replacesTransactionId?: string | null } = {},
 ): Promise<{ transaction: V2Transaction; balance: Record<string, bigint> }> {
+  assertBootstrapTransactionCompatibility(input, lineage);
   const shares = buildShares(input, ledger);
   const transaction: V2Transaction = {
     ledgerId: ledger.members.ledgerId,
@@ -562,27 +593,49 @@ async function insertTransaction(
   };
   calculateTransactionDelta(transaction, ledger.members);
   const id = randomUUID();
-  await client.query(
-    `insert into ledger_v2.transactions
-      (id, couple_id, ledger_id, type, amount_twd, occurred_on, description,
-       category, category_id, note, split_method, created_by_user_id, replaces_transaction_id)
-     values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`,
-    [
-      id,
-      ledger.row.couple_id,
-      ledger.members.ledgerId,
-      input.type,
-      twdToString(input.amountTwd),
-      input.occurredOn,
-      input.description,
-      input.category ?? null,
-      input.categoryId ?? null,
-      input.note ?? null,
-      input.type === "transfer" ? "none" : input.splitMethod ?? "weights",
-      actorUserId,
-      lineage.replacesTransactionId ?? null,
-    ],
-  );
+  if (isV2IncidentBootstrapOnly()) {
+    await client.query(
+      `insert into ledger_v2.transactions
+        (id, couple_id, ledger_id, type, amount_twd, occurred_on, description,
+         category, note, split_method, created_by_user_id)
+       values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
+      [
+        id,
+        ledger.row.couple_id,
+        ledger.members.ledgerId,
+        input.type,
+        twdToString(input.amountTwd),
+        input.occurredOn,
+        input.description,
+        input.category ?? null,
+        input.note ?? null,
+        input.type === "transfer" ? "none" : input.splitMethod ?? "weights",
+        actorUserId,
+      ],
+    );
+  } else {
+    await client.query(
+      `insert into ledger_v2.transactions
+        (id, couple_id, ledger_id, type, amount_twd, occurred_on, description,
+         category, category_id, note, split_method, created_by_user_id, replaces_transaction_id)
+       values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`,
+      [
+        id,
+        ledger.row.couple_id,
+        ledger.members.ledgerId,
+        input.type,
+        twdToString(input.amountTwd),
+        input.occurredOn,
+        input.description,
+        input.category ?? null,
+        input.categoryId ?? null,
+        input.note ?? null,
+        input.type === "transfer" ? "none" : input.splitMethod ?? "weights",
+        actorUserId,
+        lineage.replacesTransactionId ?? null,
+      ],
+    );
+  }
   for (const payment of transaction.payments) {
     await client.query(
       `insert into ledger_v2.transaction_payments
@@ -787,6 +840,7 @@ export async function listV2LedgerTransactions(
       where.push(`t.category = $${values.length}`);
     }
     if (filters.categoryId?.trim()) {
+      if (isV2IncidentBootstrapOnly()) throw new V2IncidentFreezeError();
       const categoryId = z.string().uuid().parse(filters.categoryId.trim());
       values.push(categoryId);
       where.push(`t.category_id = $${values.length}`);
@@ -826,20 +880,32 @@ export async function listV2LedgerTransactions(
         : DEFAULT_TRANSACTION_PAGE_SIZE;
     const queryLimit = requestedLimit === null ? "" : `limit ${requestedLimit + 1}`;
     const result = await client.query<TransactionRow>(
-      `select t.id, t.ledger_id, t.couple_id, t.type, t.amount_twd,
-              to_char(t.occurred_on, 'YYYY-MM-DD') as occurred_on,
-              t.description, t.category, t.category_id, t.note, t.split_method, t.status, t.version,
-              t.created_by_user_id, t.created_at, t.updated_at,
-              t.replaces_transaction_id,
-              (select replacement.id
-                 from ledger_v2.transactions replacement
-                where replacement.replaces_transaction_id = t.id
-                order by replacement.created_at desc, replacement.id desc
-                limit 1) as replaced_by_transaction_id
-         from ledger_v2.transactions t
-        where ${where.join(" and ")}
-        order by t.occurred_on desc, t.created_at desc, t.id desc
-        ${queryLimit}`,
+      isV2IncidentBootstrapOnly()
+        ? `select t.id, t.ledger_id, t.couple_id, t.type, t.amount_twd,
+                  to_char(t.occurred_on, 'YYYY-MM-DD') as occurred_on,
+                  t.description, t.category, null::uuid as category_id, t.note,
+                  t.split_method, t.status, t.version, t.created_by_user_id,
+                  t.created_at, t.updated_at,
+                  null::uuid as replaces_transaction_id,
+                  null::uuid as replaced_by_transaction_id
+             from ledger_v2.transactions t
+            where ${where.join(" and ")}
+            order by t.occurred_on desc, t.created_at desc, t.id desc
+            ${queryLimit}`
+        : `select t.id, t.ledger_id, t.couple_id, t.type, t.amount_twd,
+                  to_char(t.occurred_on, 'YYYY-MM-DD') as occurred_on,
+                  t.description, t.category, t.category_id, t.note, t.split_method, t.status, t.version,
+                  t.created_by_user_id, t.created_at, t.updated_at,
+                  t.replaces_transaction_id,
+                  (select replacement.id
+                     from ledger_v2.transactions replacement
+                    where replacement.replaces_transaction_id = t.id
+                    order by replacement.created_at desc, replacement.id desc
+                    limit 1) as replaced_by_transaction_id
+             from ledger_v2.transactions t
+            where ${where.join(" and ")}
+            order by t.occurred_on desc, t.created_at desc, t.id desc
+            ${queryLimit}`,
       values,
     );
     const hasMore = requestedLimit !== null && result.rows.length > requestedLimit;
@@ -1083,6 +1149,7 @@ export async function mutateV2Transaction(
   rawInput: unknown,
 ) {
   const input = mutateV2TransactionInputSchema.parse(rawInput);
+  if (isV2IncidentBootstrapOnly() && input.action === "replace") throw new V2IncidentFreezeError();
   const id = z.string().uuid().parse(transactionId);
   const idempotencyKey = input.idempotencyKey ?? `transaction-mutate:${id}:${randomUUID()}`;
   const hash = requestHash({
@@ -1236,13 +1303,15 @@ export async function createV2Ledger(coupleId: number, actorUserId: string, rawI
         [ledgerId, coupleId, member.user_id],
       );
     }
-    for (const name of DEFAULT_LEDGER_CATEGORIES) {
-      await client.query(
-        `insert into ledger_v2.categories (couple_id, ledger_id, name, is_default)
-         values ($1, $2, $3, true)
-         on conflict (ledger_id, couple_id, name) do nothing`,
-        [coupleId, ledgerId, name],
-      );
+    if (!isV2IncidentBootstrapOnly()) {
+      for (const name of DEFAULT_LEDGER_CATEGORIES) {
+        await client.query(
+          `insert into ledger_v2.categories (couple_id, ledger_id, name, is_default)
+           values ($1, $2, $3, true)
+           on conflict (ledger_id, couple_id, name) do nothing`,
+          [coupleId, ledgerId, name],
+        );
+      }
     }
     const result = {
       ledger: {
@@ -1323,6 +1392,7 @@ export async function createV2RecurringRule(
   rawInput: unknown,
 ) {
   const input = createV2RecurringRuleInputSchema.parse(rawInput);
+  if (isV2IncidentBootstrapOnly() && input.categoryId) throw new V2IncidentFreezeError();
   const idempotencyKey = input.idempotencyKey ?? `recurring:${randomUUID()}`;
   const hash = requestHash({ ledgerId, ...input, idempotencyKey: undefined });
   return withTx(async (client) => {
@@ -1351,13 +1421,22 @@ export async function createV2RecurringRule(
     }
     const id = randomUUID();
     const row = await client.query<RecurringRuleRow>(
-      `insert into ledger_v2.recurring_rules
-        (id, couple_id, ledger_id, created_by_user_id, name, amount_twd,
-         frequency, anchor_day, next_run_date, end_date, split_method, payments, shares, category_id)
-       values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12::jsonb, $13::jsonb, $14)
-       returning id, couple_id, ledger_id, created_by_user_id, name, amount_twd,
-                 frequency, anchor_day, next_run_date, end_date, active,
-                 split_method, payments, shares, category_id, version, created_at, updated_at`,
+      isV2IncidentBootstrapOnly()
+        ? `insert into ledger_v2.recurring_rules
+            (id, couple_id, ledger_id, created_by_user_id, name, amount_twd,
+             frequency, anchor_day, next_run_date, end_date, split_method, payments, shares)
+           values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12::jsonb, $13::jsonb)
+           returning id, couple_id, ledger_id, created_by_user_id, name, amount_twd,
+                     frequency, anchor_day, next_run_date, end_date, active,
+                     split_method, payments, shares, null::uuid as category_id,
+                     version, created_at, updated_at`
+        : `insert into ledger_v2.recurring_rules
+            (id, couple_id, ledger_id, created_by_user_id, name, amount_twd,
+             frequency, anchor_day, next_run_date, end_date, split_method, payments, shares, category_id)
+           values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12::jsonb, $13::jsonb, $14)
+           returning id, couple_id, ledger_id, created_by_user_id, name, amount_twd,
+                     frequency, anchor_day, next_run_date, end_date, active,
+                     split_method, payments, shares, category_id, version, created_at, updated_at`,
       [
         id,
         coupleId,
@@ -1372,7 +1451,7 @@ export async function createV2RecurringRule(
         input.splitMethod,
         JSON.stringify(recurringParticipants(payments)),
         JSON.stringify(recurringParticipants(shares)),
-        input.categoryId ?? null,
+        ...(isV2IncidentBootstrapOnly() ? [] : [input.categoryId ?? null]),
       ],
     );
     const result = { recurring: serializedRecurringRule(row.rows[0]!) };
@@ -1392,7 +1471,19 @@ export async function toggleV2RecurringRule(
   return withTx(async (client) => {
     await assertV2Writer(client, coupleId);
     const result = await client.query<RecurringRuleRow>(
-      `update ledger_v2.recurring_rules r
+      isV2IncidentBootstrapOnly()
+        ? `update ledger_v2.recurring_rules r
+            set active = $1, version = r.version + 1, updated_at = now()
+           where r.id = $2 and r.couple_id = $3
+             and exists (
+               select 1 from ledger_v2.ledger_members lm
+                where lm.ledger_id = r.ledger_id and lm.couple_id = r.couple_id and lm.user_id = $4
+             )
+         returning id, couple_id, ledger_id, created_by_user_id, name, amount_twd,
+                   frequency, anchor_day, next_run_date, end_date, active,
+                   split_method, payments, shares, null::uuid as category_id,
+                   version, created_at, updated_at`
+        : `update ledger_v2.recurring_rules r
           set active = $1, version = r.version + 1, updated_at = now()
         where r.id = $2 and r.couple_id = $3
           and exists (
@@ -1416,11 +1507,13 @@ export async function toggleV2RecurringRule(
  */
 export async function runDueV2RecurringRules(today: string, limit = 100): Promise<number> {
   const date = z.iso.date().parse(today);
+  if (isV2IncidentBootstrapOnly()) return 0;
   return withTx(async (client) => {
     const writer = await client.query<{ couple_id: number }>(
       `select couple_id
          from ledger_v2.writer_control
         where active_plane = 'v2' and mutation_fence = false
+          and coalesce((to_jsonb(writer_control)->>'financial_writes_enabled')::boolean, true) = true
         limit 1`,
     );
     if (!writer.rows[0]) return 0;
@@ -1433,6 +1526,7 @@ export async function runDueV2RecurringRules(today: string, limit = 100): Promis
         join ledger_v2.writer_control wc on wc.couple_id = r.couple_id
         where r.active and r.next_run_date <= $1
           and wc.active_plane = 'v2' and wc.mutation_fence = false
+          and coalesce((to_jsonb(wc)->>'financial_writes_enabled')::boolean, true) = true
         order by next_run_date asc, created_at asc, id asc
         limit $2
         for update skip locked`,
@@ -1499,6 +1593,12 @@ export async function runDueV2RecurringRules(today: string, limit = 100): Promis
       } catch (error) {
         await client.query(`rollback to savepoint ${savepoint}`);
         await client.query(`release savepoint ${savepoint}`);
+        if (error instanceof V2IncidentFreezeError) {
+          // A maintenance freeze is deliberate, not a recurring failure.
+          // Leave the occurrence due so the next worker sweep can retry it
+          // without creating a failed/dead-letter run or burning attempts.
+          continue;
+        }
         await client.query(`savepoint ${savepoint}_error`);
         await client.query(
           `insert into ledger_v2.recurring_runs (rule_id, scheduled_for, status, error_code, completed_at)

@@ -25,6 +25,7 @@ import { runDueV2RecurringRules } from "./v2-ledger-service";
 import { cleanupV2AbandonedAttachments } from "./v2-attachment-service";
 import { dispatchV2NotificationOutbox } from "./v2-outbox-dispatch";
 import { dispatchV2LineInbox } from "./v2-line-inbox-dispatch";
+import { isV2IncidentBootstrapOnly } from "./v2-incident-freeze";
 
 type ServerEnvironment = ReturnType<typeof serverEnvironment>;
 
@@ -36,13 +37,14 @@ export async function runCoreDailyJobs(options: {
   const { env, db, today } = options;
   const expiredPendingActions = await expirePendingActions(db);
   const lineMenuAmountDrafts = await cleanupLineMenuAmountDrafts(db);
-  const v2Recurring = env.V2_LEDGER_ENABLED === "1"
+  const bootstrapOnly = isV2IncidentBootstrapOnly(env);
+  const v2Recurring = env.V2_LEDGER_ENABLED === "1" && !bootstrapOnly
     ? await runDueV2RecurringRules(today)
     : 0;
-  const v2Notifications = env.V2_LEDGER_ENABLED === "1"
+  const v2Notifications = env.V2_LEDGER_ENABLED === "1" && !bootstrapOnly
     ? await dispatchV2NotificationOutbox({ db, lineChannelAccessToken: env.LINE_CHANNEL_ACCESS_TOKEN }, 50)
     : 0;
-  const v2Inbox = env.V2_LINE_INBOX_ENABLED === "1"
+  const v2Inbox = env.V2_LINE_INBOX_ENABLED === "1" && !bootstrapOnly
     ? await dispatchV2LineInbox({
         lineClient: LineBotClient.fromChannelAccessToken({ channelAccessToken: env.LINE_CHANNEL_ACCESS_TOKEN }),
         supabase: db,

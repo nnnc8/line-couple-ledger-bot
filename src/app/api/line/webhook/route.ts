@@ -7,6 +7,7 @@ import { z } from "zod";
 import { handleLineEvent } from "@/lib/line-webhook-service";
 import { withTx } from "@/lib/db/tx";
 import { dispatchV2LineInbox } from "@/lib/v2-line-inbox-dispatch";
+import { isV2IncidentBootstrapOnly, V2_FINANCIAL_MAINTENANCE_MESSAGE } from "@/lib/v2-incident-freeze";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -88,6 +89,9 @@ export async function POST(request: Request): Promise<Response> {
       console.error("LINE inbox write failed", { error: error instanceof Error ? error.name : "unknown" });
       return NextResponse.json({ error: "Inbox unavailable" }, { status: 503 });
     }
+    if (isV2IncidentBootstrapOnly(environment.data)) {
+      return NextResponse.json({ ok: true, maintenance: true });
+    }
     after(async () => {
       try {
         await dispatchV2LineInbox(dependencies);
@@ -96,6 +100,9 @@ export async function POST(request: Request): Promise<Response> {
       }
     });
     return NextResponse.json({ ok: true });
+  }
+  if (isV2IncidentBootstrapOnly(environment.data)) {
+    return NextResponse.json({ error: V2_FINANCIAL_MAINTENANCE_MESSAGE }, { status: 503 });
   }
   after(async () => {
     await Promise.allSettled(

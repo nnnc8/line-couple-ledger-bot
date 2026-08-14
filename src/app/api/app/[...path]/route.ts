@@ -51,6 +51,13 @@ import {
   updateV2LedgerCategory,
 } from "@/lib/v2-ledger-service";
 import { completeV2AttachmentUpload, createV2AttachmentUpload, deleteV2Attachment, listV2TransactionAttachments } from "@/lib/v2-attachment-service";
+import {
+  isV2IncidentBootstrapOnly,
+  isV2IncidentBootstrapDelete,
+  isV2IncidentBootstrapRead,
+  isV2IncidentBootstrapWrite,
+  V2IncidentFreezeError,
+} from "@/lib/v2-incident-freeze";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -66,7 +73,19 @@ function deterministicOnboardingGroupId(coupleId: number) {
   return `${hash.slice(0, 8)}-${hash.slice(8, 12)}-5${hash.slice(13, 16)}-a${hash.slice(17, 20)}-${hash.slice(20, 32)}`;
 }
 
-function requireV2Ledger(env: ReturnType<typeof serverEnvironment>): void {
+function requireV2Ledger(
+  env: ReturnType<typeof serverEnvironment>,
+  path: readonly string[],
+  method: "GET" | "POST" | "DELETE",
+): void {
+  const bootstrapCompatible = method === "GET"
+    ? isV2IncidentBootstrapRead(path)
+    : method === "POST"
+      ? isV2IncidentBootstrapWrite(path)
+      : isV2IncidentBootstrapDelete(path);
+  if (isV2IncidentBootstrapOnly(env) && !bootstrapCompatible) {
+    throw new V2IncidentFreezeError();
+  }
   if (env.V2_LEDGER_ENABLED !== "1") throw new HttpError(404, "Not found");
 }
 
@@ -74,7 +93,7 @@ export async function GET(request: Request, route: RouteContext) {
   try {
     const path = (await route.params).path;
     const context = await requireContext(request);
-    if (path[0] === "v2") requireV2Ledger(context.env);
+    if (path[0] === "v2") requireV2Ledger(context.env, path, "GET");
     if (path[0] === "v2" && path[1] === "context" && path.length === 2) {
       const usersResult = await context.db
         .from("users")
@@ -240,7 +259,7 @@ export async function POST(request: Request, route: RouteContext) {
     }
 
     const context = await requireContext(request);
-    if (path[0] === "v2") requireV2Ledger(context.env);
+    if (path[0] === "v2") requireV2Ledger(context.env, path, "POST");
     if (context.env.V2_LEDGER_ENABLED === "1" && path[0] !== "v2") {
       throw new HttpError(409, "V2 Ledger writer 已啟用；請使用 V2 Ledger API");
     }
@@ -546,7 +565,7 @@ export async function DELETE(request: Request, route: RouteContext) {
     const env = serverEnvironment();
     assertSameOrigin(request, env.APP_URL);
     const context = await requireContext(request);
-    if (path[0] === "v2") requireV2Ledger(context.env);
+    if (path[0] === "v2") requireV2Ledger(context.env, path, "DELETE");
     if (path[0] === "v2" && path[1] === "attachments" && path[2] && path.length === 3) {
       return json(await deleteV2Attachment(context.db, context.user, path[2]));
     }

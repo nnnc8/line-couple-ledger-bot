@@ -20,6 +20,7 @@ export const envSchema = z.object({
   CRON_SECRET: z.string().min(16),
   V2_LEDGER_ENABLED: z.enum(["0", "1"]).optional(),
   V2_LINE_INBOX_ENABLED: z.enum(["0", "1"]).optional(),
+  V2_INCIDENT_BOOTSTRAP_ONLY: z.enum(["0", "1"]).optional(),
 });
 
 const userSchema = z.object({

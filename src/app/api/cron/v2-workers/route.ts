@@ -6,6 +6,7 @@ import { serverDatabase, serverEnvironment } from "@/lib/server-runtime";
 import { safeSecretEqual } from "@/lib/security";
 import { dispatchV2LineInbox } from "@/lib/v2-line-inbox-dispatch";
 import { dispatchV2NotificationOutbox } from "@/lib/v2-outbox-dispatch";
+import { isV2IncidentBootstrapOnly, V2_FINANCIAL_MAINTENANCE_MESSAGE } from "@/lib/v2-incident-freeze";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -16,6 +17,9 @@ export async function GET(request: Request) {
     ?? new URL(request.url).searchParams.get("secret")
     ?? "";
   if (!safeSecretEqual(supplied, env.CRON_SECRET)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (isV2IncidentBootstrapOnly(env)) {
+    return NextResponse.json({ error: V2_FINANCIAL_MAINTENANCE_MESSAGE }, { status: 503 });
+  }
   const db = serverDatabase(env);
   const dependencies = {
     lineClient: LineBotClient.fromChannelAccessToken({ channelAccessToken: env.LINE_CHANNEL_ACCESS_TOKEN }),
