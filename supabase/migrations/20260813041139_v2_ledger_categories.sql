@@ -28,17 +28,6 @@ on conflict (ledger_id, couple_id, name) do nothing;
 alter table ledger_v2.transactions
   add column if not exists category_id uuid;
 
--- Preserve existing V2 text categories where they exactly match a seeded
--- label; unmatched historical text remains a snapshot and is not guessed.
-update ledger_v2.transactions t
-   set category_id = c.id
-  from ledger_v2.categories c
- where t.category_id is null
-   and t.category is not null
-   and t.ledger_id = c.ledger_id
-   and t.couple_id = c.couple_id
-   and t.category = c.name;
-
 create index if not exists transactions_category_idx
   on ledger_v2.transactions (ledger_id, category_id)
   where category_id is not null;
@@ -53,6 +42,18 @@ alter table ledger_v2.transactions
   on delete restrict;
 
 alter table ledger_v2.transactions enable row level security;
+
+-- Preserve existing V2 text categories where they exactly match a seeded
+-- label; unmatched historical text remains a snapshot and is not guessed.
+update ledger_v2.transactions t
+   set category_id = c.id
+  from ledger_v2.categories c
+ where t.category_id is null
+   and t.category is not null
+   and t.ledger_id = c.ledger_id
+   and t.couple_id = c.couple_id
+   and t.category = c.name;
+
 alter table ledger_v2.categories enable row level security;
 revoke all on ledger_v2.categories from public, anon, authenticated;
 grant select, insert, update, delete on ledger_v2.categories to service_role;

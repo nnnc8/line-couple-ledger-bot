@@ -88,8 +88,8 @@ before(async () => {
        ('ledger_v2.notification_outbox.max_attempts')
      ) as expected(name)
      where case
-       when name = 'ledger_v2.categories' then to_regclass(name) is not null
-       when name like '%.%' then split_part(name, '.', 2) in (
+       when name = 'ledger_v2.categories' then to_regclass(name) is null
+       when name like '%.%' then split_part(name, '.', 3) not in (
          select column_name from information_schema.columns
           where table_schema = split_part(expected.name, '.', 1)
             and table_name = split_part(expected.name, '.', 2)
