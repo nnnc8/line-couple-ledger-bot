@@ -316,18 +316,20 @@ On the parent working tree after the compatibility changes:
 | `V2_BOOTSTRAP_TEST_DATABASE_URL=... pnpm test:bootstrap` | PASS — 1 PostgreSQL test |
 | `pnpm test:tx` | PASS — 39, 3 credential-gated skips |
 | `pnpm test:precutover` | PASS — 16 |
-| `pnpm test:incident` | PASS on the prior run; rerun required after this final test-only change |
+| `pnpm test:incident` | PASS — 16 tests (including the 10 incident-freeze subtests) |
 | dedicated worktree `pnpm typecheck` | PASS |
 | dedicated worktree `pnpm test` | PASS — 233 |
 | dedicated worktree `pnpm build` | PASS |
 | dedicated worktree bootstrap PostgreSQL test | PASS — 1 (sequential run) |
+| parent `pnpm build` | PASS — Next.js production build includes `/api/version` and `/api/cron/v2-workers` |
+| parent `pnpm test:e2e` | PASS — 36 Chromium/WebKit tests |
 
 The fixture test was deliberately run sequentially after an initial parallel
 attempt exposed only a shared local writer-control race between two test
-processes; no application defect was inferred. Parent `pnpm build` and
-Chromium/WebKit E2E were green before the final direct LINE test addition and
-must be rerun as the final gate. Repository-wide lint remains a known baseline
-failure in unrelated legacy test code and is not a bootstrap acceptance gate.
+processes; no application defect was inferred. Parent build and
+Chromium/WebKit E2E were rerun after the direct LINE test addition and passed.
+Repository-wide lint remains a known baseline failure in unrelated legacy test
+code and is not a bootstrap acceptance gate.
 
 ## 15. Remaining blockers
 
