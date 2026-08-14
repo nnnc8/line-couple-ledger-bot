@@ -4,6 +4,7 @@ Repository: `https://github.com/nnnc8/line-couple-ledger-bot`
 Baseline branch: `codex/couple-ledger-v2` at `50f5ddc3cc7fc27fdc766d2982a8a2cf38bf078`
 Bootstrap branch: `codex/couple-ledger-v2-incident-bootstrap`
 Bootstrap commit: `f21acb9` (`fix: add production-safe v2 incident bootstrap`)
+Review head: `8418485` (`docs: record bootstrap verification results`)
 Scope: minimal incident containment and compatibility only. No production
 deployment, writer change, feature-flag change, LINE setting change, Rich Menu
 change, or production Supabase mutation was performed.
@@ -301,8 +302,9 @@ contract document. Diff summary: 1,081 insertions and 74 deletions.
 The diff contains no product UI, no Rich Menu asset/API call, no migration
 backfill, no V1 deletion, no production credential, and no deployment action.
 The package additions are limited to `test:bootstrap` and the three incident
-status/freeze commands. A follow-up test/report commit adds only the direct
-LINE assertion and this review document; it does not change runtime behavior.
+status/freeze commands. Follow-up commits `a087adc` and `8418485` add only the
+direct LINE assertion and this review document; they do not change runtime
+behavior.
 
 ## 14. Test results
 
