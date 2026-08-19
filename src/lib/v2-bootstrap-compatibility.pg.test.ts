@@ -42,9 +42,9 @@ if (!enabled) {
 }
 
 const coupleId = Number(process.env.V2_BOOTSTRAP_TEST_COUPLE_ID ?? "1");
-const ownerId = "11111111-1111-4111-8111-111111111111";
-const partnerId = "22222222-2222-4222-8222-222222222222";
 const testKey = `bootstrap:${randomUUID()}`;
+let ownerId = "";
+let partnerId = "";
 let pool: Pool | null = null;
 let ledgerId: string | null = null;
 let proposalId: string | null = null;
@@ -78,7 +78,19 @@ before(async () => {
   process.env.V2_LEDGER_ENABLED = "1";
   process.env.V2_LINE_INBOX_ENABLED = "1";
   process.env.V2_INCIDENT_BOOTSTRAP_ONLY = "1";
-  const missing = await query<{ name: string }>(
+  const members = await query<{ id: string; role: "owner" | "partner" }>(
+    `select id, role
+       from public.users
+      where couple_id = $1
+      order by case role when 'owner' then 0 else 1 end`,
+    [coupleId],
+  );
+  assert.equal(members.rows.length, 2);
+  ownerId = members.rows.find((member) => member.role === "owner")?.id ?? "";
+  partnerId = members.rows.find((member) => member.role === "partner")?.id ?? "";
+  assert.ok(ownerId);
+  assert.ok(partnerId);
+  const unexpected = await query<{ name: string }>(
     `select name from (values
        ('ledger_v2.categories'),
        ('ledger_v2.transactions.category_id'),
@@ -88,8 +100,8 @@ before(async () => {
        ('ledger_v2.notification_outbox.max_attempts')
      ) as expected(name)
      where case
-       when name = 'ledger_v2.categories' then to_regclass(name) is null
-       when name like '%.%' then split_part(name, '.', 3) not in (
+       when name = 'ledger_v2.categories' then to_regclass(name) is not null
+       when name like '%.%' then split_part(name, '.', 3) in (
          select column_name from information_schema.columns
           where table_schema = split_part(expected.name, '.', 1)
             and table_name = split_part(expected.name, '.', 2)
@@ -97,7 +109,7 @@ before(async () => {
        else false
      end`,
   );
-  assert.deepEqual(missing.rows, []);
+  assert.deepEqual(unexpected.rows, []);
   const freeze = await query<{ active_plane: string; mutation_fence: boolean; financial_writes_enabled: boolean }>(
     `select active_plane, mutation_fence, financial_writes_enabled
        from ledger_v2.writer_control where couple_id = $1`,

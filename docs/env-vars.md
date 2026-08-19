@@ -24,6 +24,7 @@ All variables are read by the Next.js server at boot. `.env.local` is git-ignore
 | Variable | Purpose |
 | :--- | :--- |
 | `NEXT_PUBLIC_LINE_BASIC_ID` | Bot's LINE Basic ID (e.g. `@123xxxxx`). Used by LIFF UI to deep-link back to the chat. |
+| `RELEASE_SHA` / `BUILD_TIMESTAMP` | Immutable source SHA and ISO-8601 build time exposed by `/api/version`. Set explicitly for CLI/prebuilt deployments where Vercel Git metadata may be blank. |
 | `V2_LEDGER_ENABLED` | Server-side Couple Ledger V2 API and writer gate. `0` (default) keeps the additive V2 plane unavailable; set to `1` only after the migration/cutover gates pass. |
 | `NEXT_PUBLIC_V2_LEDGER_UI` | Exposes the TWD-only multi-Ledger LIFF UI when set to `1`. Keep off until the server flag and target couple are ready. |
 | `V2_LINE_INBOX_ENABLED` | Persists signed LINE webhook events to the durable V2 inbox before dispatch. Keep off until the workflow migration is applied. On Vercel Hobby, webhook `after()` opportunistic drain plus the daily safety sweep are the supported scheduler; use an external scheduler or Vercel Pro for tighter retry cadence. |

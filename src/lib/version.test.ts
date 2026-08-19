@@ -27,3 +27,22 @@ test("version metadata has safe fallbacks", () => {
     buildTimestamp: null,
   });
 });
+
+test("version metadata ignores blank platform values and prefers an explicit release SHA", () => {
+  assert.deepEqual(
+    getBuildVersion({
+      RELEASE_SHA: "  release123  ",
+      VERCEL_GIT_COMMIT_SHA: "",
+      GIT_COMMIT_SHA: "git123",
+      VERCEL_ENV: "",
+      NODE_ENV: "production",
+      BUILD_TIMESTAMP: "",
+      VERCEL_BUILD_TIMESTAMP: "2026-08-19T08:00:00.000Z",
+    }),
+    {
+      commitSha: "release123",
+      environment: "production",
+      buildTimestamp: "2026-08-19T08:00:00.000Z",
+    },
+  );
+});
