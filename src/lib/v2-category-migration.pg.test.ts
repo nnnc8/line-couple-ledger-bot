@@ -24,6 +24,7 @@ if (!enabled) {
 }
 
 const migrationSql = readFileSync("supabase/migrations/20260813041139_v2_ledger_categories.sql", "utf8");
+const runtimeGrantSql = readFileSync("supabase/migrations/20260819081500_grant_v2_categories_to_ledger_runtime.sql", "utf8");
 
 function originalMigrationOrder(sql: string): string {
   const ddlStart = sql.indexOf("create index if not exists transactions_category_idx");
@@ -56,7 +57,7 @@ async function schemaState(client: Client) {
   return result.rows[0]!;
 }
 
-test("old category order fails with SQLSTATE 55006 and corrected order is atomic", { skip: !enabled }, async () => {
+test("old category order fails with SQLSTATE 55006 and corrected order plus runtime grant are atomic", { skip: !enabled }, async () => {
   const client = new Client({ connectionString: databaseUrl });
   await client.connect();
   try {
@@ -114,6 +115,26 @@ test("old category order fails with SQLSTATE 55006 and corrected order is atomic
     await client.query("begin");
     await client.query(migrationSql);
     await client.query("set constraints all immediate");
+    // The production runtime already has schema usage from the base V2
+    // migrations; this isolated fixture does not preserve role ACLs.
+    await client.query("grant usage on schema ledger_v2 to ledger_runtime");
+    const beforeRuntimeGrant = await client.query<{ allowed: boolean }>(
+      "select has_table_privilege('ledger_runtime', 'ledger_v2.categories', 'SELECT') as allowed",
+    );
+    assert.equal(beforeRuntimeGrant.rows[0]?.allowed, false);
+    await client.query(runtimeGrantSql);
+    const runtimeGrants = await client.query<{ select_ok: boolean; insert_ok: boolean; update_ok: boolean; delete_ok: boolean; truncate_ok: boolean }>(`
+      select
+        has_table_privilege('ledger_runtime', 'ledger_v2.categories', 'SELECT') as select_ok,
+        has_table_privilege('ledger_runtime', 'ledger_v2.categories', 'INSERT') as insert_ok,
+        has_table_privilege('ledger_runtime', 'ledger_v2.categories', 'UPDATE') as update_ok,
+        has_table_privilege('ledger_runtime', 'ledger_v2.categories', 'DELETE') as delete_ok,
+        has_table_privilege('ledger_runtime', 'ledger_v2.categories', 'TRUNCATE') as truncate_ok
+    `);
+    assert.deepEqual(runtimeGrants.rows[0], { select_ok: true, insert_ok: true, update_ok: true, delete_ok: true, truncate_ok: false });
+    await client.query("set local role ledger_runtime");
+    await client.query("select count(*) from ledger_v2.categories");
+    await client.query("reset role");
     const counts = await client.query<{ categories: string; linked: string; transactions: string; payments: string; shares: string }>(`
       select
         (select count(*)::text from ledger_v2.categories) as categories,
