@@ -1376,9 +1376,9 @@ export async function listV2RecurringRules(coupleId: number, userId: string, led
               r.frequency, r.anchor_day, to_char(r.next_run_date, 'YYYY-MM-DD') as next_run_date,
               to_char(r.end_date, 'YYYY-MM-DD') as end_date, r.active,
               r.split_method, r.payments, r.shares, r.category_id, r.version, r.created_at, r.updated_at
-         from ledger_v2.recurring_rules
-        where couple_id = $1 and ledger_id = $2
-        order by active desc, next_run_date asc, created_at asc, id asc`,
+         from ledger_v2.recurring_rules r
+        where r.couple_id = $1 and r.ledger_id = $2
+        order by r.active desc, r.next_run_date asc, r.created_at asc, r.id asc`,
       [coupleId, ledgerId],
     );
     return { recurring: result.rows.map(serializedRecurringRule) };
