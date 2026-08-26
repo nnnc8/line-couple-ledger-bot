@@ -12,6 +12,7 @@ import { V2TransactionEditor, type TransactionEditorValue } from "./v2-transacti
 import { api } from "@/lib/api";
 import { money, moneyAbs } from "@/lib/format";
 import type { User, V2Attachment, V2Category, V2LedgerBootstrap, V2LedgerSummary, V2RecurringRule } from "@/lib/types";
+import type { V2SecondaryTab } from "@/lib/v2-navigation";
 
 interface V2LedgerHomeProps {
   user: User;
@@ -28,6 +29,7 @@ interface V2LedgerHomeProps {
   proposalIdFromUrl?: string | null;
   ledgerIdFromUrl?: string | null;
   transactionIdFromUrl?: string | null;
+  initialSecondaryTab?: V2SecondaryTab;
 }
 
 export function V2LedgerHome({
@@ -45,6 +47,7 @@ export function V2LedgerHome({
   proposalIdFromUrl = null,
   ledgerIdFromUrl = null,
   transactionIdFromUrl = null,
+  initialSecondaryTab = "history",
 }: V2LedgerHomeProps) {
   const partner = users.find((candidate) => candidate.id !== user.id) ?? users[1];
   const [showCreate, setShowCreate] = React.useState(false);
@@ -85,7 +88,11 @@ export function V2LedgerHome({
   const [defaultShareMessage, setDefaultShareMessage] = React.useState("");
   const [savingDefaults, setSavingDefaults] = React.useState(false);
   const [exporting, setExporting] = React.useState(false);
-  const [secondaryTab, setSecondaryTab] = React.useState<"history" | "stats" | "recurring" | "settings">("history");
+  const [secondaryTab, setSecondaryTab] = React.useState<V2SecondaryTab>(initialSecondaryTab);
+
+  React.useEffect(() => {
+    setSecondaryTab(initialSecondaryTab);
+  }, [initialSecondaryTab]);
 
   React.useEffect(() => {
     if (ledgerIdFromUrl && ledgers.some((ledger) => ledger.id === ledgerIdFromUrl) && activeLedgerId !== ledgerIdFromUrl) {

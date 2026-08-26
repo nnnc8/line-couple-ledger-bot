@@ -30,6 +30,7 @@ import { toast } from "sonner";
 import { ArrowLeftRight, CircleCheckBig, ReceiptText } from "lucide-react";
 import { useV2Ledgers } from "@/hooks/use-v2-ledgers";
 import { V2LedgerHome } from "@/components/ledger/v2-ledger-home";
+import { v2SecondaryTabFromUrlValue } from "@/lib/v2-navigation";
 
 const TAB_KEYS: TabKey[] = ["dashboard", "history", "analysis", "settings"];
 
@@ -413,7 +414,7 @@ export default function Home() {
           <span className="rounded-full bg-accent-soft px-2 py-1 text-[11px] font-bold text-accent">TWD</span>
         </header>
         {v2ProposalMessage ? <div className="mb-3 rounded-xl border border-accent/30 bg-accent-soft p-3 text-sm">{v2ProposalMessage} <Button variant="ghost" size="sm" onClick={() => setV2ProposalMessage("")}>知道了</Button></div> : null}
-        <V2LedgerHome user={v2Context.user} users={v2Context.users} today={v2Context.today} ledgers={v2.ledgers} activeLedgerId={v2.activeLedgerId} setActiveLedgerId={v2.setActiveLedgerId} bootstrap={v2.bootstrap} error={v2.error} busy={v2.busy} reload={async () => { if (v2.activeLedgerId) return v2.loadBootstrap(v2.activeLedgerId); return v2.loadLedgers(); }} createLedger={v2.createLedger} proposalIdFromUrl={v2ProposalId} ledgerIdFromUrl={v2LedgerId} transactionIdFromUrl={v2TransactionId} />
+        <V2LedgerHome user={v2Context.user} users={v2Context.users} today={v2Context.today} ledgers={v2.ledgers} activeLedgerId={v2.activeLedgerId} setActiveLedgerId={v2.setActiveLedgerId} bootstrap={v2.bootstrap} error={v2.error} busy={v2.busy} reload={async () => { if (v2.activeLedgerId) return v2.loadBootstrap(v2.activeLedgerId); return v2.loadLedgers(); }} createLedger={v2.createLedger} proposalIdFromUrl={v2ProposalId} ledgerIdFromUrl={v2LedgerId} transactionIdFromUrl={v2TransactionId} initialSecondaryTab={v2SecondaryTabFromUrlValue(urlParam("tab"))} />
       </main>
     );
   }
@@ -434,7 +435,7 @@ export default function Home() {
           <span className="rounded-full bg-accent-soft px-2 py-1 text-[11px] font-bold text-accent">TWD</span>
         </header>
         {v2ProposalMessage ? <div className="mb-3 rounded-xl border border-accent/30 bg-accent-soft p-3 text-sm">{v2ProposalMessage} <Button variant="ghost" size="sm" onClick={() => setV2ProposalMessage("")}>知道了</Button></div> : null}
-        <V2LedgerHome user={data.user} users={data.users} today={data.today} ledgers={v2.ledgers} activeLedgerId={v2.activeLedgerId} setActiveLedgerId={v2.setActiveLedgerId} bootstrap={v2.bootstrap} error={v2.error} busy={v2.busy} reload={async () => { if (v2.activeLedgerId) return v2.loadBootstrap(v2.activeLedgerId); return v2.loadLedgers(); }} createLedger={v2.createLedger} proposalIdFromUrl={v2ProposalId} ledgerIdFromUrl={v2LedgerId} transactionIdFromUrl={v2TransactionId} />
+        <V2LedgerHome user={data.user} users={data.users} today={data.today} ledgers={v2.ledgers} activeLedgerId={v2.activeLedgerId} setActiveLedgerId={v2.setActiveLedgerId} bootstrap={v2.bootstrap} error={v2.error} busy={v2.busy} reload={async () => { if (v2.activeLedgerId) return v2.loadBootstrap(v2.activeLedgerId); return v2.loadLedgers(); }} createLedger={v2.createLedger} proposalIdFromUrl={v2ProposalId} ledgerIdFromUrl={v2LedgerId} transactionIdFromUrl={v2TransactionId} initialSecondaryTab={v2SecondaryTabFromUrlValue(urlParam("tab"))} />
       </main>
     );
   }
