@@ -16,6 +16,7 @@
     "test:smoke": "tsx --test src/lib/live-smoke.test.ts",
     "test:all": "tsx --test src/lib/ledger.test.ts src/lib/onboarding-route.test.ts src/components/transfer/transfer-sheet.test.ts src/lib/pending-action.tx.test.ts src/lib/pending-action.pg.test.ts src/lib/live-smoke.test.ts",
     "test:e2e": "playwright test",
+    "test:e2e:v2": "playwright test --config=playwright.v2.config.ts",
     "test:bootstrap": "tsx --test src/lib/v2-bootstrap-compatibility.pg.test.ts",
     "migration:v2:plan": "tsx scripts/v2-migration-plan.ts",
     "migration:v2:apply": "tsx scripts/v2-migration-apply.ts",

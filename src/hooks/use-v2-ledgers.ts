@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { api, get } from "@/lib/api";
-import type { V2AppContext, V2LedgerBootstrap, V2LedgerSummary } from "@/lib/types";
+import type { V2AppContext, V2CreateTransactionResult, V2LedgerBootstrap, V2LedgerSummary } from "@/lib/types";
 
 export function useV2Ledgers(enabled = true) {
   const [ledgers, setLedgers] = useState<V2LedgerSummary[]>([]);
@@ -33,6 +33,29 @@ export function useV2Ledgers(enabled = true) {
     const result = await get<V2LedgerBootstrap>(`/api/app/v2/ledgers/${ledgerId}/bootstrap`);
     setBootstrap(result);
     return result;
+  }, []);
+
+  const applyCommittedTransaction = useCallback((result: V2CreateTransactionResult) => {
+    setBootstrap((current) => {
+      if (!current || current.ledger.id !== result.transaction.ledgerId) return current;
+      const transactions = [
+        result.transaction,
+        ...current.transactions.filter((transaction) => transaction.id !== result.transaction.id),
+      ].sort((left, right) => {
+        const occurredOn = (right.occurredOn ?? "").localeCompare(left.occurredOn ?? "");
+        if (occurredOn !== 0) return occurredOn;
+        const createdAt = (right.createdAt ?? "").localeCompare(left.createdAt ?? "");
+        if (createdAt !== 0) return createdAt;
+        return right.id.localeCompare(left.id);
+      });
+      return {
+        ...current,
+        ledger: { ...current.ledger, version: result.ledgerVersion },
+        transactions,
+        balance: result.balance,
+        nextPayer: result.nextPayer,
+      };
+    });
   }, []);
 
   useEffect(() => {
@@ -91,6 +114,7 @@ export function useV2Ledgers(enabled = true) {
     loadContext,
     loadLedgers,
     loadBootstrap,
+    applyCommittedTransaction,
     createLedger,
   };
 }

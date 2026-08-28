@@ -35,6 +35,7 @@ import {
   settleAllV2Ledger,
 } from "./v2-ledger-service";
 import { handleLineEvent, type BotDependencies } from "./line-webhook-service";
+import type { V2CreateTransactionResult } from "./types";
 
 const TEST_DATABASE_URL = process.env.V2_TEST_DATABASE_URL;
 const ENABLED = Boolean(TEST_DATABASE_URL);
@@ -261,11 +262,16 @@ test("migrated V2 schema exercises allocations, lineage, categories, recurring, 
   assert(foodCategoryId);
   const createdIds: string[] = [];
   const write = async (input: Record<string, unknown>, key: string) => {
-    const result = await createV2Transaction(coupleId, ownerId, ledgerId, input, testKey(key)) as { transaction: { id: string } };
+    const result = await createV2Transaction(coupleId, ownerId, ledgerId, input, testKey(key)) as V2CreateTransactionResult;
     createdIds.push(result.transaction.id);
     return result;
   };
   const base = await write(expense("create expense", 100, [{ userId: ownerId, amountTwd: 100 }], { category: "餐飲", categoryId: foodCategoryId }), "create");
+  assert.equal(base.transaction.status, "posted");
+  assert.match(base.transaction.createdAt, /^20[0-9]{2}-/);
+  assert.equal(base.transaction.version, 1);
+  assert.equal(typeof base.ledgerVersion, "number");
+  assert.ok("nextPayer" in base);
   const multiPayer = await write(expense("multi payer", 1000, [{ userId: ownerId, amountTwd: 600 }, { userId: partnerId, amountTwd: 400 }]), "multi-payer");
   assert.equal(multiPayer.transaction.id.length, 36);
   await write(expense("percentage split", 300, [{ userId: ownerId, amountTwd: 300 }], { splitMethod: "percentage", percentages: [70, 30] }), "percentage");

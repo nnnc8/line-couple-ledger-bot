@@ -40,33 +40,46 @@ export type V2NextPayer = {
   amountTwd: string;
 };
 
+export type V2LedgerTransaction = {
+  id: string;
+  ledgerId: string;
+  type: "expense" | "income" | "transfer";
+  amountTwd: string;
+  payments: Array<{ userId: string; amountTwd: string }>;
+  shares: Array<{ userId: string; amountTwd: string }>;
+  status: "posted" | "voided" | "deleted";
+  occurredOn?: string;
+  description?: string;
+  category?: string | null;
+  categoryId?: string | null;
+  note?: string | null;
+  splitMethod?: "none" | "equal" | "exact" | "percentage" | "weights";
+  createdAt?: string;
+  version?: number;
+  replacesTransactionId?: string | null;
+  replacedByTransactionId?: string | null;
+};
+
 export type V2LedgerBootstrap = {
   ledger: V2LedgerSummary & {
     coupleId: number;
     members: Array<{ userId: string; role: "owner" | "partner" }>;
     defaultShares: Record<string, string>;
   };
-  transactions: Array<{
-    id: string;
-    ledgerId: string;
-    type: "expense" | "income" | "transfer";
-    amountTwd: string;
-    payments: Array<{ userId: string; amountTwd: string }>;
-    shares: Array<{ userId: string; amountTwd: string }>;
-    status: "posted" | "voided" | "deleted";
-    occurredOn?: string;
-    description?: string;
-    category?: string | null;
-    categoryId?: string | null;
-    note?: string | null;
-    splitMethod?: "none" | "equal" | "exact" | "percentage" | "weights";
-    createdAt?: string;
-    version?: number;
-    replacesTransactionId?: string | null;
-    replacedByTransactionId?: string | null;
-  }>;
+  transactions: V2LedgerTransaction[];
   balance: Record<string, string>;
   nextPayer: V2NextPayer | null;
+};
+
+export type V2CreateTransactionResult = {
+  transaction: V2LedgerTransaction & {
+    status: "posted";
+    createdAt: string;
+    version: number;
+  };
+  balance: Record<string, string>;
+  nextPayer: V2NextPayer | null;
+  ledgerVersion: number;
 };
 
 export type V2RecurringRule = {

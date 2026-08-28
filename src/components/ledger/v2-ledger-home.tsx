@@ -11,8 +11,31 @@ import { V2LedgerSwitcher } from "./v2-ledger-switcher";
 import { V2TransactionEditor, type TransactionEditorValue } from "./v2-transaction-editor";
 import { api } from "@/lib/api";
 import { money, moneyAbs } from "@/lib/format";
-import type { User, V2Attachment, V2Category, V2LedgerBootstrap, V2LedgerSummary, V2RecurringRule } from "@/lib/types";
+import { toast } from "sonner";
+import type { User, V2Attachment, V2Category, V2CreateTransactionResult, V2LedgerBootstrap, V2LedgerSummary, V2LedgerTransaction, V2RecurringRule } from "@/lib/types";
 import type { V2SecondaryTab } from "@/lib/v2-navigation";
+
+function historyRowSort(left: V2LedgerTransaction, right: V2LedgerTransaction): number {
+  const occurredOn = (right.occurredOn ?? "").localeCompare(left.occurredOn ?? "");
+  if (occurredOn !== 0) return occurredOn;
+  const createdAt = (right.createdAt ?? "").localeCompare(left.createdAt ?? "");
+  if (createdAt !== 0) return createdAt;
+  return right.id.localeCompare(left.id);
+}
+
+function matchesHistoryFilters(
+  transaction: V2LedgerTransaction,
+  filters: { type: "all" | "expense" | "income" | "transfer"; payer: string; categoryId: string; query: string; from: string; to: string },
+): boolean {
+  if (filters.type !== "all" && transaction.type !== filters.type) return false;
+  if (filters.payer !== "all" && !transaction.payments.some((payment) => payment.userId === filters.payer)) return false;
+  if (filters.categoryId !== "all" && transaction.categoryId !== filters.categoryId) return false;
+  if (filters.from && (transaction.occurredOn ?? "") < filters.from) return false;
+  if (filters.to && (transaction.occurredOn ?? "") > filters.to) return false;
+  const query = filters.query.trim().toLocaleLowerCase();
+  if (query && ![transaction.description, transaction.note, transaction.category].some((value) => value?.toLocaleLowerCase().includes(query))) return false;
+  return true;
+}
 
 interface V2LedgerHomeProps {
   user: User;
@@ -25,6 +48,7 @@ interface V2LedgerHomeProps {
   error: string;
   busy: boolean;
   reload: () => Promise<unknown>;
+  applyCommittedTransaction: (result: V2CreateTransactionResult) => void;
   createLedger: (name: string, color?: string) => Promise<unknown>;
   proposalIdFromUrl?: string | null;
   ledgerIdFromUrl?: string | null;
@@ -43,6 +67,7 @@ export function V2LedgerHome({
   error,
   busy,
   reload,
+  applyCommittedTransaction,
   createLedger,
   proposalIdFromUrl = null,
   ledgerIdFromUrl = null,
@@ -54,6 +79,11 @@ export function V2LedgerHome({
   const [newLedgerName, setNewLedgerName] = React.useState("");
   const [formError, setFormError] = React.useState("");
   const [saving, setSaving] = React.useState(false);
+  const [saveFeedback, setSaveFeedback] = React.useState<{ tone: "success" | "warning"; message: string; retry: boolean } | null>(null);
+  const [lastSavedMessage, setLastSavedMessage] = React.useState("");
+  const [retryingRefresh, setRetryingRefresh] = React.useState(false);
+  const [highlightedTransactionId, setHighlightedTransactionId] = React.useState<string | null>(null);
+  const transactionSubmissionRef = React.useRef<{ fingerprint: string; idempotencyKey: string } | null>(null);
   const [recurring, setRecurring] = React.useState<V2RecurringRule[]>([]);
   const [categories, setCategories] = React.useState<V2Category[]>([]);
   const [categoryDrafts, setCategoryDrafts] = React.useState<Record<string, string>>({});
@@ -244,15 +274,75 @@ export function V2LedgerHome({
   const nextPayer = bootstrap.nextPayer;
   const nextPayerUser = nextPayer ? users.find((candidate) => candidate.id === nextPayer.payerUserId) : null;
   const nextPayerPayee = nextPayer ? users.find((candidate) => candidate.id === nextPayer.payeeUserId) : null;
-  async function submitEditorTransaction(value: TransactionEditorValue) {
-    if (!activeLedgerId) return;
+  async function retryTransactionRefresh() {
+    if (retryingRefresh || !lastSavedMessage) return;
+    setRetryingRefresh(true);
+    try {
+      await reload();
+      setSaveFeedback({ tone: "success", message: lastSavedMessage, retry: false });
+    } catch {
+      setSaveFeedback({ tone: "warning", message: `${lastSavedMessage}；流水同步仍失敗，請稍後重試`, retry: true });
+    } finally {
+      setRetryingRefresh(false);
+    }
+  }
+
+  async function submitEditorTransaction(value: TransactionEditorValue): Promise<boolean> {
+    if (!activeLedgerId || saving) return false;
     setSaving(true);
     setFormError("");
+    setSaveFeedback(null);
+    const fingerprint = JSON.stringify(value);
+    const previousSubmission = transactionSubmissionRef.current;
+    const idempotencyKey = previousSubmission?.fingerprint === fingerprint
+      ? previousSubmission.idempotencyKey
+      : crypto.randomUUID();
+    transactionSubmissionRef.current = { fingerprint, idempotencyKey };
     try {
-      await api(`/api/app/v2/ledgers/${activeLedgerId}/transactions`, value);
-      await reload();
+      const result = await api(`/api/app/v2/ledgers/${activeLedgerId}/transactions`, { ...value, idempotencyKey }) as unknown as Partial<V2CreateTransactionResult>;
+      const transaction = result.transaction;
+      const hasCanonicalResult = Boolean(
+        transaction
+        && transaction.id
+        && transaction.status === "posted"
+        && transaction.createdAt
+        && typeof transaction.version === "number"
+        && result.balance
+        && result.nextPayer !== undefined
+        && typeof result.ledgerVersion === "number",
+      );
+      const successMessage = `已入帳：${transaction?.description ?? value.description} ${money(Number(transaction?.amountTwd ?? value.amountTwd))}`;
+      setLastSavedMessage(successMessage);
+      setSaveFeedback({ tone: "success", message: successMessage, retry: false });
+      toast.success(successMessage);
+      if (hasCanonicalResult) {
+        const committed = result as V2CreateTransactionResult;
+        setHighlightedTransactionId(committed.transaction.id);
+        window.setTimeout(() => setHighlightedTransactionId((current) => current === committed.transaction.id ? null : current), 2400);
+        setHistoryRows((current) => {
+          if (!matchesHistoryFilters(committed.transaction, {
+            type: historyType,
+            payer: historyPayer,
+            categoryId: historyCategoryId,
+            query: historyQuery,
+            from: historyFrom,
+            to: historyTo,
+          })) return current;
+          return [committed.transaction, ...current.filter((row) => row.id !== committed.transaction.id)].sort(historyRowSort);
+        });
+        applyCommittedTransaction(committed);
+      }
+      transactionSubmissionRef.current = null;
+      void reload().catch(() => {
+        setSaveFeedback({ tone: "warning", message: `${successMessage}；流水同步失敗，請重新整理`, retry: true });
+        toast.warning("已入帳，但流水同步失敗");
+      });
+      return true;
     } catch (reason) {
-      setFormError(reason instanceof Error ? reason.message : "儲存失敗");
+      const message = reason instanceof Error ? reason.message : "儲存失敗";
+      setFormError(message);
+      toast.error(message);
+      return false;
     } finally {
       setSaving(false);
     }
@@ -459,9 +549,15 @@ export function V2LedgerHome({
           categoryOptions={categories.filter((category) => category.status === "active").map((category) => ({ id: category.id, name: category.name }))}
           busy={saving || busy}
           submitLabel="儲存交易"
+          onDraftChange={() => { setSaveFeedback(null); setFormError(""); }}
           onSubmit={submitEditorTransaction}
         />
-        {formError ? <p className="mt-2 text-sm font-medium text-destructive">{formError}</p> : null}
+        {saveFeedback ? <div className={`mt-3 flex items-center gap-2 rounded-xl border p-3 text-sm ${saveFeedback.tone === "success" ? "border-emerald-200 bg-emerald-50 text-emerald-900" : "border-amber-200 bg-amber-50 text-amber-950"}`} role="status" aria-live="polite">
+          <CheckCircle2 className="size-4 shrink-0" aria-hidden="true" />
+          <span className="flex-1">{saveFeedback.message}</span>
+          {saveFeedback.retry ? <Button type="button" variant="ghost" size="sm" onClick={() => void retryTransactionRefresh()} disabled={retryingRefresh}>{retryingRefresh ? "同步中…" : "重新整理"}</Button> : null}
+        </div> : null}
+        {formError ? <p className="mt-2 text-sm font-medium text-destructive" role="alert" aria-live="assertive">{formError}</p> : null}
       </Card>
 
       {secondaryTab === "stats" ? <Card className="p-4">
@@ -528,7 +624,7 @@ export function V2LedgerHome({
           <Input type="date" value={historyTo} onChange={(event) => setHistoryTo(event.target.value)} aria-label="流水結束日期" />
         </div>
         <div className="divide-y divide-[var(--border)]">
-          {historyRows.map((transaction) => <TransactionRow key={`${transaction.id}:${transaction.version ?? 1}`} transaction={transaction} users={users} currentUser={user} today={today} defaultShares={bootstrap.ledger.defaultShares} categoryOptions={categories.filter((category) => category.status === "active").map((category) => ({ id: category.id, name: category.name }))} initialOpen={transaction.id === transactionIdFromUrl} onChanged={async () => { await reload(); await loadHistory(); }} />)}
+          {historyRows.map((transaction) => <TransactionRow key={`${transaction.id}:${transaction.version ?? 1}`} transaction={transaction} users={users} currentUser={user} today={today} defaultShares={bootstrap.ledger.defaultShares} categoryOptions={categories.filter((category) => category.status === "active").map((category) => ({ id: category.id, name: category.name }))} highlighted={transaction.id === highlightedTransactionId} initialOpen={transaction.id === transactionIdFromUrl} onChanged={async () => { await reload(); await loadHistory(); }} />)}
           {!historyRows.length ? <p className="py-8 text-center text-sm text-[var(--muted-foreground)]">尚無符合條件的流水</p> : null}
         </div>
         {historyCursor ? <Button variant="outline" size="block" className="mt-3" onClick={() => void loadMoreHistory()} disabled={historyLoadingMore}>{historyLoadingMore ? "載入中…" : "載入更早交易"}</Button> : null}
@@ -541,7 +637,7 @@ function CreateLedgerCard({ name, onName, onCancel, onSave }: { name: string; on
   return <Card className="space-y-2 p-4"><p className="font-bold">建立新的 Ledger</p><Input value={name} onChange={(event) => onName(event.target.value)} placeholder="例如：上海旅行" maxLength={40} /><div className="flex justify-end gap-2"><Button variant="ghost" size="sm" onClick={onCancel}>取消</Button><Button variant="primary" size="sm" onClick={() => void onSave()}>建立</Button></div></Card>;
 }
 
-function TransactionRow({ transaction, users, currentUser, today, defaultShares, categoryOptions, initialOpen = false, onChanged }: { transaction: V2LedgerBootstrap["transactions"][number]; users: User[]; currentUser: User; today: string; defaultShares: Record<string, string>; categoryOptions: Array<{ id: string; name: string }>; initialOpen?: boolean; onChanged: () => Promise<unknown> }) {
+function TransactionRow({ transaction, users, currentUser, today, defaultShares, categoryOptions, highlighted = false, initialOpen = false, onChanged }: { transaction: V2LedgerBootstrap["transactions"][number]; users: User[]; currentUser: User; today: string; defaultShares: Record<string, string>; categoryOptions: Array<{ id: string; name: string }>; highlighted?: boolean; initialOpen?: boolean; onChanged: () => Promise<unknown> }) {
   const [busy, setBusy] = React.useState(false);
   const [message, setMessage] = React.useState("");
   const [uploading, setUploading] = React.useState(false);
@@ -581,7 +677,7 @@ function TransactionRow({ transaction, users, currentUser, today, defaultShares,
       setBusy(false);
     }
   }
-  async function replaceTransaction(value: TransactionEditorValue) {
+  async function replaceTransaction(value: TransactionEditorValue): Promise<boolean> {
     setBusy(true);
     setMessage("");
     try {
@@ -596,8 +692,10 @@ function TransactionRow({ transaction, users, currentUser, today, defaultShares,
       setEditing(false);
       await onChanged();
       setMessage("已更新；原交易保留作廢紀錄");
+      return true;
     } catch (reason) {
       setMessage(reason instanceof Error ? reason.message : "更新失敗");
+      return false;
     } finally {
       setBusy(false);
     }
@@ -628,5 +726,5 @@ function TransactionRow({ transaction, users, currentUser, today, defaultShares,
       setUploading(false);
     }
   }
-  return <details open={initialOpen || undefined} className={`group py-3 ${transaction.status !== "posted" ? "opacity-60" : ""}`} onToggle={(event) => { if (event.currentTarget.open && !attachmentsLoaded) void loadAttachments(); }}><summary className="flex cursor-pointer list-none items-start gap-3"><div className="grid size-9 shrink-0 items-center rounded-xl bg-accent-soft text-accent"><ArrowLeftRight className="size-4" /></div><div className="min-w-0 flex-1"><p className="truncate text-sm font-semibold">{transaction.description ?? typeLabel}{transaction.status !== "posted" ? `（${transaction.status === "voided" ? "已作廢" : "已刪除"}）` : ""}</p><p className="mt-0.5 text-xs text-[var(--muted-foreground)]">{transaction.occurredOn} · {typeLabel} · {payments || "付款資訊"}</p></div><p className="text-sm font-bold tabular-nums">{money(Number(transaction.amountTwd))}</p></summary><div className="ml-12 mt-2 space-y-2 text-xs text-[var(--muted-foreground)]"><p>付款：{payments || "—"}</p><p>分攤：{shares || "—"}</p>{categoryLabel ? <p>分類：{categoryLabel}</p> : null}{transaction.type === "income" ? <p>收入／退款由收款人收到，分攤代表兩人的權益。</p> : null}{transaction.type === "transfer" ? <p>轉帳方向：{transaction.payments[0] ? users.find((user) => user.id === transaction.payments[0]!.userId)?.label ?? "成員" : "—"} → {transaction.shares[0] ? users.find((user) => user.id === transaction.shares[0]!.userId)?.label ?? "成員" : "—"}</p> : null}{transaction.replacesTransactionId ? <p>此交易由舊交易修改而來：{transaction.replacesTransactionId}</p> : null}{transaction.replacedByTransactionId ? <p>此交易已被更新，新版交易：{transaction.replacedByTransactionId}</p> : null}<div className="flex flex-wrap items-center gap-2"><Button variant="ghost" size="sm" disabled={busy || transaction.status === "voided"} onClick={() => setEditing((current) => !current)}>{editing ? "收起編輯" : "編輯"}</Button><Button variant="ghost" size="sm" disabled={busy || transaction.status === "voided"} onClick={() => void mutate("void")}>作廢</Button>{transaction.status === "voided" ? <Button variant="ghost" size="sm" disabled={busy} onClick={() => void mutate("restore")}>恢復</Button> : null}<label className="inline-flex cursor-pointer items-center gap-1 rounded-lg px-2 py-1 text-xs font-semibold hover:bg-accent-soft"><Paperclip className="size-3" />{uploading ? "上傳中…" : "加收據"}<input className="sr-only" type="file" accept="image/jpeg,image/png,image/webp,image/heic,image/heif,application/pdf" disabled={uploading} onChange={(event) => { const file = event.target.files?.[0]; if (file) void uploadReceipt(file); event.currentTarget.value = ""; }} /></label></div>{editing ? <div className="rounded-xl border border-[var(--border)] p-3"><V2TransactionEditor user={currentUser} partner={partner} today={today} defaultShares={defaultShares} categoryOptions={categoryOptions} initial={transaction} submitLabel="儲存修改" busy={busy} onCancel={() => setEditing(false)} onSubmit={replaceTransaction} /><p className="mt-2 text-[11px] text-[var(--muted-foreground)]">編輯會保留原交易並建立一筆替代交易；付款人與分攤由你重新確認。</p></div> : null}{attachmentsLoaded && !attachments.length ? <p>尚無收據</p> : null}{attachments.length ? <div className="space-y-1"><p className="font-semibold">收據</p>{attachments.map((attachment) => <div key={attachment.id} className="flex items-center gap-2"><a href={attachment.url ?? undefined} target="_blank" rel="noreferrer" className="min-w-0 flex-1 truncate text-accent underline">{attachment.mimeType === "application/pdf" ? "PDF 收據" : "圖片收據"} · {new Date(attachment.createdAt).toLocaleString("zh-TW")}</a><Button variant="ghost" size="sm" onClick={() => void (async () => { try { await api(`/api/app/v2/attachments/${attachment.id}`, undefined, { method: "DELETE" }); await loadAttachments(); } catch (reason) { setMessage(reason instanceof Error ? reason.message : "收據刪除失敗"); } })()}>刪除</Button></div>)}</div> : null}{message ? <p>{message}</p> : null}</div></details>;
+  return <details open={initialOpen || undefined} className={`group py-3 ${transaction.status !== "posted" ? "opacity-60" : ""} ${highlighted ? "rounded-xl bg-accent-soft/50 px-2 transition-colors" : ""}`} onToggle={(event) => { if (event.currentTarget.open && !attachmentsLoaded) void loadAttachments(); }}><summary className="flex cursor-pointer list-none items-start gap-3"><div className="grid size-9 shrink-0 items-center rounded-xl bg-accent-soft text-accent"><ArrowLeftRight className="size-4" /></div><div className="min-w-0 flex-1"><p className="truncate text-sm font-semibold">{transaction.description ?? typeLabel}{transaction.status !== "posted" ? `（${transaction.status === "voided" ? "已作廢" : "已刪除"}）` : ""}</p><p className="mt-0.5 text-xs text-[var(--muted-foreground)]">{transaction.occurredOn} · {typeLabel} · {payments || "付款資訊"}</p></div><p className="text-sm font-bold tabular-nums">{money(Number(transaction.amountTwd))}</p></summary><div className="ml-12 mt-2 space-y-2 text-xs text-[var(--muted-foreground)]"><p>付款：{payments || "—"}</p><p>分攤：{shares || "—"}</p>{categoryLabel ? <p>分類：{categoryLabel}</p> : null}{transaction.type === "income" ? <p>收入／退款由收款人收到，分攤代表兩人的權益。</p> : null}{transaction.type === "transfer" ? <p>轉帳方向：{transaction.payments[0] ? users.find((user) => user.id === transaction.payments[0]!.userId)?.label ?? "成員" : "—"} → {transaction.shares[0] ? users.find((user) => user.id === transaction.shares[0]!.userId)?.label ?? "成員" : "—"}</p> : null}{transaction.replacesTransactionId ? <p>此交易由舊交易修改而來：{transaction.replacesTransactionId}</p> : null}{transaction.replacedByTransactionId ? <p>此交易已被更新，新版交易：{transaction.replacedByTransactionId}</p> : null}<div className="flex flex-wrap items-center gap-2"><Button variant="ghost" size="sm" disabled={busy || transaction.status === "voided"} onClick={() => setEditing((current) => !current)}>{editing ? "收起編輯" : "編輯"}</Button><Button variant="ghost" size="sm" disabled={busy || transaction.status === "voided"} onClick={() => void mutate("void")}>作廢</Button>{transaction.status === "voided" ? <Button variant="ghost" size="sm" disabled={busy} onClick={() => void mutate("restore")}>恢復</Button> : null}<label className="inline-flex cursor-pointer items-center gap-1 rounded-lg px-2 py-1 text-xs font-semibold hover:bg-accent-soft"><Paperclip className="size-3" />{uploading ? "上傳中…" : "加收據"}<input className="sr-only" type="file" accept="image/jpeg,image/png,image/webp,image/heic,image/heif,application/pdf" disabled={uploading} onChange={(event) => { const file = event.target.files?.[0]; if (file) void uploadReceipt(file); event.currentTarget.value = ""; }} /></label></div>{editing ? <div className="rounded-xl border border-[var(--border)] p-3"><V2TransactionEditor user={currentUser} partner={partner} today={today} defaultShares={defaultShares} categoryOptions={categoryOptions} initial={transaction} submitLabel="儲存修改" busy={busy} onCancel={() => setEditing(false)} onSubmit={replaceTransaction} /><p className="mt-2 text-[11px] text-[var(--muted-foreground)]">編輯會保留原交易並建立一筆替代交易；付款人與分攤由你重新確認。</p></div> : null}{attachmentsLoaded && !attachments.length ? <p>尚無收據</p> : null}{attachments.length ? <div className="space-y-1"><p className="font-semibold">收據</p>{attachments.map((attachment) => <div key={attachment.id} className="flex items-center gap-2"><a href={attachment.url ?? undefined} target="_blank" rel="noreferrer" className="min-w-0 flex-1 truncate text-accent underline">{attachment.mimeType === "application/pdf" ? "PDF 收據" : "圖片收據"} · {new Date(attachment.createdAt).toLocaleString("zh-TW")}</a><Button variant="ghost" size="sm" onClick={() => void (async () => { try { await api(`/api/app/v2/attachments/${attachment.id}`, undefined, { method: "DELETE" }); await loadAttachments(); } catch (reason) { setMessage(reason instanceof Error ? reason.message : "收據刪除失敗"); } })()}>刪除</Button></div>)}</div> : null}{message ? <p>{message}</p> : null}</div></details>;
 }

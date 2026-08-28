@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { LoaderCircle } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -37,6 +38,7 @@ export function V2TransactionEditor({
   initial,
   submitLabel = "儲存",
   busy = false,
+  onDraftChange,
   onSubmit,
   onCancel,
 }: {
@@ -48,7 +50,8 @@ export function V2TransactionEditor({
   initial?: TransactionDraft;
   submitLabel?: string;
   busy?: boolean;
-  onSubmit: (value: TransactionEditorValue) => Promise<void>;
+  onDraftChange?: () => void;
+  onSubmit: (value: TransactionEditorValue) => Promise<boolean>;
   onCancel?: () => void;
 }) {
   const initialPayments = initial?.payments ?? [{ userId: user.id, amountTwd: "" }];
@@ -80,6 +83,7 @@ export function V2TransactionEditor({
   const [selfPercentage, setSelfPercentage] = React.useState(initialSelfPercentage);
   const [partnerPercentage, setPartnerPercentage] = React.useState(initialPartnerPercentage);
   const [formError, setFormError] = React.useState("");
+  const amountInputRef = React.useRef<HTMLInputElement>(null);
 
   const amountNumber = Number(amount);
   const paymentTotal = paymentMode === "both"
@@ -141,13 +145,26 @@ export function V2TransactionEditor({
             ? { percentages: [Number(selfPercentage), Number(partnerPercentage)] as [number, number] }
             : {}),
     };
-    await onSubmit(value);
+    const saved = await onSubmit(value);
+    if (!saved || initial) return;
+    setAmount("");
+    setDescription("");
+    setOccurredOn(today);
+    setCategory("");
+    setCategoryId("");
+    setNote("");
+    setSelfPayment("");
+    setPartnerPayment("");
+    setSelfShare("");
+    setPartnerShare("");
+    window.requestAnimationFrame(() => amountInputRef.current?.focus());
   }
 
   return (
-    <form className="space-y-3" onSubmit={(event) => void submit(event)}>
+    <form className="space-y-3" onSubmit={(event) => void submit(event)} onChange={onDraftChange} aria-busy={busy}>
+      <fieldset disabled={busy} className="space-y-3">
       <div className="grid grid-cols-[1fr_1.7fr] gap-2">
-        <Input inputMode="numeric" value={amount} onChange={(event) => setAmount(event.target.value)} placeholder="金額 TWD" aria-label="金額 TWD" />
+        <Input ref={amountInputRef} inputMode="numeric" value={amount} onChange={(event) => setAmount(event.target.value)} placeholder="金額 TWD" aria-label="金額 TWD" />
         <Input value={description} onChange={(event) => setDescription(event.target.value)} placeholder="說明" aria-label="說明" />
       </div>
       <details className="rounded-xl border border-[var(--border)] px-3 py-2" open={Boolean(initial)}>
@@ -172,10 +189,11 @@ export function V2TransactionEditor({
         {splitMode === "exact" ? <div className="grid grid-cols-2 gap-2"><Input inputMode="numeric" value={selfShare} onChange={(event) => setSelfShare(event.target.value)} placeholder={`${user.label} 分攤`} aria-label={`${user.label} 分攤`} /><Input inputMode="numeric" value={partnerShare} onChange={(event) => setPartnerShare(event.target.value)} placeholder={`${partner.label} 分攤`} aria-label={`${partner.label} 分攤`} /></div> : null}
         {splitMode === "equal" ? <p className="text-xs text-[var(--muted-foreground)]">每位成員各 50%；奇數 TWD 的餘數固定給 Ledger 第一位成員。</p> : null}
       </>}
-      {formError ? <p className="text-sm font-medium text-destructive">{formError}</p> : null}
+      {formError ? <p className="text-sm font-medium text-destructive" role="alert">{formError}</p> : null}
+      </fieldset>
       <div className="flex gap-2">
         {onCancel ? <Button type="button" variant="ghost" size="sm" onClick={onCancel} disabled={busy}>取消</Button> : null}
-        <Button type="submit" variant="primary" size={onCancel ? "sm" : "block"} className={onCancel ? undefined : "flex-1"} disabled={busy}>{submitLabel}</Button>
+        <Button type="submit" variant="primary" size={onCancel ? "sm" : "block"} className={onCancel ? undefined : "flex-1"} disabled={busy}>{busy ? <><LoaderCircle className="size-4 animate-spin" aria-hidden="true" /> 儲存中…</> : submitLabel}</Button>
       </div>
     </form>
   );

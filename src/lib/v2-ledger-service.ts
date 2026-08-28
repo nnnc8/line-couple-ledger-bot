@@ -7,6 +7,7 @@ import { withTx } from "./db/tx";
 import { isV2IncidentBootstrapOnly, V2IncidentFreezeError } from "./v2-incident-freeze";
 import { nextRecurringDate } from "./ledger";
 import { taipeiToday } from "./ledger-shared";
+import type { V2CreateTransactionResult } from "./types";
 import {
   buildSettleAllTransfer,
   calculateLedgerBalance,
@@ -593,12 +594,14 @@ async function insertTransaction(
   };
   calculateTransactionDelta(transaction, ledger.members);
   const id = randomUUID();
+  let insertedRow: { status: V2TransactionStatus; created_at: string; version: number } | undefined;
   if (isV2IncidentBootstrapOnly()) {
-    await client.query(
+    const inserted = await client.query<{ status: V2TransactionStatus; created_at: string; version: number }>(
       `insert into ledger_v2.transactions
         (id, couple_id, ledger_id, type, amount_twd, occurred_on, description,
          category, note, split_method, created_by_user_id)
-       values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
+       values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+       returning status, created_at, version`,
       [
         id,
         ledger.row.couple_id,
@@ -613,12 +616,14 @@ async function insertTransaction(
         actorUserId,
       ],
     );
+    insertedRow = inserted.rows[0];
   } else {
-    await client.query(
+    const inserted = await client.query<{ status: V2TransactionStatus; created_at: string; version: number }>(
       `insert into ledger_v2.transactions
         (id, couple_id, ledger_id, type, amount_twd, occurred_on, description,
          category, category_id, note, split_method, created_by_user_id, replaces_transaction_id)
-       values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`,
+       values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+       returning status, created_at, version`,
       [
         id,
         ledger.row.couple_id,
@@ -635,7 +640,10 @@ async function insertTransaction(
         lineage.replacesTransactionId ?? null,
       ],
     );
+    insertedRow = inserted.rows[0];
   }
+  if (!insertedRow) throw new Error("交易建立失敗：資料庫未回傳交易列");
+  if (insertedRow.status !== "posted") throw new Error("交易建立失敗：新交易不是 posted 狀態");
   for (const payment of transaction.payments) {
     await client.query(
       `insert into ledger_v2.transaction_payments
@@ -652,7 +660,13 @@ async function insertTransaction(
       [id, ledger.members.ledgerId, ledger.row.couple_id, share.userId, twdToString(share.amountTwd)],
     );
   }
-  const postedTransaction = { ...transaction, id };
+  const postedTransaction = {
+    ...transaction,
+    id,
+    status: insertedRow.status,
+    createdAt: insertedRow.created_at,
+    version: insertedRow.version,
+  };
   await client.query(
     `insert into ledger_v2.transaction_events
       (couple_id, ledger_id, transaction_id, actor_user_id, action, after_state)
@@ -1704,9 +1718,17 @@ export async function createV2Transaction(
     await assertLedgerMember(client, coupleId, actorUserId, ledgerId);
     const written = await insertTransaction(client, ledger, actorUserId, input);
     ledger.row.version += 1;
-    const result = {
-      transaction: serializedTransaction(written.transaction),
+    const nextPayer = recommendNextPayer(written.balance, ledger.members.memberIds);
+    const result: V2CreateTransactionResult = {
+      transaction: serializedTransaction(written.transaction) as V2CreateTransactionResult["transaction"],
       balance: serializedBalance(written.balance),
+      nextPayer: nextPayer
+        ? {
+            payerUserId: nextPayer.payerUserId,
+            payeeUserId: nextPayer.payeeUserId,
+            amountTwd: nextPayer.amountTwd.toString(),
+          }
+        : null,
       ledgerVersion: ledger.row.version,
     };
     await saveReceipt(client, coupleId, ledgerId, idempotencyKey, hash, result, actorUserId);
