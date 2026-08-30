@@ -242,13 +242,13 @@ test("keeps voided transactions distinct in the mobile history", async ({ page }
   await page.screenshot({ path: "output/playwright/v2-visual/voided-transaction.png", fullPage: true });
 });
 
-test("keeps the committed success when background refresh fails", async ({ page }) => {
+test("uses the canonical save response without reloading the Ledger", async ({ page }) => {
   controls(page).setFailRefresh(true);
   await page.getByLabel("金額 TWD").fill("100");
   await page.getByLabel("說明").fill("午餐");
   await page.getByRole("button", { name: "儲存交易" }).click();
-  await expect(page.getByRole("status").filter({ hasText: "已入帳：午餐 NT$100" }).first()).toContainText("流水同步失敗");
-  await expect(page.getByText("儲存失敗", { exact: true })).toHaveCount(0);
+  await expect(page.getByRole("status").filter({ hasText: "已入帳：午餐 NT$100" }).first()).toBeVisible();
+  await expect.poll(() => controls(page).getRequestPaths().filter((path) => path === `GET /api/app/v2/ledgers/${LEDGER}/bootstrap`).length).toBe(1);
 });
 
 test("keeps the draft on a rejected POST and does not add a local row", async ({ page }) => {

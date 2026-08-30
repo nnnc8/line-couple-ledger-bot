@@ -364,10 +364,12 @@ export function V2LedgerHome({
         setStatistics(null);
       }
       transactionSubmissionRef.current = null;
-      void refreshLedger().catch(() => {
-        setSaveFeedback({ tone: "warning", message: `${successMessage}；流水同步失敗，請重新整理`, retry: true });
-        toast.warning("已入帳，但流水同步失敗");
-      });
+      if (!hasCanonicalResult) {
+        void refreshLedger().catch(() => {
+          setSaveFeedback({ tone: "warning", message: `${successMessage}；流水同步失敗，請重新整理`, retry: true });
+          toast.warning("已入帳，但流水同步失敗");
+        });
+      }
       return true;
     } catch (reason) {
       const message = reason instanceof Error ? reason.message : "儲存失敗";
