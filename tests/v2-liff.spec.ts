@@ -15,6 +15,8 @@ test.beforeEach(async ({ page }) => {
   let postedBodies: Array<Record<string, unknown>> = [];
   let releasePost: (() => void) | null = null;
   let rows: Array<Record<string, unknown>> = [];
+  let balance = { [OWNER]: "0", [PARTNER]: "0" };
+  let nextPayer: Record<string, string> | null = null;
   let failRefresh = false;
   const requestPaths: string[] = [];
 
@@ -63,8 +65,8 @@ test.beforeEach(async ({ page }) => {
         defaultShares: { [OWNER]: "1", [PARTNER]: "1" },
       },
       transactions: rows,
-      balance: rows.length ? { [OWNER]: "-50", [PARTNER]: "50" } : { [OWNER]: "0", [PARTNER]: "0" },
-      nextPayer: rows.length ? { payerUserId: OWNER, payeeUserId: PARTNER, amountTwd: "50" } : null,
+      balance,
+      nextPayer,
     } });
   });
   await page.route(`**/api/app/v2/ledgers/${LEDGER}/categories`, (route) => route.fulfill({ json: { categories: [] } }));
@@ -97,6 +99,8 @@ test.beforeEach(async ({ page }) => {
         version: 1,
       };
       rows = [created];
+      balance = { [OWNER]: "-50", [PARTNER]: "50" };
+      nextPayer = { payerUserId: OWNER, payeeUserId: PARTNER, amountTwd: "50" };
       return route.fulfill({ status: 201, json: {
         transaction: created,
         balance: { [OWNER]: "-50", [PARTNER]: "50" },
@@ -114,16 +118,25 @@ test.beforeEach(async ({ page }) => {
     });
     return route.fulfill({ json: { transactions: filtered, nextCursor: null } });
   });
+  await page.route(`**/api/app/v2/transactions/${TRANSACTION}/mutate`, async (route) => {
+    const body = route.request().postDataJSON() as { action?: string };
+    if (body.action === "void") {
+      rows = rows.map((row) => row.id === TRANSACTION ? { ...row, status: "voided", version: 2 } : row);
+      balance = { [OWNER]: "0", [PARTNER]: "0" };
+      nextPayer = null;
+    }
+    return route.fulfill({ json: { ok: true } });
+  });
   await page.route("https://static.line-scdn.net/**", (route) => route.fulfill({ contentType: "application/javascript", body: "" }));
 
   await page.goto("/");
   await expect(page.getByRole("heading", { name: "Ledger", exact: true })).toBeVisible();
 
-  (page as typeof page & { __v2Controls?: unknown }).__v2Controls = { setPostMode: (mode: PostMode) => { postMode = mode; }, releasePost: () => releasePost?.(), getPostRequests: () => postRequests, getPostedBodies: () => postedBodies, setFailRefresh: (value: boolean) => { failRefresh = value; }, getRequestPaths: () => requestPaths };
+  (page as typeof page & { __v2Controls?: unknown }).__v2Controls = { setPostMode: (mode: PostMode) => { postMode = mode; }, releasePost: () => releasePost?.(), getPostRequests: () => postRequests, getPostedBodies: () => postedBodies, setFailRefresh: (value: boolean) => { failRefresh = value; }, setBalance: (owner: string, partner: string) => { balance = { [OWNER]: owner, [PARTNER]: partner }; nextPayer = Number(owner) === 0 ? null : { payerUserId: Number(owner) > 0 ? PARTNER : OWNER, payeeUserId: Number(owner) > 0 ? OWNER : PARTNER, amountTwd: String(Math.abs(Number(owner))) }; }, getRequestPaths: () => requestPaths };
 });
 
 function controls(page: Page) {
-  return (page as typeof page & { __v2Controls: { setPostMode: (mode: PostMode) => void; releasePost: () => void; getPostRequests: () => number; getPostedBodies: () => Array<Record<string, unknown>>; setFailRefresh: (value: boolean) => void; getRequestPaths: () => string[] } }).__v2Controls;
+  return (page as typeof page & { __v2Controls: { setPostMode: (mode: PostMode) => void; releasePost: () => void; getPostRequests: () => number; getPostedBodies: () => Array<Record<string, unknown>>; setFailRefresh: (value: boolean) => void; setBalance: (owner: string, partner: string) => void; getRequestPaths: () => string[] } }).__v2Controls;
 }
 
 test("uses the V2 startup request budget", async ({ page }) => {
@@ -158,11 +171,75 @@ test("shows server-confirmed saving and success feedback without waiting for his
   controls(page).releasePost();
   await expect(page.getByRole("status").filter({ hasText: "已入帳：午餐 NT$100" }).first()).toBeVisible();
   await expect(page.getByText("午餐", { exact: true }).last()).toBeVisible();
-  await expect(page.getByRole("heading", { name: "你欠另一半 NT$50" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "另一半目前多付" })).toBeVisible();
+  await expect(page.getByText("NT$50", { exact: true }).first()).toBeVisible();
+  await expect(page.getByText("下次建議由 你 付款", { exact: true })).toBeVisible();
   await expect(page.getByLabel("金額 TWD")).toHaveValue("");
   await expect(page.getByLabel("說明")).toHaveValue("");
   await expect(page.getByLabel("交易類型")).toHaveValue("expense");
   await expect(page.getByLabel("分攤方式")).toHaveValue("weights");
+  expect(controls(page).getPostedBodies()[0]).toMatchObject({ type: "expense", amountTwd: "100", occurredOn: "2026-08-28", splitMethod: "weights", payments: [{ userId: OWNER, amountTwd: "100" }] });
+});
+
+test("keeps uncommon transaction choices behind more settings", async ({ page }) => {
+  await expect(page.getByLabel("交易類型")).not.toBeVisible();
+  await expect(page.getByLabel("分攤方式")).not.toBeVisible();
+  await page.getByText("更多設定", { exact: true }).click();
+  await expect(page.getByLabel("交易類型")).toHaveValue("expense");
+  await page.getByLabel("付款人").first().selectOption("partner");
+  await expect(page.getByLabel("付款人").first()).toHaveValue("partner");
+  await page.getByLabel("付款人").first().selectOption("both");
+  await expect(page.getByLabel("你 金額").first()).toBeVisible();
+  await expect(page.getByLabel("另一半 金額").first()).toBeVisible();
+  await page.getByLabel("分攤方式").first().selectOption("percentage");
+  await expect(page.getByLabel("你 百分比").first()).toBeVisible();
+  await page.getByLabel("分攤方式").first().selectOption("exact");
+  await expect(page.getByLabel("你 分攤").first()).toBeVisible();
+  await page.getByLabel("交易類型").first().selectOption("income");
+  await expect(page.getByLabel("收款人").first()).toBeVisible();
+  await page.getByLabel("交易類型").first().selectOption("transfer");
+  await expect(page.getByLabel("發送人").first()).toBeVisible();
+  await expect(page.getByLabel("分攤方式").first()).not.toBeVisible();
+  await expect(page.getByText("轉帳會記錄發送人 → 接收人，不會出現支出分攤選項。")).toBeVisible();
+});
+
+test("uses continuous balance language for either payer and balanced state", async ({ page }) => {
+  controls(page).setBalance("50", "-50");
+  await page.getByLabel("重新載入 Ledger").click();
+  await expect(page.getByRole("heading", { name: "你目前多付" })).toBeVisible();
+  await expect(page.getByText("下次建議由 另一半 付款", { exact: true })).toBeVisible();
+  controls(page).setBalance("0", "0");
+  await page.getByLabel("重新載入 Ledger").click();
+  await expect(page.getByRole("heading", { name: "目前很平衡" })).toBeVisible();
+  await expect(page.getByText(/欠|全部結清|轉帳／結清/)).toHaveCount(0);
+});
+
+test("keeps the daily UI usable on a narrow mobile viewport", async ({ page }) => {
+  await expect(page.getByRole("button", { name: "儲存交易" })).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  await page.screenshot({ path: "output/playwright/v2-visual/quick-entry.png", fullPage: true });
+  await page.getByText("更多設定", { exact: true }).click();
+  await page.screenshot({ path: "output/playwright/v2-visual/advanced-entry.png", fullPage: true });
+  await page.getByLabel("交易類型").first().selectOption("transfer");
+  await expect(page.getByText("轉帳會記錄發送人 → 接收人，不會出現支出分攤選項。")).toBeVisible();
+  await page.screenshot({ path: "output/playwright/v2-visual/transfer.png", fullPage: true });
+  await page.getByLabel("交易類型").first().selectOption("expense");
+  await page.getByText("更多設定", { exact: true }).click();
+  await page.getByRole("tab", { name: "統計" }).click();
+  await page.screenshot({ path: "output/playwright/v2-visual/statistics.png", fullPage: true });
+  await page.getByRole("tab", { name: "設定" }).click();
+  await page.screenshot({ path: "output/playwright/v2-visual/settings.png", fullPage: true });
+});
+
+test("keeps voided transactions distinct in the mobile history", async ({ page }) => {
+  await page.getByLabel("金額 TWD").fill("100");
+  await page.getByLabel("說明").fill("午餐");
+  await page.getByRole("button", { name: "儲存交易" }).click();
+  await expect(page.getByText("午餐", { exact: true }).last()).toBeVisible();
+  await page.getByText("午餐", { exact: true }).last().click();
+  await page.getByRole("button", { name: "作廢" }).click();
+  await expect(page.getByText("午餐（已作廢）", { exact: true })).toBeVisible();
+  await page.screenshot({ path: "output/playwright/v2-visual/voided-transaction.png", fullPage: true });
 });
 
 test("keeps the committed success when background refresh fails", async ({ page }) => {

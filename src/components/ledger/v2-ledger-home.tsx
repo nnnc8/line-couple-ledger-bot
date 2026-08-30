@@ -10,7 +10,7 @@ import { Select } from "@/components/ui/select";
 import { V2LedgerSwitcher } from "./v2-ledger-switcher";
 import { V2TransactionEditor, type TransactionEditorValue } from "./v2-transaction-editor";
 import { api } from "@/lib/api";
-import { money, moneyAbs } from "@/lib/format";
+import { money } from "@/lib/format";
 import { toast } from "sonner";
 import type { User, V2Attachment, V2Category, V2CreateTransactionResult, V2LedgerBootstrap, V2LedgerSummary, V2LedgerTransaction, V2RecurringRule } from "@/lib/types";
 import type { V2SecondaryTab } from "@/lib/v2-navigation";
@@ -299,7 +299,11 @@ export function V2LedgerHome({
   const selfBalance = Number(bootstrap.balance[user.id] ?? "0");
   const nextPayer = bootstrap.nextPayer;
   const nextPayerUser = nextPayer ? users.find((candidate) => candidate.id === nextPayer.payerUserId) : null;
-  const nextPayerPayee = nextPayer ? users.find((candidate) => candidate.id === nextPayer.payeeUserId) : null;
+  const balanceHeadline = selfBalance === 0
+    ? "目前很平衡"
+    : selfBalance > 0
+      ? "你目前多付"
+      : "另一半目前多付";
   async function retryTransactionRefresh() {
     if (retryingRefresh || !lastSavedMessage) return;
     setRetryingRefresh(true);
@@ -541,12 +545,10 @@ export function V2LedgerHome({
 
       <Card className="overflow-hidden p-5 text-white" style={{ background: `linear-gradient(140deg, ${bootstrap.ledger.color}, #0c2240)` }}>
         <p className="text-[13px] font-semibold text-white/75">{bootstrap.ledger.name}</p>
-        <h2 className="mt-1 text-[28px] font-extrabold tracking-tight">
-          {selfBalance === 0 ? "目前已結清" : selfBalance > 0 ? `另一半欠你 ${moneyAbs(selfBalance)}` : `你欠另一半 ${moneyAbs(selfBalance)}`}
-        </h2>
-        <p className="mt-1 text-[13px] text-white/70">餘額由 Ledger server 計算，未把其他 Ledger 抵銷。</p>
+        <h2 className="mt-1 text-xl font-extrabold tracking-tight">{balanceHeadline}</h2>
+        {selfBalance !== 0 ? <p className="mt-0.5 text-[28px] font-extrabold tracking-tight">{money(Math.abs(selfBalance))}</p> : null}
         {nextPayer ? <>
-          <p className="mt-3 text-xs text-white/75">建議由 {nextPayerUser?.label ?? "欠款方"} 付款給 {nextPayerPayee?.label ?? "收款方"} {money(Number(nextPayer.amountTwd))}；這只會結清本 Ledger。</p>
+          <p className="mt-3 text-sm text-white/75">下次建議由 {nextPayerUser?.label ?? "另一半"} 付款</p>
         </> : null}
       </Card>
 
@@ -575,11 +577,12 @@ export function V2LedgerHome({
 
       {secondaryTab === "stats" ? <Card className="p-4">
         <h2 className="mb-2 font-bold">Ledger 統計</h2>
-        {statistics ? <div className="space-y-4 text-sm"><div className="grid grid-cols-2 gap-2"><p>支出 <strong>{money(Number(statistics.byType.expense ?? "0"))}</strong></p><p>收入 <strong>{money(Number(statistics.byType.income ?? "0"))}</strong></p><p>你支付 <strong>{money(Number(statistics.paidBy[user.id] ?? "0"))}</strong></p><p>你分攤 <strong>{money(Number(statistics.borneBy[user.id] ?? "0"))}</strong></p></div><div><p className="mb-1 text-xs font-semibold text-[var(--muted-foreground)]">按分類</p><div className="space-y-1">{Object.entries(statistics.byCategory).length ? Object.entries(statistics.byCategory).map(([name, amount]) => <div key={name} className="flex justify-between gap-3"><span>{name}</span><strong>{money(Number(amount))}</strong></div>) : <p className="text-xs text-[var(--muted-foreground)]">尚無分類統計</p>}</div></div></div> : <p className="text-sm text-[var(--muted-foreground)]">統計載入中…</p>}
+        {statistics ? <div className="space-y-4 text-sm"><div className="grid grid-cols-2 gap-2"><p>本期支出 <strong>{money(Number(statistics.byType.expense ?? "0"))}</strong></p><p>收入／退款 <strong>{money(Number(statistics.byType.income ?? "0"))}</strong></p><p>{user.label} 支付 <strong>{money(Number(statistics.paidBy[user.id] ?? "0"))}</strong></p><p>{partner.label} 支付 <strong>{money(Number(statistics.paidBy[partner.id] ?? "0"))}</strong></p><p>{user.label} 負擔 <strong>{money(Number(statistics.borneBy[user.id] ?? "0"))}</strong></p><p>{partner.label} 負擔 <strong>{money(Number(statistics.borneBy[partner.id] ?? "0"))}</strong></p></div><div><p className="mb-1 text-xs font-semibold text-[var(--muted-foreground)]">分類排行</p><div className="space-y-1">{Object.entries(statistics.byCategory).length ? Object.entries(statistics.byCategory).map(([name, amount]) => <div key={name} className="flex justify-between gap-3"><span>{name}</span><strong>{money(Number(amount))}</strong></div>) : <p className="text-xs text-[var(--muted-foreground)]">尚無分類統計</p>}</div></div></div> : <p className="text-sm text-[var(--muted-foreground)]">統計載入中…</p>}
       </Card> : null}
 
       {secondaryTab === "settings" ? <Card className="p-4">
-        <h2 className="mb-1 font-bold">這本 Ledger 的預設分攤</h2>
+        <h2 className="mb-4 font-bold">Ledger 設定</h2>
+        <h3 className="mb-1 font-semibold">預設分攤</h3>
         <p className="mb-3 text-xs text-[var(--muted-foreground)]">新 Ledger 預設 50/50；這裡只設定本 Ledger，不會影響其他 Ledger。</p>
         <form className="space-y-2" onSubmit={(event) => void saveDefaultShares(event)}>
           <div className="grid grid-cols-2 gap-2">
@@ -605,6 +608,10 @@ export function V2LedgerHome({
           </div>
           {categoryMessage ? <p className="mt-2 text-xs text-[var(--muted-foreground)]">{categoryMessage}</p> : null}
         </div>
+        <div className="mt-5 border-t border-[var(--border)] pt-4">
+          <h3 className="mb-2 font-bold">匯出</h3>
+          <Button variant="outline" size="sm" onClick={() => void exportHistory()} disabled={exporting}><Download className="size-3.5" />{exporting ? "匯出中…" : "匯出 CSV"}</Button>
+        </div>
       </Card> : null}
 
       {secondaryTab === "settings" ? <Card className="p-4">
@@ -627,7 +634,7 @@ export function V2LedgerHome({
       </Card> : null}
 
       {secondaryTab === "history" ? <Card className="p-4">
-        <div className="mb-2 flex items-center justify-between gap-2"><h2 className="font-bold">Ledger 流水</h2><div className="flex items-center gap-2"><span className="text-xs text-[var(--muted-foreground)]">已載入 {historyRows.length} 筆</span><Button variant="ghost" size="sm" onClick={() => void exportHistory()} disabled={exporting}><Download className="size-3.5" />{exporting ? "匯出中" : "CSV"}</Button></div></div>
+        <div className="mb-2 flex items-center justify-between gap-2"><h2 className="font-bold">Ledger 流水</h2><span className="text-xs text-[var(--muted-foreground)]">已載入 {historyRows.length} 筆</span></div>
         <div className="mb-3 grid grid-cols-2 gap-2">
           <Input value={historyQuery} onChange={(event) => setHistoryQuery(event.target.value)} placeholder="搜尋說明／分類／備註" aria-label="搜尋 Ledger 流水" />
           <Select ariaLabel="流水類型" value={historyType} onValueChange={(value) => setHistoryType(value as typeof historyType)} options={[{ value: "all", label: "全部類型" }, { value: "expense", label: "支出" }, { value: "income", label: "收入" }, { value: "transfer", label: "轉帳" }]} />
@@ -661,7 +668,7 @@ function TransactionRow({ transaction, users, currentUser, today, defaultShares,
   const payments = transaction.payments.map((payment) => `${users.find((user) => user.id === payment.userId)?.label ?? "成員"} ${money(Number(payment.amountTwd))}`).join("、");
   const shares = transaction.shares.map((share) => `${users.find((user) => user.id === share.userId)?.label ?? "成員"} ${money(Number(share.amountTwd))}`).join("、");
   const categoryLabel = transaction.category ?? categoryOptions.find((category) => category.id === transaction.categoryId)?.name;
-  const typeLabel = transaction.type === "income" ? "收入" : transaction.type === "transfer" ? "轉帳" : "支出";
+  const typeLabel = transaction.type === "income" ? "收入／退款" : transaction.type === "transfer" ? "轉帳" : "支出";
   const loadAttachments = React.useCallback(async () => {
     try {
       const result = await fetch(`/api/app/v2/transactions/${transaction.id}/attachments`, { cache: "no-store", credentials: "same-origin" });
