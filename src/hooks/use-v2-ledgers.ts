@@ -60,17 +60,10 @@ export function useV2Ledgers(enabled = true) {
 
   useEffect(() => {
     if (!enabled) return;
-    const timer = window.setTimeout(() => {
-      void loadLedgers().catch((reason) => setError(reason instanceof Error ? reason.message : "無法讀取帳本"));
-    }, 0);
-    return () => window.clearTimeout(timer);
-  }, [enabled, loadLedgers]);
-
-  useEffect(() => {
-    if (!enabled) return;
     if (!activeLedgerId) {
       return;
     }
+    setBootstrap(null);
     const timer = window.setTimeout(() => {
       void loadBootstrap(activeLedgerId).catch((reason) => setError(reason instanceof Error ? reason.message : "無法讀取 Ledger"));
     }, 0);

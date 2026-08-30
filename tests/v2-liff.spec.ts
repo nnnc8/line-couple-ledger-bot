@@ -4,6 +4,7 @@ const OWNER = "00000000-0000-4000-8000-000000000001";
 const PARTNER = "00000000-0000-4000-8000-000000000002";
 const LEDGER = "00000000-0000-4000-8000-000000000010";
 const TRANSACTION = "00000000-0000-4000-8000-000000000011";
+const SECOND_LEDGER = "00000000-0000-4000-8000-000000000012";
 
 type PostMode = "success" | "failure" | "fail-once" | "delay";
 
@@ -15,6 +16,12 @@ test.beforeEach(async ({ page }) => {
   let releasePost: (() => void) | null = null;
   let rows: Array<Record<string, unknown>> = [];
   let failRefresh = false;
+  const requestPaths: string[] = [];
+
+  page.on("request", (request) => {
+    const url = new URL(request.url());
+    if (url.pathname.startsWith("/api/")) requestPaths.push(`${request.method()} ${url.pathname}${url.search}`);
+  });
 
   await page.addInitScript(() => {
     window.liff = {
@@ -112,12 +119,30 @@ test.beforeEach(async ({ page }) => {
   await page.goto("/");
   await expect(page.getByRole("heading", { name: "Ledger", exact: true })).toBeVisible();
 
-  (page as typeof page & { __v2Controls?: unknown }).__v2Controls = { setPostMode: (mode: PostMode) => { postMode = mode; }, releasePost: () => releasePost?.(), getPostRequests: () => postRequests, getPostedBodies: () => postedBodies, setFailRefresh: (value: boolean) => { failRefresh = value; } };
+  (page as typeof page & { __v2Controls?: unknown }).__v2Controls = { setPostMode: (mode: PostMode) => { postMode = mode; }, releasePost: () => releasePost?.(), getPostRequests: () => postRequests, getPostedBodies: () => postedBodies, setFailRefresh: (value: boolean) => { failRefresh = value; }, getRequestPaths: () => requestPaths };
 });
 
 function controls(page: Page) {
-  return (page as typeof page & { __v2Controls: { setPostMode: (mode: PostMode) => void; releasePost: () => void; getPostRequests: () => number; getPostedBodies: () => Array<Record<string, unknown>>; setFailRefresh: (value: boolean) => void } }).__v2Controls;
+  return (page as typeof page & { __v2Controls: { setPostMode: (mode: PostMode) => void; releasePost: () => void; getPostRequests: () => number; getPostedBodies: () => Array<Record<string, unknown>>; setFailRefresh: (value: boolean) => void; getRequestPaths: () => string[] } }).__v2Controls;
 }
+
+test("uses the V2 startup request budget", async ({ page }) => {
+  await expect.poll(() => controls(page).getRequestPaths().filter((path) => path.includes("/categories")).length).toBe(1);
+  const requests = controls(page).getRequestPaths();
+  expect(requests.filter((path) => path === "POST /api/app/session")).toHaveLength(1);
+  expect(requests.filter((path) => path === "GET /api/app/v2/context")).toHaveLength(1);
+  expect(requests.filter((path) => path === "GET /api/app/v2/ledgers")).toHaveLength(1);
+  expect(requests.filter((path) => path === `GET /api/app/v2/ledgers/${LEDGER}/bootstrap`)).toHaveLength(1);
+  expect(requests.some((path) => path.includes("/api/app/bootstrap"))).toBe(false);
+  expect(requests.some((path) => path.includes("/statistics") || path.includes("/recurring") || path.includes("/transactions?"))).toBe(false);
+});
+
+test("loads statistics and recurring rules only when their secondary UI is opened", async ({ page }) => {
+  await page.getByRole("tab", { name: "統計" }).click();
+  await expect.poll(() => controls(page).getRequestPaths().filter((path) => path.includes("/statistics")).length).toBe(1);
+  await page.getByRole("tab", { name: "設定" }).click();
+  await expect.poll(() => controls(page).getRequestPaths().filter((path) => path.includes("/recurring")).length).toBe(1);
+});
 
 test("shows server-confirmed saving and success feedback without waiting for history reload", async ({ page }) => {
   controls(page).setPostMode("delay");

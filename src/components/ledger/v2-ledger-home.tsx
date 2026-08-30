@@ -112,6 +112,7 @@ export function V2LedgerHome({
   const [historyRows, setHistoryRows] = React.useState<V2LedgerBootstrap["transactions"]>([]);
   const [historyCursor, setHistoryCursor] = React.useState<string | null>(null);
   const [historyLoadingMore, setHistoryLoadingMore] = React.useState(false);
+  const historyAbortRef = React.useRef<AbortController | null>(null);
   const proposalId = proposalIdFromUrl;
   const [proposalStatus, setProposalStatus] = React.useState<string | null>(null);
   const [defaultWeights, setDefaultWeights] = React.useState<[string, string]>(["1", "1"]);
@@ -119,6 +120,18 @@ export function V2LedgerHome({
   const [savingDefaults, setSavingDefaults] = React.useState(false);
   const [exporting, setExporting] = React.useState(false);
   const [secondaryTab, setSecondaryTab] = React.useState<V2SecondaryTab>(initialSecondaryTab);
+
+  const refreshLedger = React.useCallback(async () => {
+    setStatistics(null);
+    return reload();
+  }, [reload]);
+
+  React.useEffect(() => {
+    setStatistics(null);
+    setRecurring([]);
+    setCategories([]);
+    setCategoryDrafts({});
+  }, [activeLedgerId]);
 
   React.useEffect(() => {
     setSecondaryTab(initialSecondaryTab);
@@ -137,12 +150,6 @@ export function V2LedgerHome({
     if (!result.ok) throw new Error(body.error ?? "無法讀取週期規則");
     setRecurring(body.recurring ?? []);
   }, [activeLedgerId]);
-
-  React.useEffect(() => {
-    if (!bootstrap) return;
-    const timer = window.setTimeout(() => { void loadRecurring().catch(() => undefined); }, 0);
-    return () => window.clearTimeout(timer);
-  }, [bootstrap, loadRecurring]);
 
   const loadCategories = React.useCallback(async () => {
     if (!activeLedgerId) return;
@@ -167,12 +174,6 @@ export function V2LedgerHome({
     setStatistics(body);
   }, [activeLedgerId]);
 
-  React.useEffect(() => {
-    if (!bootstrap) return;
-    const timer = window.setTimeout(() => { void loadStatistics().catch(() => undefined); }, 0);
-    return () => window.clearTimeout(timer);
-  }, [bootstrap, loadStatistics]);
-
   const loadHistory = React.useCallback(async (cursor: string | null = null, append = false) => {
     if (!activeLedgerId) return;
     const params = new URLSearchParams();
@@ -185,7 +186,10 @@ export function V2LedgerHome({
     if (cursor) params.set("cursor", cursor);
     params.set("limit", "50");
     if (append) setHistoryLoadingMore(true);
-    const response = await fetch(`/api/app/v2/ledgers/${activeLedgerId}/transactions?${params.toString()}`, { cache: "no-store", credentials: "same-origin" });
+    historyAbortRef.current?.abort();
+    const controller = new AbortController();
+    historyAbortRef.current = controller;
+    const response = await fetch(`/api/app/v2/ledgers/${activeLedgerId}/transactions?${params.toString()}`, { cache: "no-store", credentials: "same-origin", signal: controller.signal });
     try {
       const body = await response.json() as { transactions?: V2LedgerBootstrap["transactions"]; nextCursor?: string | null; error?: string };
       if (!response.ok) throw new Error(body.error ?? "無法讀取流水");
@@ -198,9 +202,31 @@ export function V2LedgerHome({
 
   React.useEffect(() => {
     if (!bootstrap) return;
-    const timer = window.setTimeout(() => { void loadHistory().catch(() => undefined); }, 0);
+    setHistoryRows(bootstrap.transactions);
+    setHistoryCursor(null);
+  }, [bootstrap]);
+
+  React.useEffect(() => {
+    if (!bootstrap) return;
+    const hasFilters = historyType !== "all" || historyPayer !== "all" || historyCategoryId !== "all" || Boolean(historyQuery.trim()) || Boolean(historyFrom) || Boolean(historyTo);
+    if (!hasFilters) return;
+    const timer = window.setTimeout(() => {
+      void loadHistory().catch((reason) => {
+        if ((reason as { name?: string }).name !== "AbortError") setFormError(reason instanceof Error ? reason.message : "無法讀取流水");
+      });
+    }, historyQuery.trim() ? 300 : 0);
     return () => window.clearTimeout(timer);
-  }, [bootstrap, loadHistory]);
+  }, [bootstrap, historyCategoryId, historyFrom, historyPayer, historyQuery, historyTo, historyType, loadHistory]);
+
+  React.useEffect(() => {
+    if (!bootstrap || secondaryTab !== "stats" || statistics) return;
+    void loadStatistics().catch((reason) => setFormError(reason instanceof Error ? reason.message : "無法讀取統計"));
+  }, [bootstrap, loadStatistics, secondaryTab, statistics]);
+
+  React.useEffect(() => {
+    if (!bootstrap || secondaryTab !== "settings" || recurring.length) return;
+    void loadRecurring().catch((reason) => setFormError(reason instanceof Error ? reason.message : "無法讀取週期規則"));
+  }, [bootstrap, loadRecurring, recurring.length, secondaryTab]);
 
   async function loadMoreHistory() {
     if (!historyCursor || historyLoadingMore) return;
@@ -238,7 +264,7 @@ export function V2LedgerHome({
     setSaving(true);
     try {
       await api(`/api/app/v2/proposals/${proposalId}/confirm`, {});
-      await reload();
+      await refreshLedger();
       setProposalStatus("confirmed");
     } catch (reason) {
       setFormError(reason instanceof Error ? reason.message : "proposal 確認失敗");
@@ -278,7 +304,7 @@ export function V2LedgerHome({
     if (retryingRefresh || !lastSavedMessage) return;
     setRetryingRefresh(true);
     try {
-      await reload();
+      await refreshLedger();
       setSaveFeedback({ tone: "success", message: lastSavedMessage, retry: false });
     } catch {
       setSaveFeedback({ tone: "warning", message: `${lastSavedMessage}；流水同步仍失敗，請稍後重試`, retry: true });
@@ -331,9 +357,10 @@ export function V2LedgerHome({
           return [committed.transaction, ...current.filter((row) => row.id !== committed.transaction.id)].sort(historyRowSort);
         });
         applyCommittedTransaction(committed);
+        setStatistics(null);
       }
       transactionSubmissionRef.current = null;
-      void reload().catch(() => {
+      void refreshLedger().catch(() => {
         setSaveFeedback({ tone: "warning", message: `${successMessage}；流水同步失敗，請重新整理`, retry: true });
         toast.warning("已入帳，但流水同步失敗");
       });
@@ -343,19 +370,6 @@ export function V2LedgerHome({
       setFormError(message);
       toast.error(message);
       return false;
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  async function settleAll() {
-    if (!activeLedgerId || !nextPayer) return;
-    setSaving(true);
-    try {
-      await api(`/api/app/v2/ledgers/${activeLedgerId}/settle-all`, {});
-      await reload();
-    } catch (reason) {
-      setFormError(reason instanceof Error ? reason.message : "結清失敗");
     } finally {
       setSaving(false);
     }
@@ -446,7 +460,7 @@ export function V2LedgerHome({
         ],
       });
       setDefaultShareMessage("已更新；之後未指定分攤的交易會套用這個 Ledger 設定。");
-      await reload();
+      await refreshLedger();
     } catch (reason) {
       setDefaultShareMessage(reason instanceof Error ? reason.message : "預設分攤更新失敗");
     } finally {
@@ -520,7 +534,7 @@ export function V2LedgerHome({
     <div className="space-y-3 pt-1">
       <div className="flex items-center justify-between gap-2">
         <V2LedgerSwitcher ledgers={ledgers} activeLedgerId={activeLedgerId} onChange={setActiveLedgerId} onCreate={() => setShowCreate(true)} />
-        <Button variant="ghost" size="icon-sm" aria-label="重新載入 Ledger" onClick={() => void reload()}><RefreshCw className="size-4" /></Button>
+        <Button variant="ghost" size="icon-sm" aria-label="重新載入 Ledger" onClick={() => void refreshLedger()}><RefreshCw className="size-4" /></Button>
       </div>
       {proposalId && proposalStatus ? <Card className="border-accent/30 bg-accent-soft p-4"><p className="font-semibold">LINE 待確認草稿</p><p className="mt-1 text-sm text-[var(--muted-foreground)]">狀態：{proposalStatus === "proposed" ? "待確認" : proposalStatus === "confirmed" ? "已入帳" : proposalStatus === "cancelled" ? "已取消" : proposalStatus}</p>{proposalStatus === "proposed" ? <div className="mt-3 flex gap-2"><Button variant="primary" size="sm" onClick={() => void confirmProposal()} disabled={saving}>確認入帳</Button><Button variant="ghost" size="sm" onClick={() => void cancelProposal()} disabled={saving}>取消</Button></div> : null}</Card> : null}
       {showCreate ? <CreateLedgerCard name={newLedgerName} onName={setNewLedgerName} onCancel={() => setShowCreate(false)} onSave={async () => { if (!newLedgerName.trim()) return; await createLedger(newLedgerName.trim()); setNewLedgerName(""); setShowCreate(false); }} /> : null}
@@ -533,11 +547,10 @@ export function V2LedgerHome({
         <p className="mt-1 text-[13px] text-white/70">餘額由 Ledger server 計算，未把其他 Ledger 抵銷。</p>
         {nextPayer ? <>
           <p className="mt-3 text-xs text-white/75">建議由 {nextPayerUser?.label ?? "欠款方"} 付款給 {nextPayerPayee?.label ?? "收款方"} {money(Number(nextPayer.amountTwd))}；這只會結清本 Ledger。</p>
-          <Button variant="secondary" size="block" className="mt-3 h-11 bg-white text-primary" onClick={() => void settleAll()} disabled={saving}><CheckCircle2 className="size-4" /> 全部結清</Button>
         </> : null}
       </Card>
 
-      <div className="grid grid-cols-4 gap-1 rounded-xl bg-[var(--muted)] p-1" role="tablist" aria-label="Ledger 次要功能"><button className={`rounded-lg px-2 py-2 text-xs font-semibold ${secondaryTab === "history" ? "bg-[var(--card)] shadow-sm" : ""}`} onClick={() => setSecondaryTab("history")} role="tab" aria-selected={secondaryTab === "history"}>流水</button><button className={`rounded-lg px-2 py-2 text-xs font-semibold ${secondaryTab === "stats" ? "bg-[var(--card)] shadow-sm" : ""}`} onClick={() => setSecondaryTab("stats")} role="tab" aria-selected={secondaryTab === "stats"}>統計</button><button className={`rounded-lg px-2 py-2 text-xs font-semibold ${secondaryTab === "recurring" ? "bg-[var(--card)] shadow-sm" : ""}`} onClick={() => setSecondaryTab("recurring")} role="tab" aria-selected={secondaryTab === "recurring"}>週期</button><button className={`rounded-lg px-2 py-2 text-xs font-semibold ${secondaryTab === "settings" ? "bg-[var(--card)] shadow-sm" : ""}`} onClick={() => setSecondaryTab("settings")} role="tab" aria-selected={secondaryTab === "settings"}>設定</button></div>
+      <div className="grid grid-cols-3 gap-1 rounded-xl bg-[var(--muted)] p-1" role="tablist" aria-label="Ledger 次要功能"><button className={`rounded-lg px-2 py-2 text-xs font-semibold ${secondaryTab === "history" ? "bg-[var(--card)] shadow-sm" : ""}`} onClick={() => setSecondaryTab("history")} role="tab" aria-selected={secondaryTab === "history"}>流水</button><button className={`rounded-lg px-2 py-2 text-xs font-semibold ${secondaryTab === "stats" ? "bg-[var(--card)] shadow-sm" : ""}`} onClick={() => setSecondaryTab("stats")} role="tab" aria-selected={secondaryTab === "stats"}>統計</button><button className={`rounded-lg px-2 py-2 text-xs font-semibold ${secondaryTab === "settings" ? "bg-[var(--card)] shadow-sm" : ""}`} onClick={() => setSecondaryTab("settings")} role="tab" aria-selected={secondaryTab === "settings"}>設定</button></div>
 
       <Card className="p-4">
         <div className="mb-3 flex items-center gap-2"><Plus className="size-4 text-accent" /><h2 className="font-bold">快速記一筆</h2></div>
@@ -594,7 +607,7 @@ export function V2LedgerHome({
         </div>
       </Card> : null}
 
-      {secondaryTab === "recurring" ? <Card className="p-4">
+      {secondaryTab === "settings" ? <Card className="p-4">
         <div className="mb-2 flex items-center justify-between gap-2">
           <div className="flex items-center gap-2"><CalendarClock className="size-4 text-accent" /><h2 className="font-bold">週期交易</h2></div>
           <Button variant="ghost" size="sm" onClick={() => setShowRecurring((current) => !current)}>{showRecurring ? "收起" : "新增"}</Button>
@@ -624,7 +637,7 @@ export function V2LedgerHome({
           <Input type="date" value={historyTo} onChange={(event) => setHistoryTo(event.target.value)} aria-label="流水結束日期" />
         </div>
         <div className="divide-y divide-[var(--border)]">
-          {historyRows.map((transaction) => <TransactionRow key={`${transaction.id}:${transaction.version ?? 1}`} transaction={transaction} users={users} currentUser={user} today={today} defaultShares={bootstrap.ledger.defaultShares} categoryOptions={categories.filter((category) => category.status === "active").map((category) => ({ id: category.id, name: category.name }))} highlighted={transaction.id === highlightedTransactionId} initialOpen={transaction.id === transactionIdFromUrl} onChanged={async () => { await reload(); await loadHistory(); }} />)}
+          {historyRows.map((transaction) => <TransactionRow key={`${transaction.id}:${transaction.version ?? 1}`} transaction={transaction} users={users} currentUser={user} today={today} defaultShares={bootstrap.ledger.defaultShares} categoryOptions={categories.filter((category) => category.status === "active").map((category) => ({ id: category.id, name: category.name }))} highlighted={transaction.id === highlightedTransactionId} initialOpen={transaction.id === transactionIdFromUrl} onChanged={async () => { await refreshLedger(); await loadHistory(); }} />)}
           {!historyRows.length ? <p className="py-8 text-center text-sm text-[var(--muted-foreground)]">尚無符合條件的流水</p> : null}
         </div>
         {historyCursor ? <Button variant="outline" size="block" className="mt-3" onClick={() => void loadMoreHistory()} disabled={historyLoadingMore}>{historyLoadingMore ? "載入中…" : "載入更早交易"}</Button> : null}
