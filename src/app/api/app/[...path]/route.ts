@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 
-import { NextResponse } from "next/server";
+import { after, NextResponse } from "next/server";
 import { z } from "zod";
 
 import { HttpError } from "@/lib/http-error";
@@ -51,6 +51,7 @@ import {
   updateV2LedgerCategory,
 } from "@/lib/v2-ledger-service";
 import { completeV2AttachmentUpload, createV2AttachmentUpload, deleteV2Attachment, listV2TransactionAttachments } from "@/lib/v2-attachment-service";
+import { scheduleV2NotificationOutboxDrain } from "@/lib/v2-notification-drain";
 import {
   isV2IncidentBootstrapOnly,
   isV2IncidentBootstrapDelete,
@@ -268,17 +269,18 @@ export async function POST(request: Request, route: RouteContext) {
       return json(await createV2Ledger(context.user.couple_id, context.user.id, { ...(body as Record<string, unknown>), ...(key ? { idempotencyKey: key } : {}) }), {}, 201);
     }
     if (path[0] === "v2" && path[1] === "ledgers" && path[2] && path[3] === "transactions") {
-      return json(
-        await createV2Transaction(
-          context.user.couple_id,
-          context.user.id,
-          path[2],
-          body,
-          request.headers.get("idempotency-key"),
-        ),
-        {},
-        201,
+      const result = await createV2Transaction(
+        context.user.couple_id,
+        context.user.id,
+        path[2],
+        body,
+        request.headers.get("idempotency-key"),
       );
+      scheduleV2NotificationOutboxDrain(after, {
+        db: context.db,
+        lineChannelAccessToken: context.env.LINE_CHANNEL_ACCESS_TOKEN,
+      });
+      return json(result, {}, 201);
     }
     if (path[0] === "v2" && path[1] === "ledgers" && path[2] && path[3] === "settle-all") {
       return json(

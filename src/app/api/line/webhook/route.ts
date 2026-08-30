@@ -7,6 +7,7 @@ import { z } from "zod";
 import { handleLineEvent } from "@/lib/line-webhook-service";
 import { withTx } from "@/lib/db/tx";
 import { dispatchV2LineInbox } from "@/lib/v2-line-inbox-dispatch";
+import { dispatchV2NotificationOutbox } from "@/lib/v2-outbox-dispatch";
 import { isV2IncidentBootstrapOnly, V2_FINANCIAL_MAINTENANCE_MESSAGE } from "@/lib/v2-incident-freeze";
 
 export const runtime = "nodejs";
@@ -97,6 +98,14 @@ export async function POST(request: Request): Promise<Response> {
         await dispatchV2LineInbox(dependencies);
       } catch (error) {
         console.error("V2 LINE inbox dispatch failed", { error: error instanceof Error ? error.name : "unknown" });
+      }
+      try {
+        await dispatchV2NotificationOutbox({
+          db: dependencies.supabase,
+          lineChannelAccessToken: environment.data.LINE_CHANNEL_ACCESS_TOKEN,
+        });
+      } catch (error) {
+        console.error("V2 notification outbox drain failed", { error: error instanceof Error ? error.name : "unknown" });
       }
     });
     return NextResponse.json({ ok: true });

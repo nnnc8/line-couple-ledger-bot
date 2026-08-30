@@ -10,6 +10,27 @@ export interface IncidentWriterState {
   updatedAt: string;
 }
 
+interface QueueHealth {
+  notificationOutbox: {
+    pending: number;
+    due: number;
+    leased: number;
+    sent: number;
+    failed: number;
+    deadLetter: number;
+    oldestActionableSeconds: number | null;
+  };
+  lineInbox: {
+    received: number;
+    processed: number;
+    ignored: number;
+    failed: number;
+    processing: number;
+    deadLetter: number;
+    oldestActionableSeconds: number | null;
+  };
+}
+
 function usage(): never {
   throw new Error(
     "用法：pnpm incident:v2:status | pnpm incident:v2:freeze -- --apply | pnpm incident:v2:unfreeze -- --apply",
@@ -81,7 +102,46 @@ async function readState(pool: Pool, id: number, lock = false): Promise<Incident
   };
 }
 
-function printResult(action: Action, prior: IncidentWriterState | null, result: IncidentWriterState) {
+async function readQueueHealth(pool: Pool): Promise<QueueHealth> {
+  const [outbox, inbox] = await Promise.all([
+    pool.query<{ pending: string; due: string; leased: string; sent: string; failed: string; dead_letter: string; oldest_actionable_seconds: string | null }>(
+      `select
+         count(*) filter (where status = 'pending')::text as pending,
+         count(*) filter (where status in ('pending', 'failed') and next_attempt_at <= now() and (lease_until is null or lease_until < now()))::text as due,
+         count(*) filter (where status = 'sending' and lease_until >= now())::text as leased,
+         count(*) filter (where status = 'sent')::text as sent,
+         count(*) filter (where status = 'failed')::text as failed,
+         count(*) filter (where status = 'dead_letter')::text as dead_letter,
+         extract(epoch from now() - min(created_at) filter (where status in ('pending', 'failed') and next_attempt_at <= now() and (lease_until is null or lease_until < now())))::text as oldest_actionable_seconds
+       from ledger_v2.notification_outbox`,
+    ),
+    pool.query<{ received: string; processed: string; ignored: string; failed: string; processing: string; dead_letter: string; oldest_actionable_seconds: string | null }>(
+      `select
+         count(*) filter (where status = 'received')::text as received,
+         count(*) filter (where status = 'processed')::text as processed,
+         count(*) filter (where status = 'ignored')::text as ignored,
+         count(*) filter (where status = 'failed')::text as failed,
+         count(*) filter (where status = 'processing')::text as processing,
+         count(*) filter (where status = 'dead_letter')::text as dead_letter,
+         extract(epoch from now() - min(received_at) filter (where status in ('received', 'failed') and next_attempt_at <= now() and (lease_until is null or lease_until < now())))::text as oldest_actionable_seconds
+       from ledger_v2.line_inbox`,
+    ),
+  ]);
+  const outboxRow = outbox.rows[0]!;
+  const inboxRow = inbox.rows[0]!;
+  return {
+    notificationOutbox: {
+      pending: Number(outboxRow.pending), due: Number(outboxRow.due), leased: Number(outboxRow.leased), sent: Number(outboxRow.sent), failed: Number(outboxRow.failed), deadLetter: Number(outboxRow.dead_letter),
+      oldestActionableSeconds: outboxRow.oldest_actionable_seconds === null ? null : Number(outboxRow.oldest_actionable_seconds),
+    },
+    lineInbox: {
+      received: Number(inboxRow.received), processed: Number(inboxRow.processed), ignored: Number(inboxRow.ignored), failed: Number(inboxRow.failed), processing: Number(inboxRow.processing), deadLetter: Number(inboxRow.dead_letter),
+      oldestActionableSeconds: inboxRow.oldest_actionable_seconds === null ? null : Number(inboxRow.oldest_actionable_seconds),
+    },
+  };
+}
+
+function printResult(action: Action, prior: IncidentWriterState | null, result: IncidentWriterState, queueHealth: QueueHealth) {
   console.log(JSON.stringify({
     action,
     couple_id: result.coupleId,
@@ -91,6 +151,7 @@ function printResult(action: Action, prior: IncidentWriterState | null, result: 
     mutation_fence: result.mutationFence,
     timestamp: new Date().toISOString(),
     writer_updated_at: result.updatedAt,
+    queue_health: queueHealth,
   }, null, 2));
 }
 
@@ -106,7 +167,7 @@ async function main() {
   const pool = poolFor(databaseUrl);
   try {
     if (action === "status") {
-      printResult(action, null, await readState(pool, id));
+      printResult(action, null, await readState(pool, id), await readQueueHealth(pool));
       return;
     }
     await pool.query("begin");
@@ -126,7 +187,7 @@ async function main() {
     );
     const result = await readState(pool, id, true);
     await pool.query("commit");
-    printResult(action, prior, result);
+    printResult(action, prior, result, await readQueueHealth(pool));
   } catch (error) {
     await pool.query("rollback").catch(() => undefined);
     throw error;

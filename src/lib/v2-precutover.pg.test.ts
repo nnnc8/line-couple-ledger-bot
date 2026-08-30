@@ -18,7 +18,7 @@ import { createV2AttachmentUpload, completeV2AttachmentUpload, deleteV2Attachmen
 import { dispatchV2LineInbox } from "./v2-line-inbox-dispatch";
 import { dispatchV2NotificationOutbox } from "./v2-outbox-dispatch";
 import { resetStaleV2LineInboxLeases, claimV2LineInbox } from "./v2-inbox-worker";
-import { resetStaleV2NotificationOutboxLeases } from "./v2-outbox-worker";
+import { claimV2NotificationOutbox, resetStaleV2NotificationOutboxLeases } from "./v2-outbox-worker";
 import {
   activateV2Ledger,
   createV2Ledger,
@@ -431,4 +431,50 @@ test("worker retry SQL exposes the persisted first-failure delay", { skip: !ENAB
      from (values (1)) as sample(attempt_count)`,
   );
   assert.equal(result.rows[0]?.seconds, 120);
+});
+
+test("permanent outbox failures dead-letter once, do not block later rows, and leases are exclusive", { skip: !ENABLED }, async () => {
+  const permanent = await query<{ id: number }>(
+    `insert into ledger_v2.notification_outbox (couple_id, recipient_user_id, kind, dedupe_key, payload, max_attempts)
+     values ($1, $2, 'test_permanent', $3, '{"title":"bad","message":"bad"}'::jsonb, 8)
+     returning id`,
+    [coupleId, partnerId, testKey("outbox-permanent")],
+  );
+  const later = await query<{ id: number }>(
+    `insert into ledger_v2.notification_outbox (couple_id, recipient_user_id, kind, dedupe_key, payload, max_attempts)
+     values ($1, $2, 'test_later', $3, '{"title":"good","message":"good"}'::jsonb, 8)
+     returning id`,
+    [coupleId, partnerId, testKey("outbox-later")],
+  );
+  await query("update ledger_v2.notification_outbox set next_attempt_at = '2099-01-01' where status in ('pending', 'failed') and id not in ($1, $2)", [permanent.rows[0]!.id, later.rows[0]!.id]);
+  const originalFetch = globalThis.fetch;
+  let calls = 0;
+  globalThis.fetch = (async () => {
+    calls += 1;
+    return new Response(calls === 1 ? "bad request" : "ok", { status: calls === 1 ? 400 : 200 });
+  }) as typeof fetch;
+  try {
+    await dispatchV2NotificationOutbox({ db: fakeUsersDb(), lineChannelAccessToken: "local-line-token" }, 2);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+  const states = await query<{ id: number; status: string; attempt_count: number }>(
+    "select id, status, attempt_count from ledger_v2.notification_outbox where id in ($1, $2) order by id",
+    [permanent.rows[0]!.id, later.rows[0]!.id],
+  );
+  const permanentState = states.rows.find((row) => row.id === permanent.rows[0]!.id)!;
+  const laterState = states.rows.find((row) => row.id === later.rows[0]!.id)!;
+  assert.deepEqual(permanentState, { id: permanent.rows[0]!.id, status: "dead_letter", attempt_count: 1 });
+  assert.deepEqual(laterState, { id: later.rows[0]!.id, status: "sent", attempt_count: 1 });
+
+  const leased = await query<{ id: number }>(
+    `insert into ledger_v2.notification_outbox (couple_id, recipient_user_id, kind, dedupe_key, payload)
+     values ($1, $2, 'test_lease', $3, '{"title":"lease"}'::jsonb) returning id`,
+    [coupleId, partnerId, testKey("outbox-lease")],
+  );
+  await query("update ledger_v2.notification_outbox set next_attempt_at = '2099-01-01' where status in ('pending', 'failed') and id <> $1", [leased.rows[0]!.id]);
+  const firstClaim = await claimV2NotificationOutbox(1);
+  const secondClaim = await claimV2NotificationOutbox(1);
+  assert.deepEqual(firstClaim.map((row) => row.id), [leased.rows[0]!.id]);
+  assert.deepEqual(secondClaim, []);
 });

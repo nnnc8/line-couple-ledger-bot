@@ -34,11 +34,11 @@ export async function claimV2LineInbox(limit = 20): Promise<V2InboxRow[]> {
   });
 }
 
-export async function finishV2LineInbox(id: number, status: "processed" | "failed" | "ignored", error?: string) {
+export async function finishV2LineInbox(id: number, status: "processed" | "failed" | "ignored" | "dead_letter", error?: string) {
   return withTx(async (client) => {
     await client.query(
       `update ledger_v2.line_inbox
-          set status = case when $2 = 'failed' and attempt_count >= max_attempts then 'dead_letter' else $2 end,
+          set status = case when $2 = 'dead_letter' or ($2 = 'failed' and attempt_count >= max_attempts) then 'dead_letter' else $2 end,
               lease_until = null,
               last_error = $3,
               processed_at = case when $2 in ('processed', 'ignored') then now() else null end,

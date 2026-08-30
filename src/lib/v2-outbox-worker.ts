@@ -4,6 +4,8 @@ export interface V2OutboxRow {
   id: number;
   recipient_user_id: string;
   kind: string;
+  dedupe_key: string;
+  attempt_count: number;
   payload: Record<string, unknown>;
 }
 
@@ -27,18 +29,18 @@ export async function claimV2NotificationOutbox(limit = 20): Promise<V2OutboxRow
               lease_until = now() + interval '2 minutes'
          from candidates
         where outbox.id = candidates.id
-      returning outbox.id, outbox.recipient_user_id, outbox.kind, outbox.payload`,
+      returning outbox.id, outbox.recipient_user_id, outbox.kind, outbox.dedupe_key, outbox.attempt_count, outbox.payload`,
       [limit],
     );
     return result.rows;
   });
 }
 
-export async function finishV2NotificationOutbox(id: number, status: "sent" | "failed" | "skipped", error?: string) {
+export async function finishV2NotificationOutbox(id: number, status: "sent" | "failed" | "skipped" | "dead_letter", error?: string) {
   return withTx(async (client) => {
     await client.query(
       `update ledger_v2.notification_outbox
-          set status = case when $2 = 'failed' and attempt_count >= max_attempts then 'dead_letter' else $2 end,
+          set status = case when $2 = 'dead_letter' or ($2 = 'failed' and attempt_count >= max_attempts) then 'dead_letter' else $2 end,
               lease_until = null,
               last_error = $3,
               sent_at = case when $2 = 'sent' then now() else sent_at end,

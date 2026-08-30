@@ -2,6 +2,7 @@ import type { webhook } from "@line/bot-sdk";
 
 import { handleLineEvent, type BotDependencies } from "./line-webhook-service";
 import { isV2IncidentFreezeError, areV2FinancialWritesEnabled } from "./v2-incident-freeze";
+import { classifyLineDeliveryError } from "./line-delivery-error";
 import {
   claimV2LineInbox,
   finishV2LineInbox,
@@ -26,7 +27,18 @@ export async function dispatchV2LineInbox(dependencies: BotDependencies, limit =
         await releaseV2LineInboxForMaintenance(row.id);
         continue;
       }
-      await finishV2LineInbox(row.id, "failed", error instanceof Error ? error.message : "unknown error");
+      const failure = classifyLineDeliveryError(error);
+      await finishV2LineInbox(
+        row.id,
+        failure.disposition === "permanent" ? "dead_letter" : "failed",
+        failure.operationError,
+      );
+      console.info("v2_line_inbox_delivery_failure", {
+        inboxId: row.id,
+        webhookEventId: row.webhook_event_id,
+        disposition: failure.disposition,
+        error: failure.operationError,
+      });
     }
   }
   return processed;

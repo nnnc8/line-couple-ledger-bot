@@ -681,7 +681,7 @@ async function insertTransaction(
   );
   const recipientUserId = ledger.members.memberIds.find((userId) => userId !== actorUserId);
   if (recipientUserId) {
-    await client.query(
+    const outbox = await client.query(
       `insert into ledger_v2.notification_outbox
         (couple_id, recipient_user_id, kind, dedupe_key, payload)
        values ($1, $2, 'ledger_transaction', $3, $4::jsonb)
@@ -698,6 +698,12 @@ async function insertTransaction(
         }),
       ],
     );
+    if (outbox.rowCount) {
+      console.info("v2_notification_outbox_enqueued", {
+        transactionId: id,
+        dedupeKey: `v2:transaction:${id}:user:${recipientUserId}`,
+      });
+    }
   }
   const balance = calculateLedgerBalance([...ledger.transactions, postedTransaction], ledger.members);
   return { transaction: postedTransaction, balance };
@@ -1659,13 +1665,16 @@ export async function enqueueV2Notification(
   payload: Record<string, unknown>,
 ) {
   return withTx(async (client) => {
-    await client.query(
+    const result = await client.query(
       `insert into ledger_v2.notification_outbox
         (couple_id, recipient_user_id, kind, dedupe_key, payload)
        values ($1, $2, $3, $4, $5::jsonb)
        on conflict (dedupe_key) do nothing`,
       [coupleId, recipientUserId, kind, dedupeKey, JSON.stringify(payload)],
     );
+    if (result.rowCount) {
+      console.info("v2_notification_outbox_enqueued", { dedupeKey, kind });
+    }
     return { queued: true, dedupeKey };
   });
 }
