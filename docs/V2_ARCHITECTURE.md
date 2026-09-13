@@ -278,14 +278,41 @@ The source/dependency metrics use the same path universe before and after:
 | `src/` TypeScript/TSX LOC | 45,183 | 40,645 |
 | Direct dependencies (`dependencies` + `devDependencies`) | 35 | 29 |
 
-Build artifact metrics, validation commands, PostgreSQL skip details, commit
-SHAs, and remote SHA are recorded in the final Issue #1 report after the final
-current-tree build and push.
+Build artifacts were measured from the production HTML and output directories
+using the same method in an isolated archive of `20c8111` and the current
+tree:
+
+| Build metric | Baseline `20c8111` | Current cleanup tree |
+| --- | ---: | ---: |
+| Initial client chunks in `/` HTML | 11 | 9 |
+| Static JavaScript chunks | 16 | 12 |
+| Static files under `.next/static` | 17 | 13 |
+| `.next/server` disk usage | 36.3 MiB | 36.2 MiB |
+
+The final current-tree validation record is:
+
+| Command | Result |
+| --- | --- |
+| `pnpm typecheck` | PASS; no TypeScript errors |
+| `pnpm test` | PASS; 230/230 |
+| `pnpm test:tx` | PASS; 23 pass, 9 explicit PostgreSQL skips |
+| `pnpm test:precutover` | PASS; 6 explicit isolated-PostgreSQL skips |
+| `pnpm test:incident` | PASS; 4 pass, 1 explicit isolated-PostgreSQL skip |
+| `pnpm test:e2e` | PASS; 33/33 across the configured browsers |
+| `pnpm test:e2e:v2` | PASS; 33/33 across the configured browsers |
+| `pnpm build` | PASS; production Next.js build completed |
+
+The PostgreSQL suites were run with `DATABASE_URL` and
+`V2_TEST_DATABASE_URL` unset. Their test code emitted explicit skip reasons
+requiring an isolated localhost PostgreSQL target; no production database
+connection was attempted. Commit SHAs and the `git ls-remote` remote SHA are
+recorded in the final Issue #1 report after push.
 
 ## 13. Scope and deployment decision
 
 - No production deployment occurred.
 - No production database connection, migration, writer-plane mutation, Rich
   Menu mutation, or smoke write occurred.
-- The branch is eligible for review only after the required test suite,
-  production build, logical commits, push, and `git ls-remote` proof pass.
+- The local required test suite and production build pass. The branch is
+  eligible for review after the logical commits, push, and `git ls-remote`
+  proof are complete; this cleanup issue does not authorize deployment.
