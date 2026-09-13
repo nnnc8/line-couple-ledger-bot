@@ -1,5 +1,8 @@
 # Incident Bootstrap Contract
 
+> Historical incident-containment contract. Retained as audit evidence; it is
+> not the current product entrypoint or a request to change production.
+
 This document defines the only production contract for the dedicated incident
 bootstrap build. It is additive and review-only; no command below was run
 against production.

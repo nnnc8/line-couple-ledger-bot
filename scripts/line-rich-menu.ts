@@ -7,6 +7,9 @@ import { chromium } from "@playwright/test";
 import { buildLiffUrl, requireLiffId } from "../src/lib/liff-url";
 import { encodeLineMenuPostback } from "../src/lib/line-menu-service";
 
+// ACTIVE OPS: this is the source of truth for the installed LINE Rich Menu.
+// The `-v1` alias suffix is an external identifier retained for compatibility;
+// it does not select the removed V1 LIFF application.
 if (existsSync(".env.local")) {
   process.loadEnvFile(".env.local");
 }
@@ -476,8 +479,9 @@ function gitSha() {
       "--",
       "assets/line-rich-menu",
       "src/app/page.tsx",
-      "src/components/expense/expense-form.tsx",
-      "src/components/transfer/transfer-sheet.tsx",
+      "src/components/ledger/v2-liff-home.tsx",
+      "src/components/ledger/v2-ledger-home.tsx",
+      "src/components/ledger/v2-transaction-editor.tsx",
       "src/lib/flex-message-builder.ts",
       "src/lib/line-menu-service.ts",
       "src/lib/line-webhook-service.ts",

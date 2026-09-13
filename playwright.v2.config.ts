@@ -20,7 +20,6 @@ export default defineConfig({
     command: "pnpm exec next dev -p 3109",
     env: {
       NEXT_PUBLIC_LIFF_ID: "test-liff-id",
-      NEXT_PUBLIC_V2_LEDGER_UI: "1",
       V2_LEDGER_ENABLED: "1",
     },
     url: "http://localhost:3109",

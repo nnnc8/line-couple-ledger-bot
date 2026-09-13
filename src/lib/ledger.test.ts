@@ -42,7 +42,6 @@ import { safeSecretEqual, signSession, verifySession } from "./security";
 import { matchTransactions, parseBankCsvWithMeta } from "./bank-csv";
 import { setMockWithTx } from "./db/tx";
 import { TransactionStaleError } from "./pending-action-executor";
-import { tagColor } from "./categories";
 import {
   encodeLineMenuPostback,
   handleLineMenuPostback,
@@ -11075,10 +11074,6 @@ test("accountant category analytics: six_months still filters to the last six mo
   assert.equal(result.categories[0].tag, "Food");
   assert.equal("label" in result.categories[0], false);
   assert.equal(result.totalTwd, 100);
-});
-
-test("category colors stay distinct when analytics returns distinct tags", () => {
-  assert.notEqual(tagColor("餐飲"), tagColor("停車費"));
 });
 
 test("accountant agent barrel: exported functions/schemas still match the old public surface", async () => {

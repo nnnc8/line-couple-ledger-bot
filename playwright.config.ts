@@ -2,7 +2,7 @@ import { defineConfig, devices } from "@playwright/test";
 
 export default defineConfig({
   testDir: "./tests",
-  testIgnore: ["**/v2-liff.spec.ts"],
+  testMatch: /v2-liff\.spec\.ts/,
   outputDir: "output/playwright/results",
   reporter: "line",
   use: {
@@ -18,7 +18,10 @@ export default defineConfig({
   ],
   webServer: {
     command: "pnpm exec next dev -p 3108",
-    env: { NEXT_PUBLIC_LIFF_ID: "test-liff-id" },
+    env: {
+      NEXT_PUBLIC_LIFF_ID: "test-liff-id",
+      V2_LEDGER_ENABLED: "1",
+    },
     url: "http://localhost:3108",
     reuseExistingServer: false,
     timeout: 120_000,

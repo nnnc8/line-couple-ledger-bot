@@ -1,5 +1,8 @@
 # v1 environment cleanup — 2026-08-11
 
+> Historical environment handoff. Its V1 wording and state are retained for
+> audit context and are superseded by the current V2 architecture document.
+
 This is the current environment handoff. The project has one canonical v1
 source, one production artifact, and one Supabase project.
 
