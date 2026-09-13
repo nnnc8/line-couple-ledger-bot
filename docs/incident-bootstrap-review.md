@@ -1,5 +1,8 @@
 # INCIDENT BOOTSTRAP REVIEW
 
+> Historical incident-containment review. Retained as audit evidence; the
+> current V2 architecture and flags are documented in `V2_ARCHITECTURE.md`.
+
 Repository: `https://github.com/nnnc8/line-couple-ledger-bot`
 Baseline branch: `codex/couple-ledger-v2` at `50f5ddc3cc7fc27fdc766d2982a8a2cf38bf078`
 Bootstrap branch: `codex/couple-ledger-v2-incident-bootstrap`

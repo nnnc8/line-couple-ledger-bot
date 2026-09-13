@@ -1,5 +1,9 @@
 # PRODUCTION INCIDENT CONTAINMENT REPORT
 
+> Historical production incident record. Retained for forensic/audit evidence;
+> do not use its old deployment, flag, or mutation instructions as the current
+> V2 release procedure.
+
 Repository: `https://github.com/nnnc8/line-couple-ledger-bot`
 
 Incident branch: `codex/couple-ledger-v2-incident-bootstrap`

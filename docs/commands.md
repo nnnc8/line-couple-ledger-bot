@@ -1,5 +1,11 @@
 # Command handbook
 
+> Compatibility reference. These commands describe the retained V1
+> secretary/pending-action surface used during migration and audit. When
+> `V2_LEDGER_ENABLED=1`, normal financial POST routes and the V1 LINE
+> confirmation/menu writer are fenced; use the V2 LIFF Ledger and the V2 LINE
+> text/proposal flow instead.
+
 The secretary AI is the only entry point; it picks the right tool based on intent. The list below is for users who want a deterministic path or are writing tests.
 
 ## Group binding
