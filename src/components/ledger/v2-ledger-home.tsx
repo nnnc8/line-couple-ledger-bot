@@ -51,7 +51,6 @@ interface V2LedgerHomeProps {
   applyCommittedTransaction: (result: V2CreateTransactionResult) => void;
   createLedger: (name: string, color?: string) => Promise<unknown>;
   proposalIdFromUrl?: string | null;
-  ledgerIdFromUrl?: string | null;
   transactionIdFromUrl?: string | null;
   initialSecondaryTab?: V2SecondaryTab;
 }
@@ -70,7 +69,6 @@ export function V2LedgerHome({
   applyCommittedTransaction,
   createLedger,
   proposalIdFromUrl = null,
-  ledgerIdFromUrl = null,
   transactionIdFromUrl = null,
   initialSecondaryTab = "history",
 }: V2LedgerHomeProps) {
@@ -109,10 +107,20 @@ export function V2LedgerHome({
   const [historyQuery, setHistoryQuery] = React.useState("");
   const [historyFrom, setHistoryFrom] = React.useState("");
   const [historyTo, setHistoryTo] = React.useState("");
-  const [historyRows, setHistoryRows] = React.useState<V2LedgerBootstrap["transactions"]>([]);
-  const [historyCursor, setHistoryCursor] = React.useState<string | null>(null);
+  const historyScope = JSON.stringify([historyType, historyPayer, historyCategoryId, historyQuery, historyFrom, historyTo]);
+  const hasHistoryFilters = historyType !== "all" || historyPayer !== "all" || historyCategoryId !== "all" || Boolean(historyQuery.trim()) || Boolean(historyFrom) || Boolean(historyTo);
+  const [historyResult, setHistoryResult] = React.useState<{ bootstrap: V2LedgerBootstrap | null; scope: string; rows: V2LedgerBootstrap["transactions"]; cursor: string | null } | null>(null);
+  const historyRows = historyResult?.bootstrap === bootstrap && historyResult?.scope === historyScope ? historyResult.rows : hasHistoryFilters ? [] : bootstrap?.transactions ?? [];
+  const historyCursor = historyResult?.bootstrap === bootstrap && historyResult?.scope === historyScope ? historyResult.cursor : null;
   const [historyLoadingMore, setHistoryLoadingMore] = React.useState(false);
   const historyAbortRef = React.useRef<AbortController | null>(null);
+  // The parent keys this component by Ledger. A remount also owns drafts/keys.
+  const mounted = React.useRef(false);
+  const reads = React.useRef({ categories: 0, recurring: 0, statistics: 0 });
+  React.useEffect(() => {
+    mounted.current = true;
+    return () => { mounted.current = false; historyAbortRef.current?.abort(); };
+  }, []);
   const proposalId = proposalIdFromUrl;
   const [proposalStatus, setProposalStatus] = React.useState<string | null>(null);
   const [defaultWeights, setDefaultWeights] = React.useState<[string, string]>(["1", "1"]);
@@ -122,42 +130,39 @@ export function V2LedgerHome({
   const [secondaryTab, setSecondaryTab] = React.useState<V2SecondaryTab>(initialSecondaryTab);
 
   const refreshLedger = React.useCallback(async () => {
+    if (!mounted.current) return;
+    reads.current.statistics += 1;
     setStatistics(null);
     return reload();
   }, [reload]);
 
-  React.useEffect(() => {
-    setStatistics(null);
-    setRecurring([]);
-    setCategories([]);
-    setCategoryDrafts({});
-  }, [activeLedgerId]);
-
-  React.useEffect(() => {
-    setSecondaryTab(initialSecondaryTab);
-  }, [initialSecondaryTab]);
-
-  React.useEffect(() => {
-    if (ledgerIdFromUrl && ledgers.some((ledger) => ledger.id === ledgerIdFromUrl) && activeLedgerId !== ledgerIdFromUrl) {
-      setActiveLedgerId(ledgerIdFromUrl);
-    }
-  }, [activeLedgerId, ledgerIdFromUrl, ledgers, setActiveLedgerId]);
-
   const loadRecurring = React.useCallback(async () => {
-    if (!activeLedgerId) return;
-    const result = await fetch(`/api/app/v2/ledgers/${activeLedgerId}/recurring`, { cache: "no-store", credentials: "same-origin" });
-    const body = await result.json() as { recurring?: V2RecurringRule[]; error?: string };
-    if (!result.ok) throw new Error(body.error ?? "無法讀取週期規則");
-    setRecurring(body.recurring ?? []);
+    if (!activeLedgerId || !mounted.current) return;
+    const request = ++reads.current.recurring;
+    try {
+      const result = await fetch(`/api/app/v2/ledgers/${activeLedgerId}/recurring`, { cache: "no-store", credentials: "same-origin" });
+      const body = await result.json() as { recurring?: V2RecurringRule[]; error?: string };
+      if (!mounted.current || reads.current.recurring !== request) return;
+      if (!result.ok) throw new Error(body.error ?? "無法讀取週期規則");
+      setRecurring(body.recurring ?? []);
+    } catch (reason) {
+      if (mounted.current && reads.current.recurring === request) throw reason;
+    }
   }, [activeLedgerId]);
 
   const loadCategories = React.useCallback(async () => {
-    if (!activeLedgerId) return;
-    const response = await fetch(`/api/app/v2/ledgers/${activeLedgerId}/categories`, { cache: "no-store", credentials: "same-origin" });
-    const body = await response.json() as { categories?: V2Category[]; error?: string };
-    if (!response.ok) throw new Error(body.error ?? "無法讀取分類");
-    setCategories(body.categories ?? []);
-    setCategoryDrafts(Object.fromEntries((body.categories ?? []).map((category) => [category.id, category.name])));
+    if (!activeLedgerId || !mounted.current) return;
+    const request = ++reads.current.categories;
+    try {
+      const response = await fetch(`/api/app/v2/ledgers/${activeLedgerId}/categories`, { cache: "no-store", credentials: "same-origin" });
+      const body = await response.json() as { categories?: V2Category[]; error?: string };
+      if (!mounted.current || reads.current.categories !== request) return;
+      if (!response.ok) throw new Error(body.error ?? "無法讀取分類");
+      setCategories(body.categories ?? []);
+      setCategoryDrafts(Object.fromEntries((body.categories ?? []).map((category) => [category.id, category.name])));
+    } catch (reason) {
+      if (mounted.current && reads.current.categories === request) throw reason;
+    }
   }, [activeLedgerId]);
 
   React.useEffect(() => {
@@ -167,11 +172,17 @@ export function V2LedgerHome({
   }, [bootstrap, loadCategories]);
 
   const loadStatistics = React.useCallback(async () => {
-    if (!activeLedgerId) return;
-    const response = await fetch(`/api/app/v2/ledgers/${activeLedgerId}/statistics`, { cache: "no-store", credentials: "same-origin" });
-    const body = await response.json() as typeof statistics & { error?: string };
-    if (!response.ok) throw new Error(body.error ?? "無法讀取統計");
-    setStatistics(body);
+    if (!activeLedgerId || !mounted.current) return;
+    const request = ++reads.current.statistics;
+    try {
+      const response = await fetch(`/api/app/v2/ledgers/${activeLedgerId}/statistics`, { cache: "no-store", credentials: "same-origin" });
+      const body = await response.json() as typeof statistics & { error?: string };
+      if (!mounted.current || reads.current.statistics !== request) return;
+      if (!response.ok) throw new Error(body.error ?? "無法讀取統計");
+      setStatistics(body);
+    } catch (reason) {
+      if (mounted.current && reads.current.statistics === request) throw reason;
+    }
   }, [activeLedgerId]);
 
   const loadHistory = React.useCallback(async (cursor: string | null = null, append = false) => {
@@ -189,33 +200,32 @@ export function V2LedgerHome({
     historyAbortRef.current?.abort();
     const controller = new AbortController();
     historyAbortRef.current = controller;
-    const response = await fetch(`/api/app/v2/ledgers/${activeLedgerId}/transactions?${params.toString()}`, { cache: "no-store", credentials: "same-origin", signal: controller.signal });
     try {
+      const response = await fetch(`/api/app/v2/ledgers/${activeLedgerId}/transactions?${params.toString()}`, { cache: "no-store", credentials: "same-origin", signal: controller.signal });
       const body = await response.json() as { transactions?: V2LedgerBootstrap["transactions"]; nextCursor?: string | null; error?: string };
+      if (!mounted.current || controller.signal.aborted || historyAbortRef.current !== controller) return;
       if (!response.ok) throw new Error(body.error ?? "無法讀取流水");
-      setHistoryRows((current) => append ? [...current, ...(body.transactions ?? [])] : (body.transactions ?? []));
-      setHistoryCursor(body.nextCursor ?? null);
+      setHistoryResult((current) => ({ bootstrap, scope: historyScope,
+        rows: append && current?.scope === historyScope ? [...current.rows, ...(body.transactions ?? [])] : body.transactions ?? [],
+        cursor: body.nextCursor ?? null }));
     } finally {
-      if (append) setHistoryLoadingMore(false);
+      if (append && mounted.current && historyAbortRef.current === controller) setHistoryLoadingMore(false);
     }
-  }, [activeLedgerId, historyCategoryId, historyFrom, historyPayer, historyQuery, historyTo, historyType]);
-
-  React.useEffect(() => {
-    if (!bootstrap) return;
-    setHistoryRows(bootstrap.transactions);
-    setHistoryCursor(null);
-  }, [bootstrap]);
+  }, [activeLedgerId, historyCategoryId, historyFrom, historyPayer, historyQuery, historyTo, historyType, historyScope, bootstrap]);
 
   React.useEffect(() => {
     if (!bootstrap) return;
     const hasFilters = historyType !== "all" || historyPayer !== "all" || historyCategoryId !== "all" || Boolean(historyQuery.trim()) || Boolean(historyFrom) || Boolean(historyTo);
-    if (!hasFilters) return;
+    if (!hasFilters) {
+      historyAbortRef.current?.abort();
+      return;
+    }
     const timer = window.setTimeout(() => {
       void loadHistory().catch((reason) => {
         if ((reason as { name?: string }).name !== "AbortError") setFormError(reason instanceof Error ? reason.message : "無法讀取流水");
       });
     }, historyQuery.trim() ? 300 : 0);
-    return () => window.clearTimeout(timer);
+    return () => { window.clearTimeout(timer); historyAbortRef.current?.abort(); };
   }, [bootstrap, historyCategoryId, historyFrom, historyPayer, historyQuery, historyTo, historyType, loadHistory]);
 
   React.useEffect(() => {
@@ -322,7 +332,7 @@ export function V2LedgerHome({
     setSaving(true);
     setFormError("");
     setSaveFeedback(null);
-    const fingerprint = JSON.stringify(value);
+    const fingerprint = JSON.stringify({ ledgerId: activeLedgerId, value });
     const previousSubmission = transactionSubmissionRef.current;
     const idempotencyKey = previousSubmission?.fingerprint === fingerprint
       ? previousSubmission.idempotencyKey
@@ -330,7 +340,9 @@ export function V2LedgerHome({
     transactionSubmissionRef.current = { fingerprint, idempotencyKey };
     try {
       const result = await api(`/api/app/v2/ledgers/${activeLedgerId}/transactions`, { ...value, idempotencyKey }) as unknown as Partial<V2CreateTransactionResult>;
+      if (!mounted.current) return false;
       const transaction = result.transaction;
+      if (transaction && transaction.ledgerId !== activeLedgerId) throw new Error("交易回應的 Ledger 範圍不符");
       const hasCanonicalResult = Boolean(
         transaction
         && transaction.id
@@ -349,7 +361,7 @@ export function V2LedgerHome({
         const committed = result as V2CreateTransactionResult;
         setHighlightedTransactionId(committed.transaction.id);
         window.setTimeout(() => setHighlightedTransactionId((current) => current === committed.transaction.id ? null : current), 2400);
-        setHistoryRows((current) => {
+        setHistoryResult((current) => {
           if (!matchesHistoryFilters(committed.transaction, {
             type: historyType,
             payer: historyPayer,
@@ -358,20 +370,24 @@ export function V2LedgerHome({
             from: historyFrom,
             to: historyTo,
           })) return current;
-          return [committed.transaction, ...current.filter((row) => row.id !== committed.transaction.id)].sort(historyRowSort);
+          const rows = current?.scope === historyScope ? current.rows : historyRows;
+          return { bootstrap, scope: historyScope, rows: [committed.transaction, ...rows.filter((row) => row.id !== committed.transaction.id)].sort(historyRowSort), cursor: historyCursor };
         });
+        historyAbortRef.current?.abort();
         applyCommittedTransaction(committed);
         setStatistics(null);
       }
       transactionSubmissionRef.current = null;
       if (!hasCanonicalResult) {
         void refreshLedger().catch(() => {
+          if (!mounted.current) return;
           setSaveFeedback({ tone: "warning", message: `${successMessage}；流水同步失敗，請重新整理`, retry: true });
           toast.warning("已入帳，但流水同步失敗");
         });
       }
       return true;
     } catch (reason) {
+      if (!mounted.current) return false;
       const message = reason instanceof Error ? reason.message : "儲存失敗";
       setFormError(message);
       toast.error(message);
@@ -521,6 +537,7 @@ export function V2LedgerHome({
       const response = await fetch(`/api/app/v2/ledgers/${activeLedgerId}/export?${params.toString()}`, { cache: "no-store", credentials: "same-origin" });
       if (!response.ok) throw new Error("匯出失敗");
       const blob = await response.blob();
+      if (!mounted.current) return;
       const url = URL.createObjectURL(blob);
       const anchor = document.createElement("a");
       anchor.href = url;

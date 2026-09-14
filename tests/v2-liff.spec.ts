@@ -1,4 +1,4 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Page, type Route } from "@playwright/test";
 
 const OWNER = "00000000-0000-4000-8000-000000000001";
 const PARTNER = "00000000-0000-4000-8000-000000000002";
@@ -284,4 +284,146 @@ test("does not insert a committed transaction that fails the active history filt
   await page.getByRole("button", { name: "儲存交易" }).click();
   await expect(page.getByRole("status").filter({ hasText: "已入帳：午餐 NT$100" }).first()).toBeVisible();
   await expect(page.getByText("午餐", { exact: true })).toHaveCount(0);
+});
+
+// V3-0: every response is deliberately released by the test, independent of timing.
+function scopeBootstrap(id: string, name: string) {
+  return { ledger: { id, name, color: "#173B63", status: "active", version: 1,
+    coupleId: 1, members: [{ userId: OWNER, role: "owner" }, { userId: PARTNER, role: "partner" }],
+    defaultShares: { [OWNER]: "1", [PARTNER]: "1" } }, transactions: [], balance: { [OWNER]: "0", [PARTNER]: "0" }, nextPayer: null };
+}
+
+async function twoLedgers(page: Page) {
+  await page.route("**/api/app/v2/ledgers", route => route.fulfill({ json: { ledgers: [scopeBootstrap(LEDGER, "Scope A").ledger, scopeBootstrap(SECOND_LEDGER, "Scope B").ledger] } }));
+  await page.route("**/api/app/v2/ledgers/*/activate", route => route.fulfill({ json: { ok: true } }));
+  for (const [id, name] of [[LEDGER, "Scope A"], [SECOND_LEDGER, "Scope B"]]) {
+    await page.route(`**/api/app/v2/ledgers/${id}/bootstrap`, route => route.fulfill({ json: scopeBootstrap(id!, name!) }));
+    await page.route(`**/api/app/v2/ledgers/${id}/categories`, route => route.fulfill({ json: { categories: [] } }));
+    await page.route(`**/api/app/v2/ledgers/${id}/recurring`, route => route.fulfill({ json: { recurring: [] } }));
+    await page.route(`**/api/app/v2/ledgers/${id}/statistics`, route => route.fulfill({ json: { byType: {}, byCategory: { [name!]: "73" }, paidBy: {}, borneBy: {} } }));
+    await page.route(`**/api/app/v2/ledgers/${id}/transactions?*`, route => route.fulfill({ json: { transactions: [], nextCursor: null } }));
+  }
+  await page.reload();
+  await expect(page.locator('[style*="linear-gradient"]').first()).toContainText("Scope A");
+}
+
+async function releaseScopeResponse(page: Page, route: Route, reply: Parameters<Route["fulfill"]>[0]) {
+  const received = page.waitForResponse(response => response.url() === route.request().url());
+  await route.fulfill(reply);
+  await (await received).finished();
+  // Wait for the completed response's React update, not an arbitrary delay.
+  await page.evaluate(() => new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
+}
+
+test("V3-0 ignores reversed bootstrap responses and resets the Ledger draft", async ({ page }) => {
+  await twoLedgers(page);
+  const held: Route[] = [];
+  await page.route(`**/api/app/v2/ledgers/${LEDGER}/bootstrap`, route => { held.push(route); });
+  await page.getByLabel("金額 TWD").fill("731");
+  await page.getByLabel("說明").fill("A draft");
+  await page.getByLabel("重新載入 Ledger").click();
+  await expect.poll(() => held.length).toBe(1);
+  await page.getByLabel("切換 Ledger").selectOption(SECOND_LEDGER);
+  const card = page.locator('[style*="linear-gradient"]').first();
+  await expect(card).toContainText("Scope B");
+  await releaseScopeResponse(page, held[0]!, { json: scopeBootstrap(LEDGER, "STALE A") });
+  // An independent B request gives the browser an observable processing barrier.
+  await page.getByRole("tab", { name: "統計" }).click();
+  await expect(page.getByText("Scope B", { exact: true }).last()).toBeVisible();
+  await expect(card).toContainText("Scope B");
+  await expect(page.getByLabel("金額 TWD")).toHaveValue("");
+  await expect(page.getByLabel("說明")).toHaveValue("");
+  await page.screenshot({ path: "output/playwright/v3-0/ledger-scope.png", fullPage: true });
+});
+
+test("V3-0 rapid A B A switches ignore the first A generation and stale errors", async ({ page }) => {
+  await twoLedgers(page);
+  const held: Route[] = [];
+  await page.route(`**/api/app/v2/ledgers/${LEDGER}/bootstrap`, route => { held.push(route); });
+  await page.getByLabel("重新載入 Ledger").click();
+  await expect.poll(() => held.length).toBe(1);
+  await page.getByLabel("切換 Ledger").selectOption(SECOND_LEDGER);
+  await expect(page.locator('[style*="linear-gradient"]').first()).toContainText("Scope B");
+  await page.getByLabel("切換 Ledger").selectOption(LEDGER);
+  await expect.poll(() => held.length).toBe(2);
+  await held[1]!.fulfill({ json: scopeBootstrap(LEDGER, "NEW A") });
+  await expect(page.locator('[style*="linear-gradient"]').first()).toContainText("NEW A");
+  await releaseScopeResponse(page, held[0]!, { status: 503, json: { error: "STALE ERROR" } });
+  await page.getByLabel("金額 TWD").fill("12");
+  await expect(page.getByText("STALE ERROR", { exact: true })).toHaveCount(0);
+  await expect(page.locator('[style*="linear-gradient"]').first()).toContainText("NEW A");
+});
+
+for (const endpoint of ["statistics", "categories", "recurring", "transactions"] as const) {
+  test(`V3-0 ignores reversed ${endpoint} responses across Ledgers`, async ({ page }) => {
+    await twoLedgers(page);
+    const held: Route[] = [];
+    await page.route(`**/api/app/v2/ledgers/${LEDGER}/${endpoint}${endpoint === "transactions" ? "?*" : ""}`, route => { held.push(route); });
+    if (endpoint === "statistics") await page.getByRole("tab", { name: "統計" }).click();
+    if (endpoint === "recurring") await page.getByRole("tab", { name: "設定" }).click();
+    if (endpoint === "categories") await page.getByLabel("重新載入 Ledger").click();
+    if (endpoint === "transactions") await page.getByLabel("搜尋 Ledger 流水").fill("STALE");
+    await expect.poll(() => held.length).toBeGreaterThan(0);
+    await page.getByLabel("切換 Ledger").selectOption(SECOND_LEDGER);
+    await expect(page.locator('[style*="linear-gradient"]').first()).toContainText("Scope B");
+    await page.getByRole("tab", { name: endpoint === "statistics" ? "統計" : endpoint === "transactions" ? "流水" : "設定" }).click();
+    const json = endpoint === "statistics" ? { byType: {}, byCategory: { STALE: "731" }, paidBy: {}, borneBy: {} }
+      : endpoint === "categories" ? { categories: [{ id: "stale-cat", ledgerId: LEDGER, name: "STALE", status: "active" }] }
+      : endpoint === "recurring" ? { recurring: [{ id: "stale-rule", ledgerId: LEDGER, name: "STALE", amountTwd: "731", frequency: "monthly", nextRunDate: "2026-09-14", active: true }] }
+      : { transactions: [{ id: TRANSACTION, ledgerId: LEDGER, type: "expense", amountTwd: "731", description: "STALE", status: "posted", occurredOn: "2026-09-14", payments: [], shares: [] }], nextCursor: null };
+    for (const route of held) {
+      if (endpoint === "transactions") await route.fulfill({ json }).catch(() => undefined); // history was aborted by the switch
+      else await releaseScopeResponse(page, route, { json });
+    }
+    await page.getByLabel("金額 TWD").fill("12");
+    await expect(page.getByText(/STALE/)).toHaveCount(0);
+    await expect(page.getByLabel("STALE 分類名稱", { exact: true })).toHaveCount(0);
+    await expect(page.locator('[style*="linear-gradient"]').first()).toContainText("Scope B");
+  });
+}
+
+test("V3-0 switching Ledger after a deep link stays on the manual selection", async ({ page }) => {
+  await twoLedgers(page);
+  await page.goto(`/?v2Ledger=${LEDGER}`);
+  await expect(page.locator('[style*="linear-gradient"]').first()).toContainText("Scope A");
+  const activations: string[] = [];
+  await page.route("**/api/app/v2/ledgers/*/activate", route => {
+    activations.push(route.request().url().split("/").at(-2)!);
+    return route.fulfill({ json: { ok: true } });
+  });
+  await page.getByLabel("切換 Ledger").selectOption(SECOND_LEDGER);
+  await expect(page.locator('[style*="linear-gradient"]').first()).toContainText("Scope B");
+  await expect.poll(() => activations.length).toBeGreaterThan(0);
+  await page.evaluate(() => new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
+  expect(activations).toEqual([SECOND_LEDGER]);
+  await expect(page.getByLabel("切換 Ledger")).toHaveValue(SECOND_LEDGER);
+});
+
+
+test("V3-0 a late A save cannot update B feedback or reuse A's draft/key", async ({ page }) => {
+  await twoLedgers(page);
+  let held: Route | undefined;
+  const requests: Array<{ ledger: string; body: Record<string, unknown> }> = [];
+  await page.route("**/api/app/v2/ledgers/*/transactions", route => {
+    if (route.request().method() !== "POST") return route.fallback();
+    const ledger = route.request().url().includes(SECOND_LEDGER) ? SECOND_LEDGER : LEDGER;
+    requests.push({ ledger, body: route.request().postDataJSON() as Record<string, unknown> });
+    if (ledger === LEDGER) { held = route; return; }
+    return route.fulfill({ status: 422, json: { error: "B rejection" } });
+  });
+  await page.getByLabel("金額 TWD").fill("100");
+  await page.getByLabel("說明").fill("late-A");
+  await page.getByRole("button", { name: "儲存交易" }).click();
+  await expect.poll(() => Boolean(held)).toBe(true);
+  await page.getByLabel("切換 Ledger").selectOption(SECOND_LEDGER);
+  await expect(page.locator('[style*="linear-gradient"]').first()).toContainText("Scope B");
+  await releaseScopeResponse(page, held!, { status: 422, json: { error: "STALE SAVE ERROR" } });
+  await expect(page.getByText("STALE SAVE ERROR", { exact: true })).toHaveCount(0);
+  await expect(page.getByLabel("金額 TWD")).toHaveValue("");
+  await page.getByLabel("金額 TWD").fill("100");
+  await page.getByLabel("說明").fill("late-A");
+  await page.getByRole("button", { name: "儲存交易" }).click();
+  await expect(page.getByRole("alert").filter({ hasText: "B rejection" }).first()).toBeVisible();
+  expect(requests.map(request => request.ledger)).toEqual([LEDGER, SECOND_LEDGER]);
+  expect(requests[0]!.body.idempotencyKey).not.toBe(requests[1]!.body.idempotencyKey);
 });
