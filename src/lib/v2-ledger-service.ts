@@ -3,6 +3,7 @@ import type { PoolClient, QueryResultRow } from "pg";
 import { z } from "zod";
 
 import { HttpError } from "./http-error";
+import { receiptResultMatchesScope, v2CommandIdentity, type V2CommandIdentity, type V2CommandOperation } from "./v2-command-identity";
 import { withTx } from "./db/tx";
 import { isV2IncidentBootstrapOnly, V2IncidentFreezeError } from "./v2-incident-freeze";
 import { nextRecurringDate } from "./ledger";
@@ -302,9 +303,14 @@ export function decodeV2TransactionCursor(value: string): V2TransactionCursor {
   }
 }
 
+function serializedTimestamp(value: string | Date | undefined): string | undefined {
+  return value instanceof Date ? value.toISOString() : value;
+}
+
 function serializedTransaction(transaction: V2Transaction) {
   return {
     ...transaction,
+    createdAt: serializedTimestamp(transaction.createdAt),
     amountTwd: twdToString(transaction.amountTwd),
     payments: transaction.payments.map((payment) => ({
       ...payment,
@@ -492,34 +498,58 @@ async function assertCoupleHasExactlyTwoMembers(client: PoolClient, coupleId: nu
   }
 }
 
-async function findReceipt(client: PoolClient, coupleId: number, idempotencyKey: string, hash: string) {
-  const result = await client.query<{ request_hash: string; result: unknown }>(
-    `select request_hash, result
+async function scopedCommand(
+  client: PoolClient, coupleId: number, actorUserId: string, operation: V2CommandOperation,
+  ledgerId: string | null, resourceId: string | null, key: string, payload: unknown, legacyHash: string,
+): Promise<V2CommandIdentity> {
+  if (resourceId && !ledgerId) {
+    const resource = operation === "category.update"
+      ? await client.query<{ ledger_id: string }>("select ledger_id from ledger_v2.categories where id = $1 and couple_id = $2", [resourceId, coupleId])
+      : await client.query<{ ledger_id: string }>("select ledger_id from ledger_v2.transactions where id = $1 and couple_id = $2", [resourceId, coupleId]);
+    ledgerId = resource.rows[0]?.ledger_id ?? null;
+    if (!ledgerId) throw new HttpError(404, "資源不存在或無權限");
+  }
+  // Authorization precedes every receipt read, including retries.
+  if (ledgerId) await assertLedgerMember(client, coupleId, actorUserId, ledgerId);
+  else {
+    await assertCoupleHasExactlyTwoMembers(client, coupleId);
+    const member = await client.query("select id from public.users where couple_id = $1 and id = $2", [coupleId, actorUserId]);
+    if (!member.rows[0]) throw new HttpError(403, "只有 Couple 成員可以建立 Ledger");
+  }
+  idempotencyKeySchema.parse(key);
+  // Preserve the exact header key for historical lookup; body keys were
+  // already normalized by their input schema before reaching this boundary.
+  return v2CommandIdentity({ operation, coupleId, actorUserId, ledgerId, resourceId }, key, payload, legacyHash);
+}
+
+async function findReceipt(client: PoolClient, identity: V2CommandIdentity) {
+  const result = await client.query<{ idempotency_key: string; request_hash: string; ledger_id: string | null; created_by_user_id: string; status: string; result: Record<string, unknown> }>(
+    `select idempotency_key, request_hash, ledger_id, created_by_user_id, status, result
        from ledger_v2.command_receipts
-      where couple_id = $1 and idempotency_key = $2
+      where couple_id = $1 and idempotency_key = any($2::text[])
+      order by (idempotency_key = $3) desc
       for update`,
-    [coupleId, idempotencyKey],
+    [identity.coupleId, [identity.storageKey, identity.key], identity.storageKey],
   );
   const receipt = result.rows[0];
   if (!receipt) return null;
-  if (receipt.request_hash !== hash) throw new HttpError(409, "同一 idempotency key 對應到不同請求");
+  const expectedHash = receipt.request_hash.startsWith("v3:") ? identity.hash : identity.legacyHash;
+  if (receipt.status !== "applied" || receipt.created_by_user_id !== identity.actorUserId
+    || receipt.request_hash !== expectedHash || !receiptResultMatchesScope(identity, receipt.ledger_id, receipt.result)) {
+    throw new HttpError(409, "同一 idempotency key 對應到不同請求或操作範圍");
+  }
+  if (identity.operation === "ledger.create" && receipt.ledger_id) await assertLedgerMember(client, identity.coupleId, identity.actorUserId, receipt.ledger_id);
+  // Historical rows are read in place, never rehashed or rewritten. Ambiguous
+  // legacy reuse fails closed; it must never create a second accounting effect.
   return receipt.result;
 }
 
-async function saveReceipt(
-  client: PoolClient,
-  coupleId: number,
-  ledgerId: string | null,
-  idempotencyKey: string,
-  hash: string,
-  result: unknown,
-  userId: string,
-): Promise<void> {
+async function saveReceipt(client: PoolClient, identity: V2CommandIdentity, ledgerId: string | null, result: unknown): Promise<void> {
   await client.query(
     `insert into ledger_v2.command_receipts
       (couple_id, ledger_id, idempotency_key, request_hash, status, result, created_by_user_id)
      values ($1, $2, $3, $4, 'applied', $5::jsonb, $6)`,
-    [coupleId, ledgerId, idempotencyKey, hash, JSON.stringify(result), userId],
+    [identity.coupleId, ledgerId, identity.storageKey, identity.hash, JSON.stringify(result), identity.actorUserId],
   );
 }
 
@@ -999,7 +1029,8 @@ export async function updateV2LedgerDefaultShares(
   const hash = requestHash({ ledgerId, shares: input.shares });
   return withTx(async (client) => {
     await assertV2Writer(client, coupleId);
-    const existing = await findReceipt(client, coupleId, idempotencyKey, hash);
+    const identity = await scopedCommand(client, coupleId, actorUserId, "ledger.defaults", ledgerId, null, idempotencyKey, { shares: input.shares }, hash);
+    const existing = await findReceipt(client, identity);
     if (existing) return existing;
     const ledger = await loadLedger(client, coupleId, ledgerId, true);
     await assertLedgerMember(client, coupleId, actorUserId, ledgerId);
@@ -1025,7 +1056,7 @@ export async function updateV2LedgerDefaultShares(
       defaultShares: Object.fromEntries(input.shares.map((share) => [share.userId, twdToString(share.weight)])),
       ledgerVersion: ledger.row.version + 1,
     };
-    await saveReceipt(client, coupleId, ledgerId, idempotencyKey, hash, result, actorUserId);
+    await saveReceipt(client, identity, ledgerId, result);
     return result;
   });
 }
@@ -1054,7 +1085,8 @@ export async function createV2LedgerCategory(coupleId: number, actorUserId: stri
   const hash = requestHash({ ledgerId, name: input.name });
   return withTx(async (client) => {
     await assertV2Writer(client, coupleId);
-    const existing = await findReceipt(client, coupleId, key, hash);
+    const identity = await scopedCommand(client, coupleId, actorUserId, "category.create", ledgerId, null, key, { name: input.name }, hash);
+    const existing = await findReceipt(client, identity);
     if (existing) return existing;
     await assertLedgerMember(client, coupleId, actorUserId, ledgerId);
     const row = await client.query<{ id: string; ledger_id: string; name: string; status: "active" | "archived"; is_default: boolean; created_at: string; updated_at: string }>(
@@ -1064,7 +1096,7 @@ export async function createV2LedgerCategory(coupleId: number, actorUserId: stri
       [coupleId, ledgerId, input.name],
     );
     const result = { category: serializedV2Category(row.rows[0]!) };
-    await saveReceipt(client, coupleId, ledgerId, key, hash, result, actorUserId);
+    await saveReceipt(client, identity, ledgerId, result);
     return result;
   });
 }
@@ -1076,7 +1108,8 @@ export async function updateV2LedgerCategory(coupleId: number, actorUserId: stri
   const hash = requestHash({ categoryId: id, name: input.name ?? null, status: input.status ?? null });
   return withTx(async (client) => {
     await assertV2Writer(client, coupleId);
-    const existing = await findReceipt(client, coupleId, key, hash);
+    const identity = await scopedCommand(client, coupleId, actorUserId, "category.update", null, id, key, { name: input.name ?? null, status: input.status ?? null }, hash);
+    const existing = await findReceipt(client, identity);
     if (existing) return existing;
     const row = await client.query<{ id: string; ledger_id: string; name: string; status: "active" | "archived"; is_default: boolean; created_at: string; updated_at: string }>(
       `update ledger_v2.categories c
@@ -1088,7 +1121,7 @@ export async function updateV2LedgerCategory(coupleId: number, actorUserId: stri
     );
     if (!row.rows[0]) throw new HttpError(404, "Category 不存在或無權限");
     const result = { category: serializedV2Category(row.rows[0]) };
-    await saveReceipt(client, coupleId, row.rows[0].ledger_id, key, hash, result, actorUserId);
+    await saveReceipt(client, identity, row.rows[0].ledger_id, result);
     return result;
   });
 }
@@ -1180,7 +1213,8 @@ export async function mutateV2Transaction(
   });
   return withTx(async (client) => {
     await assertV2Writer(client, coupleId);
-    const existing = await findReceipt(client, coupleId, idempotencyKey, hash);
+    const identity = await scopedCommand(client, coupleId, actorUserId, `transaction.${input.action}`, null, id, idempotencyKey, { action: input.action, expectedVersion: input.expectedVersion, replacement: input.replacement ?? null }, hash);
+    const existing = await findReceipt(client, identity);
     if (existing) return existing;
     const rowResult = await client.query<TransactionMutationRow>(
       `select t.id, t.ledger_id, t.couple_id, t.status, t.version, t.voided_at
@@ -1231,7 +1265,7 @@ export async function mutateV2Transaction(
       const written = await insertTransaction(client, refreshedLedger, actorUserId, replacement, { replacesTransactionId: id });
       refreshedLedger.row.version += 1;
       const result = { ok: true, replacedTransactionId: id, transaction: serializedTransaction(written.transaction), balance: serializedBalance(written.balance), version: row.version + 1, ledgerVersion: refreshedLedger.row.version };
-      await saveReceipt(client, coupleId, row.ledger_id, idempotencyKey, hash, result, actorUserId);
+      await saveReceipt(client, identity, row.ledger_id, result);
       return result;
     }
     await client.query(
@@ -1271,7 +1305,7 @@ export async function mutateV2Transaction(
       balance: serializedBalance(calculateLedgerBalance(ledger.transactions, ledger.members)),
       ledgerVersion: ledger.row.version,
     };
-    await saveReceipt(client, coupleId, row.ledger_id, idempotencyKey, hash, result, actorUserId);
+    await saveReceipt(client, identity, row.ledger_id, result);
     return result;
   });
 }
@@ -1292,7 +1326,8 @@ export async function createV2Ledger(coupleId: number, actorUserId: string, rawI
   const hash = requestHash({ name: input.name, color: input.color ?? "#173B63" });
   return withTx(async (client) => {
     await assertV2Writer(client, coupleId);
-    const existing = await findReceipt(client, coupleId, idempotencyKey, hash);
+    const identity = await scopedCommand(client, coupleId, actorUserId, "ledger.create", null, null, idempotencyKey, { name: input.name, color: input.color ?? "#173B63" }, hash);
+    const existing = await findReceipt(client, identity);
     if (existing) return existing;
     const membersResult = await client.query<MemberRow>(
       `select id as user_id, role
@@ -1343,7 +1378,7 @@ export async function createV2Ledger(coupleId: number, actorUserId: string, rawI
         defaultShares: Object.fromEntries(membersResult.rows.map((member) => [member.user_id, "1"])),
       },
     };
-    await saveReceipt(client, coupleId, ledgerId, idempotencyKey, hash, result, actorUserId);
+    await saveReceipt(client, identity, ledgerId, result);
     return result;
   });
 }
@@ -1417,7 +1452,8 @@ export async function createV2RecurringRule(
   const hash = requestHash({ ledgerId, ...input, idempotencyKey: undefined });
   return withTx(async (client) => {
     await assertV2Writer(client, coupleId);
-    const existing = await findReceipt(client, coupleId, idempotencyKey, hash);
+    const identity = await scopedCommand(client, coupleId, actorUserId, "recurring.create", ledgerId, null, idempotencyKey, { ...input, endDate: input.endDate ?? null, categoryId: input.categoryId ?? null }, hash);
+    const existing = await findReceipt(client, identity);
     if (existing) return existing;
     const ledger = await loadLedger(client, coupleId, ledgerId);
     await assertLedgerMember(client, coupleId, actorUserId, ledgerId);
@@ -1475,7 +1511,7 @@ export async function createV2RecurringRule(
       ],
     );
     const result = { recurring: serializedRecurringRule(row.rows[0]!) };
-    await saveReceipt(client, coupleId, ledgerId, idempotencyKey, hash, result, actorUserId);
+    await saveReceipt(client, identity, ledgerId, result);
     return result;
   });
 }
@@ -1721,7 +1757,8 @@ export async function createV2Transaction(
   const hash = requestHash({ ...input, idempotencyKey: undefined });
   return withTx(async (client) => {
     await assertV2Writer(client, coupleId);
-    const existing = await findReceipt(client, coupleId, idempotencyKey, hash);
+    const identity = await scopedCommand(client, coupleId, actorUserId, "transaction.create", ledgerId, null, idempotencyKey, input, hash);
+    const existing = await findReceipt(client, identity);
     if (existing) return existing;
     const ledger = await loadLedger(client, coupleId, ledgerId, true);
     await assertLedgerMember(client, coupleId, actorUserId, ledgerId);
@@ -1740,7 +1777,7 @@ export async function createV2Transaction(
         : null,
       ledgerVersion: ledger.row.version,
     };
-    await saveReceipt(client, coupleId, ledgerId, idempotencyKey, hash, result, actorUserId);
+    await saveReceipt(client, identity, ledgerId, result);
     return result;
   });
 }
@@ -1757,7 +1794,8 @@ export async function settleAllV2Ledger(
   const hash = requestHash({ ledgerId, operation: "settle-all" });
   return withTx(async (client) => {
     await assertV2Writer(client, coupleId);
-    const existing = await findReceipt(client, coupleId, idempotencyKey, hash);
+    const identity = await scopedCommand(client, coupleId, actorUserId, "ledger.settle", ledgerId, null, idempotencyKey, {}, hash);
+    const existing = await findReceipt(client, identity);
     if (existing) return existing;
     const ledger = await loadLedger(client, coupleId, ledgerId, true);
     await assertLedgerMember(client, coupleId, actorUserId, ledgerId);
@@ -1765,7 +1803,7 @@ export async function settleAllV2Ledger(
     const transfer = buildSettleAllTransfer(ledger.members, balanceBefore);
     if (!transfer) {
       const result = { settled: false, balance: serializedBalance(balanceBefore), ledgerVersion: ledger.row.version };
-      await saveReceipt(client, coupleId, ledgerId, idempotencyKey, hash, result, actorUserId);
+      await saveReceipt(client, identity, ledgerId, result);
       return result;
     }
     const settleInput: CreateV2TransactionInput = {
@@ -1793,7 +1831,7 @@ export async function settleAllV2Ledger(
       balance: serializedBalance(written.balance),
       ledgerVersion: ledger.row.version,
     };
-    await saveReceipt(client, coupleId, ledgerId, idempotencyKey, hash, result, actorUserId);
+    await saveReceipt(client, identity, ledgerId, result);
     return result;
   });
 }
@@ -1809,6 +1847,7 @@ export async function createV2Proposal(
   const idempotencyKey = requestIdempotencyKey ?? `proposal:${digest}`;
   return withTx(async (client) => {
     await assertV2Writer(client, coupleId);
+    const identity = await scopedCommand(client, coupleId, actorUserId, "proposal.create", input.ledgerId, null, idempotencyKey, { ...input, expiresInSeconds: input.expiresInSeconds ?? 300 }, digest);
     const ledger = await loadLedger(client, coupleId, input.ledgerId);
     await assertLedgerMember(client, coupleId, actorUserId, input.ledgerId);
     for (const command of input.commands) {
@@ -1821,7 +1860,7 @@ export async function createV2Proposal(
         shares,
       }, ledger.members);
     }
-    const existing = await findReceipt(client, coupleId, idempotencyKey, digest);
+    const existing = await findReceipt(client, identity);
     if (existing) return existing;
     const proposalId = randomUUID();
     const expiresAt = new Date(Date.now() + (input.expiresInSeconds ?? 5 * 60) * 1_000);
@@ -1831,7 +1870,7 @@ export async function createV2Proposal(
        values ($1, $2, $3, $4, $5, $6, $7::jsonb, $8)`,
       [proposalId, coupleId, input.ledgerId, actorUserId, ledger.row.version, digest, JSON.stringify(input.commands), expiresAt.toISOString()],
     );
-    await saveReceipt(client, coupleId, input.ledgerId, idempotencyKey, digest, { proposalId, ledgerId: input.ledgerId, ledgerVersion: ledger.row.version, digest, commands: input.commands, status: "proposed", expiresAt: expiresAt.toISOString() }, actorUserId);
+    await saveReceipt(client, identity, input.ledgerId, { proposalId, ledgerId: input.ledgerId, ledgerVersion: ledger.row.version, digest, commands: input.commands, status: "proposed", expiresAt: expiresAt.toISOString() });
     return {
       proposalId,
       ledgerId: input.ledgerId,
