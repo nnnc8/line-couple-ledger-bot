@@ -17,7 +17,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { createV2AttachmentUpload, completeV2AttachmentUpload, deleteV2Attachment, listV2TransactionAttachments } from "./v2-attachment-service";
 import { dispatchV2LineInbox } from "./v2-line-inbox-dispatch";
 import { dispatchV2NotificationOutbox } from "./v2-outbox-dispatch";
-import { resetStaleV2LineInboxLeases, claimV2LineInbox } from "./v2-inbox-worker";
+import { resetStaleV2LineInboxLeases } from "./v2-inbox-worker";
 import { claimV2NotificationOutbox, resetStaleV2NotificationOutboxLeases } from "./v2-outbox-worker";
 import {
   activateV2Ledger,
@@ -78,7 +78,7 @@ function user(coupleUserId: string) {
   return { id: coupleUserId, couple_id: coupleId, role: coupleUserId === ownerId ? "owner" as const : "partner" as const, line_user_id: `line-${coupleUserId}` };
 }
 
-function fakeUsersDb(options: { owner?: boolean; partner?: boolean; pushFailure?: boolean } = {}): SupabaseClient {
+function fakeUsersDb(options: { owner?: boolean; partner?: boolean; pushFailure?: boolean; lookupFailure?: boolean } = {}): SupabaseClient {
   const owner = options.owner ?? true;
   const partner = options.partner ?? true;
   return {
@@ -97,6 +97,7 @@ function fakeUsersDb(options: { owner?: boolean; partner?: boolean; pushFailure?
           return chain;
         },
         async maybeSingle() {
+          if (options.lookupFailure) throw new Error("forced database lookup timeout");
           if (!owner || state.lineUserId !== `line-${ownerId}`) return { data: null, error: null };
           return { data: user(ownerId), error: null };
         },
@@ -253,7 +254,7 @@ test("real PostgreSQL multi-command proposal failure rolls back every command an
   const state = (await query<{ status: string; result: unknown }>("select status, result from ledger_v2.proposals where id = $1", [proposal.proposalId])).rows[0];
   assert.equal(state?.status, "proposed");
   assert.deepEqual((await getV2LedgerBootstrap(coupleId, ledgerId)).balance, beforeBalance.balance);
-  assert.equal(Number((await query<{ count: string }>("select count(*)::text as count from ledger_v2.command_receipts where idempotency_key = $1", [testKey("atomic-proposal")])).rows[0]!.count), 1);
+  assert.equal(Number((await query<{ count: string }>("select count(*)::text as count from ledger_v2.command_receipts where result->>'proposalId' = $1", [proposal.proposalId])).rows[0]!.count), 1);
 });
 
 test("migrated V2 schema exercises allocations, lineage, categories, recurring, cursor, receipt metadata, and CSV", { skip: !ENABLED }, async () => {
@@ -348,12 +349,12 @@ test("exact LINE webhook replay is one DB transaction/effect with a stable respo
     timestamp: Date.now(),
     replyToken: testKey("reply-token"),
     source: { type: "user" as const, userId: `line-${ownerId}` },
-    message: { type: "text" as const, id: testKey("message"), text: "duplicate 321 我付" },
+    message: { type: "text" as const, id: testKey("message"), text: "午餐 321 我付" },
   };
   const dependencies = fakeLineDependencies(fakeUsersDb());
   await handleLineEvent(event as unknown as webhook.Event, dependencies);
   await handleLineEvent(event as unknown as webhook.Event, dependencies);
-  const rows = await query<{ id: string }>("select id from ledger_v2.transactions where ledger_id = $1 and description = 'duplicate'", [testLedgerId]);
+  const rows = await query<{ id: string }>("select id from ledger_v2.transactions where ledger_id = $1 and description = '午餐'", [testLedgerId]);
   assert.equal(rows.rows.length, 1);
   assert.equal((await transactionCount()) - before, 1);
   assert.equal(dependencies.replies.length, 2);
@@ -378,7 +379,7 @@ test("inbox/outbox failures recover leases, retry, dead-letter, and never replay
     values ($1, $2, $3, $4::jsonb, 3) returning id`,
     [testKey("inbox"), inboxEvent.webhookEventId, `line-${ownerId}`, JSON.stringify(inboxEvent)],
   );
-  const failingLine = fakeLineDependencies(fakeUsersDb({ owner: false }), true);
+  const failingLine = fakeLineDependencies(fakeUsersDb({ lookupFailure: true }), true);
   assert.equal(await dispatchV2LineInbox(failingLine, 1), 0);
   let inboxState = (await query<{ status: string; attempt_count: number }>("select status, attempt_count from ledger_v2.line_inbox where id = $1", [inbox.rows[0]!.id])).rows[0]!;
   assert.equal(inboxState.status, "failed");

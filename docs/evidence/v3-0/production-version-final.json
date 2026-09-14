@@ -1,0 +1,9 @@
+{
+  "verifiedAt": "2026-09-14T07:48:14.261382+00:00",
+  "url": "https://line-couple-ledger-bot.vercel.app/api/version",
+  "response": {
+    "commitSha": "dad6ffaa9bbe00308f356b78175e0ccfa617326a",
+    "environment": "production",
+    "buildTimestamp": "2026-09-13T04:29:01Z"
+  }
+}

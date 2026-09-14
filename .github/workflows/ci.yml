@@ -11,9 +11,24 @@ permissions:
 
 jobs:
   verify:
-    name: typecheck, test, e2e, build
+    name: typecheck, test, PostgreSQL, e2e, build
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          # A per-run value keeps the disposable CI database credential out of
+          # source control while still allowing the isolated test wrapper to
+          # connect to this service container.
+          POSTGRES_PASSWORD: ${{ github.run_id }}
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     steps:
       - uses: actions/checkout@v4
 
@@ -36,6 +51,15 @@ jobs:
 
       - name: Unit tests
         run: pnpm test
+
+      - name: V3-0 critical PostgreSQL gates (no skips)
+        run: |
+          pnpm test:v3:pg
+          pnpm exec tsx scripts/test-v3-0-release-pg.ts test:precutover
+          pnpm exec tsx scripts/test-v3-0-release-pg.ts test:incident
+        env:
+          # An isolated service container; every suite owns a disposable database.
+          V3_PG_ADMIN_URL: postgresql://postgres:${{ github.run_id }}@localhost:5432/postgres
 
       - name: Install Playwright browser
         run: pnpm exec playwright install --with-deps chromium webkit

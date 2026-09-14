@@ -1,0 +1,35 @@
+{
+  "command": "pnpm lint --format json",
+  "exit_code": 1,
+  "baseline": {
+    "errors": 287,
+    "warnings": 39
+  },
+  "current": {
+    "errors": 282,
+    "warnings": 37
+  },
+  "delta": {
+    "errors": -5,
+    "warnings": -2
+  },
+  "modified_files_remaining": [
+    {
+      "path": "src/components/ledger/v2-ledger-home.tsx",
+      "rules": [
+        {
+          "rule": "react-hooks/set-state-in-effect",
+          "line": 233,
+          "severity": 2
+        },
+        {
+          "rule": "react-hooks/set-state-in-effect",
+          "line": 238,
+          "severity": 2
+        }
+      ]
+    }
+  ],
+  "new_violations": 0,
+  "remaining_classification": "Two pre-existing react-hooks/set-state-in-effect findings at unchanged statistics/recurring effect calls; baseline lines 223/228, current 233/238. No new rules/messages in modified/new files."
+}

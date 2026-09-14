@@ -1,0 +1,13 @@
+[ELIFECYCLE] Command failed with exit code 1.
+$ tsx scripts/test-v3-0-pg.ts
+Error: V3_PG_ADMIN_URL is required; PostgreSQL validation cannot silently skip
+    at main ([implementation]/scripts/test-v3-0-pg.ts:6:24)
+    at <anonymous> ([implementation]/scripts/test-v3-0-pg.ts:30:6)
+    at Object.<anonymous> ([implementation]/scripts/test-v3-0-pg.ts:30:86)
+    at Module._compile (node:internal/modules/cjs/loader:1781:14)
+    at Object.transformer ([implementation]/node_modules/.pnpm/tsx@4.22.4/node_modules/tsx/dist/register-BOkp8V6j.cjs:9:3176)
+    at Module.load (node:internal/modules/cjs/loader:1505:32)
+    at Module._load (node:internal/modules/cjs/loader:1309:12)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:254:19)
+    at loadCJSModuleWithModuleLoad (node:internal/modules/esm/translators:335:3)
+    at ModuleWrap.<anonymous> (node:internal/modules/esm/translators:235:7)
