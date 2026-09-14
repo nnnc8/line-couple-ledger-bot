@@ -1,3 +1,4 @@
+import { lineClarification, lineProcessingFailure, type LineBusinessOutcome } from "./line-business-outcome";
 import type { LineBotClient, webhook } from "@line/bot-sdk";
 import type { GoogleGenAI } from "@google/genai";
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -38,14 +39,14 @@ export interface BotDependencies {
 export async function handleLineEvent(
   event: webhook.Event,
   dependencies: BotDependencies,
-): Promise<void> {
+): Promise<LineBusinessOutcome | void> {
   const userId = event.source?.userId;
   const replyToken = "replyToken" in event ? event.replyToken : undefined;
-  if (!userId || !replyToken) return;
+  if (!userId || !replyToken) return lineClarification;
 
   try {
     if (event.type === "postback") {
-      if (parseRichMenuSwitchPostback(event.postback.data)) return;
+      if (parseRichMenuSwitchPostback(event.postback.data)) return lineClarification;
       const user = await findUser(dependencies.supabase, userId);
       if (!user) {
         await replyText(
@@ -53,7 +54,7 @@ export async function handleLineEvent(
           replyToken,
           "請先輸入：加入 <設定碼>",
         );
-        return;
+        return lineClarification;
       }
       const decision = parsePendingActionPostback(event.postback.data);
       if (decision) {
@@ -63,7 +64,7 @@ export async function handleLineEvent(
             replyToken,
             "V2 Ledger 的記帳請用文字格式，例如「晚餐 500 我付」；確認草稿請開啟 LIFF。",
           );
-          return;
+          return lineClarification;
         }
         const result = actionResultSchema.parse(
           await pendingActionService.confirm(
@@ -87,14 +88,14 @@ export async function handleLineEvent(
             replyToken,
             lineMenuRestartReply(actionResultMessage(result)),
           );
-          return;
+          return lineClarification;
         }
         await replyText(
           dependencies.lineClient,
           replyToken,
           actionResultMessage(result),
         );
-        return;
+        return lineClarification;
       }
       if (process.env.V2_LEDGER_ENABLED === "1") {
         await replyText(
@@ -102,7 +103,7 @@ export async function handleLineEvent(
           replyToken,
           "V2 Ledger 的記帳請用文字格式，例如「晚餐 500 我付」；確認草稿請開啟 LIFF。",
         );
-        return;
+        return lineClarification;
       }
       const parsedMenu = parseLineMenuPostbackDetailed(event.postback.data);
       if (!parsedMenu.ok) {
@@ -115,7 +116,7 @@ export async function handleLineEvent(
           replyToken,
           lineMenuRestartReply("這個操作無效或已更新，請重新開始。"),
         );
-        return;
+        return lineClarification;
       }
       let response;
       try {
@@ -138,23 +139,22 @@ export async function handleLineEvent(
           replyToken,
           lineMenuRestartReply("群組已變更，請重新開始。"),
         );
-        return;
+        return lineClarification;
       }
       await replyMessages(
         dependencies.lineClient,
         replyToken,
         response,
       );
-      return;
+      return lineClarification;
     }
-    if (event.type !== "message") return;
+    if (event.type !== "message") return lineClarification;
 
     if (event.message.type === "text") {
       const text = event.message.text;
       const joinMatch = text.trim().match(/^加入\s+(.+)$/);
       if (joinMatch) {
-        await joinCouple(joinMatch[1]!, userId, replyToken, dependencies);
-        return;
+        return await joinCouple(joinMatch[1]!, userId, replyToken, dependencies);
       }
 
       const user = await findUser(dependencies.supabase, userId);
@@ -164,14 +164,14 @@ export async function handleLineEvent(
           replyToken,
           "請先輸入：加入 <設定碼>",
         );
-        return;
+        return lineClarification;
       }
 
       if (isV2IncidentBootstrapOnly() && process.env.V2_LEDGER_ENABLED === "1") {
         throw new V2IncidentFreezeError();
       }
 
-      await handleLineTextMessage(
+      return await handleLineTextMessage(
         text,
         event.webhookEventId,
         user,
@@ -179,7 +179,6 @@ export async function handleLineEvent(
         dependencies,
         event.timestamp,
       );
-      return;
     }
 
     if (event.message.type === "image") {
@@ -190,7 +189,7 @@ export async function handleLineEvent(
           replyToken,
           "請先輸入：加入 <設定碼>",
         );
-        return;
+        return lineClarification;
       }
       if (isV2IncidentBootstrapOnly() && process.env.V2_LEDGER_ENABLED === "1") {
         throw new V2IncidentFreezeError();
@@ -202,7 +201,7 @@ export async function handleLineEvent(
         dependencies,
         reply: (msg) => replyMessages(dependencies.lineClient, replyToken, msg),
       });
-      return;
+      return lineClarification;
     }
 
     if (event.message.type === "audio") {
@@ -213,12 +212,12 @@ export async function handleLineEvent(
           replyToken,
           "請先輸入：加入 <設定碼>",
         );
-        return;
+        return lineClarification;
       }
       if (isV2IncidentBootstrapOnly() && process.env.V2_LEDGER_ENABLED === "1") {
         throw new V2IncidentFreezeError();
       }
-      await handleLineAudioTurn({
+      return await handleLineAudioTurn({
         messageId: event.message.id,
         replyToken,
         sourceEventId: event.webhookEventId,
@@ -228,12 +227,12 @@ export async function handleLineEvent(
         reply: (msg) => replyMessages(dependencies.lineClient, replyToken, msg),
         v2Only: process.env.V2_LEDGER_ENABLED === "1",
       });
-      return;
     }
   } catch (error) {
     // Durable V2 inbox dispatch must retain the event while maintenance is
     // active. Do not mark it processed or send a generic failure reply.
     if (isV2IncidentFreezeError(error)) throw error;
+    if (process.env.V2_LEDGER_ENABLED === "1") return lineProcessingFailure(error);
     console.error("LINE event failed", {
       eventId: event.webhookEventId,
       error: error instanceof Error ? error.name : "unknown",

@@ -1,3 +1,4 @@
+import { lineClarification, type LineBusinessOutcome } from "./line-business-outcome";
 import { createHash } from "node:crypto";
 import { z } from "zod";
 import type { GoogleGenAI } from "@google/genai";
@@ -568,7 +569,7 @@ export async function handleLineAudioTurn(input: {
   dependencies: LineSecretaryDependencies;
   reply: (message: ReplyPayload) => Promise<void>;
   v2Only?: boolean;
-}): Promise<void> {
+}): Promise<LineBusinessOutcome | void> {
   const { messageId, user, dependencies, reply } = input;
   try {
     const content = await dependencies.lineClient.getMessageContent(messageId);
@@ -579,7 +580,7 @@ export async function handleLineAudioTurn(input: {
       size += buffer.length;
       if (size > 10 * 1024 * 1024) {
         await reply("語音訊息太大，請傳短一點的語音。");
-        return;
+        return lineClarification;
       }
       chunks.push(buffer);
     }
@@ -587,12 +588,12 @@ export async function handleLineAudioTurn(input: {
     const text = await agentChatService.transcribeAudio(bytes, "audio/x-m4a");
     if (!text) {
       await reply("沒聽清楚，可以再說一次或打字嗎？");
-      return;
+      return lineClarification;
     }
 
     if (input.v2Only) {
       const { handleLineTextMessage } = await import("./line-text-service");
-      await handleLineTextMessage(
+      return await handleLineTextMessage(
         text,
         input.sourceEventId ?? `audio:${messageId}`,
         user,
@@ -604,8 +605,8 @@ export async function handleLineAudioTurn(input: {
           setupCode: "",
         },
         input.sourceEventTimestamp,
+        "audio",
       );
-      return;
     }
 
     await runLineSecretaryTurn({
@@ -620,6 +621,7 @@ export async function handleLineAudioTurn(input: {
       },
     });
   } catch (err) {
+    if (input.v2Only) throw err;
     console.error("Failed to process audio message:", err);
     await reply("語音處理失敗，請稍後再試或直接打字。");
   }
