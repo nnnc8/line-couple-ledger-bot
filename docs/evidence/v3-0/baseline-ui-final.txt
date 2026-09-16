@@ -1,0 +1,309 @@
+
+Running 8 tests using 1 worker
+
+[1/8] [v2-chromium-iphone] › tests/v2-liff.spec.ts:318:5 › V3-0 ignores reversed bootstrap responses and resets the Ledger draft
+  1) [v2-chromium-iphone] › tests/v2-liff.spec.ts:318:5 › V3-0 ignores reversed bootstrap responses and resets the Ledger draft
+
+    Error: expect(locator).toContainText(expected) failed
+
+    Locator: locator('[style*="linear-gradient"]').first()
+    Expected substring: "Scope B"
+    Received string:    "STALE A目前很平衡"
+    Timeout: 5000ms
+
+    Call log:
+      - Expect "toContainText" with timeout 5000ms
+      - waiting for locator('[style*="linear-gradient"]').first()
+        14 × locator resolved to <div class="rounded-2xl border border-[var(--border)] bg-[var(--card)] shadow-[var(--shadow-card)] overflow-hidden p-5 text-white">…</div>
+           - unexpected value "STALE A目前很平衡"
+
+
+      331 |   await page.getByRole("tab", { name: "統計" }).click();
+      332 |   await expect(page.getByText("Scope B", { exact: true }).last()).toBeVisible();
+    > 333 |   await expect(card).toContainText("Scope B");
+          |                      ^
+      334 |   await expect(page.getByLabel("金額 TWD")).toHaveValue("");
+      335 |   await expect(page.getByLabel("說明")).toHaveValue("");
+      336 |   await page.screenshot({ path: "output/playwright/v3-0/ledger-scope.png", fullPage: true });
+        at [baseline]/tests/v2-liff.spec.ts:333:22
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    output/playwright/v2-results/v2-liff-V3-0-ignores-rever-28f98-and-resets-the-Ledger-draft-v2-chromium-iphone/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: output/playwright/v2-results/v2-liff-V3-0-ignores-rever-28f98-and-resets-the-Ledger-draft-v2-chromium-iphone/error-context.md
+
+    attachment #3: trace (application/zip) ─────────────────────────────────────────────────────────
+    output/playwright/v2-results/v2-liff-V3-0-ignores-rever-28f98-and-resets-the-Ledger-draft-v2-chromium-iphone/trace.zip
+    Usage:
+
+        pnpm exec playwright show-trace output/playwright/v2-results/v2-liff-V3-0-ignores-rever-28f98-and-resets-the-Ledger-draft-v2-chromium-iphone/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+[2/8] [v2-chromium-iphone] › tests/v2-liff.spec.ts:339:5 › V3-0 rapid A B A switches ignore the first A generation and stale errors
+
+[WebServer] [browser] ⨯ unhandledRejection: Error: STALE ERROR
+[WebServer]     at parseResponse (src/lib/api.ts:40:21)
+[WebServer]     at async useV2Ledgers.useCallback[loadBootstrap] [as loadBootstrap] (src/hooks/use-v2-ledgers.ts:33:20)
+[WebServer]   38 |   if (!response.ok) {
+[WebServer]   39 |     const error = (body as { error?: string }).error ?? "操作失敗";
+[WebServer] > 40 |     const failure = new Error(error) as Error & { status?: number };
+[WebServer]      |                     ^
+[WebServer]   41 |     failure.status = response.status;
+[WebServer]   42 |     throw failure;
+[WebServer]   43 |   }
+  2) [v2-chromium-iphone] › tests/v2-liff.spec.ts:339:5 › V3-0 rapid A B A switches ignore the first A generation and stale errors
+
+    Error: expect(locator).toHaveCount(expected) failed
+
+    Locator:  getByText('STALE ERROR', { exact: true })
+    Expected: 0
+    Received: 1
+    Timeout:  5000ms
+
+    Call log:
+      - Expect "toHaveCount" with timeout 5000ms
+      - waiting for getByText('STALE ERROR', { exact: true })
+        14 × locator resolved to 1 element
+           - unexpected value "1"
+
+
+      351 |   await releaseScopeResponse(page, held[0]!, { status: 503, json: { error: "STALE ERROR" } });
+      352 |   await page.getByLabel("金額 TWD").fill("12");
+    > 353 |   await expect(page.getByText("STALE ERROR", { exact: true })).toHaveCount(0);
+          |                                                                ^
+      354 |   await expect(page.locator('[style*="linear-gradient"]').first()).toContainText("NEW A");
+      355 | });
+      356 |
+        at [baseline]/tests/v2-liff.spec.ts:353:64
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    output/playwright/v2-results/v2-liff-V3-0-rapid-A-B-A-s-cbfe5-generation-and-stale-errors-v2-chromium-iphone/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: output/playwright/v2-results/v2-liff-V3-0-rapid-A-B-A-s-cbfe5-generation-and-stale-errors-v2-chromium-iphone/error-context.md
+
+    attachment #3: trace (application/zip) ─────────────────────────────────────────────────────────
+    output/playwright/v2-results/v2-liff-V3-0-rapid-A-B-A-s-cbfe5-generation-and-stale-errors-v2-chromium-iphone/trace.zip
+    Usage:
+
+        pnpm exec playwright show-trace output/playwright/v2-results/v2-liff-V3-0-rapid-A-B-A-s-cbfe5-generation-and-stale-errors-v2-chromium-iphone/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+[3/8] [v2-chromium-iphone] › tests/v2-liff.spec.ts:358:7 › V3-0 ignores reversed statistics responses across Ledgers
+  3) [v2-chromium-iphone] › tests/v2-liff.spec.ts:358:7 › V3-0 ignores reversed statistics responses across Ledgers
+
+    Error: expect(locator).toHaveCount(expected) failed
+
+    Locator:  getByText(/STALE/)
+    Expected: 0
+    Received: 1
+    Timeout:  5000ms
+
+    Call log:
+      - Expect "toHaveCount" with timeout 5000ms
+      - waiting for getByText(/STALE/)
+        14 × locator resolved to 1 element
+           - unexpected value "1"
+
+
+      377 |     }
+      378 |     await page.getByLabel("金額 TWD").fill("12");
+    > 379 |     await expect(page.getByText(/STALE/)).toHaveCount(0);
+          |                                           ^
+      380 |     await expect(page.getByLabel("STALE 分類名稱", { exact: true })).toHaveCount(0);
+      381 |     await expect(page.locator('[style*="linear-gradient"]').first()).toContainText("Scope B");
+      382 |   });
+        at [baseline]/tests/v2-liff.spec.ts:379:43
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    output/playwright/v2-results/v2-liff-V3-0-ignores-rever-2ea9f-cs-responses-across-Ledgers-v2-chromium-iphone/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: output/playwright/v2-results/v2-liff-V3-0-ignores-rever-2ea9f-cs-responses-across-Ledgers-v2-chromium-iphone/error-context.md
+
+    attachment #3: trace (application/zip) ─────────────────────────────────────────────────────────
+    output/playwright/v2-results/v2-liff-V3-0-ignores-rever-2ea9f-cs-responses-across-Ledgers-v2-chromium-iphone/trace.zip
+    Usage:
+
+        pnpm exec playwright show-trace output/playwright/v2-results/v2-liff-V3-0-ignores-rever-2ea9f-cs-responses-across-Ledgers-v2-chromium-iphone/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+[4/8] [v2-chromium-iphone] › tests/v2-liff.spec.ts:358:7 › V3-0 ignores reversed categories responses across Ledgers
+  4) [v2-chromium-iphone] › tests/v2-liff.spec.ts:358:7 › V3-0 ignores reversed categories responses across Ledgers
+
+    Error: expect(locator).toHaveCount(expected) failed
+
+    Locator:  getByText(/STALE/)
+    Expected: 0
+    Received: 1
+    Timeout:  5000ms
+
+    Call log:
+      - Expect "toHaveCount" with timeout 5000ms
+      - waiting for getByText(/STALE/)
+        14 × locator resolved to 1 element
+           - unexpected value "1"
+
+
+      377 |     }
+      378 |     await page.getByLabel("金額 TWD").fill("12");
+    > 379 |     await expect(page.getByText(/STALE/)).toHaveCount(0);
+          |                                           ^
+      380 |     await expect(page.getByLabel("STALE 分類名稱", { exact: true })).toHaveCount(0);
+      381 |     await expect(page.locator('[style*="linear-gradient"]').first()).toContainText("Scope B");
+      382 |   });
+        at [baseline]/tests/v2-liff.spec.ts:379:43
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    output/playwright/v2-results/v2-liff-V3-0-ignores-rever-07756-es-responses-across-Ledgers-v2-chromium-iphone/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: output/playwright/v2-results/v2-liff-V3-0-ignores-rever-07756-es-responses-across-Ledgers-v2-chromium-iphone/error-context.md
+
+    attachment #3: trace (application/zip) ─────────────────────────────────────────────────────────
+    output/playwright/v2-results/v2-liff-V3-0-ignores-rever-07756-es-responses-across-Ledgers-v2-chromium-iphone/trace.zip
+    Usage:
+
+        pnpm exec playwright show-trace output/playwright/v2-results/v2-liff-V3-0-ignores-rever-07756-es-responses-across-Ledgers-v2-chromium-iphone/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+[5/8] [v2-chromium-iphone] › tests/v2-liff.spec.ts:358:7 › V3-0 ignores reversed recurring responses across Ledgers
+  5) [v2-chromium-iphone] › tests/v2-liff.spec.ts:358:7 › V3-0 ignores reversed recurring responses across Ledgers
+
+    Error: expect(locator).toHaveCount(expected) failed
+
+    Locator:  getByText(/STALE/)
+    Expected: 0
+    Received: 1
+    Timeout:  5000ms
+
+    Call log:
+      - Expect "toHaveCount" with timeout 5000ms
+      - waiting for getByText(/STALE/)
+        14 × locator resolved to 1 element
+           - unexpected value "1"
+
+
+      377 |     }
+      378 |     await page.getByLabel("金額 TWD").fill("12");
+    > 379 |     await expect(page.getByText(/STALE/)).toHaveCount(0);
+          |                                           ^
+      380 |     await expect(page.getByLabel("STALE 分類名稱", { exact: true })).toHaveCount(0);
+      381 |     await expect(page.locator('[style*="linear-gradient"]').first()).toContainText("Scope B");
+      382 |   });
+        at [baseline]/tests/v2-liff.spec.ts:379:43
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    output/playwright/v2-results/v2-liff-V3-0-ignores-rever-87a3e-ng-responses-across-Ledgers-v2-chromium-iphone/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: output/playwright/v2-results/v2-liff-V3-0-ignores-rever-87a3e-ng-responses-across-Ledgers-v2-chromium-iphone/error-context.md
+
+    attachment #3: trace (application/zip) ─────────────────────────────────────────────────────────
+    output/playwright/v2-results/v2-liff-V3-0-ignores-rever-87a3e-ng-responses-across-Ledgers-v2-chromium-iphone/trace.zip
+    Usage:
+
+        pnpm exec playwright show-trace output/playwright/v2-results/v2-liff-V3-0-ignores-rever-87a3e-ng-responses-across-Ledgers-v2-chromium-iphone/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+[6/8] [v2-chromium-iphone] › tests/v2-liff.spec.ts:358:7 › V3-0 ignores reversed transactions responses across Ledgers
+[7/8] [v2-chromium-iphone] › tests/v2-liff.spec.ts:385:5 › V3-0 switching Ledger after a deep link stays on the manual selection
+  6) [v2-chromium-iphone] › tests/v2-liff.spec.ts:385:5 › V3-0 switching Ledger after a deep link stays on the manual selection
+
+    Error: expect(received).toEqual(expected) // deep equality
+
+    - Expected  - 0
+    + Received  + 1
+
+      Array [
+        "00000000-0000-4000-8000-000000000012",
+    +   "00000000-0000-4000-8000-000000000010",
+      ]
+
+      396 |   await expect.poll(() => activations.length).toBeGreaterThan(0);
+      397 |   await page.evaluate(() => new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
+    > 398 |   expect(activations).toEqual([SECOND_LEDGER]);
+          |                       ^
+      399 |   await expect(page.getByLabel("切換 Ledger")).toHaveValue(SECOND_LEDGER);
+      400 | });
+      401 |
+        at [baseline]/tests/v2-liff.spec.ts:398:23
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    output/playwright/v2-results/v2-liff-V3-0-switching-Led-649b8-ays-on-the-manual-selection-v2-chromium-iphone/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: output/playwright/v2-results/v2-liff-V3-0-switching-Led-649b8-ays-on-the-manual-selection-v2-chromium-iphone/error-context.md
+
+    attachment #3: trace (application/zip) ─────────────────────────────────────────────────────────
+    output/playwright/v2-results/v2-liff-V3-0-switching-Led-649b8-ays-on-the-manual-selection-v2-chromium-iphone/trace.zip
+    Usage:
+
+        pnpm exec playwright show-trace output/playwright/v2-results/v2-liff-V3-0-switching-Led-649b8-ays-on-the-manual-selection-v2-chromium-iphone/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+[8/8] [v2-chromium-iphone] › tests/v2-liff.spec.ts:403:5 › V3-0 a late A save cannot update B feedback or reuse A's draft/key
+  7) [v2-chromium-iphone] › tests/v2-liff.spec.ts:403:5 › V3-0 a late A save cannot update B feedback or reuse A's draft/key
+
+    Error: expect(locator).toHaveCount(expected) failed
+
+    Locator:  getByText('STALE SAVE ERROR', { exact: true })
+    Expected: 0
+    Received: 1
+    Timeout:  5000ms
+
+    Call log:
+      - Expect "toHaveCount" with timeout 5000ms
+      - waiting for getByText('STALE SAVE ERROR', { exact: true })
+        12 × locator resolved to 2 elements
+           - unexpected value "2"
+        2 × locator resolved to 1 element
+          - unexpected value "1"
+
+
+      419 |   await expect(page.locator('[style*="linear-gradient"]').first()).toContainText("Scope B");
+      420 |   await releaseScopeResponse(page, held!, { status: 422, json: { error: "STALE SAVE ERROR" } });
+    > 421 |   await expect(page.getByText("STALE SAVE ERROR", { exact: true })).toHaveCount(0);
+          |                                                                     ^
+      422 |   await expect(page.getByLabel("金額 TWD")).toHaveValue("");
+      423 |   await page.getByLabel("金額 TWD").fill("100");
+      424 |   await page.getByLabel("說明").fill("late-A");
+        at [baseline]/tests/v2-liff.spec.ts:421:69
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    output/playwright/v2-results/v2-liff-V3-0-a-late-A-save-352bc-back-or-reuse-A-s-draft-key-v2-chromium-iphone/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: output/playwright/v2-results/v2-liff-V3-0-a-late-A-save-352bc-back-or-reuse-A-s-draft-key-v2-chromium-iphone/error-context.md
+
+    attachment #3: trace (application/zip) ─────────────────────────────────────────────────────────
+    output/playwright/v2-results/v2-liff-V3-0-a-late-A-save-352bc-back-or-reuse-A-s-draft-key-v2-chromium-iphone/trace.zip
+    Usage:
+
+        pnpm exec playwright show-trace output/playwright/v2-results/v2-liff-V3-0-a-late-A-save-352bc-back-or-reuse-A-s-draft-key-v2-chromium-iphone/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+  7 failed
+    [v2-chromium-iphone] › tests/v2-liff.spec.ts:318:5 › V3-0 ignores reversed bootstrap responses and resets the Ledger draft
+    [v2-chromium-iphone] › tests/v2-liff.spec.ts:339:5 › V3-0 rapid A B A switches ignore the first A generation and stale errors
+    [v2-chromium-iphone] › tests/v2-liff.spec.ts:358:7 › V3-0 ignores reversed statistics responses across Ledgers
+    [v2-chromium-iphone] › tests/v2-liff.spec.ts:358:7 › V3-0 ignores reversed categories responses across Ledgers
+    [v2-chromium-iphone] › tests/v2-liff.spec.ts:358:7 › V3-0 ignores reversed recurring responses across Ledgers
+    [v2-chromium-iphone] › tests/v2-liff.spec.ts:385:5 › V3-0 switching Ledger after a deep link stays on the manual selection
+    [v2-chromium-iphone] › tests/v2-liff.spec.ts:403:5 › V3-0 a late A save cannot update B feedback or reuse A's draft/key
+  1 passed (52.6s)

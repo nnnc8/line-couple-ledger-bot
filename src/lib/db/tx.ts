@@ -1,4 +1,5 @@
 import { Pool, type PoolClient } from "pg";
+import { databasePoolConfig } from "./connection-config";
 
 let pool: Pool | null = null;
 
@@ -8,10 +9,7 @@ function getPool(): Pool {
     if (!connectionString) {
       throw new Error("server not configured / DATABASE_URL missing");
     }
-    pool = new Pool({
-      connectionString,
-      ssl: connectionString.includes("supabase") ? { rejectUnauthorized: false } : undefined,
-    });
+    pool = new Pool(databasePoolConfig(connectionString));
   }
   return pool;
 }

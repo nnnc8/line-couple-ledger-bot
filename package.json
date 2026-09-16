@@ -9,7 +9,7 @@
     "dev": "next dev",
     "build": "next build",
     "lint": "eslint .",
-    "test": "tsx --test src/lib/ledger.test.ts src/lib/v2-ledger.test.ts src/lib/v2-history.test.ts src/lib/v2-migration.test.ts src/lib/v2-migration-apply.test.ts src/lib/v2-workflow.test.ts src/lib/v2-outbox-dispatch.test.ts src/lib/onboarding-route.test.ts src/lib/v2-navigation.test.ts",
+    "test": "tsx --test src/lib/ledger.test.ts src/lib/v2-ledger.test.ts src/lib/v2-history.test.ts src/lib/v2-migration.test.ts src/lib/v2-migration-apply.test.ts src/lib/v2-workflow.test.ts src/lib/v2-outbox-dispatch.test.ts src/lib/onboarding-route.test.ts src/lib/v2-navigation.test.ts src/lib/v2-direct-command.test.ts src/lib/db/connection-config.test.ts scripts/v3-0-test-db.test.ts",
     "test:tx": "tsx --test src/lib/pending-action.tx.test.ts src/lib/pending-action.pg.test.ts src/lib/v2-precutover.pg.test.ts",
     "test:precutover": "tsx --test src/lib/v2-precutover.pg.test.ts",
     "test:incident": "tsx --test src/lib/v2-category-migration.pg.test.ts src/lib/v2-incident-freeze.test.ts",
@@ -33,7 +33,9 @@
     "rich-menu:validate": "tsx scripts/line-rich-menu.ts validate",
     "rich-menu:plan": "tsx scripts/line-rich-menu.ts plan",
     "rich-menu:apply": "tsx scripts/line-rich-menu.ts apply",
-    "rich-menu:rollback": "tsx scripts/line-rich-menu.ts rollback"
+    "rich-menu:rollback": "tsx scripts/line-rich-menu.ts rollback",
+    "test:v3:pg": "tsx scripts/test-v3-0-pg.ts",
+    "test:v3:tls": "tsx scripts/test-v3-0-pg.ts --tls"
   },
   "dependencies": {
     "@ai-sdk/google": "^4.0.1",

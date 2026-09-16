@@ -1,0 +1,798 @@
+TAP version 13
+# v2_notification_outbox_enqueued {
+#   transactionId: '68d82873-74a1-40cc-961b-d88c90f23238',
+#   dedupeKey: 'v2:transaction:68d82873-74a1-40cc-961b-d88c90f23238:user:22222222-2222-4222-8222-222222222222'
+# }
+# Subtest: F1 refusal: zero financial write
+not ok 1 - F1 refusal: zero financial write
+  ---
+  duration_ms: 140.209375
+  type: 'test'
+  location: '[baseline]/src/lib/v3-0-correctness.pg.test.ts:2:5463'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected "actual" to be strictly unequal to:
+
+    'posted'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 'posted'
+  actual: 'posted'
+  operator: 'notStrictEqual'
+  stack: |-
+    TestContext.<anonymous> ([baseline]/src/lib/v3-0-correctness.pg.test.ts:98:12)
+    process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async startSubtestAfterBootstrap (node:internal/test_runner/harness:296:3)
+  ...
+# Subtest: F1 negation: zero financial write
+ok 2 - F1 negation: zero financial write
+  ---
+  duration_ms: 1.748875
+  type: 'test'
+  ...
+# v2_notification_outbox_enqueued {
+#   transactionId: '19306db3-4fe4-49d9-989f-5093b0595d97',
+#   dedupeKey: 'v2:transaction:19306db3-4fe4-49d9-989f-5093b0595d97:user:22222222-2222-4222-8222-222222222222'
+# }
+# Subtest: F1 multi-command: zero financial write
+not ok 3 - F1 multi-command: zero financial write
+  ---
+  duration_ms: 31.459708
+  type: 'test'
+  location: '[baseline]/src/lib/v3-0-correctness.pg.test.ts:2:5463'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected "actual" to be strictly unequal to:
+
+    'posted'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 'posted'
+  actual: 'posted'
+  operator: 'notStrictEqual'
+  stack: |-
+    TestContext.<anonymous> ([baseline]/src/lib/v3-0-correctness.pg.test.ts:98:12)
+    process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# v2_notification_outbox_enqueued {
+#   transactionId: 'ecf8dd24-e72e-4bb4-90b6-b308d64e339f',
+#   dedupeKey: 'v2:transaction:ecf8dd24-e72e-4bb4-90b6-b308d64e339f:user:22222222-2222-4222-8222-222222222222'
+# }
+# Subtest: F1 decimal: zero financial write
+not ok 4 - F1 decimal: zero financial write
+  ---
+  duration_ms: 15.715458
+  type: 'test'
+  location: '[baseline]/src/lib/v3-0-correctness.pg.test.ts:2:5463'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected "actual" to be strictly unequal to:
+
+    'posted'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 'posted'
+  actual: 'posted'
+  operator: 'notStrictEqual'
+  stack: |-
+    TestContext.<anonymous> ([baseline]/src/lib/v3-0-correctness.pg.test.ts:98:12)
+    process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# v2_notification_outbox_enqueued {
+#   transactionId: '7ebe7ec3-9499-4601-91d4-ee817a27d1bc',
+#   dedupeKey: 'v2:transaction:7ebe7ec3-9499-4601-91d4-ee817a27d1bc:user:22222222-2222-4222-8222-222222222222'
+# }
+# Subtest: F1 foreign currency: zero financial write
+not ok 5 - F1 foreign currency: zero financial write
+  ---
+  duration_ms: 14.446708
+  type: 'test'
+  location: '[baseline]/src/lib/v3-0-correctness.pg.test.ts:2:5463'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected "actual" to be strictly unequal to:
+
+    'posted'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 'posted'
+  actual: 'posted'
+  operator: 'notStrictEqual'
+  stack: |-
+    TestContext.<anonymous> ([baseline]/src/lib/v3-0-correctness.pg.test.ts:98:12)
+    process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# v2_notification_outbox_enqueued {
+#   transactionId: 'c9e51bd3-b4fa-48b6-a557-d1461531e422',
+#   dedupeKey: 'v2:transaction:c9e51bd3-b4fa-48b6-a557-d1461531e422:user:22222222-2222-4222-8222-222222222222'
+# }
+# Subtest: F1 date-like integers: zero financial write
+not ok 6 - F1 date-like integers: zero financial write
+  ---
+  duration_ms: 11.410125
+  type: 'test'
+  location: '[baseline]/src/lib/v3-0-correctness.pg.test.ts:2:5463'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected "actual" to be strictly unequal to:
+
+    'posted'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 'posted'
+  actual: 'posted'
+  operator: 'notStrictEqual'
+  stack: |-
+    TestContext.<anonymous> ([baseline]/src/lib/v3-0-correctness.pg.test.ts:98:12)
+    process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# v2_notification_outbox_enqueued {
+#   transactionId: 'd9866988-80bb-4958-acf6-edb48293097a',
+#   dedupeKey: 'v2:transaction:d9866988-80bb-4958-acf6-edb48293097a:user:22222222-2222-4222-8222-222222222222'
+# }
+# Subtest: F1 ambiguous numbers: zero financial write
+not ok 7 - F1 ambiguous numbers: zero financial write
+  ---
+  duration_ms: 14.711458
+  type: 'test'
+  location: '[baseline]/src/lib/v3-0-correctness.pg.test.ts:2:5463'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected "actual" to be strictly unequal to:
+
+    'posted'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 'posted'
+  actual: 'posted'
+  operator: 'notStrictEqual'
+  stack: |-
+    TestContext.<anonymous> ([baseline]/src/lib/v3-0-correctness.pg.test.ts:98:12)
+    process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# v2_notification_outbox_enqueued {
+#   transactionId: 'c0495bb4-96ee-453f-acb0-43c30637b1f5',
+#   dedupeKey: 'v2:transaction:c0495bb4-96ee-453f-acb0-43c30637b1f5:user:22222222-2222-4222-8222-222222222222'
+# }
+# Subtest: F1 unsupported kind: zero financial write
+not ok 8 - F1 unsupported kind: zero financial write
+  ---
+  duration_ms: 11.371708
+  type: 'test'
+  location: '[baseline]/src/lib/v3-0-correctness.pg.test.ts:2:5463'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected "actual" to be strictly unequal to:
+
+    'posted'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 'posted'
+  actual: 'posted'
+  operator: 'notStrictEqual'
+  stack: |-
+    TestContext.<anonymous> ([baseline]/src/lib/v3-0-correctness.pg.test.ts:98:12)
+    process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: F1 missing payer: zero financial write
+ok 9 - F1 missing payer: zero financial write
+  ---
+  duration_ms: 1.538458
+  type: 'test'
+  ...
+# v2_notification_outbox_enqueued {
+#   transactionId: 'b338dc7e-1eb5-47b2-ab84-0b05f2d7194b',
+#   dedupeKey: 'v2:transaction:b338dc7e-1eb5-47b2-ab84-0b05f2d7194b:user:22222222-2222-4222-8222-222222222222'
+# }
+# Subtest: F1 unknown shares: zero financial write
+not ok 10 - F1 unknown shares: zero financial write
+  ---
+  duration_ms: 12.383
+  type: 'test'
+  location: '[baseline]/src/lib/v3-0-correctness.pg.test.ts:2:5463'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected "actual" to be strictly unequal to:
+
+    'posted'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 'posted'
+  actual: 'posted'
+  operator: 'notStrictEqual'
+  stack: |-
+    TestContext.<anonymous> ([baseline]/src/lib/v3-0-correctness.pg.test.ts:98:12)
+    process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# v2_notification_outbox_enqueued {
+#   transactionId: '699ab488-f190-4d3a-80b5-b0edbf317390',
+#   dedupeKey: 'v2:transaction:699ab488-f190-4d3a-80b5-b0edbf317390:user:22222222-2222-4222-8222-222222222222'
+# }
+# Subtest: F1 relative date: zero financial write
+not ok 11 - F1 relative date: zero financial write
+  ---
+  duration_ms: 11.475083
+  type: 'test'
+  location: '[baseline]/src/lib/v3-0-correctness.pg.test.ts:2:5463'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected "actual" to be strictly unequal to:
+
+    'posted'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 'posted'
+  actual: 'posted'
+  operator: 'notStrictEqual'
+  stack: |-
+    TestContext.<anonymous> ([baseline]/src/lib/v3-0-correctness.pg.test.ts:98:12)
+    process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# v2_notification_outbox_enqueued {
+#   transactionId: '7461de6f-cbec-468e-8aa9-ca630b849803',
+#   dedupeKey: 'v2:transaction:7461de6f-cbec-468e-8aa9-ca630b849803:user:22222222-2222-4222-8222-222222222222'
+# }
+# Subtest: F1 refund with old payer: zero financial write
+not ok 12 - F1 refund with old payer: zero financial write
+  ---
+  duration_ms: 18.719709
+  type: 'test'
+  location: '[baseline]/src/lib/v3-0-correctness.pg.test.ts:2:5463'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected "actual" to be strictly unequal to:
+
+    'posted'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 'posted'
+  actual: 'posted'
+  operator: 'notStrictEqual'
+  stack: |-
+    TestContext.<anonymous> ([baseline]/src/lib/v3-0-correctness.pg.test.ts:98:12)
+    process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# v2_notification_outbox_enqueued {
+#   transactionId: '5fe7c6b1-8de4-47db-ae0b-59c46ebd146c',
+#   dedupeKey: 'v2:transaction:5fe7c6b1-8de4-47db-ae0b-59c46ebd146c:user:22222222-2222-4222-8222-222222222222'
+# }
+# v2_notification_outbox_enqueued {
+#   transactionId: '06cc4c71-b6f6-4e20-bce1-2facbb25252c',
+#   dedupeKey: 'v2:transaction:06cc4c71-b6f6-4e20-bce1-2facbb25252c:user:22222222-2222-4222-8222-222222222222'
+# }
+# v2_notification_outbox_enqueued {
+#   transactionId: 'c1115550-3392-4ee9-b93f-9bec62e8ad0e',
+#   dedupeKey: 'v2:transaction:c1115550-3392-4ee9-b93f-9bec62e8ad0e:user:22222222-2222-4222-8222-222222222222'
+# }
+# Subtest: F1 supported deterministic expense, income and transfer preserve normal entry
+ok 13 - F1 supported deterministic expense, income and transfer preserve normal entry
+  ---
+  duration_ms: 33.655833
+  type: 'test'
+  ...
+# v2_notification_outbox_enqueued {
+#   transactionId: '34bfe743-5169-40db-ace0-a5d7857b9b3c',
+#   dedupeKey: 'v2:transaction:34bfe743-5169-40db-ace0-a5d7857b9b3c:user:22222222-2222-4222-8222-222222222222'
+# }
+# Subtest: F1 audio and AI-derived sources never inherit direct-save eligibility
+not ok 14 - F1 audio and AI-derived sources never inherit direct-save eligibility
+  ---
+  duration_ms: 10.492334
+  type: 'test'
+  location: '[baseline]/src/lib/v3-0-correctness.pg.test.ts:2:6338'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected "actual" to be strictly unequal to:
+
+    'posted'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 'posted'
+  actual: 'posted'
+  operator: 'notStrictEqual'
+  stack: |-
+    TestContext.<anonymous> ([baseline]/src/lib/v3-0-correctness.pg.test.ts:114:12)
+    process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# v2_notification_outbox_enqueued {
+#   transactionId: 'c85d4ca6-07b4-45c5-a71c-aee3c8c3aa7a',
+#   dedupeKey: 'v2:transaction:c85d4ca6-07b4-45c5-a71c-aee3c8c3aa7a:user:22222222-2222-4222-8222-222222222222'
+# }
+# Subtest: F1 explicit Ledger must match exactly, never by substring
+not ok 15 - F1 explicit Ledger must match exactly, never by substring
+  ---
+  duration_ms: 19.578084
+  type: 'test'
+  location: '[baseline]/src/lib/v3-0-correctness.pg.test.ts:2:6797'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    + actual - expected
+
+    + 'posted'
+    - 'needs_ledger'
+
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 'needs_ledger'
+  actual: 'posted'
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> ([baseline]/src/lib/v3-0-correctness.pg.test.ts:121:10)
+    process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# v2_notification_outbox_enqueued {
+#   transactionId: 'd3079c67-adaa-45f0-8cac-37bff9d7f892',
+#   dedupeKey: 'v2:transaction:d3079c67-adaa-45f0-8cac-37bff9d7f892:user:22222222-2222-4222-8222-222222222222'
+# }
+# Subtest: F4 same scope replay and concurrent duplicate have one canonical effect
+ok 16 - F4 same scope replay and concurrent duplicate have one canonical effect
+  ---
+  duration_ms: 12.681417
+  type: 'test'
+  ...
+# v2_notification_outbox_enqueued {
+#   transactionId: '5c67f68a-3e11-4a05-b36e-f547ab04c340',
+#   dedupeKey: 'v2:transaction:5c67f68a-3e11-4a05-b36e-f547ab04c340:user:22222222-2222-4222-8222-222222222222'
+# }
+# Subtest: F4 same key in another Ledger must not replay the first Ledger
+not ok 17 - F4 same key in another Ledger must not replay the first Ledger
+  ---
+  duration_ms: 25.079834
+  type: 'test'
+  location: '[baseline]/src/lib/v3-0-correctness.pg.test.ts:2:7815'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    + actual - expected
+
+    + 'd88fb5a7-b6db-4d13-a62a-8d30c895a0b3'
+    - 'ec9f9a2e-bc12-478f-a31d-98505fe7284a'
+
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 'ec9f9a2e-bc12-478f-a31d-98505fe7284a'
+  actual: 'd88fb5a7-b6db-4d13-a62a-8d30c895a0b3'
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> ([baseline]/src/lib/v3-0-correctness.pg.test.ts:138:10)
+    process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# v2_notification_outbox_enqueued {
+#   transactionId: '07d8fc2d-baee-406b-8e20-f56b604d2ee5',
+#   dedupeKey: 'v2:transaction:07d8fc2d-baee-406b-8e20-f56b604d2ee5:user:22222222-2222-4222-8222-222222222222'
+# }
+# Subtest: F4 conflicting payload has no effect; another operation has its own scope
+not ok 18 - F4 conflicting payload has no effect; another operation has its own scope
+  ---
+  duration_ms: 8.1675
+  type: 'test'
+  location: '[baseline]/src/lib/v3-0-correctness.pg.test.ts:2:8286'
+  failureType: 'testCodeFailure'
+  error: '同一 idempotency key 對應到不同請求'
+  code: 'ERR_TEST_FAILURE'
+  stack: |-
+    findReceipt ([baseline]/src/lib/v2-ledger-service.ts:505:44)
+    process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    async <anonymous> ([baseline]/src/lib/v2-ledger-service.ts:1760:22)
+    async withTx ([baseline]/src/lib/db/tx.ts:33:20)
+    async TestContext.<anonymous> ([baseline]/src/lib/v3-0-correctness.pg.test.ts:148:19)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# v2_notification_outbox_enqueued {
+#   transactionId: 'a2492fae-73d5-4a0d-ae38-4e4b3f5153fa',
+#   dedupeKey: 'v2:transaction:a2492fae-73d5-4a0d-ae38-4e4b3f5153fa:user:22222222-2222-4222-8222-222222222222'
+# }
+# Subtest: F4 receipt replay cannot bypass actor membership
+not ok 19 - F4 receipt replay cannot bypass actor membership
+  ---
+  duration_ms: 13.348041
+  type: 'test'
+  location: '[baseline]/src/lib/v3-0-correctness.pg.test.ts:2:8891'
+  failureType: 'testCodeFailure'
+  error: 'Missing expected rejection.'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  operator: 'rejects'
+  stack: |-
+    process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    async TestContext.<anonymous> ([baseline]/src/lib/v3-0-correctness.pg.test.ts:155:3)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: PG canonical insert rollback is atomic when an event insert fails
+ok 20 - PG canonical insert rollback is atomic when an event insert fails
+  ---
+  duration_ms: 9.1775
+  type: 'test'
+  ...
+# Subtest: PG writer active-plane, mutation fence and maintenance prevent financial effects
+ok 21 - PG writer active-plane, mutation fence and maintenance prevent financial effects
+  ---
+  duration_ms: 8.223042
+  type: 'test'
+  ...
+# LINE event failed { eventId: '2c0e017a-7801-4d1c-a046-fd63ee4e16c8', error: 'Error' }
+# Subtest: F5 temporary DB failure remains retryable
+not ok 22 - F5 temporary DB failure remains retryable
+  ---
+  duration_ms: 7.612708
+  type: 'test'
+  location: '[baseline]/src/lib/v3-0-correctness.pg.test.ts:2:11133'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    + actual - expected
+
+    + 'processed'
+    - 'failed'
+
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 'failed'
+  actual: 'processed'
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> ([baseline]/src/lib/v3-0-correctness.pg.test.ts:186:14)
+    process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: F5 provider timeout remains retryable
+not ok 23 - F5 provider timeout remains retryable
+  ---
+  duration_ms: 4.494542
+  type: 'test'
+  location: '[baseline]/src/lib/v3-0-correctness.pg.test.ts:2:11133'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    + actual - expected
+
+    + 'processed'
+    - 'failed'
+
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 'failed'
+  actual: 'processed'
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> ([baseline]/src/lib/v3-0-correctness.pg.test.ts:186:14)
+    process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: F5 explicit clarification is terminal without financial writes
+not ok 24 - F5 explicit clarification is terminal without financial writes
+  ---
+  duration_ms: 2.925709
+  type: 'test'
+  location: '[baseline]/src/lib/v3-0-correctness.pg.test.ts:2:11485'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    + actual - expected
+
+    + 'processed'
+    - 'ignored'
+
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 'ignored'
+  actual: 'processed'
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> ([baseline]/src/lib/v3-0-correctness.pg.test.ts:193:62)
+    process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# v2_notification_outbox_enqueued {
+#   transactionId: '71d9d3ed-f81e-42b1-ac79-606d44676a66',
+#   dedupeKey: 'v2:transaction:71d9d3ed-f81e-42b1-ac79-606d44676a66:user:22222222-2222-4222-8222-222222222222'
+# }
+# LINE event failed { eventId: '51d7e55a-db6b-4331-8b1c-907bdf83c51a', error: 'Error' }
+# v2_line_inbox_delivery_failure {
+#   inboxId: '4',
+#   webhookEventId: '51d7e55a-db6b-4331-8b1c-907bdf83c51a',
+#   disposition: 'transient',
+#   error: 'LINE delivery network failure'
+# }
+# Subtest: F5 successful accounting survives reply failure and duplicate webhook
+not ok 25 - F5 successful accounting survives reply failure and duplicate webhook
+  ---
+  duration_ms: 16.164792
+  type: 'test'
+  location: '[baseline]/src/lib/v3-0-correctness.pg.test.ts:2:11984'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    + actual - expected
+
+    + 'failed'
+    - 'processed'
+
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 'processed'
+  actual: 'failed'
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> ([baseline]/src/lib/v3-0-correctness.pg.test.ts:202:12)
+    process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: F5 maintenance preserves an unclaimed event and attempt budget
+ok 26 - F5 maintenance preserves an unclaimed event and attempt budget
+  ---
+  duration_ms: 2.418792
+  type: 'test'
+  ...
+# v2_notification_outbox_enqueued {
+#   transactionId: '02230128-67e9-4f4f-b7fa-2199654f2d12',
+#   dedupeKey: 'v2:transaction:02230128-67e9-4f4f-b7fa-2199654f2d12:user:22222222-2222-4222-8222-222222222222'
+# }
+# Subtest: F4 canonical spelling and participant order replay the same transaction
+not ok 27 - F4 canonical spelling and participant order replay the same transaction
+  ---
+  duration_ms: 8.718292
+  type: 'test'
+  location: '[baseline]/src/lib/v3-0-correctness.pg.test.ts:2:13406'
+  failureType: 'testCodeFailure'
+  error: '同一 idempotency key 對應到不同請求'
+  code: 'ERR_TEST_FAILURE'
+  stack: |-
+    findReceipt ([baseline]/src/lib/v2-ledger-service.ts:505:44)
+    process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    async <anonymous> ([baseline]/src/lib/v2-ledger-service.ts:1724:22)
+    async withTx ([baseline]/src/lib/db/tx.ts:33:20)
+    async TestContext.<anonymous> ([baseline]/src/lib/v3-0-correctness.pg.test.ts:229:17)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# v2_notification_outbox_enqueued {
+#   transactionId: '1adc04d3-de25-43e3-ac95-6bf07e2c0261',
+#   dedupeKey: 'v2:transaction:1adc04d3-de25-43e3-ac95-6bf07e2c0261:user:22222222-2222-4222-8222-222222222222'
+# }
+# Subtest: F4 historical receipts replay in place; ambiguous Ledger/actor reuse fails closed
+not ok 28 - F4 historical receipts replay in place; ambiguous Ledger/actor reuse fails closed
+  ---
+  duration_ms: 7.097
+  type: 'test'
+  location: '[baseline]/src/lib/v3-0-correctness.pg.test.ts:2:14038'
+  failureType: 'testCodeFailure'
+  error: 'Missing expected rejection.'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+  operator: 'rejects'
+  stack: |-
+    process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    async TestContext.<anonymous> ([baseline]/src/lib/v3-0-correctness.pg.test.ts:240:3)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: F4 every receipt-backed operation preserves authorized retry and resource scope
+not ok 29 - F4 every receipt-backed operation preserves authorized retry and resource scope
+  ---
+  duration_ms: 4.31175
+  type: 'test'
+  location: '[baseline]/src/lib/v3-0-correctness.pg.test.ts:2:15467'
+  failureType: 'testCodeFailure'
+  error: '同一 idempotency key 對應到不同請求'
+  code: 'ERR_TEST_FAILURE'
+  stack: |-
+    findReceipt ([baseline]/src/lib/v2-ledger-service.ts:505:44)
+    process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    async <anonymous> ([baseline]/src/lib/v2-ledger-service.ts:1057:22)
+    async withTx ([baseline]/src/lib/db/tx.ts:33:20)
+    async TestContext.<anonymous> ([baseline]/src/lib/v3-0-correctness.pg.test.ts:252:13)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# LINE event failed { eventId: '1d3bafe6-16f8-4aec-99a4-09210a7d3940', error: 'TypeError' }
+# Subtest: F5 malformed input is a permanent business failure without a provider or write
+not ok 30 - F5 malformed input is a permanent business failure without a provider or write
+  ---
+  duration_ms: 4.857708
+  type: 'test'
+  location: '[baseline]/src/lib/v3-0-correctness.pg.test.ts:2:19806'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    + actual - expected
+
+    + 'processed'
+    - 'dead_letter'
+
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 'dead_letter'
+  actual: 'processed'
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> ([baseline]/src/lib/v3-0-correctness.pg.test.ts:294:12)
+    process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: PG inbox claim token prevents an old worker from overwriting a new lease
+not ok 31 - PG inbox claim token prevents an old worker from overwriting a new lease
+  ---
+  duration_ms: 4.471
+  type: 'test'
+  location: '[baseline]/src/lib/v3-0-correctness.pg.test.ts:2:20523'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    + actual - expected
+
+    + 'processed'
+    - 'processing'
+              ^
+
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 'processing'
+  actual: 'processed'
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> ([baseline]/src/lib/v3-0-correctness.pg.test.ts:313:12)
+    process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: PG all canonical transactions retain payment/share totals and independent zero-sum balances
+ok 32 - PG all canonical transactions retain payment/share totals and independent zero-sum balances
+  ---
+  duration_ms: 2.858209
+  type: 'test'
+  ...
+# v2_notification_outbox_enqueued {
+#   transactionId: '5f4fc2fb-8b6f-4c45-9533-edc2755b9953',
+#   dedupeKey: 'v2:transaction:5f4fc2fb-8b6f-4c45-9533-edc2755b9953:user:22222222-2222-4222-8222-222222222222'
+# }
+# Subtest: F1 real audio dispatch preserves the STT source and creates only a proposal
+not ok 33 - F1 real audio dispatch preserves the STT source and creates only a proposal
+  ---
+  duration_ms: 17.521042
+  type: 'test'
+  location: '[baseline]/src/lib/v3-0-correctness.pg.test.ts:4:367'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+
+    23 !== 22
+
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 22
+  actual: 23
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> ([baseline]/src/lib/v3-0-correctness.pg.test.ts:345:12)
+    process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: F1 AI-generated candidate output creates a proposal, never a canonical transaction
+ok 34 - F1 AI-generated candidate output creates a proposal, never a canonical transaction
+  ---
+  duration_ms: 12.376166
+  type: 'test'
+  ...
+# LINE event failed { eventId: '6985ccf8-9098-4688-a177-d5a16636b15d', error: 'Error' }
+# Subtest: F5 temporary DB failure recovers to exactly one canonical effect
+not ok 35 - F5 temporary DB failure recovers to exactly one canonical effect
+  ---
+  duration_ms: 3.552583
+  type: 'test'
+  location: '[baseline]/src/lib/v3-0-correctness.pg.test.ts:4:2076'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    + actual - expected
+
+    + 'processed'
+    - 'failed'
+
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 'failed'
+  actual: 'processed'
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> ([baseline]/src/lib/v3-0-correctness.pg.test.ts:364:12)
+    process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# v2_notification_outbox_enqueued {
+#   transactionId: '7d295a21-cc9f-4b30-bd44-cc0895fafb5e',
+#   dedupeKey: 'v2:transaction:7d295a21-cc9f-4b30-bd44-cc0895fafb5e:user:22222222-2222-4222-8222-222222222222'
+# }
+# Subtest: F5 freeze racing a claim releases the lease without consuming an attempt
+ok 36 - F5 freeze racing a claim releases the lease without consuming an attempt
+  ---
+  duration_ms: 24.009542
+  type: 'test'
+  ...
+# v2_notification_outbox_enqueued {
+#   transactionId: 'ea9b41af-7f91-478c-afbe-ad97c1ca3dbd',
+#   dedupeKey: 'v2:transaction:ea9b41af-7f91-478c-afbe-ad97c1ca3dbd:user:22222222-2222-4222-8222-222222222222'
+# }
+# Subtest: F4 LINE event identity cannot create a second effect after its active Ledger changes
+not ok 37 - F4 LINE event identity cannot create a second effect after its active Ledger changes
+  ---
+  duration_ms: 19.850791
+  type: 'test'
+  location: '[baseline]/src/lib/v3-0-correctness.pg.test.ts:4:4313'
+  failureType: 'testCodeFailure'
+  error: 'Missing expected rejection.'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+  operator: 'rejects'
+  stack: |-
+    process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    async TestContext.<anonymous> ([baseline]/src/lib/v3-0-correctness.pg.test.ts:399:3)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# v2_notification_outbox_enqueued {
+#   transactionId: '583aa5e8-38df-4f04-b43b-2c4a47f72892',
+#   dedupeKey: 'v2:transaction:583aa5e8-38df-4f04-b43b-2c4a47f72892:user:22222222-2222-4222-8222-222222222222'
+# }
+# Subtest: PG Ledger balances are independent and remain zero-sum after a canonical write
+ok 38 - PG Ledger balances are independent and remain zero-sum after a canonical write
+  ---
+  duration_ms: 12.826042
+  type: 'test'
+  ...
+# v2_notification_outbox_enqueued {
+#   transactionId: 'c768133e-e4ba-4748-8c82-42ede1b7ee94',
+#   dedupeKey: 'v2:transaction:c768133e-e4ba-4748-8c82-42ede1b7ee94:user:22222222-2222-4222-8222-222222222222'
+# }
+# Subtest: F5 commit-before-ack replay remains processed after the active Ledger changes
+ok 39 - F5 commit-before-ack replay remains processed after the active Ledger changes
+  ---
+  duration_ms: 35.705167
+  type: 'test'
+  ...
+1..39
+# tests 39
+# suites 0
+# pass 12
+# fail 27
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 11435.703167

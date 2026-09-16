@@ -50,8 +50,9 @@ function waitForLiffSdk(timeoutMs = 10_000): Promise<NonNullable<Window["liff"]>
 export function V2LiffHome() {
   const v2 = useV2Ledgers();
   const [error, setError] = React.useState("");
-  const [proposalMessage, setProposalMessage] = React.useState("");
+  const [proposalDismissed, setProposalDismissed] = React.useState(false);
   const proposalId = React.useMemo(() => urlParam("v2Proposal"), []);
+  const proposalMessage = proposalId && !proposalDismissed ? "此 proposal 已建立；請在 Ledger 流水中確認或取消。" : "";
   const ledgerId = React.useMemo(() => urlParam("v2Ledger"), []);
   const transactionId = React.useMemo(() => urlParam("v2Transaction"), []);
 
@@ -74,17 +75,13 @@ export function V2LiffHome() {
     const invite = urlParam("invite") ?? undefined;
     await api("/api/app/session", { idToken, ...(invite ? { invite } : {}) });
     await v2.loadContext();
-    await v2.loadLedgers();
-  }, [v2]);
+    await v2.loadLedgers(ledgerId);
+  }, [v2, ledgerId]);
 
   React.useEffect(() => {
     if (v2.context) return;
     void startLiff().catch((reason) => setError(reason instanceof Error ? reason.message : "LIFF 初始化失敗"));
   }, [startLiff, v2.context]);
-
-  React.useEffect(() => {
-    if (proposalId) setProposalMessage("此 proposal 已建立；請在 Ledger 流水中確認或取消。");
-  }, [proposalId]);
 
   if (!v2.context) {
     return <main className="mx-auto flex min-h-dvh max-w-[640px] flex-col items-center justify-center gap-3 px-6 text-center"><h1 className="text-xl font-bold">共同帳本</h1><p className="text-sm text-[var(--muted-foreground)]">{error || "正在連線至 LINE…"}</p>{error ? <Button variant="primary" size="md" onClick={() => { setError(""); void startLiff().catch((reason) => setError(reason instanceof Error ? reason.message : "LIFF 初始化失敗")); }}>重新登入</Button> : null}</main>;
@@ -92,7 +89,7 @@ export function V2LiffHome() {
 
   return <main className="mx-auto min-h-dvh max-w-[640px] px-4 pb-6 pt-[max(16px,env(safe-area-inset-top))]">
     <header className="mb-3 flex items-center justify-between gap-3"><div><p className="text-[13px] font-semibold uppercase tracking-[0.06em] text-[var(--muted-foreground)]">Couple Ledger</p><h1 className="text-lg font-bold tracking-tight">Ledger</h1></div><span className="rounded-full bg-accent-soft px-2 py-1 text-[11px] font-bold text-accent">TWD</span></header>
-    {proposalMessage ? <div className="mb-3 rounded-xl border border-accent/30 bg-accent-soft p-3 text-sm">{proposalMessage} <Button variant="ghost" size="sm" onClick={() => setProposalMessage("")}>知道了</Button></div> : null}
-    <V2LedgerHome user={v2.context.user} users={v2.context.users} today={v2.context.today} ledgers={v2.ledgers} activeLedgerId={v2.activeLedgerId} setActiveLedgerId={v2.setActiveLedgerId} bootstrap={v2.bootstrap} error={v2.error} busy={v2.busy} reload={async () => v2.activeLedgerId ? v2.loadBootstrap(v2.activeLedgerId) : v2.loadLedgers()} applyCommittedTransaction={v2.applyCommittedTransaction} createLedger={v2.createLedger} proposalIdFromUrl={proposalId} ledgerIdFromUrl={ledgerId} transactionIdFromUrl={transactionId} initialSecondaryTab={v2SecondaryTabFromUrlValue(urlParam("tab"))} />
+    {proposalMessage ? <div className="mb-3 rounded-xl border border-accent/30 bg-accent-soft p-3 text-sm">{proposalMessage} <Button variant="ghost" size="sm" onClick={() => setProposalDismissed(true)}>知道了</Button></div> : null}
+    <V2LedgerHome key={v2.activeLedgerId ?? "no-ledger"} user={v2.context.user} users={v2.context.users} today={v2.context.today} ledgers={v2.ledgers} activeLedgerId={v2.activeLedgerId} setActiveLedgerId={v2.setActiveLedgerId} bootstrap={v2.bootstrap} error={v2.error} busy={v2.busy} reload={async () => v2.activeLedgerId ? v2.loadBootstrap(v2.activeLedgerId) : v2.loadLedgers()} applyCommittedTransaction={v2.applyCommittedTransaction} createLedger={v2.createLedger} proposalIdFromUrl={proposalId} transactionIdFromUrl={transactionId} initialSecondaryTab={v2SecondaryTabFromUrlValue(urlParam("tab"))} />
   </main>;
 }

@@ -1,0 +1,1980 @@
+{
+  "baseline": "dad6ffaa9bbe00308f356b78175e0ccfa617326a",
+  "runner": "local macOS / Node 22 / PostgreSQL 17.10, dedicated loopback cluster; synthetic fixtures",
+  "hosted_ci_run": false,
+  "suites": [
+    {
+      "name": "baseline-critical-pg-final",
+      "result": {
+        "tests": 39,
+        "pass": 12,
+        "fail": 27,
+        "skipped": 0
+      },
+      "cases": [
+        {
+          "passed": false,
+          "number": 1,
+          "name": "F1 refusal: zero financial write"
+        },
+        {
+          "passed": true,
+          "number": 2,
+          "name": "F1 negation: zero financial write"
+        },
+        {
+          "passed": false,
+          "number": 3,
+          "name": "F1 multi-command: zero financial write"
+        },
+        {
+          "passed": false,
+          "number": 4,
+          "name": "F1 decimal: zero financial write"
+        },
+        {
+          "passed": false,
+          "number": 5,
+          "name": "F1 foreign currency: zero financial write"
+        },
+        {
+          "passed": false,
+          "number": 6,
+          "name": "F1 date-like integers: zero financial write"
+        },
+        {
+          "passed": false,
+          "number": 7,
+          "name": "F1 ambiguous numbers: zero financial write"
+        },
+        {
+          "passed": false,
+          "number": 8,
+          "name": "F1 unsupported kind: zero financial write"
+        },
+        {
+          "passed": true,
+          "number": 9,
+          "name": "F1 missing payer: zero financial write"
+        },
+        {
+          "passed": false,
+          "number": 10,
+          "name": "F1 unknown shares: zero financial write"
+        },
+        {
+          "passed": false,
+          "number": 11,
+          "name": "F1 relative date: zero financial write"
+        },
+        {
+          "passed": false,
+          "number": 12,
+          "name": "F1 refund with old payer: zero financial write"
+        },
+        {
+          "passed": true,
+          "number": 13,
+          "name": "F1 supported deterministic expense, income and transfer preserve normal entry"
+        },
+        {
+          "passed": false,
+          "number": 14,
+          "name": "F1 audio and AI-derived sources never inherit direct-save eligibility"
+        },
+        {
+          "passed": false,
+          "number": 15,
+          "name": "F1 explicit Ledger must match exactly, never by substring"
+        },
+        {
+          "passed": true,
+          "number": 16,
+          "name": "F4 same scope replay and concurrent duplicate have one canonical effect"
+        },
+        {
+          "passed": false,
+          "number": 17,
+          "name": "F4 same key in another Ledger must not replay the first Ledger"
+        },
+        {
+          "passed": false,
+          "number": 18,
+          "name": "F4 conflicting payload has no effect; another operation has its own scope"
+        },
+        {
+          "passed": false,
+          "number": 19,
+          "name": "F4 receipt replay cannot bypass actor membership"
+        },
+        {
+          "passed": true,
+          "number": 20,
+          "name": "PG canonical insert rollback is atomic when an event insert fails"
+        },
+        {
+          "passed": true,
+          "number": 21,
+          "name": "PG writer active-plane, mutation fence and maintenance prevent financial effects"
+        },
+        {
+          "passed": false,
+          "number": 22,
+          "name": "F5 temporary DB failure remains retryable"
+        },
+        {
+          "passed": false,
+          "number": 23,
+          "name": "F5 provider timeout remains retryable"
+        },
+        {
+          "passed": false,
+          "number": 24,
+          "name": "F5 explicit clarification is terminal without financial writes"
+        },
+        {
+          "passed": false,
+          "number": 25,
+          "name": "F5 successful accounting survives reply failure and duplicate webhook"
+        },
+        {
+          "passed": true,
+          "number": 26,
+          "name": "F5 maintenance preserves an unclaimed event and attempt budget"
+        },
+        {
+          "passed": false,
+          "number": 27,
+          "name": "F4 canonical spelling and participant order replay the same transaction"
+        },
+        {
+          "passed": false,
+          "number": 28,
+          "name": "F4 historical receipts replay in place; ambiguous Ledger/actor reuse fails closed"
+        },
+        {
+          "passed": false,
+          "number": 29,
+          "name": "F4 every receipt-backed operation preserves authorized retry and resource scope"
+        },
+        {
+          "passed": false,
+          "number": 30,
+          "name": "F5 malformed input is a permanent business failure without a provider or write"
+        },
+        {
+          "passed": false,
+          "number": 31,
+          "name": "PG inbox claim token prevents an old worker from overwriting a new lease"
+        },
+        {
+          "passed": true,
+          "number": 32,
+          "name": "PG all canonical transactions retain payment/share totals and independent zero-sum balances"
+        },
+        {
+          "passed": false,
+          "number": 33,
+          "name": "F1 real audio dispatch preserves the STT source and creates only a proposal"
+        },
+        {
+          "passed": true,
+          "number": 34,
+          "name": "F1 AI-generated candidate output creates a proposal, never a canonical transaction"
+        },
+        {
+          "passed": false,
+          "number": 35,
+          "name": "F5 temporary DB failure recovers to exactly one canonical effect"
+        },
+        {
+          "passed": true,
+          "number": 36,
+          "name": "F5 freeze racing a claim releases the lease without consuming an attempt"
+        },
+        {
+          "passed": false,
+          "number": 37,
+          "name": "F4 LINE event identity cannot create a second effect after its active Ledger changes"
+        },
+        {
+          "passed": true,
+          "number": 38,
+          "name": "PG Ledger balances are independent and remain zero-sum after a canonical write"
+        },
+        {
+          "passed": true,
+          "number": 39,
+          "name": "F5 commit-before-ack replay remains processed after the active Ledger changes"
+        }
+      ],
+      "original_log_sha256": "edd4c53dac8e25dce9ba5adf06d34f29536db38cd709d3d86afb78539794e62e",
+      "evidence_file": "baseline-critical-pg-final.txt"
+    },
+    {
+      "name": "critical-pg-final",
+      "result": {
+        "tests": 39,
+        "pass": 39,
+        "fail": 0,
+        "skipped": 0
+      },
+      "cases": [
+        {
+          "passed": true,
+          "number": 1,
+          "name": "F1 refusal: zero financial write"
+        },
+        {
+          "passed": true,
+          "number": 2,
+          "name": "F1 negation: zero financial write"
+        },
+        {
+          "passed": true,
+          "number": 3,
+          "name": "F1 multi-command: zero financial write"
+        },
+        {
+          "passed": true,
+          "number": 4,
+          "name": "F1 decimal: zero financial write"
+        },
+        {
+          "passed": true,
+          "number": 5,
+          "name": "F1 foreign currency: zero financial write"
+        },
+        {
+          "passed": true,
+          "number": 6,
+          "name": "F1 date-like integers: zero financial write"
+        },
+        {
+          "passed": true,
+          "number": 7,
+          "name": "F1 ambiguous numbers: zero financial write"
+        },
+        {
+          "passed": true,
+          "number": 8,
+          "name": "F1 unsupported kind: zero financial write"
+        },
+        {
+          "passed": true,
+          "number": 9,
+          "name": "F1 missing payer: zero financial write"
+        },
+        {
+          "passed": true,
+          "number": 10,
+          "name": "F1 unknown shares: zero financial write"
+        },
+        {
+          "passed": true,
+          "number": 11,
+          "name": "F1 relative date: zero financial write"
+        },
+        {
+          "passed": true,
+          "number": 12,
+          "name": "F1 refund with old payer: zero financial write"
+        },
+        {
+          "passed": true,
+          "number": 13,
+          "name": "F1 supported deterministic expense, income and transfer preserve normal entry"
+        },
+        {
+          "passed": true,
+          "number": 14,
+          "name": "F1 audio and AI-derived sources never inherit direct-save eligibility"
+        },
+        {
+          "passed": true,
+          "number": 15,
+          "name": "F1 explicit Ledger must match exactly, never by substring"
+        },
+        {
+          "passed": true,
+          "number": 16,
+          "name": "F4 same scope replay and concurrent duplicate have one canonical effect"
+        },
+        {
+          "passed": true,
+          "number": 17,
+          "name": "F4 same key in another Ledger must not replay the first Ledger"
+        },
+        {
+          "passed": true,
+          "number": 18,
+          "name": "F4 conflicting payload has no effect; another operation has its own scope"
+        },
+        {
+          "passed": true,
+          "number": 19,
+          "name": "F4 receipt replay cannot bypass actor membership"
+        },
+        {
+          "passed": true,
+          "number": 20,
+          "name": "PG canonical insert rollback is atomic when an event insert fails"
+        },
+        {
+          "passed": true,
+          "number": 21,
+          "name": "PG writer active-plane, mutation fence and maintenance prevent financial effects"
+        },
+        {
+          "passed": true,
+          "number": 22,
+          "name": "F5 temporary DB failure remains retryable"
+        },
+        {
+          "passed": true,
+          "number": 23,
+          "name": "F5 provider timeout remains retryable"
+        },
+        {
+          "passed": true,
+          "number": 24,
+          "name": "F5 explicit clarification is terminal without financial writes"
+        },
+        {
+          "passed": true,
+          "number": 25,
+          "name": "F5 successful accounting survives reply failure and duplicate webhook"
+        },
+        {
+          "passed": true,
+          "number": 26,
+          "name": "F5 maintenance preserves an unclaimed event and attempt budget"
+        },
+        {
+          "passed": true,
+          "number": 27,
+          "name": "F4 canonical spelling and participant order replay the same transaction"
+        },
+        {
+          "passed": true,
+          "number": 28,
+          "name": "F4 historical receipts replay in place; ambiguous Ledger/actor reuse fails closed"
+        },
+        {
+          "passed": true,
+          "number": 29,
+          "name": "F4 every receipt-backed operation preserves authorized retry and resource scope"
+        },
+        {
+          "passed": true,
+          "number": 30,
+          "name": "F5 malformed input is a permanent business failure without a provider or write"
+        },
+        {
+          "passed": true,
+          "number": 31,
+          "name": "PG inbox claim token prevents an old worker from overwriting a new lease"
+        },
+        {
+          "passed": true,
+          "number": 32,
+          "name": "PG all canonical transactions retain payment/share totals and independent zero-sum balances"
+        },
+        {
+          "passed": true,
+          "number": 33,
+          "name": "F1 real audio dispatch preserves the STT source and creates only a proposal"
+        },
+        {
+          "passed": true,
+          "number": 34,
+          "name": "F1 AI-generated candidate output creates a proposal, never a canonical transaction"
+        },
+        {
+          "passed": true,
+          "number": 35,
+          "name": "F5 temporary DB failure recovers to exactly one canonical effect"
+        },
+        {
+          "passed": true,
+          "number": 36,
+          "name": "F5 freeze racing a claim releases the lease without consuming an attempt"
+        },
+        {
+          "passed": true,
+          "number": 37,
+          "name": "F4 LINE event identity cannot create a second effect after its active Ledger changes"
+        },
+        {
+          "passed": true,
+          "number": 38,
+          "name": "PG Ledger balances are independent and remain zero-sum after a canonical write"
+        },
+        {
+          "passed": true,
+          "number": 39,
+          "name": "F5 commit-before-ack replay remains processed after the active Ledger changes"
+        }
+      ],
+      "original_log_sha256": "a12d053f981ad7a397c27cac82db0d11713858481d811666476e01466d852c6e",
+      "evidence_file": "critical-pg-final.txt"
+    },
+    {
+      "name": "baseline-tls-real-pg",
+      "result": [],
+      "cases": [],
+      "original_log_sha256": "8a5443f6e75af5407030d198cc4cdb1c746a333f91cb0cb2f7bf2585acdf4069",
+      "evidence_file": "baseline-tls-real-pg.txt"
+    },
+    {
+      "name": "tls-pg-final",
+      "result": {
+        "tests": 3,
+        "pass": 3,
+        "fail": 0,
+        "skipped": 0
+      },
+      "cases": [
+        {
+          "passed": true,
+          "number": 1,
+          "name": "PG TLS rejects an untrusted server certificate"
+        },
+        {
+          "passed": true,
+          "number": 2,
+          "name": "PG TLS accepts the configured CA and matching hostname, including URL SSL options"
+        },
+        {
+          "passed": true,
+          "number": 3,
+          "name": "PG TLS rejects a trusted certificate for the wrong hostname"
+        }
+      ],
+      "original_log_sha256": "d8a46aa325d16c0160c39a7469c91a6ebb67dd43865390be9fc01bb25424c907",
+      "evidence_file": "tls-pg-final.txt"
+    },
+    {
+      "name": "baseline-ui-final",
+      "result": [
+        "7 failed",
+        "1 passed (52.6s)"
+      ],
+      "cases": [],
+      "original_log_sha256": "0d96db3789e7e499875a4229b34a54bf2a72d768906eae455b79985546479e84",
+      "evidence_file": "baseline-ui-final.txt"
+    },
+    {
+      "name": "e2e-final",
+      "result": [
+        "57 passed (47.5s)"
+      ],
+      "cases": [],
+      "original_log_sha256": "850ee2f790ac53104ab99134753bf4f48bea27edee56c134ed6cd8eec5616c0b"
+    },
+    {
+      "name": "e2e-v2-final",
+      "result": [
+        "57 passed (46.2s)"
+      ],
+      "cases": [],
+      "original_log_sha256": "1fdcc318e192e940324aee4b5994e6956bd29122dc31ef64f1a9eaa8458b6d39"
+    },
+    {
+      "name": "unit-final",
+      "result": {
+        "tests": 235,
+        "pass": 235,
+        "fail": 0,
+        "skipped": 0
+      },
+      "cases": [
+        {
+          "passed": true,
+          "number": 1,
+          "name": "PG test guards reject missing, remote and overridden targets before connection"
+        },
+        {
+          "passed": true,
+          "number": 2,
+          "name": "remote TLS remains verified after pg parses require/libpq URL options"
+        },
+        {
+          "passed": true,
+          "number": 3,
+          "name": "only explicitly local non-production databases may use plaintext"
+        },
+        {
+          "passed": true,
+          "number": 4,
+          "name": "routes fixed commands without calling the LLM"
+        },
+        {
+          "passed": true,
+          "number": 5,
+          "name": "routes accountant commands before the expense parser"
+        },
+        {
+          "passed": true,
+          "number": 6,
+          "name": "parses multiple inline LINE expenses before falling back to Gemini"
+        },
+        {
+          "passed": true,
+          "number": 7,
+          "name": "routes pending receipt retarget commands before expense parsing"
+        },
+        {
+          "passed": true,
+          "number": 8,
+          "name": "retargets pending shared receipt payloads into private transport expenses"
+        },
+        {
+          "passed": true,
+          "number": 9,
+          "name": "selects a mentioned LINE group instead of the active group"
+        },
+        {
+          "passed": true,
+          "number": 10,
+          "name": "resolves a mentioned LINE group into target group and cleaned text"
+        },
+        {
+          "passed": true,
+          "number": 11,
+          "name": "LINE payer hints cover natural self and partner wording"
+        },
+        {
+          "passed": true,
+          "number": 12,
+          "name": "LINE transfer parser preserves invalid amounts for rejection"
+        },
+        {
+          "passed": true,
+          "number": 13,
+          "name": "LINE money movement parser keeps transfer direction deterministic"
+        },
+        {
+          "passed": true,
+          "number": 14,
+          "name": "ledger agent treats historical maximum questions as all-history queries"
+        },
+        {
+          "passed": true,
+          "number": 15,
+          "name": "compares setup codes without accepting different lengths"
+        },
+        {
+          "passed": true,
+          "number": 16,
+          "name": "rejects tampered and expired application sessions"
+        },
+        {
+          "passed": true,
+          "number": 17,
+          "name": "neutralizes spreadsheet formulas in CSV exports"
+        },
+        {
+          "passed": true,
+          "number": 18,
+          "name": "splits even and odd TWD amounts with the payer taking the remainder"
+        },
+        {
+          "passed": true,
+          "number": 19,
+          "name": "validates exact shares and percentage rounding"
+        },
+        {
+          "passed": true,
+          "number": 20,
+          "name": "ledger core normalizes private expense drafts"
+        },
+        {
+          "passed": true,
+          "number": 21,
+          "name": "ledger core rejects private expenses paid by partner"
+        },
+        {
+          "passed": true,
+          "number": 22,
+          "name": "ledger core builds settlement drafts from balances"
+        },
+        {
+          "passed": true,
+          "number": 23,
+          "name": "ledger core creates versioned pending-action envelopes"
+        },
+        {
+          "passed": true,
+          "number": 24,
+          "name": "accountant snapshot does not leak the partner private ledger"
+        },
+        {
+          "passed": true,
+          "number": 25,
+          "name": "ledger agent filters time ranges without leaking partner private expenses"
+        },
+        {
+          "passed": true,
+          "number": 26,
+          "name": "category analytics use free category labels instead of enum categories"
+        },
+        {
+          "passed": true,
+          "number": 27,
+          "name": "category analytics uses tags directly"
+        },
+        {
+          "passed": true,
+          "number": 28,
+          "name": "group-aware category fallback keeps food groups coarse and parking specific"
+        },
+        {
+          "passed": true,
+          "number": 29,
+          "name": "category classifier keeps rules and history off the LLM path"
+        },
+        {
+          "passed": true,
+          "number": 30,
+          "name": "category classifier uses injected generator and always falls back safely"
+        },
+        {
+          "passed": true,
+          "number": 31,
+          "name": "tag frequency for prompts excludes both generic other labels"
+        },
+        {
+          "passed": true,
+          "number": 32,
+          "name": "shared expense private mirror records only the requester split"
+        },
+        {
+          "passed": true,
+          "number": 33,
+          "name": "bootstrap expense split keeps shared groups and private ledger separate"
+        },
+        {
+          "passed": true,
+          "number": 34,
+          "name": "batch category cleanup only updates accessible current expenses"
+        },
+        {
+          "passed": true,
+          "number": 35,
+          "name": "rejects accountant reports whose facts do not match the ledger snapshot"
+        },
+        {
+          "passed": true,
+          "number": 36,
+          "name": "only safe accountant suggestions can become pending actions"
+        },
+        {
+          "passed": true,
+          "number": 37,
+          "name": "learns an other category from matching historical merchants and descriptions"
+        },
+        {
+          "passed": true,
+          "number": 38,
+          "name": "advances recurring dates without drifting month end"
+        },
+        {
+          "passed": true,
+          "number": 39,
+          "name": "retargets batch pending payloads into private transport expenses"
+        },
+        {
+          "passed": true,
+          "number": 40,
+          "name": "retarget updates envelope command alongside legacy payload"
+        },
+        {
+          "passed": true,
+          "number": 41,
+          "name": "receipt service purges expired deleted receipts from storage and db"
+        },
+        {
+          "passed": true,
+          "number": 42,
+          "name": "daily jobs expire only pending actions past their deadline"
+        },
+        {
+          "passed": true,
+          "number": 43,
+          "name": "calculates who owes whom and applies settlements"
+        },
+        {
+          "passed": true,
+          "number": 44,
+          "name": "monthly totals exclude private, deleted, other users, and other months"
+        },
+        {
+          "passed": true,
+          "number": 45,
+          "name": "rejects malformed Gemini structured output"
+        },
+        {
+          "passed": true,
+          "number": 46,
+          "name": "Gemini JSON schema only contains supported top-level keys"
+        },
+        {
+          "passed": true,
+          "number": 47,
+          "name": "accepts natural language parser output with multiple expenses and group hint"
+        },
+        {
+          "passed": true,
+          "number": 48,
+          "name": "notification delivery attempts LINE push without quota preflight"
+        },
+        {
+          "passed": true,
+          "number": 49,
+          "name": "notification delivery skips rows already claimed by another worker"
+        },
+        {
+          "passed": true,
+          "number": 50,
+          "name": "notification flush for cron does not need a user lookup"
+        },
+        {
+          "passed": true,
+          "number": 51,
+          "name": "LINE postback confirms only the signed-in user's pending action"
+        },
+        {
+          "passed": true,
+          "number": 52,
+          "name": "LINE invalid and stale actions return one safe restart card"
+        },
+        {
+          "passed": true,
+          "number": 53,
+          "name": "LINE menu postback shares a strict stage contract with its encoder"
+        },
+        {
+          "passed": true,
+          "number": 54,
+          "name": "LINE menu amount parser accepts common TWD formats and rejects commands"
+        },
+        {
+          "passed": true,
+          "number": 55,
+          "name": "LINE expense and transfer choices open the keyboard and start amount drafts"
+        },
+        {
+          "passed": true,
+          "number": 56,
+          "name": "LINE text amount consumes the draft before the agent and creates one pending expense"
+        },
+        {
+          "passed": true,
+          "number": 57,
+          "name": "LINE rich-menu switches are strict and silent"
+        },
+        {
+          "passed": true,
+          "number": 58,
+          "name": "LINE category actions round-trip and custom actions stay inside LIFF"
+        },
+        {
+          "passed": true,
+          "number": 59,
+          "name": "LIFF URL helper preserves deep-link state and rejects missing IDs"
+        },
+        {
+          "passed": true,
+          "number": 60,
+          "name": "Rich Menu actions round-trip and plan/apply require a LIFF ID"
+        },
+        {
+          "passed": true,
+          "number": 61,
+          "name": "LINE quick expense creates a pending action and never confirms directly"
+        },
+        {
+          "passed": true,
+          "number": 62,
+          "name": "LINE quick transfer preserves direction and uses pending confirmation"
+        },
+        {
+          "passed": true,
+          "number": 63,
+          "name": "LINE menu rejects a forged group outside the requester's couple"
+        },
+        {
+          "passed": true,
+          "number": 64,
+          "name": "bank csv parser and matcher"
+        },
+        {
+          "passed": true,
+          "number": 65,
+          "name": "phase 4 search filters chinese expense text and ranges"
+        },
+        {
+          "passed": true,
+          "number": 66,
+          "name": "notification service skips proactive insight scan when disabled"
+        },
+        {
+          "passed": true,
+          "number": 67,
+          "name": "write tools: record_expense returns pending_action with expense"
+        },
+        {
+          "passed": true,
+          "number": 68,
+          "name": "write tools: record_expense fills a missing tag before building the action"
+        },
+        {
+          "passed": true,
+          "number": 69,
+          "name": "write tools: record_expense keeps private expenses out of shared group payload"
+        },
+        {
+          "passed": true,
+          "number": 70,
+          "name": "write tools: record_expense rejects exact split method"
+        },
+        {
+          "passed": true,
+          "number": 71,
+          "name": "pending action service proposes batch-created expenses at couple scope when groups differ"
+        },
+        {
+          "passed": true,
+          "number": 72,
+          "name": "pending action service proposes settlement from current group balances"
+        },
+        {
+          "passed": true,
+          "number": 73,
+          "name": "actionResultMessage never treats stale auto-confirm as success"
+        },
+        {
+          "passed": true,
+          "number": 74,
+          "name": "write tools: settle_debt returns pending_action when user owes"
+        },
+        {
+          "passed": true,
+          "number": 75,
+          "name": "write tools: settle_debt returns message when user does not owe"
+        },
+        {
+          "passed": true,
+          "number": 76,
+          "name": "write tools: record_expense validates required params"
+        },
+        {
+          "passed": true,
+          "number": 77,
+          "name": "accountant service lists shared and own reports newest first"
+        },
+        {
+          "passed": true,
+          "number": 78,
+          "name": "accountant service generates monthly reports and targets notifications correctly"
+        },
+        {
+          "passed": true,
+          "number": 79,
+          "name": "agent chat service transcribes audio with injected generator"
+        },
+        {
+          "passed": true,
+          "number": 80,
+          "name": "secretary: createTask returns uuid"
+        },
+        {
+          "passed": true,
+          "number": 81,
+          "name": "secretary: createMemory stores merchant_rule"
+        },
+        {
+          "passed": true,
+          "number": 82,
+          "name": "secretary: RuleService creates approved group merchant rule"
+        },
+        {
+          "passed": true,
+          "number": 83,
+          "name": "secretary: TaskService creates owner-scoped secretary task"
+        },
+        {
+          "passed": true,
+          "number": 84,
+          "name": "secretary workflow service aggregates tool side effects"
+        },
+        {
+          "passed": true,
+          "number": 85,
+          "name": "secretary workflow service keeps partner notifications for shared changes"
+        },
+        {
+          "passed": true,
+          "number": 86,
+          "name": "secretary workflow service strips explicit notify tags"
+        },
+        {
+          "passed": true,
+          "number": 87,
+          "name": "secretary session service loads session and augments approved merchant rules"
+        },
+        {
+          "passed": true,
+          "number": 88,
+          "name": "secretary session service trims history before saving"
+        },
+        {
+          "passed": true,
+          "number": 89,
+          "name": "secretary prompt service includes balance, task count, and approved merchant rules"
+        },
+        {
+          "passed": true,
+          "number": 90,
+          "name": "secretary prompt service omits optional sections when nothing is pending"
+        },
+        {
+          "passed": true,
+          "number": 91,
+          "name": "recurring service: toggle updates active flag and notifies partner"
+        },
+        {
+          "passed": true,
+          "number": 92,
+          "name": "recurring service: shared save requires group and preserves shared group_id"
+        },
+        {
+          "passed": true,
+          "number": 93,
+          "name": "recurring runner: failed executePendingAction logs error and does not advance next_run_date"
+        },
+        {
+          "passed": true,
+          "number": 94,
+          "name": "recurring facade: save/runDue delegate to the split modules"
+        },
+        {
+          "passed": true,
+          "number": 95,
+          "name": "recurring service saves private recurring expenses without shared group scope"
+        },
+        {
+          "passed": true,
+          "number": 96,
+          "name": "recurring service deletes recurring expenses and notifies partner"
+        },
+        {
+          "passed": true,
+          "number": 97,
+          "name": "recurring service auto-posts due recurring expenses"
+        },
+        {
+          "passed": true,
+          "number": 98,
+          "name": "group service creates a group and activates it for the caller"
+        },
+        {
+          "passed": true,
+          "number": 99,
+          "name": "group service archives a group and moves active users to another group"
+        },
+        {
+          "passed": true,
+          "number": 100,
+          "name": "bank import service uses active group and returns match summary"
+        },
+        {
+          "passed": true,
+          "number": 101,
+          "name": "bank import service rejects CSV files with no parsed rows"
+        },
+        {
+          "passed": true,
+          "number": 102,
+          "name": "secretary: getRecentExpenses filters by ledger through ledgerQueryService"
+        },
+        {
+          "passed": true,
+          "number": 103,
+          "name": "read tools: get_recent_expenses merges shared+private, sorts by created_at desc, dedupes and skips deleted"
+        },
+        {
+          "passed": true,
+          "number": 104,
+          "name": "read tools: get_recent_expenses marks partner-paid rows"
+        },
+        {
+          "passed": true,
+          "number": 105,
+          "name": "read tools: query_expenses returns only summary when no limit"
+        },
+        {
+          "passed": true,
+          "number": 106,
+          "name": "read tools: query_expenses with limit+amount_desc returns sorted items"
+        },
+        {
+          "passed": true,
+          "number": 107,
+          "name": "read tools: get_balance_summary maps positive balance to partner owes me"
+        },
+        {
+          "passed": true,
+          "number": 108,
+          "name": "read tools: get_balance_summary maps negative balance to I owe partner"
+        },
+        {
+          "passed": true,
+          "number": 109,
+          "name": "read tools: get_balance_summary returns settled message when both are zero"
+        },
+        {
+          "passed": true,
+          "number": 110,
+          "name": "read tools: get_recurring_list maps couple-scoped rows to tool contract"
+        },
+        {
+          "passed": true,
+          "number": 111,
+          "name": "secretary service retries hallucinated writes and applies corrected pending actions"
+        },
+        {
+          "passed": true,
+          "number": 112,
+          "name": "secretary service replays an immutable action plan without rerunning the model"
+        },
+        {
+          "passed": true,
+          "number": 113,
+          "name": "LINE action plan keeps the first mixed-action result across redelivery"
+        },
+        {
+          "passed": true,
+          "number": 114,
+          "name": "write tools: update_expense returns pending_action updates"
+        },
+        {
+          "passed": true,
+          "number": 115,
+          "name": "write tools: update_expense no-op throws error"
+        },
+        {
+          "passed": true,
+          "number": 116,
+          "name": "tool integration regression: tool -> executeAgentAction -> TS transaction"
+        },
+        {
+          "passed": true,
+          "number": 117,
+          "name": "secretary integration regression: tool -> SecretaryService.run -> TS transaction"
+        },
+        {
+          "passed": true,
+          "number": 118,
+          "name": "tool: get_category_breakdown regression"
+        },
+        {
+          "passed": true,
+          "number": 119,
+          "name": "tool: compare_period regression"
+        },
+        {
+          "passed": true,
+          "number": 120,
+          "name": "tool: get_anomalies regression"
+        },
+        {
+          "passed": true,
+          "number": 121,
+          "name": "tool: get_category_trend regression"
+        },
+        {
+          "passed": true,
+          "number": 122,
+          "name": "tool: predict_month_end regression - insufficient data guard"
+        },
+        {
+          "passed": true,
+          "number": 123,
+          "name": "tool: predict_month_end regression - normal prediction"
+        },
+        {
+          "passed": true,
+          "number": 124,
+          "name": "tool: analyze_spending regression"
+        },
+        {
+          "passed": true,
+          "number": 125,
+          "name": "runLineSecretaryTurn replies actionResultMessage on action failure"
+        },
+        {
+          "passed": true,
+          "number": 126,
+          "name": "runLineSecretaryTurn replies success and notifies partner when requested"
+        },
+        {
+          "passed": true,
+          "number": 127,
+          "name": "runLineSecretaryTurn routes explicit group mention to that group and strips it from text"
+        },
+        {
+          "passed": true,
+          "number": 128,
+          "name": "runLineSecretaryTurn: shared account + accounting intent + no group name -> needs_group, no LLM call"
+        },
+        {
+          "passed": true,
+          "number": 129,
+          "name": "runLineSecretaryTurn: shared account + chitchat + no group name -> reaches LLM, no gate"
+        },
+        {
+          "passed": true,
+          "number": 130,
+          "name": "handleLineAudioTurn uses the only available group without a redundant question"
+        },
+        {
+          "passed": true,
+          "number": 131,
+          "name": "runLineSecretaryTurn: dependencies.context is not mutated by resolvedGroupId"
+        },
+        {
+          "passed": true,
+          "number": 132,
+          "name": "runLineSecretaryTurn passes a stable line idempotency key into executeAgentAction"
+        },
+        {
+          "passed": true,
+          "number": 133,
+          "name": "LINE transfer command creates one pending transfer without a direct partner push"
+        },
+        {
+          "passed": true,
+          "number": 134,
+          "name": "LINE negation and questions never reach a money-write path"
+        },
+        {
+          "passed": true,
+          "number": 135,
+          "name": "handleLineAudioTurn prefixes transcript into assistant reply"
+        },
+        {
+          "passed": true,
+          "number": 136,
+          "name": "handleLineImageTurn rejects image without downloading or calling LLM"
+        },
+        {
+          "passed": true,
+          "number": 137,
+          "name": "route regression: /api/app/receipts/* endpoints are not found"
+        },
+        {
+          "passed": true,
+          "number": 138,
+          "name": "static regression: check forbidden strings and imports in production files"
+        },
+        {
+          "passed": true,
+          "number": 139,
+          "name": "LINE regression: image message routes to handleLineImageTurn and short-circuits"
+        },
+        {
+          "passed": true,
+          "number": 140,
+          "name": "line webhook: join path uses claimUser result and bypasses joined-user lookup"
+        },
+        {
+          "passed": true,
+          "number": 141,
+          "name": "line text service: search command calls ledgerQueryService.searchExpenses and returns LIFF link"
+        },
+        {
+          "passed": true,
+          "number": 142,
+          "name": "line text service: pending retarget confirms every returned actionId"
+        },
+        {
+          "passed": true,
+          "number": 143,
+          "name": "line webhook facade: exported parser helpers and handleLineEvent still route through split modules"
+        },
+        {
+          "passed": true,
+          "number": 144,
+          "name": "TS Confirm Paths: create_expense confirm success"
+        },
+        {
+          "passed": true,
+          "number": 145,
+          "name": "TS Confirm Paths: update_expense version mismatch -> stale"
+        },
+        {
+          "passed": true,
+          "number": 146,
+          "name": "TS Confirm Paths: delete_expense / restore_expense success"
+        },
+        {
+          "passed": true,
+          "number": 147,
+          "name": "TS Confirm Paths: settle success"
+        },
+        {
+          "passed": true,
+          "number": 148,
+          "name": "TS Confirm Paths: batch_create_expenses success"
+        },
+        {
+          "passed": true,
+          "number": 149,
+          "name": "TS Confirm Paths: batch_update_expenses success"
+        },
+        {
+          "passed": true,
+          "number": 150,
+          "name": "TS Confirm Paths: already_done / expired / not_found"
+        },
+        {
+          "passed": true,
+          "number": 151,
+          "name": "confirmed action replay repairs idempotent post-commit tag normalization"
+        },
+        {
+          "passed": true,
+          "number": 152,
+          "name": "TS Confirm Paths: constraint violation -> stale"
+        },
+        {
+          "passed": true,
+          "number": 153,
+          "name": "env regression: shared server env schema fails when DATABASE_URL is missing"
+        },
+        {
+          "passed": true,
+          "number": 154,
+          "name": "env regression: webhook route env schema fails when DATABASE_URL is missing"
+        },
+        {
+          "passed": true,
+          "number": 155,
+          "name": "withTx regression: withTx does not fail when DATABASE_URL is present"
+        },
+        {
+          "passed": true,
+          "number": 156,
+          "name": "withTx env boundary: only DATABASE_URL is required; LINE/GEMINI/APP_URL are irrelevant"
+        },
+        {
+          "passed": true,
+          "number": 157,
+          "name": "withTx env boundary: missing DATABASE_URL still produces a DATABASE_URL error (not a LINE/GEMINI error)"
+        },
+        {
+          "passed": true,
+          "number": 158,
+          "name": "claimUser: returns joined + owner when the couple is empty"
+        },
+        {
+          "passed": true,
+          "number": 159,
+          "name": "claimUser: returns joined + partner when one user already exists"
+        },
+        {
+          "passed": true,
+          "number": 160,
+          "name": "claimUser: returns full when the couple already has 2 users"
+        },
+        {
+          "passed": true,
+          "number": 161,
+          "name": "claimUser: returns already_joined when the same line_user_id exists"
+        },
+        {
+          "passed": true,
+          "number": 162,
+          "name": "claimUser: reclassifies race-loss unique violation on line_user_id as already_joined"
+        },
+        {
+          "passed": true,
+          "number": 163,
+          "name": "claimUser: reclassifies race-loss unique violation on (couple_id, role) as full"
+        },
+        {
+          "passed": true,
+          "number": 164,
+          "name": "claimUser: rejects empty / oversized line_user_id"
+        },
+        {
+          "passed": true,
+          "number": 165,
+          "name": "loadGroupBalances: parses rpc rows into camelCase GroupBalanceRow[]"
+        },
+        {
+          "passed": true,
+          "number": 166,
+          "name": "loadGroupBalances: throws on rpc error (callers catch and degrade)"
+        },
+        {
+          "passed": true,
+          "number": 167,
+          "name": "loadGroupBalances: rejects missing groupId up front"
+        },
+        {
+          "passed": true,
+          "number": 168,
+          "name": "server-env: getAppUrl returns process.env.APP_URL or empty string"
+        },
+        {
+          "passed": true,
+          "number": 169,
+          "name": "server-env: getModelConfig is Gemini-only"
+        },
+        {
+          "passed": true,
+          "number": 170,
+          "name": "server-env: getModelConfig reads Gemini API keys"
+        },
+        {
+          "passed": true,
+          "number": 171,
+          "name": "env boundary: secretary-briefing no longer reads process.env.APP_URL at module load"
+        },
+        {
+          "passed": true,
+          "number": 172,
+          "name": "env boundary: model-provider no longer reads process.env at module load"
+        },
+        {
+          "passed": true,
+          "number": 173,
+          "name": "proposal guard: delete_expense rejects when mirror_kind is 'shared_share'"
+        },
+        {
+          "passed": true,
+          "number": 174,
+          "name": "proposal guard: restore_expense rejects when mirror_kind is 'shared_share'"
+        },
+        {
+          "passed": true,
+          "number": 175,
+          "name": "proposal guard: update_expense shared→private is refused when its group has an active settlement"
+        },
+        {
+          "passed": true,
+          "number": 176,
+          "name": "agent action: legacy splits + paid_by_user_id are converted to standard create_expense input"
+        },
+        {
+          "passed": true,
+          "number": 177,
+          "name": "builder: buildUpdateExpenseAction on a no-op update still throws '沒有可修改的欄位'"
+        },
+        {
+          "passed": true,
+          "number": 178,
+          "name": "accountant: ask() still routes through runAgent() (shared report contract)"
+        },
+        {
+          "passed": true,
+          "number": 179,
+          "name": "accountant: createCategoryCleanup() emits snake_case batch_update_expenses payload"
+        },
+        {
+          "passed": true,
+          "number": 180,
+          "name": "accountant: generateMonthlyReports() notification titles + dedupe keys per scope"
+        },
+        {
+          "passed": true,
+          "number": 181,
+          "name": "accountant: loadAccountantSnapshot() separates previous-month total by scope"
+        },
+        {
+          "passed": true,
+          "number": 182,
+          "name": "secretary registry: declared names match what executeSecretaryTool actually accepts"
+        },
+        {
+          "passed": true,
+          "number": 183,
+          "name": "secretary registry: vercel-agent's tools object is the registry's tools object (no second source)"
+        },
+        {
+          "passed": true,
+          "number": 184,
+          "name": "secretary registry: record_expense / update_expense / propose_settlement still go through pending action builder path"
+        },
+        {
+          "passed": true,
+          "number": 185,
+          "name": "secretary registry: get_open_tasks / get_user_memories return the same shape as the legacy executors"
+        },
+        {
+          "passed": true,
+          "number": 186,
+          "name": "accountant registry: declared names match executeTool dispatch names"
+        },
+        {
+          "passed": true,
+          "number": 187,
+          "name": "accountant registry: query_expenses parameters are canonical date/tag/member/type contract"
+        },
+        {
+          "passed": true,
+          "number": 188,
+          "name": "accountant registry: compare_period and get_anomalies use canonical schemas, not stale Vercel-only args"
+        },
+        {
+          "passed": true,
+          "number": 189,
+          "name": "ledger-query split: loadBootstrap() still separates shared/private/balances/dashboard"
+        },
+        {
+          "passed": true,
+          "number": 190,
+          "name": "ledger-query split: searchExpenses() resolves active group first, then filters"
+        },
+        {
+          "passed": true,
+          "number": 191,
+          "name": "ledger-query split: categoryExpenses() returns the documented shape for six_months/combined"
+        },
+        {
+          "passed": true,
+          "number": 192,
+          "name": "ledger-query split: facade return shapes match the public types"
+        },
+        {
+          "passed": true,
+          "number": 193,
+          "name": "accountant agent runner: LLM fact mismatch falls back but still persists report/run rows"
+        },
+        {
+          "passed": true,
+          "number": 194,
+          "name": "accountant category cleanup: suggestCategoryUpdates only returns visible other-tag candidates"
+        },
+        {
+          "passed": true,
+          "number": 195,
+          "name": "accountant category analytics: six_months still filters to the last six months window"
+        },
+        {
+          "passed": true,
+          "number": 196,
+          "name": "accountant agent barrel: exported functions/schemas still match the old public surface"
+        },
+        {
+          "passed": true,
+          "number": 197,
+          "name": "flex-message-builder: flexExpenseConfirm produces valid Flex bubble"
+        },
+        {
+          "passed": true,
+          "number": 198,
+          "name": "flex-message-builder: flexQueryResult produces valid Flex bubble with tags"
+        },
+        {
+          "passed": true,
+          "number": 199,
+          "name": "flex-message-builder: flexNeedsGroup produces buttons for each group"
+        },
+        {
+          "passed": true,
+          "number": 200,
+          "name": "flex-message-builder: flexError produces a warning card"
+        },
+        {
+          "passed": true,
+          "number": 201,
+          "name": "secretary-direct-actions: executeDirectUpdate on private expense succeeds without pending_action"
+        },
+        {
+          "passed": true,
+          "number": 202,
+          "name": "secretary-direct-actions: executeDirectUpdate rejects shared expense"
+        },
+        {
+          "passed": true,
+          "number": 203,
+          "name": "secretary-direct-actions: executeDirectDelete on private expense soft-deletes"
+        },
+        {
+          "passed": true,
+          "number": 204,
+          "name": "secretary-direct-actions: executeDirectDelete rejects shared expense"
+        },
+        {
+          "passed": true,
+          "number": 205,
+          "name": "onboarding resumes the same first expense and existing groups never short-circuit"
+        },
+        {
+          "passed": true,
+          "number": 206,
+          "name": "concurrent onboarding submissions converge on one group and one expense"
+        },
+        {
+          "passed": true,
+          "number": 207,
+          "name": "complete deterministic grammar preserves amount, payer, receiver and explicit Ledger"
+        },
+        {
+          "passed": true,
+          "number": 208,
+          "name": "the complete input must match: no partial amounts or inferred semantics"
+        },
+        {
+          "passed": true,
+          "number": 209,
+          "name": "transaction cursor round-trips the complete deterministic sort key"
+        },
+        {
+          "passed": true,
+          "number": 210,
+          "name": "CSV export is unbounded, semantically complete, and formula-safe"
+        },
+        {
+          "passed": true,
+          "number": 211,
+          "name": "Taipei local date does not roll back during Taiwan morning"
+        },
+        {
+          "passed": true,
+          "number": 212,
+          "name": "TWD allocation is integer, deterministic, and sums exactly"
+        },
+        {
+          "passed": true,
+          "number": 213,
+          "name": "expense delta supports multiple payers independently from shares"
+        },
+        {
+          "passed": true,
+          "number": 214,
+          "name": "income delta uses received payment minus entitled share in reverse"
+        },
+        {
+          "passed": true,
+          "number": 215,
+          "name": "transfer is a first-class zero-sum transaction"
+        },
+        {
+          "passed": true,
+          "number": 216,
+          "name": "ledger balance excludes voided/deleted rows and never crosses ledgers"
+        },
+        {
+          "passed": true,
+          "number": 217,
+          "name": "settle-all recommends only the debtor's outstanding amount"
+        },
+        {
+          "passed": true,
+          "number": 218,
+          "name": "invalid participant and conservation inputs are rejected"
+        },
+        {
+          "passed": true,
+          "number": 219,
+          "name": "wire values stay integer strings"
+        },
+        {
+          "passed": true,
+          "number": 220,
+          "name": "migration cutover gate rejects a non-reconciled plan before any write"
+        },
+        {
+          "passed": true,
+          "number": 221,
+          "name": "each legacy group becomes its own ledger without netting"
+        },
+        {
+          "passed": true,
+          "number": 222,
+          "name": "mirrors and private rows are excluded exactly once"
+        },
+        {
+          "passed": true,
+          "number": 223,
+          "name": "settlement is a first-class transfer in the same legacy ledger"
+        },
+        {
+          "passed": true,
+          "number": 224,
+          "name": "invalid or cross-couple source rows are quarantined, never repaired silently"
+        },
+        {
+          "passed": true,
+          "number": 225,
+          "name": "migration plan digest is stable for the same snapshot"
+        },
+        {
+          "passed": true,
+          "number": 226,
+          "name": "V2 Rich Menu tab values open the matching Ledger sub-navigation"
+        },
+        {
+          "passed": true,
+          "number": 227,
+          "name": "V2 outbox payloads remain bounded LINE text fields"
+        },
+        {
+          "passed": true,
+          "number": 228,
+          "name": "LINE delivery classification dead-letters permanent client errors and retries temporary failures"
+        },
+        {
+          "passed": true,
+          "number": 229,
+          "name": "opportunistic drain is registered after the response path and does not wait for LINE"
+        },
+        {
+          "passed": true,
+          "number": 230,
+          "name": "V2 proposal input is TWD-only and bounded to a small atomic batch"
+        },
+        {
+          "passed": true,
+          "number": 231,
+          "name": "V2 transaction and recurring contracts reject non-TWD or malformed scope fields"
+        },
+        {
+          "passed": true,
+          "number": 232,
+          "name": "LINE AI adapter accepts only a bounded proposal shape and never an accounting command"
+        },
+        {
+          "passed": true,
+          "number": 233,
+          "name": "LINE AI adapter validates versioned multi-command and income/refund proposals"
+        },
+        {
+          "passed": true,
+          "number": 234,
+          "name": "LINE deterministic parser distinguishes refunds from partner transfers"
+        },
+        {
+          "passed": true,
+          "number": 235,
+          "name": "LINE direct-post acknowledgement includes a safe V2 undo deep link"
+        }
+      ],
+      "original_log_sha256": "c2b685f44de14c23012453d666039dea4d5afb83013fbcc2bef313780efc8bbd"
+    },
+    {
+      "name": "test-tx-final",
+      "result": {
+        "tests": 32,
+        "pass": 29,
+        "fail": 0,
+        "skipped": 3
+      },
+      "cases": [
+        {
+          "passed": true,
+          "number": 1,
+          "name": "pg executor: create_expense confirm success (real DB) # SKIP"
+        },
+        {
+          "passed": true,
+          "number": 2,
+          "name": "pg executor: update_expense version mismatch → stale (real DB) # SKIP"
+        },
+        {
+          "passed": true,
+          "number": 3,
+          "name": "pg executor: settle confirm success (real DB) # SKIP"
+        },
+        {
+          "passed": true,
+          "number": 4,
+          "name": "tx executor: not_found when row is missing"
+        },
+        {
+          "passed": true,
+          "number": 5,
+          "name": "tx executor: already_done when status is confirmed"
+        },
+        {
+          "passed": true,
+          "number": 6,
+          "name": "tx executor: cancelled or expired rows never masquerade as successful"
+        },
+        {
+          "passed": true,
+          "number": 7,
+          "name": "tx executor: expired when expires_at is past"
+        },
+        {
+          "passed": true,
+          "number": 8,
+          "name": "tx executor: expires a pg Date value instead of comparing object identity"
+        },
+        {
+          "passed": true,
+          "number": 9,
+          "name": "tx executor: confirmed with insert_expenses plan"
+        },
+        {
+          "passed": true,
+          "number": 10,
+          "name": "tx executor: confirmed with update_expenses plan"
+        },
+        {
+          "passed": true,
+          "number": 11,
+          "name": "tx executor: shared-to-private rechecks settlements after the group lock"
+        },
+        {
+          "passed": true,
+          "number": 12,
+          "name": "tx executor: stale on version mismatch (rowCount=0 from UPDATE)"
+        },
+        {
+          "passed": true,
+          "number": 13,
+          "name": "tx executor: rejects a plan when retarget changed the locked fingerprint"
+        },
+        {
+          "passed": true,
+          "number": 14,
+          "name": "tx executor: confirmed with insert_settlements plan"
+        },
+        {
+          "passed": true,
+          "number": 15,
+          "name": "tx executor: confirmed with batch_create_expenses (2 inserts, created_count=2)"
+        },
+        {
+          "passed": true,
+          "number": 16,
+          "name": "tx executor: pg constraint violation (23505) → TransactionStaleError"
+        },
+        {
+          "passed": true,
+          "number": 17,
+          "name": "tx executor: insert_notifications included in plan"
+        },
+        {
+          "passed": true,
+          "number": 18,
+          "name": "transfer command rejects invalid money, future dates and long notes"
+        },
+        {
+          "passed": true,
+          "number": 19,
+          "name": "idempotency fingerprint is canonical and changes with payload or type"
+        },
+        {
+          "passed": true,
+          "number": 20,
+          "name": "void settlement surfaces transaction version races as 409 stale_action"
+        },
+        {
+          "passed": true,
+          "number": 21,
+          "name": "cancel reports the confirmed state when confirmation wins the CAS race"
+        },
+        {
+          "passed": true,
+          "number": 22,
+          "name": "group locks are deduplicated and acquired in UUID order"
+        },
+        {
+          "passed": true,
+          "number": 23,
+          "name": "partner-to-me transfer derives users server-side and may cross zero"
+        },
+        {
+          "passed": true,
+          "number": 24,
+          "name": "settle supports partner-to-me full repayment but rejects overpayment"
+        },
+        {
+          "passed": true,
+          "number": 25,
+          "name": "full-settle confirmation is stale when debt changed after preview"
+        },
+        {
+          "passed": true,
+          "number": 26,
+          "name": "void settlement is a versioned soft void and stale repeats are rejected"
+        },
+        {
+          "passed": true,
+          "number": 27,
+          "name": "real PostgreSQL multi-command proposal failure rolls back every command and receipt side effect"
+        },
+        {
+          "passed": true,
+          "number": 28,
+          "name": "migrated V2 schema exercises allocations, lineage, categories, recurring, cursor, receipt metadata, and CSV"
+        },
+        {
+          "passed": true,
+          "number": 29,
+          "name": "exact LINE webhook replay is one DB transaction/effect with a stable response"
+        },
+        {
+          "passed": true,
+          "number": 30,
+          "name": "inbox/outbox failures recover leases, retry, dead-letter, and never replay finance"
+        },
+        {
+          "passed": true,
+          "number": 31,
+          "name": "worker retry SQL exposes the persisted first-failure delay"
+        },
+        {
+          "passed": true,
+          "number": 32,
+          "name": "permanent outbox failures dead-letter once, do not block later rows, and leases are exclusive"
+        }
+      ],
+      "original_log_sha256": "8ca42eabe2c3064156d1dc5e48f7f1eb1f323930bcc13484bbe69997fa66405d"
+    },
+    {
+      "name": "test-precutover-final",
+      "result": {
+        "tests": 6,
+        "pass": 6,
+        "fail": 0,
+        "skipped": 0
+      },
+      "cases": [
+        {
+          "passed": true,
+          "number": 1,
+          "name": "real PostgreSQL multi-command proposal failure rolls back every command and receipt side effect"
+        },
+        {
+          "passed": true,
+          "number": 2,
+          "name": "migrated V2 schema exercises allocations, lineage, categories, recurring, cursor, receipt metadata, and CSV"
+        },
+        {
+          "passed": true,
+          "number": 3,
+          "name": "exact LINE webhook replay is one DB transaction/effect with a stable response"
+        },
+        {
+          "passed": true,
+          "number": 4,
+          "name": "inbox/outbox failures recover leases, retry, dead-letter, and never replay finance"
+        },
+        {
+          "passed": true,
+          "number": 5,
+          "name": "worker retry SQL exposes the persisted first-failure delay"
+        },
+        {
+          "passed": true,
+          "number": 6,
+          "name": "permanent outbox failures dead-letter once, do not block later rows, and leases are exclusive"
+        }
+      ],
+      "original_log_sha256": "8ea746fba7dffc720a1fe740c27677de869ed2341046538403816a7bbff79d9c"
+    },
+    {
+      "name": "test-incident-final",
+      "result": {
+        "tests": 5,
+        "pass": 5,
+        "fail": 0,
+        "skipped": 0
+      },
+      "cases": [
+        {
+          "passed": true,
+          "number": 1,
+          "name": "old category order fails with SQLSTATE 55006 and corrected order plus runtime grant are atomic"
+        },
+        {
+          "passed": true,
+          "number": 2,
+          "name": "incident freeze error has the stable maintenance response"
+        },
+        {
+          "passed": true,
+          "number": 3,
+          "name": "incident freeze detection does not classify ordinary errors"
+        },
+        {
+          "passed": true,
+          "number": 4,
+          "name": "bootstrap-only mode is explicit and disabled by default"
+        },
+        {
+          "passed": true,
+          "number": 5,
+          "name": "bootstrap-only mode allows only schema-compatible V2 reads"
+        }
+      ],
+      "original_log_sha256": "814bcbb01d893d29714b8733c2a6fa2879a1b1f8acf724b14694cc49d49e391c"
+    },
+    {
+      "name": "build-final",
+      "result": [],
+      "cases": [],
+      "original_log_sha256": "c871b6fd0c225f67cacc11cb0983c8ee53b6c38562185cf54ab29b9afe0c3e66"
+    },
+    {
+      "name": "typecheck-final",
+      "result": [],
+      "cases": [],
+      "original_log_sha256": "8366207267355d3e3d5bf3bf6e8c94c5f93f6078c34f08973fa2b38cdda6cc92"
+    },
+    {
+      "name": "pg-missing-env-guard",
+      "result": [],
+      "cases": [],
+      "original_log_sha256": "3d7c6350445aac3ad7509df3927e47dc728ba65ca1d4a4b443f0f04b981967fb",
+      "evidence_file": "pg-missing-env-guard.txt"
+    },
+    {
+      "name": "ci-yaml-validation",
+      "result": [],
+      "cases": [],
+      "original_log_sha256": "18e8972927109a8793b8f0c12f55c5fdbc67014aedb50193570c91cf80329af4"
+    }
+  ],
+  "branch": "codex/v3-0-correctness-scope-safety",
+  "tested_file_sha256": {
+    ".env.example": "d95e88da7d781e40e7b0947707d94ca39fee2d856fdc3d6cc1a1601d8216c405",
+    ".github/workflows/ci.yml": "471f4529c58b43f6b837a244415bde192f9c60db93ba3ef73dcfc4bb7ed30ad9",
+    "package.json": "2c35806855e74d9b8e9bf4fe2427c978fad300708a17b137f0d4d256ff10e1f1",
+    "scripts/test-v3-0-pg.ts": "970ee7d38dd32693d08557afcdd8fdc3bdb20375c7dee2c1d064c6aedb82e34b",
+    "scripts/test-v3-0-release-pg.ts": "40c618170ddfaf92e0457a9ef7c9b641e5ee98311393897a36dd9edcc28bcfdb",
+    "scripts/v3-0-test-db.test.ts": "ccb1c6c7d335e756508fd66001caa51263fdecede8e7a7293cb09d107878df0b",
+    "scripts/v3-0-test-db.ts": "cfe479a75b94f4eb9c8147a2e4e9beb396c01210a51cfb7afa5aa2d2b8b96977",
+    "src/components/ledger/v2-ledger-home.tsx": "d9f417196e50a440eba6edf4f19296a93c5cb462c182d5f160a808260e98660a",
+    "src/components/ledger/v2-liff-home.tsx": "52bc4e055e95cf583d6c7daaeef0721fb0bd2632b2a5803381a97fc047f37194",
+    "src/hooks/use-v2-ledgers.ts": "a2b2c6e937989a010839ff1570af53eeb68338d05e23211f4175e733ab649ef2",
+    "src/lib/db/connection-config.pg.test.ts": "3ce392f5c49e7a148bb40e91b566d6d4756d216cf92e7ef41f513c83f29b9daf",
+    "src/lib/db/connection-config.test.ts": "22551312dd0e3aafb8a6136a2179e66d450cf75e7366b3d529917b7914138a72",
+    "src/lib/db/connection-config.ts": "498d32717c9cdcaaadfe1f9b9813789f078ca129b5ca19427ca358afc9fa47b2",
+    "src/lib/db/tx.ts": "b93a7f7f2c39dfa01dcfc8de8c302cb140baf482cb3cb17a3bda70adb0e939cf",
+    "src/lib/line-business-outcome.ts": "f3755429ce7f747c26190adfbf8158a0e5f53ae60d20316d31f1271dc72b5cd2",
+    "src/lib/line-secretary-service.ts": "e3bd1ee65e6ed000b1abd35ea675166965c445779f60c18d733a16bfe685a7c3",
+    "src/lib/line-text-service.ts": "39da54b32530ff25bd42179d8c7fd6aad109138f21c6a109eee0036185fa369a",
+    "src/lib/line-webhook-service.ts": "b5685aaf76c83ad5a96854f29b2fb991a3554383f74b52b6830a2c3ba25d1e9e",
+    "src/lib/v2-command-identity.ts": "84e19cd4b66858211403aedc8efaec5a811cc5ccfa80c0e4ac99d33aec2c9bc6",
+    "src/lib/v2-direct-command.test.ts": "6e53cd59f020368beb9e650230cf866ea0537dc6d3efdb6f53c8c66933ce1fa4",
+    "src/lib/v2-direct-command.ts": "5081620516151c2d50379de333c8d8fb3bdd658435fd3092006169ea66929ba1",
+    "src/lib/v2-inbox-worker.ts": "6272138a51f800974afff5ebc5829c58f78fc895cfc0d40f5c3b004ebb06a307",
+    "src/lib/v2-ledger-service.ts": "1b9c518a6bbb962d795daf55108e67c7954cd4c9147019298dd30a9a4fb1c618",
+    "src/lib/v2-line-inbox-dispatch.ts": "b820839642aab9b05b1da2b07c41465677cecc1f4e43d6ed9437fb8686e732d8",
+    "src/lib/v2-line-proposal.ts": "b2003293a0eb13c0d366b948c783f1a78dfa611644204520401d6ba670211e4a",
+    "src/lib/v2-precutover.pg.test.ts": "b0c8bca45dde21cdc3532ef7786f9f85cd2046efa792de584de24f96531b7a10",
+    "src/lib/v3-0-correctness.pg.test.ts": "30d6c77dbc4950895bbc66728260dd03ff1caa48cda3414a0d6a1e81aca79be0",
+    "tests/fixtures/v3-0-pre-category.sql": "37879f89df478ab7e274f6592d4413c2837fefa3cf8808b1fde0053356304ac9",
+    "tests/fixtures/v3-0-public.sql": "9e66526ee2fd283df460b0e3b39aac753aa23ffec432014f5b311d794b4f6a93",
+    "tests/v2-liff.spec.ts": "a03a9916d5dcf47e911fe40f2d765d1a1c0f68bc95ad57e116253976bd92a8a6"
+  }
+}

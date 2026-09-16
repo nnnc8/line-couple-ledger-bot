@@ -1,4 +1,6 @@
+import { lineClarification, lineSuccess, type LineBusinessOutcome } from "./line-business-outcome";
 import { serverEnvironment } from "./server-runtime";
+import type { V2InputSource } from "./v2-direct-command";
 import { pendingActionService, ledgerQueryService } from "./services";
 import { replyText, replyMessages, type LineUser } from "./line-bot-shared";
 import { runLineSecretaryTurn } from "./line-secretary-service";
@@ -29,11 +31,12 @@ export async function handleLineTextMessage(
   replyToken: string,
   dependencies: BotDependencies,
   eventTimestamp?: number,
-): Promise<void> {
+  source: V2InputSource = "text",
+): Promise<LineBusinessOutcome> {
   const v2Enabled = serverEnvironment().V2_LEDGER_ENABLED === "1";
   if (text.length > MAX_MESSAGE_LENGTH) {
     await replyText(dependencies.lineClient, replyToken, "訊息太長，請縮短後再試。");
-    return;
+    return lineClarification;
   }
 
   if (!v2Enabled) {
@@ -45,7 +48,7 @@ export async function handleLineTextMessage(
       replyToken,
       dependencies,
     });
-    if (handledMenuAmount) return;
+    if (handledMenuAmount) return lineSuccess;
   }
 
   // Search command (kept for LIFF integration)
@@ -53,10 +56,10 @@ export async function handleLineTextMessage(
   if (searchQuery) {
     if (v2Enabled) {
       await replyText(dependencies.lineClient, replyToken, "V2 Ledger 的流水搜尋請在 LIFF 選擇指定 Ledger 後使用；各 Ledger 不會互相抵銷。");
-      return;
+      return lineClarification;
     }
     await replySearch(searchQuery, user, replyToken, dependencies);
-    return;
+    return lineSuccess;
   }
 
   // Pending retarget command
@@ -64,7 +67,7 @@ export async function handleLineTextMessage(
   if (retarget) {
     if (v2Enabled) {
       await replyText(dependencies.lineClient, replyToken, "V2 Ledger 不使用舊的待確認群組草稿；請用「晚餐 500 我付」建立 V2 草稿，再開 LIFF 確認。");
-      return;
+      return lineClarification;
     }
     const result = await pendingActionService.retargetActions(
       { db: dependencies.supabase, user },
@@ -85,7 +88,7 @@ export async function handleLineTextMessage(
         ? `已把 ${result.count} 筆待確認草稿改成私人帳｜交通，並直接入帳。`
         : "沒有找到還有效的待確認草稿，請重新傳照片或手動新增。",
     );
-    return;
+    return lineClarification;
   }
 
   if (v2Enabled) {
@@ -95,7 +98,7 @@ export async function handleLineTextMessage(
         replyToken,
         await v2LineBalanceText({ coupleId: user.couple_id, userId: user.id }),
       );
-      return;
+      return lineSuccess;
     }
     const v2 = await proposeV2LineText({
       db: dependencies.supabase,
@@ -103,11 +106,12 @@ export async function handleLineTextMessage(
       text,
       sourceEventId: eventId,
       sourceEventTimestamp: eventTimestamp,
+      source,
       gemini: dependencies.gemini,
     });
     if (v2.kind !== "not_supported" || /\d/.test(text) || /記|帳|支出|收入|花費|付款|收款|退款|結清|還清|轉帳|轉給|匯給|還款|作廢|刪除|修改/.test(text)) {
       await replyText(dependencies.lineClient, replyToken, v2LineProposalText(v2));
-      return;
+      return v2.kind === "posted" || v2.kind === "created" ? lineSuccess : lineClarification;
     }
     // Never fall through to the legacy secretary writer while V2 is active.
     // Unsupported chitchat is intentionally answered without an accounting
@@ -118,7 +122,7 @@ export async function handleLineTextMessage(
       replyToken,
       "目前使用 Couple Ledger V2；記帳請用「晚餐 500 我付」，確認草稿請開啟 LIFF。",
     );
-    return;
+    return lineClarification;
   }
 
   // Route all other messages through the Agent Loop
@@ -130,6 +134,7 @@ export async function handleLineTextMessage(
     dependencies,
     reply: (replyMsg) => replyMessages(dependencies.lineClient, replyToken, replyMsg),
   });
+  return lineSuccess;
 }
 
 async function handleLineMenuAmountText(input: {
@@ -285,10 +290,10 @@ export async function joinCouple(
   lineUserId: string,
   replyToken: string,
   dependencies: BotDependencies,
-): Promise<void> {
+): Promise<LineBusinessOutcome> {
   if (!safeSecretEqual(receivedCode.trim(), dependencies.setupCode)) {
     await replyText(dependencies.lineClient, replyToken, "設定碼不正確。");
-    return;
+    return lineClarification;
   }
   const result = await claimUser(dependencies.supabase, lineUserId);
   const message =
@@ -298,4 +303,5 @@ export async function joinCouple(
         ? "你已經加入帳本。"
         : `加入成功，你是 ${result.role}。`;
   await replyText(dependencies.lineClient, replyToken, message);
+  return result.result === "full" ? lineClarification : lineSuccess;
 }

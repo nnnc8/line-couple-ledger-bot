@@ -14,6 +14,7 @@ import {
 import { buildLiffUrl, requireLiffId } from "./liff-url";
 import type { LineUser } from "./line-bot-shared";
 import { getModelConfig } from "./server-env";
+import { classifyV2DirectCommand, type V2InputSource } from "./v2-direct-command";
 
 const draftSchema = z.object({
   amountTwd: z.number().int().positive().max(100_000_000),
@@ -131,30 +132,26 @@ function looksLikeV2AccountingText(text: string): boolean {
 
 async function parseV2AiProposal(gemini: GoogleGenAI, text: string): Promise<V2AiProposalCommands | null> {
   if (!looksLikeV2AccountingText(text)) return null;
-  try {
-    const response = await gemini.models.generateContent({
-      model: getModelConfig().modelId,
-      contents: [{
-        role: "user",
-        parts: [{ text: [
-          "你是 Couple Ledger V2 的輸入解析器。只把使用者訊息解析成待確認草稿，絕對不要執行記帳。",
-          "產品限制：只有 TWD 整數；Couple 永遠只有兩位成員；不能處理外幣、匯率、多人群組或模糊金額。",
-          "只輸出 {version:1, commands:[...]}。kind 只能是 expense、income、transfer、settle_all、unsupported。expense/transfer 必須有 amountTwd、description、payer；income 必須有 receiver；結清使用 settle_all；無法安全判斷就 unsupported。",
-          "payer/receiver 的 self 是訊息作者，partner 是另一半。不要猜測未出現的金額、付款人、收款人或 Ledger。多筆訊息拆成多個 commands，但沒有明確 Ledger 時不要跨 Ledger。",
-          `使用者訊息：${text}`,
-        ].join("\n") }],
-      }],
-      config: {
-        temperature: 0,
-        maxOutputTokens: 600,
-        responseMimeType: "application/json",
-        responseJsonSchema: aiProposalJsonSchema,
-      },
-    });
-    return parseV2AiProposalCommandsResponse(response.text ?? "");
-  } catch {
-    return null;
-  }
+  const response = await gemini.models.generateContent({
+    model: getModelConfig().modelId,
+    contents: [{
+      role: "user",
+      parts: [{ text: [
+        "你是 Couple Ledger V2 的輸入解析器。只把使用者訊息解析成待確認草稿，絕對不要執行記帳。",
+        "產品限制：只有 TWD 整數；Couple 永遠只有兩位成員；不能處理外幣、匯率、多人群組或模糊金額。",
+        "只輸出 {version:1, commands:[...]}。kind 只能是 expense、income、transfer、settle_all、unsupported。expense/transfer 必須有 amountTwd、description、payer；income 必須有 receiver；結清使用 settle_all；無法安全判斷就 unsupported。",
+        "payer/receiver 的 self 是訊息作者，partner 是另一半。不要猜測未出現的金額、付款人、收款人或 Ledger。多筆訊息拆成多個 commands，但沒有明確 Ledger 時不要跨 Ledger。",
+        `使用者訊息：${text}`,
+      ].join("\n") }],
+    }],
+    config: {
+      temperature: 0,
+      maxOutputTokens: 600,
+      responseMimeType: "application/json",
+      responseJsonSchema: aiProposalJsonSchema,
+    },
+  });
+  return parseV2AiProposalCommandsResponse(response.text ?? "");
 }
 
 export type V2LineProposalResult =
@@ -222,30 +219,6 @@ function taipeiDate(timestamp?: number): string {
   }).format(new Date(timestamp ?? Date.now()));
 }
 
-function parseDraft(text: string): z.infer<typeof draftSchema> | null {
-  const normalized = text.normalize("NFKC").trim();
-  const amount = normalized.match(/(?:NT\$?|TWD\s*)?([0-9][0-9,]*)/i);
-  if (!amount) return null;
-  const amountTwd = Number(amount[1]!.replaceAll(",", ""));
-  if (!Number.isSafeInteger(amountTwd) || amountTwd <= 0) return null;
-  const payer = /(?:他|她|另一半|對方)\s*(?:付|出|付款)/.test(normalized)
-    ? "partner"
-    : /(?:我|本人)\s*(?:付|出|付款)|我請/.test(normalized)
-      ? "self"
-      : null;
-  if (!payer) return null;
-  const ledgerMatch = normalized.match(/(?:記在|放到|加入|帳本|ledger)\s*[:：]?\s*([^\s,，。.!！?？]+)/i);
-  const description = normalized
-    .replace(amount[0]!, " ")
-    .replace(/(?:我|本人|他|她|另一半|對方)\s*(?:付|出|付款)|我請/g, " ")
-    .replace(/(?:記在|放到|加入|帳本|ledger)\s*[:：]?\s*[^\s,，。.!！?？]+/i, " ")
-    .replace(/[，,。.!！?？]/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-  if (!description) return null;
-  return draftSchema.parse({ amountTwd, description, payer, ...(ledgerMatch?.[1] ? { ledgerName: ledgerMatch[1] } : {}) });
-}
-
 function parseTransfer(text: string): { amountTwd: number; payer: "self" | "partner"; ledgerName?: string } | null {
   const normalized = text.normalize("NFKC").trim();
   if (!/(?:轉帳|轉給|轉|匯給|還款)/.test(normalized)) return null;
@@ -296,7 +269,7 @@ export function parseV2LineTransfer(text: string): { amountTwd: number; payer: "
 }
 
 function wantsSettleAll(text: string): boolean {
-  return /(?:全部)?(?:結清|還清|清帳|settle\s*all)/i.test(text.normalize("NFKC"));
+  return /^(?:全部)?(?:結清|還清|清帳|settle\s*all)$/i.test(text.normalize("NFKC").trim());
 }
 
 export async function proposeV2LineText(input: {
@@ -305,14 +278,16 @@ export async function proposeV2LineText(input: {
   text: string;
   sourceEventId: string;
   sourceEventTimestamp?: number;
+  source?: V2InputSource;
   gemini?: GoogleGenAI;
 }): Promise<V2LineProposalResult> {
-  let parsed = parseDraft(input.text);
-  let income = parsed ? null : parseIncome(input.text);
-  let transfer = parsed || income ? null : parseTransfer(input.text);
+  const deterministic = classifyV2DirectCommand(input.text);
+  let parsed = deterministic?.kind === "expense" ? draftSchema.parse(deterministic) : null;
+  let income = deterministic?.kind === "income" ? incomeDraftSchema.parse(deterministic) : null;
+  let transfer: { amountTwd: number; payer: "self" | "partner"; ledgerName?: string } | null = deterministic?.kind === "transfer" ? { amountTwd: deterministic.amountTwd, payer: deterministic.payer!, ledgerName: deterministic.ledgerName } : null;
   let settleRequested = wantsSettleAll(input.text);
-  const deterministicSingle = Boolean(parsed || income || transfer);
-  let aiCommands: V2AiProposalCandidate[] | null = null;
+  const deterministicSingle = input.source === "text" && Boolean(deterministic);
+  let aiCommands: V2AiProposalCandidate[] | null = deterministic && !deterministicSingle ? [deterministic] : null;
   if (!parsed && !income && !transfer && !settleRequested && input.gemini) {
     const ai = await parseV2AiProposal(input.gemini, input.text);
     if (ai?.commands.length) {
@@ -336,7 +311,7 @@ export async function proposeV2LineText(input: {
   const activeLedger = ledgers.filter((candidate) => candidate.activeForUser);
   if (!requestedLedgerName && ledgers.length > 1 && activeLedger.length !== 1) return { kind: "needs_ledger", ledgers };
   const ledgerMatches = requestedLedgerName
-    ? ledgers.filter((candidate) => candidate.name === requestedLedgerName || candidate.name.includes(requestedLedgerName))
+    ? ledgers.filter((candidate) => candidate.name === requestedLedgerName)
     : [];
   const ledger = requestedLedgerName
     ? ledgerMatches.length === 1 ? ledgerMatches[0] : undefined
@@ -352,7 +327,8 @@ export async function proposeV2LineText(input: {
     .eq("couple_id", input.user.couple_id)
     .neq("id", input.user.id)
     .single();
-  if (partner.error || !partner.data?.id) return { kind: "not_supported" };
+  if (partner.error) throw partner.error;
+  if (!partner.data?.id) return { kind: "not_supported" };
   const partnerId = partner.data.id;
   const bootstrap = parsed || income || (aiCommands?.some((command) => command.kind === "expense" || command.kind === "income"))
     ? await getV2LedgerBootstrap(input.user.couple_id, selectedLedger.id)
