@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 
 export type V2CommandOperation = "ledger.create" | "ledger.defaults" | "category.create" | "category.update"
   | "transaction.create" | "transaction.void" | "transaction.restore" | "transaction.replace" | "ledger.settle"
-  | "recurring.create" | "proposal.create";
+  | "recurring.create" | "proposal.create" | "proposal.revise";
 
 export interface V2CommandScope {
   operation: V2CommandOperation;
@@ -64,5 +64,8 @@ export function receiptResultMatchesScope(identity: V2CommandIdentity, ledgerId:
     case "ledger.settle": return typeof result.settled === "boolean" && (!transaction || transaction.ledgerId === ledgerId);
     case "recurring.create": return (result.recurring as { ledgerId?: string } | undefined)?.ledgerId === ledgerId;
     case "proposal.create": return result.ledgerId === ledgerId && typeof result.proposalId === "string";
+    case "proposal.revise": return result.ledgerId === ledgerId
+      && typeof result.proposalId === "string"
+      && result.parentProposalId === identity.resourceId;
   }
 }

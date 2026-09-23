@@ -10,6 +10,18 @@ import { nextRecurringDate } from "./ledger";
 import { taipeiToday } from "./ledger-shared";
 import type { V2CreateTransactionResult } from "./types";
 import {
+  parseV2ProposalStoredMetadata,
+  v2ProposalCommandInputSchema,
+  reviseV2ProposalInputSchema,
+  v2ProposalCommandSchema,
+  v2ProposalDetailSchema,
+  v2ProposalRevisionSchema,
+  type ReviseV2ProposalInput,
+  type V2ProposalCommandInput,
+  type V2ProposalRevision,
+  type V2ProposalSource,
+} from "./v2-proposal-contract";
+import {
   buildSettleAllTransfer,
   calculateLedgerBalance,
   calculateTransactionDelta,
@@ -159,6 +171,13 @@ export type CreateV2RecurringRuleInput = z.infer<typeof createV2RecurringRuleInp
 export type CreateLedgerInput = z.infer<typeof createLedgerInputSchema>;
 export type CreateV2TransactionInput = z.infer<typeof createV2TransactionInputSchema>;
 export type CreateV2ProposalInput = z.infer<typeof createV2ProposalInputSchema>;
+export type CreateV2ProposalMetadata = {
+  parentProposalId?: string | null;
+  rootProposalId?: string;
+  revision?: number;
+  reason?: string | null;
+  source?: V2ProposalSource | null;
+};
 export type UpdateV2LedgerDefaultSharesInput = z.infer<typeof updateV2LedgerDefaultSharesInputSchema>;
 export type V2Category = {
   id: string;
@@ -327,6 +346,106 @@ function serializedTransaction(transaction: V2Transaction) {
 
 function serializedBalance(balance: Record<string, bigint>) {
   return Object.fromEntries(Object.entries(balance).map(([userId, amount]) => [userId, amount.toString()]));
+}
+
+function normalizedProposalCommand(input: V2ProposalCommandInput | CreateV2TransactionInput, shares: Array<{ userId: string; amountTwd: bigint | string | number }>) {
+  return {
+    type: input.type,
+    amountTwd: twdToString(input.amountTwd),
+    occurredOn: input.occurredOn,
+    description: input.description,
+    category: input.category ?? null,
+    categoryId: input.categoryId ?? null,
+    note: input.note ?? null,
+    splitMethod: input.type === "transfer" ? "none" as const : input.splitMethod ?? "weights",
+    payments: input.payments.map((payment) => ({ userId: payment.userId, amountTwd: twdToString(payment.amountTwd) })),
+    shares: shares.map((share) => ({ userId: share.userId, amountTwd: twdToString(share.amountTwd) })),
+    ...(input.percentages ? { percentages: input.percentages } : {}),
+    ...(input.exactShares ? { exactShares: Object.fromEntries(Object.entries(input.exactShares).map(([userId, amount]) => [userId, twdToString(amount)])) } : {}),
+  };
+}
+
+function serializeProposalCommand(
+  input: CreateV2TransactionInput,
+  ledger: LoadedLedger,
+  proposalId: string,
+  commandIndex: number,
+  shares = buildShares(input, ledger),
+  validation: { state: "valid" | "invalid"; issues: string[] } = { state: "valid", issues: [] },
+) {
+  return v2ProposalCommandSchema.parse({
+    ...normalizedProposalCommand(input, shares),
+    commandIndex,
+    commandId: `${proposalId}:${commandIndex}`,
+    ledgerId: ledger.row.id,
+    ledgerName: ledger.row.name,
+    validation,
+  });
+}
+
+function serializeProposalCommandFallback(
+  input: CreateV2TransactionInput,
+  proposalId: string,
+  commandIndex: number,
+  ledgerId: string,
+  ledgerName: string,
+  validation: { state: "valid" | "invalid"; issues: string[] },
+) {
+  return v2ProposalCommandSchema.parse({
+    ...normalizedProposalCommand(input, input.shares ?? []),
+    commandIndex,
+    commandId: `${proposalId}:${commandIndex}`,
+    ledgerId,
+    ledgerName,
+    validation,
+  });
+}
+
+function proposalRevisionFromStored(value: unknown, fallbackId: string): V2ProposalRevision {
+  const metadata = parseV2ProposalStoredMetadata(value)?.proposal;
+  return v2ProposalRevisionSchema.parse(metadata ?? {
+    revision: 1,
+    parentProposalId: null,
+    rootProposalId: fallbackId,
+    reason: null,
+    source: null,
+  });
+}
+
+function proposalCommandFieldFingerprint(command: V2ProposalCommandInput | CreateV2TransactionInput, field: string): string {
+  const normalized = normalizedProposalCommand(command, command.shares ?? []) as Record<string, unknown>;
+  return JSON.stringify(normalized[field]);
+}
+
+function proposalChangedPaths(previous: CreateV2TransactionInput[], next: CreateV2TransactionInput[], ledgerChanged: boolean): string[] {
+  const paths: string[] = [];
+  const fields = ["type", "amountTwd", "occurredOn", "description", "category", "categoryId", "note", "splitMethod", "payments", "shares", "percentages", "exactShares"] as const;
+  for (let index = 0; index < Math.max(previous.length, next.length); index += 1) {
+    if (!previous[index] || !next[index]) {
+      paths.push(`commands.${index}`);
+      continue;
+    }
+    for (const field of fields) {
+      const before = proposalCommandFieldFingerprint(previous[index]!, field);
+      const after = proposalCommandFieldFingerprint(next[index]!, field);
+      if (before !== after) {
+        paths.push(`commands.${index}.${field}`);
+      }
+    }
+  }
+  if (ledgerChanged) paths.push("ledgerId");
+  return [...new Set(paths)].slice(0, 100);
+}
+
+function proposalResultWithMetadata(metadata: V2ProposalRevision, result?: Record<string, unknown> | null) {
+  return { proposal: metadata, ...(result ?? {}) };
+}
+
+function proposalSource(kind: "text" | "audio" | "ai" | undefined, eventId: string): V2ProposalSource {
+  return {
+    kind: kind === "audio" ? "line_audio" : kind === "ai" ? "line_ai" : "line_text",
+    eventId,
+  };
 }
 
 async function assertV2Writer(client: PoolClient, coupleId: number): Promise<void> {
@@ -1675,6 +1794,7 @@ export async function createV2ProposalFromLine(
   actorUserId: string,
   input: CreateV2ProposalInput | V2LineProposalDraft,
   sourceEventId: string,
+  source: "text" | "audio" | "ai" = "text",
 ) {
   const idempotencyKey = `line:v2:${createHash("sha256").update(sourceEventId).digest("hex").slice(0, 80)}`;
   const draft = v2LineProposalDraftSchema.safeParse(input);
@@ -1690,7 +1810,9 @@ export async function createV2ProposalFromLine(
           commands: parsed.commands,
         };
       })();
-  return createV2Proposal(coupleId, actorUserId, proposal, idempotencyKey);
+  return createV2Proposal(coupleId, actorUserId, proposal, idempotencyKey, {
+    source: proposalSource(source, sourceEventId),
+  });
 }
 
 export async function enqueueV2Notification(
@@ -1841,13 +1963,15 @@ export async function createV2Proposal(
   actorUserId: string,
   rawInput: unknown,
   requestIdempotencyKey?: string | null,
+  metadataInput?: CreateV2ProposalMetadata,
 ) {
   const input = createV2ProposalInputSchema.parse(rawInput);
   const digest = requestHash({ ledgerId: input.ledgerId, commands: input.commands });
   const idempotencyKey = requestIdempotencyKey ?? `proposal:${digest}`;
   return withTx(async (client) => {
     await assertV2Writer(client, coupleId);
-    const identity = await scopedCommand(client, coupleId, actorUserId, "proposal.create", input.ledgerId, null, idempotencyKey, { ...input, expiresInSeconds: input.expiresInSeconds ?? 300 }, digest);
+    const identityPayload = metadataInput ? { ...input, expiresInSeconds: input.expiresInSeconds ?? 300, metadata: metadataInput } : { ...input, expiresInSeconds: input.expiresInSeconds ?? 300 };
+    const identity = await scopedCommand(client, coupleId, actorUserId, "proposal.create", input.ledgerId, null, idempotencyKey, identityPayload, digest);
     const ledger = await loadLedger(client, coupleId, input.ledgerId);
     await assertLedgerMember(client, coupleId, actorUserId, input.ledgerId);
     for (const command of input.commands) {
@@ -1864,14 +1988,20 @@ export async function createV2Proposal(
     if (existing) return existing;
     const proposalId = randomUUID();
     const expiresAt = new Date(Date.now() + (input.expiresInSeconds ?? 5 * 60) * 1_000);
+    const proposalMetadata = v2ProposalRevisionSchema.parse({
+      revision: metadataInput?.revision ?? 1,
+      parentProposalId: metadataInput?.parentProposalId ?? null,
+      rootProposalId: metadataInput?.rootProposalId ?? proposalId,
+      reason: metadataInput?.reason ?? null,
+      source: metadataInput?.source ?? null,
+    });
     await client.query(
       `insert into ledger_v2.proposals
-        (id, couple_id, ledger_id, created_by_user_id, ledger_version, digest, commands, expires_at)
-       values ($1, $2, $3, $4, $5, $6, $7::jsonb, $8)`,
-      [proposalId, coupleId, input.ledgerId, actorUserId, ledger.row.version, digest, JSON.stringify(input.commands), expiresAt.toISOString()],
+        (id, couple_id, ledger_id, created_by_user_id, ledger_version, digest, commands, expires_at, result)
+       values ($1, $2, $3, $4, $5, $6, $7::jsonb, $8, $9::jsonb)`,
+      [proposalId, coupleId, input.ledgerId, actorUserId, ledger.row.version, digest, JSON.stringify(input.commands), expiresAt.toISOString(), JSON.stringify({ proposal: proposalMetadata })],
     );
-    await saveReceipt(client, identity, input.ledgerId, { proposalId, ledgerId: input.ledgerId, ledgerVersion: ledger.row.version, digest, commands: input.commands, status: "proposed", expiresAt: expiresAt.toISOString() });
-    return {
+    const created = {
       proposalId,
       ledgerId: input.ledgerId,
       ledgerVersion: ledger.row.version,
@@ -1879,7 +2009,10 @@ export async function createV2Proposal(
       commands: input.commands,
       status: "proposed" as const,
       expiresAt: expiresAt.toISOString(),
+      proposal: proposalMetadata,
     };
+    await saveReceipt(client, identity, input.ledgerId, created);
+    return created;
   });
 }
 
@@ -1919,7 +2052,9 @@ export async function confirmV2Proposal(
       );
       throw new HttpError(409, "Proposal 已過期");
     }
-    const commands = z.array(createV2TransactionInputSchema.omit({ idempotencyKey: true })).parse(proposal.commands);
+    const parsedCommands = z.array(createV2TransactionInputSchema.omit({ idempotencyKey: true })).safeParse(proposal.commands);
+    if (!parsedCommands.success) throw new HttpError(409, "Proposal 內容無法驗證，請重新建立草稿");
+    const commands = parsedCommands.data;
     const recomputedDigest = requestHash({ ledgerId: proposal.ledger_id, commands });
     if (recomputedDigest !== proposal.digest) throw new HttpError(409, "Proposal digest 不一致");
     const ledger = await loadLedger(client, coupleId, proposal.ledger_id, true);
@@ -1934,11 +2069,20 @@ export async function confirmV2Proposal(
       ledger.row.version += 1;
     }
     const finalBalance = calculateLedgerBalance(ledger.transactions, ledger.members);
+    const nextPayer = recommendNextPayer(finalBalance, ledger.members.memberIds);
     const result = {
+      ...proposalResultWithMetadata(proposalRevisionFromStored(proposal.result, proposal.id)),
       proposalId,
       status: "confirmed" as const,
       transactions: written,
       balance: serializedBalance(finalBalance),
+      nextPayer: nextPayer
+        ? {
+            payerUserId: nextPayer.payerUserId,
+            payeeUserId: nextPayer.payeeUserId,
+            amountTwd: nextPayer.amountTwd.toString(),
+          }
+        : null,
       ledgerVersion: ledger.row.version,
     };
     await client.query(
@@ -1963,9 +2107,10 @@ export async function cancelV2Proposal(
       id: string;
       ledger_id: string;
       status: "proposed" | "confirmed" | "cancelled" | "expired";
+      expires_at: string;
       result: unknown;
     }>(
-      `select p.id, p.ledger_id, p.status, p.result
+      `select p.id, p.ledger_id, p.status, p.expires_at, p.result
          from ledger_v2.proposals p
         where p.id = $1 and p.couple_id = $2
         for update`,
@@ -1976,6 +2121,10 @@ export async function cancelV2Proposal(
     await assertLedgerMember(client, coupleId, actorUserId, row.ledger_id);
     if (row.status === "cancelled") return { proposalId: id, status: "cancelled" as const };
     if (row.status !== "proposed") throw new HttpError(409, "Proposal 已失效或已確認");
+    if (new Date(row.expires_at).getTime() <= Date.now()) {
+      await client.query(`update ledger_v2.proposals set status = 'expired' where id = $1 and couple_id = $2`, [id, coupleId]);
+      throw new HttpError(409, "Proposal 已過期");
+    }
     await client.query(
       `update ledger_v2.proposals
           set status = 'cancelled'
@@ -1983,6 +2132,119 @@ export async function cancelV2Proposal(
       [id, coupleId],
     );
     return { proposalId: id, status: "cancelled" as const };
+  });
+}
+
+export async function reviseV2Proposal(
+  coupleId: number,
+  actorUserId: string,
+  proposalId: string,
+  rawInput: unknown,
+  requestIdempotencyKey?: string | null,
+) {
+  const id = z.string().uuid().parse(proposalId);
+  const input = reviseV2ProposalInputSchema.parse(rawInput) as ReviseV2ProposalInput;
+  const digest = requestHash({ proposalId: id, ledgerId: input.ledgerId ?? null, commands: input.commands, reason: input.reason ?? null, expiresInSeconds: input.expiresInSeconds ?? 300 });
+  const idempotencyKey = requestIdempotencyKey ?? `proposal:revise:${id.slice(0, 8)}:${digest.slice(0, 40)}`;
+  return withTx(async (client) => {
+    await assertV2Writer(client, coupleId);
+    const parentResult = await client.query<{
+      id: string;
+      ledger_id: string;
+      created_by_user_id: string;
+      ledger_version: number;
+      status: "proposed" | "confirmed" | "cancelled" | "expired";
+      expires_at: string;
+      commands: unknown;
+      result: unknown;
+    }>(
+      `select id, ledger_id, created_by_user_id, ledger_version, status, expires_at, commands, result
+         from ledger_v2.proposals
+        where id = $1 and couple_id = $2
+        for update`,
+      [id, coupleId],
+    );
+    const parent = parentResult.rows[0];
+    if (!parent) throw new HttpError(404, "Proposal 不存在");
+    await assertLedgerMember(client, coupleId, actorUserId, parent.ledger_id);
+    const targetLedgerId = input.ledgerId ?? parent.ledger_id;
+    await assertLedgerMember(client, coupleId, actorUserId, targetLedgerId);
+    const identity = await scopedCommand(
+      client,
+      coupleId,
+      actorUserId,
+      "proposal.revise",
+      targetLedgerId,
+      parent.id,
+      idempotencyKey,
+      input,
+      digest,
+    );
+    const existing = await findReceipt(client, identity);
+    if (existing) return existing;
+    if (parent.status !== "proposed") throw new HttpError(409, "Proposal 已失效，無法修正");
+    if (new Date(parent.expires_at).getTime() <= Date.now()) {
+      await client.query(`update ledger_v2.proposals set status = 'expired' where id = $1 and couple_id = $2`, [id, coupleId]);
+      throw new HttpError(409, "Proposal 已過期");
+    }
+    const commands = z.array(v2ProposalCommandInputSchema).parse(input.commands);
+    const parentCommands = z.array(createV2TransactionInputSchema.omit({ idempotencyKey: true })).parse(parent.commands);
+    const ledger = await loadLedger(client, coupleId, targetLedgerId, true);
+    for (const command of commands) {
+      const shares = buildShares(command, ledger);
+      calculateTransactionDelta({
+        ledgerId: ledger.members.ledgerId,
+        type: command.type,
+        amountTwd: command.amountTwd,
+        payments: command.payments,
+        shares,
+      }, ledger.members);
+    }
+    const childId = randomUUID();
+    const expiresAt = new Date(Date.now() + (input.expiresInSeconds ?? 5 * 60) * 1_000);
+    const parentMetadata = proposalRevisionFromStored(parent.result, parent.id);
+    const changes = proposalChangedPaths(parentCommands, commands, targetLedgerId !== parent.ledger_id);
+    const childMetadata = v2ProposalRevisionSchema.parse({
+      revision: parentMetadata.revision + 1,
+      parentProposalId: parent.id,
+      rootProposalId: parentMetadata.rootProposalId,
+      reason: input.reason ?? null,
+      source: parentMetadata.source,
+      changes,
+    });
+    const childDigest = requestHash({ ledgerId: targetLedgerId, commands });
+    await client.query(
+      `insert into ledger_v2.proposals
+        (id, couple_id, ledger_id, created_by_user_id, ledger_version, digest, commands, expires_at, result)
+       select $1, couple_id, $3, created_by_user_id, $4, $5, $6::jsonb, $7, $8::jsonb
+         from ledger_v2.proposals
+        where id = $2 and couple_id = $9`,
+      [childId, id, targetLedgerId, ledger.row.version, childDigest, JSON.stringify(commands), expiresAt.toISOString(), JSON.stringify({ proposal: childMetadata }), coupleId],
+    );
+    const supersededMetadata = v2ProposalRevisionSchema.parse({
+      ...parentMetadata,
+      supersededByProposalId: childId,
+      supersededAt: new Date().toISOString(),
+    });
+    await client.query(
+      `update ledger_v2.proposals
+          set status = 'cancelled', result = $3::jsonb
+        where id = $1 and couple_id = $2`,
+      [id, coupleId, JSON.stringify({ proposal: supersededMetadata })],
+    );
+    const created = {
+      proposalId: childId,
+      parentProposalId: parent.id,
+      ledgerId: targetLedgerId,
+      ledgerVersion: ledger.row.version,
+      digest: childDigest,
+      commands,
+      status: "proposed" as const,
+      expiresAt: expiresAt.toISOString(),
+      proposal: childMetadata,
+    };
+    await saveReceipt(client, identity, targetLedgerId, created);
+    return created;
   });
 }
 
@@ -1995,29 +2257,106 @@ export async function getV2Proposal(
   return withTx(async (client) => {
     const result = await client.query<{
       id: string;
+      couple_id: number;
       ledger_id: string;
       ledger_version: number;
       status: "proposed" | "confirmed" | "cancelled" | "expired";
+      created_at: string | Date;
       commands: unknown;
-      expires_at: string;
+      expires_at: string | Date;
       result: unknown;
+      ledger_name: string;
+      current_ledger_version: number;
+      ledger_status: "active" | "archived";
     }>(
-      `select id, ledger_id, ledger_version, status, commands, expires_at, result
-         from ledger_v2.proposals
-        where id = $1 and couple_id = $2`,
+      `select p.id, p.couple_id, p.ledger_id, p.ledger_version, p.status, p.created_at, p.commands, p.expires_at, p.result,
+              l.name as ledger_name, l.version as current_ledger_version, l.status as ledger_status
+         from ledger_v2.proposals p
+         join ledger_v2.ledgers l on l.id = p.ledger_id and l.couple_id = p.couple_id
+        where p.id = $1 and p.couple_id = $2`,
       [id, coupleId],
     );
     const proposal = result.rows[0];
     if (!proposal) throw new HttpError(404, "Proposal 不存在");
     await assertLedgerMember(client, coupleId, actorUserId, proposal.ledger_id);
-    return {
+    const parsedCommands = z.array(createV2TransactionInputSchema.omit({ idempotencyKey: true })).safeParse(proposal.commands);
+    if (!parsedCommands.success) throw new HttpError(409, "Proposal 內容無法驗證，請重新建立草稿");
+    const issues: Array<{ code: string; path: Array<string | number>; message: string }> = [];
+    let outputCommands: Array<z.infer<typeof v2ProposalCommandSchema>> = [];
+    const fallbackCommands = (ledgerId: string, ledgerName: string, state: "valid" | "invalid", commandIssues: string[] = []) => parsedCommands.data.map((command, index) => serializeProposalCommandFallback(command, proposal.id, index, ledgerId, ledgerName, { state, issues: commandIssues }));
+    if (proposal.ledger_status === "active") {
+      try {
+        const ledger = await loadLedger(client, coupleId, proposal.ledger_id);
+        outputCommands = parsedCommands.data.map((command, index) => {
+          const commandIssues: string[] = [];
+          let shares: Array<{ userId: string; amountTwd: TwdInput }> = command.shares ?? [];
+          try {
+            shares = buildShares(command, ledger);
+            calculateTransactionDelta({
+              ledgerId: ledger.members.ledgerId,
+              type: command.type,
+              amountTwd: command.amountTwd,
+              payments: command.payments,
+              shares,
+            }, ledger.members);
+          } catch (error) {
+            const message = error instanceof Error ? error.message : "交易欄位無法驗證";
+            commandIssues.push(message);
+            issues.push({ code: "invalid_command", path: ["commands", index], message });
+          }
+          try {
+            return serializeProposalCommand(command, ledger, proposal.id, index, shares, { state: commandIssues.length ? "invalid" : "valid", issues: commandIssues });
+          } catch (error) {
+            const message = error instanceof Error ? error.message : "交易欄位無法序列化";
+            issues.push({ code: "invalid_command", path: ["commands", index], message });
+            return serializeProposalCommandFallback(command, proposal.id, index, ledger.row.id, ledger.row.name, { state: "invalid", issues: [...commandIssues, message] });
+          }
+        });
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "Ledger 無法驗證";
+        issues.push({ code: "ledger_unavailable", path: ["ledgerId"], message });
+        outputCommands = fallbackCommands(proposal.ledger_id, proposal.ledger_name, "invalid", [message]);
+      }
+    } else {
+      issues.push({ code: "ledger_archived", path: ["ledgerId"], message: "Proposal 所在 Ledger 已封存" });
+      outputCommands = fallbackCommands(proposal.ledger_id, proposal.ledger_name, "invalid", ["Proposal 所在 Ledger 已封存"]);
+    }
+    const expired = proposal.status === "proposed" && new Date(proposal.expires_at).getTime() <= Date.now();
+    const status = expired ? "expired" : proposal.status;
+    const createdAt = serializedTimestamp(proposal.created_at) ?? new Date(proposal.created_at).toISOString();
+    const expiresAt = serializedTimestamp(proposal.expires_at) ?? new Date(proposal.expires_at).toISOString();
+    if (expired) issues.push({ code: "expired", path: ["expiresAt"], message: "Proposal 已過期" });
+    if (proposal.current_ledger_version !== proposal.ledger_version && status === "proposed") {
+      issues.push({ code: "stale_ledger", path: ["ledgerVersion"], message: "Ledger 已變更，請修正後重新建立草稿" });
+    }
+    const validationState = status === "expired"
+      ? "expired"
+      : proposal.current_ledger_version !== proposal.ledger_version && status === "proposed"
+        ? "stale"
+        : issues.length ? "invalid" : "valid";
+    const metadata = proposalRevisionFromStored(proposal.result, proposal.id);
+    const detail = {
       proposalId: proposal.id,
+      coupleId: proposal.couple_id,
+      createdAt,
       ledgerId: proposal.ledger_id,
+      ledgerName: proposal.ledger_name,
       ledgerVersion: proposal.ledger_version,
-      status: proposal.status,
-      commands: proposal.commands,
-      expiresAt: proposal.expires_at,
-      result: proposal.result,
+      currentLedgerVersion: proposal.current_ledger_version,
+      status,
+      commands: outputCommands,
+      commandCount: outputCommands.length,
+      expiresAt,
+      source: metadata.source,
+      sourceSummary: metadata.source ? `LINE ${metadata.source.kind.replace("line_", "")}` : null,
+      revision: metadata,
+      validation: {
+        state: validationState,
+        issues,
+        clarifications: issues.map((issue) => issue.message),
+      },
+      result: proposal.result && typeof proposal.result === "object" && !Array.isArray(proposal.result) ? proposal.result : null,
     };
+    return v2ProposalDetailSchema.parse(detail);
   });
 }

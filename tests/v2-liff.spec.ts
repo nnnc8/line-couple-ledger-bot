@@ -5,6 +5,8 @@ const PARTNER = "00000000-0000-4000-8000-000000000002";
 const LEDGER = "00000000-0000-4000-8000-000000000010";
 const TRANSACTION = "00000000-0000-4000-8000-000000000011";
 const SECOND_LEDGER = "00000000-0000-4000-8000-000000000012";
+const PROPOSAL = "00000000-0000-4000-8000-000000000013";
+const REVISED_PROPOSAL = "00000000-0000-4000-8000-000000000014";
 
 type PostMode = "success" | "failure" | "fail-once" | "delay";
 
@@ -19,6 +21,58 @@ test.beforeEach(async ({ page }) => {
   let nextPayer: Record<string, string> | null = null;
   let failRefresh = false;
   const requestPaths: string[] = [];
+  let proposalId = PROPOSAL;
+  let proposalLedgerId = LEDGER;
+  let revisedBody: Record<string, unknown> | null = null;
+  const proposalCommand = {
+    commandIndex: 0,
+    commandId: `${PROPOSAL}:0`,
+    ledgerId: LEDGER,
+    ledgerName: "共同生活",
+    type: "expense",
+    amountTwd: "100",
+    occurredOn: "2026-08-28",
+    description: "晚餐",
+    category: "餐飲",
+    categoryId: null,
+    note: "LINE 草稿",
+    splitMethod: "equal",
+    payments: [{ userId: OWNER, amountTwd: "100" }],
+    shares: [{ userId: OWNER, amountTwd: "50" }, { userId: PARTNER, amountTwd: "50" }],
+    validation: { state: "valid", issues: [] },
+  };
+  const proposalDetail = () => {
+    const ledgerName = proposalLedgerId === LEDGER ? "共同生活" : "另一個 Ledger";
+    const revisedCommands = proposalId === REVISED_PROPOSAL && Array.isArray(revisedBody?.commands)
+      ? revisedBody.commands.map((value, commandIndex) => ({
+        ...(value as Record<string, unknown>),
+        commandIndex,
+        commandId: `${proposalId}:${commandIndex}`,
+        ledgerId: proposalLedgerId,
+        ledgerName,
+        validation: { state: "valid", issues: [] },
+      }))
+      : null;
+    const commands = revisedCommands ?? [{ ...proposalCommand, ledgerId: proposalLedgerId, ledgerName }];
+    return ({
+    proposalId,
+    coupleId: 1,
+    createdAt: "2026-12-30T00:00:00.000Z",
+    ledgerId: proposalLedgerId,
+    ledgerName,
+    ledgerVersion: 1,
+    currentLedgerVersion: 1,
+    status: "proposed",
+    commands,
+    commandCount: commands.length,
+    expiresAt: "2026-12-31T00:00:00.000Z",
+    source: { kind: "line_text", eventId: "line-event-1" },
+    sourceSummary: "LINE text",
+    revision: { revision: proposalId === PROPOSAL ? 1 : 2, parentProposalId: proposalId === PROPOSAL ? null : PROPOSAL, rootProposalId: PROPOSAL, reason: null, source: { kind: "line_text", eventId: "line-event-1" } },
+    validation: { state: "valid", issues: [], clarifications: [] },
+    result: { proposal: { revision: proposalId === PROPOSAL ? 1 : 2 } },
+  });
+  };
 
   page.on("request", (request) => {
     const url = new URL(request.url());
@@ -46,7 +100,10 @@ test.beforeEach(async ({ page }) => {
     ],
   } }));
   await page.route("**/api/app/v2/ledgers", (route) => route.fulfill({ json: {
-    ledgers: [{ id: LEDGER, name: "共同生活", color: "#173B63", status: "active", version: 1, createdAt: "2026-08-01T00:00:00Z", updatedAt: "2026-08-01T00:00:00Z" }],
+    ledgers: [
+      { id: LEDGER, name: "共同生活", color: "#173B63", status: "active", version: 1, createdAt: "2026-08-01T00:00:00Z", updatedAt: "2026-08-01T00:00:00Z" },
+      { id: SECOND_LEDGER, name: "另一個 Ledger", color: "#173B63", status: "active", version: 1, createdAt: "2026-08-01T00:00:00Z", updatedAt: "2026-08-01T00:00:00Z" },
+    ],
   } }));
   await page.route(`**/api/app/v2/ledgers/${LEDGER}/bootstrap`, (route) => {
     bootstrapCalls += 1;
@@ -70,6 +127,14 @@ test.beforeEach(async ({ page }) => {
     } });
   });
   await page.route(`**/api/app/v2/ledgers/${LEDGER}/categories`, (route) => route.fulfill({ json: { categories: [] } }));
+  await page.route(`**/api/app/v2/ledgers/${SECOND_LEDGER}/bootstrap`, (route) => route.fulfill({ json: {
+    ledger: { id: SECOND_LEDGER, name: "另一個 Ledger", color: "#173B63", status: "active", version: 1, createdAt: "2026-08-01T00:00:00Z", updatedAt: "2026-08-01T00:00:00Z", coupleId: 1, members: [{ userId: OWNER, role: "owner" }, { userId: PARTNER, role: "partner" }], defaultShares: { [OWNER]: "1", [PARTNER]: "1" } },
+    transactions: [], balance: { [OWNER]: "0", [PARTNER]: "0" }, nextPayer: null,
+  } }));
+  await page.route(`**/api/app/v2/ledgers/${SECOND_LEDGER}/categories`, (route) => route.fulfill({ json: { categories: [] } }));
+  await page.route(`**/api/app/v2/ledgers/${SECOND_LEDGER}/recurring`, (route) => route.fulfill({ json: { recurring: [] } }));
+  await page.route(`**/api/app/v2/ledgers/${SECOND_LEDGER}/statistics`, (route) => route.fulfill({ json: { byType: {}, byCategory: {}, paidBy: {}, borneBy: {} } }));
+  await page.route(`**/api/app/v2/ledgers/${SECOND_LEDGER}/transactions*`, (route) => route.fulfill({ json: { transactions: [], nextCursor: null } }));
   await page.route(`**/api/app/v2/ledgers/${LEDGER}/recurring`, (route) => route.fulfill({ json: { recurring: [] } }));
   await page.route(`**/api/app/v2/ledgers/${LEDGER}/statistics`, (route) => route.fulfill({ json: { byType: {}, byCategory: {}, paidBy: {}, borneBy: {} } }));
   await page.route(`**/api/app/v2/ledgers/${LEDGER}/transactions*`, async (route) => {
@@ -118,6 +183,19 @@ test.beforeEach(async ({ page }) => {
     });
     return route.fulfill({ json: { transactions: filtered, nextCursor: null } });
   });
+  await page.route("**/api/app/v2/proposals/**", async (route) => {
+    const path = new URL(route.request().url()).pathname.split("/").filter(Boolean);
+    if (route.request().method() === "GET" && path.length === 5) return route.fulfill({ json: proposalDetail() });
+    if (route.request().method() === "POST" && path.at(-1) === "confirm") return route.fulfill({ json: { proposalId, status: "confirmed", transactions: [{ amountTwd: "100" }], balance: { [OWNER]: "-50", [PARTNER]: "50" }, nextPayer: { payerUserId: OWNER, payeeUserId: PARTNER, amountTwd: "50" }, ledgerVersion: 2 } });
+    if (route.request().method() === "POST" && path.at(-1) === "cancel") return route.fulfill({ json: { proposalId, status: "cancelled" } });
+    if (route.request().method() === "POST" && path.at(-1) === "revise") {
+      revisedBody = route.request().postDataJSON() as Record<string, unknown>;
+      if (typeof revisedBody.ledgerId === "string") proposalLedgerId = revisedBody.ledgerId;
+      proposalId = REVISED_PROPOSAL;
+      return route.fulfill({ status: 201, json: { proposalId, parentProposalId: PROPOSAL, status: "proposed" } });
+    }
+    return route.fulfill({ status: 404, json: { error: "proposal route not found" } });
+  });
   await page.route(`**/api/app/v2/transactions/${TRANSACTION}/mutate`, async (route) => {
     const body = route.request().postDataJSON() as { action?: string };
     if (body.action === "void") {
@@ -132,11 +210,11 @@ test.beforeEach(async ({ page }) => {
   await page.goto("/");
   await expect(page.getByRole("heading", { name: "Ledger", exact: true })).toBeVisible();
 
-  (page as typeof page & { __v2Controls?: unknown }).__v2Controls = { setPostMode: (mode: PostMode) => { postMode = mode; }, releasePost: () => releasePost?.(), getPostRequests: () => postRequests, getPostedBodies: () => postedBodies, setFailRefresh: (value: boolean) => { failRefresh = value; }, setBalance: (owner: string, partner: string) => { balance = { [OWNER]: owner, [PARTNER]: partner }; nextPayer = Number(owner) === 0 ? null : { payerUserId: Number(owner) > 0 ? PARTNER : OWNER, payeeUserId: Number(owner) > 0 ? OWNER : PARTNER, amountTwd: String(Math.abs(Number(owner))) }; }, getRequestPaths: () => requestPaths };
+  (page as typeof page & { __v2Controls?: unknown }).__v2Controls = { setPostMode: (mode: PostMode) => { postMode = mode; }, releasePost: () => releasePost?.(), getPostRequests: () => postRequests, getPostedBodies: () => postedBodies, setFailRefresh: (value: boolean) => { failRefresh = value; }, setBalance: (owner: string, partner: string) => { balance = { [OWNER]: owner, [PARTNER]: partner }; nextPayer = Number(owner) === 0 ? null : { payerUserId: Number(owner) > 0 ? PARTNER : OWNER, payeeUserId: Number(owner) > 0 ? OWNER : PARTNER, amountTwd: String(Math.abs(Number(owner))) }; }, getRequestPaths: () => requestPaths, getRevisedBody: () => revisedBody };
 });
 
 function controls(page: Page) {
-  return (page as typeof page & { __v2Controls: { setPostMode: (mode: PostMode) => void; releasePost: () => void; getPostRequests: () => number; getPostedBodies: () => Array<Record<string, unknown>>; setFailRefresh: (value: boolean) => void; setBalance: (owner: string, partner: string) => void; getRequestPaths: () => string[] } }).__v2Controls;
+  return (page as typeof page & { __v2Controls: { setPostMode: (mode: PostMode) => void; releasePost: () => void; getPostRequests: () => number; getPostedBodies: () => Array<Record<string, unknown>>; setFailRefresh: (value: boolean) => void; setBalance: (owner: string, partner: string) => void; getRequestPaths: () => string[]; getRevisedBody: () => Record<string, unknown> | null } }).__v2Controls;
 }
 
 test("uses the V2 startup request budget", async ({ page }) => {
@@ -148,6 +226,54 @@ test("uses the V2 startup request budget", async ({ page }) => {
   expect(requests.filter((path) => path === `GET /api/app/v2/ledgers/${LEDGER}/bootstrap`)).toHaveLength(1);
   expect(requests.some((path) => path.includes("/api/app/bootstrap"))).toBe(false);
   expect(requests.some((path) => path.includes("/statistics") || path.includes("/recurring") || path.includes("/transactions?"))).toBe(false);
+});
+
+test("V3-1 deep link renders a reviewable proposal with explicit Ledger and allocations", async ({ page }) => {
+  await page.goto(`/?v2Proposal=${PROPOSAL}`);
+  await expect(page.getByText("可檢查的待確認草稿")).toBeVisible();
+  await expect(page.getByText("Ledger：共同生活", { exact: true })).toBeVisible();
+  await expect(page.getByText("來源：LINE text · event line-event-1", { exact: true })).toBeVisible();
+  await expect(page.getByText("付款分配", { exact: true })).toBeVisible();
+  await expect(page.getByText("分攤分配", { exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "確認入帳" })).toBeEnabled();
+});
+
+test("V3-1 correction creates a new revision and keeps confirmation disabled until rereview", async ({ page }) => {
+  await page.goto(`/?v2Proposal=${PROPOSAL}`);
+  await expect(page.getByText("可檢查的待確認草稿")).toBeVisible();
+  await page.getByLabel("金額（TWD）").fill("120");
+  await page.getByLabel("付款分配 金額").fill("120");
+  await page.getByLabel("付款分配 成員").selectOption(PARTNER);
+  await page.getByLabel("分攤分配 金額").nth(0).fill("60");
+  await page.getByLabel("分攤分配 金額").nth(1).fill("60");
+  await expect(page.getByRole("button", { name: "確認入帳" })).toBeDisabled();
+  await page.getByRole("button", { name: "送出修正版" }).click();
+  await expect(page.getByText("Proposal 2 · 待確認", { exact: false })).toBeVisible();
+  await expect(page.getByRole("button", { name: "第 1 筆：晚餐 · NT$120" })).toBeVisible();
+  await expect(page.getByLabel("付款分配 成員")).toHaveValue(PARTNER);
+  expect(controls(page).getRevisedBody()?.ledgerId).toBe(LEDGER);
+  expect(controls(page).getRevisedBody()?.commands).toMatchObject([{ amountTwd: "120", payments: [{ userId: PARTNER, amountTwd: "120" }] }]);
+});
+
+test("V3-1 changing target Ledger creates the revised proposal in that isolated Ledger", async ({ page }) => {
+  await page.goto(`/?v2Proposal=${PROPOSAL}`);
+  await expect(page.getByText("Ledger：共同生活", { exact: true })).toBeVisible();
+  await page.getByLabel("Proposal Ledger").selectOption(SECOND_LEDGER);
+  await page.getByRole("button", { name: "送出修正版" }).click();
+  await expect(page).toHaveURL(new RegExp(`v2Proposal=${REVISED_PROPOSAL}`));
+  await expect(page.getByLabel("切換 Ledger")).toHaveValue(SECOND_LEDGER);
+  await expect(page.getByText("Ledger：另一個 Ledger", { exact: true })).toBeVisible();
+  expect(controls(page).getRevisedBody()?.ledgerId).toBe(SECOND_LEDGER);
+});
+
+test("V3-1 confirmation reports durable write when Ledger refresh fails", async ({ page }) => {
+  await page.goto(`/?v2Proposal=${PROPOSAL}`);
+  await expect(page.getByText("可檢查的待確認草稿")).toBeVisible();
+  controls(page).setFailRefresh(true);
+  await page.getByRole("button", { name: "確認入帳" }).click();
+  await expect(page.getByText("已入帳；流水畫面暫時無法更新", { exact: false })).toBeVisible();
+  await expect(page.getByText("已記錄 1 筆至 Ledger：共同生活", { exact: true })).toBeVisible();
+  await expect(page.getByText("下一位付款：你 → 另一半 NT$50", { exact: true })).toBeVisible();
 });
 
 test("loads statistics and recurring rules only when their secondary UI is opened", async ({ page }) => {

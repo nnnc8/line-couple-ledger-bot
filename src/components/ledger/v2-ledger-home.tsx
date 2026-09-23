@@ -8,6 +8,7 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { V2LedgerSwitcher } from "./v2-ledger-switcher";
+import { V2ProposalReview } from "./v2-proposal-review";
 import { V2TransactionEditor, type TransactionEditorValue } from "./v2-transaction-editor";
 import { api } from "@/lib/api";
 import { money } from "@/lib/format";
@@ -51,6 +52,8 @@ interface V2LedgerHomeProps {
   applyCommittedTransaction: (result: V2CreateTransactionResult) => void;
   createLedger: (name: string, color?: string) => Promise<unknown>;
   proposalIdFromUrl?: string | null;
+  onProposalLedgerId?: (ledgerId: string) => void;
+  onProposalId?: (proposalId: string) => void;
   transactionIdFromUrl?: string | null;
   initialSecondaryTab?: V2SecondaryTab;
 }
@@ -69,6 +72,8 @@ export function V2LedgerHome({
   applyCommittedTransaction,
   createLedger,
   proposalIdFromUrl = null,
+  onProposalLedgerId,
+  onProposalId,
   transactionIdFromUrl = null,
   initialSecondaryTab = "history",
 }: V2LedgerHomeProps) {
@@ -122,7 +127,6 @@ export function V2LedgerHome({
     return () => { mounted.current = false; historyAbortRef.current?.abort(); };
   }, []);
   const proposalId = proposalIdFromUrl;
-  const [proposalStatus, setProposalStatus] = React.useState<string | null>(null);
   const [defaultWeights, setDefaultWeights] = React.useState<[string, string]>(["1", "1"]);
   const [defaultShareMessage, setDefaultShareMessage] = React.useState("");
   const [savingDefaults, setSavingDefaults] = React.useState(false);
@@ -230,12 +234,14 @@ export function V2LedgerHome({
 
   React.useEffect(() => {
     if (!bootstrap || secondaryTab !== "stats" || statistics) return;
-    void loadStatistics().catch((reason) => setFormError(reason instanceof Error ? reason.message : "無法讀取統計"));
+    const timer = window.setTimeout(() => { void loadStatistics().catch((reason) => setFormError(reason instanceof Error ? reason.message : "無法讀取統計")); }, 0);
+    return () => window.clearTimeout(timer);
   }, [bootstrap, loadStatistics, secondaryTab, statistics]);
 
   React.useEffect(() => {
     if (!bootstrap || secondaryTab !== "settings" || recurring.length) return;
-    void loadRecurring().catch((reason) => setFormError(reason instanceof Error ? reason.message : "無法讀取週期規則"));
+    const timer = window.setTimeout(() => { void loadRecurring().catch((reason) => setFormError(reason instanceof Error ? reason.message : "無法讀取週期規則")); }, 0);
+    return () => window.clearTimeout(timer);
   }, [bootstrap, loadRecurring, recurring.length, secondaryTab]);
 
   async function loadMoreHistory() {
@@ -254,47 +260,6 @@ export function V2LedgerHome({
       bootstrap.ledger.defaultShares[second] ?? "1",
     ]);
   }, [bootstrap]);
-
-  const loadProposal = React.useCallback(async () => {
-    if (!proposalId) return;
-    const response = await fetch(`/api/app/v2/proposals/${proposalId}`, { cache: "no-store", credentials: "same-origin" });
-    const body = await response.json() as { status?: string; error?: string };
-    if (!response.ok) throw new Error(body.error ?? "無法讀取 proposal");
-    setProposalStatus(body.status ?? null);
-  }, [proposalId]);
-
-  React.useEffect(() => {
-    if (!proposalId) return;
-    const timer = window.setTimeout(() => { void loadProposal().catch((reason) => setFormError(reason instanceof Error ? reason.message : "無法讀取 proposal")); }, 0);
-    return () => window.clearTimeout(timer);
-  }, [loadProposal, proposalId]);
-
-  async function confirmProposal() {
-    if (!proposalId) return;
-    setSaving(true);
-    try {
-      await api(`/api/app/v2/proposals/${proposalId}/confirm`, {});
-      await refreshLedger();
-      setProposalStatus("confirmed");
-    } catch (reason) {
-      setFormError(reason instanceof Error ? reason.message : "proposal 確認失敗");
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  async function cancelProposal() {
-    if (!proposalId) return;
-    setSaving(true);
-    try {
-      await api(`/api/app/v2/proposals/${proposalId}/cancel`, {});
-      setProposalStatus("cancelled");
-    } catch (reason) {
-      setFormError(reason instanceof Error ? reason.message : "proposal 取消失敗");
-    } finally {
-      setSaving(false);
-    }
-  }
 
   if (!partner || !bootstrap) {
     return (
@@ -559,7 +524,7 @@ export function V2LedgerHome({
         <V2LedgerSwitcher ledgers={ledgers} activeLedgerId={activeLedgerId} onChange={setActiveLedgerId} onCreate={() => setShowCreate(true)} />
         <Button variant="ghost" size="icon-sm" aria-label="重新載入 Ledger" onClick={() => void refreshLedger()}><RefreshCw className="size-4" /></Button>
       </div>
-      {proposalId && proposalStatus ? <Card className="border-accent/30 bg-accent-soft p-4"><p className="font-semibold">LINE 待確認草稿</p><p className="mt-1 text-sm text-[var(--muted-foreground)]">狀態：{proposalStatus === "proposed" ? "待確認" : proposalStatus === "confirmed" ? "已入帳" : proposalStatus === "cancelled" ? "已取消" : proposalStatus}</p>{proposalStatus === "proposed" ? <div className="mt-3 flex gap-2"><Button variant="primary" size="sm" onClick={() => void confirmProposal()} disabled={saving}>確認入帳</Button><Button variant="ghost" size="sm" onClick={() => void cancelProposal()} disabled={saving}>取消</Button></div> : null}</Card> : null}
+      {proposalId ? <V2ProposalReview proposalId={proposalId} users={users} ledgers={ledgers} activeLedgerId={activeLedgerId} onProposalLedgerId={onProposalLedgerId} onProposalId={onProposalId} refreshLedger={refreshLedger} onError={setFormError} /> : null}
       {showCreate ? <CreateLedgerCard name={newLedgerName} onName={setNewLedgerName} onCancel={() => setShowCreate(false)} onSave={async () => { if (!newLedgerName.trim()) return; await createLedger(newLedgerName.trim()); setNewLedgerName(""); setShowCreate(false); }} /> : null}
 
       <Card className="overflow-hidden p-5 text-white" style={{ background: `linear-gradient(140deg, ${bootstrap.ledger.color}, #0c2240)` }}>

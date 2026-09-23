@@ -36,6 +36,7 @@ import {
   activateV2Ledger,
   confirmV2Proposal,
   cancelV2Proposal,
+  reviseV2Proposal,
   getV2Proposal,
   createV2Proposal,
   listV2LedgerTransactions,
@@ -318,6 +319,9 @@ export async function POST(request: Request, route: RouteContext) {
     }
     if (path[0] === "v2" && path[1] === "proposals" && path[2] && path[3] === "cancel" && path.length === 4) {
       return json(await cancelV2Proposal(context.user.couple_id, context.user.id, path[2]));
+    }
+    if (path[0] === "v2" && path[1] === "proposals" && path[2] && path[3] === "revise" && path.length === 4) {
+      return json(await reviseV2Proposal(context.user.couple_id, context.user.id, path[2], body, request.headers.get("idempotency-key")), {}, 201);
     }
     if (path[0] === "v2" && path[1] === "ledgers" && path[2] && path[3] === "recurring" && path.length === 4) {
       const key = request.headers.get("idempotency-key");

@@ -7,7 +7,7 @@ import { agentChatService } from "./services";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { GoogleGenAI } from "@google/genai";
 import { requireLocalTestUrl } from "../../scripts/v3-0-test-db";
-import { activateV2Ledger, createV2Ledger, createV2Transaction, settleAllV2Ledger, getV2LedgerBootstrap, createV2LedgerCategory, updateV2LedgerCategory, updateV2LedgerDefaultShares, createV2RecurringRule, createV2Proposal, mutateV2Transaction, createV2TransactionInputSchema } from "./v2-ledger-service";
+import { activateV2Ledger, createV2Ledger, createV2Transaction, settleAllV2Ledger, getV2LedgerBootstrap, createV2LedgerCategory, updateV2LedgerCategory, updateV2LedgerDefaultShares, createV2RecurringRule, createV2Proposal, getV2Proposal, confirmV2Proposal, reviseV2Proposal, mutateV2Transaction, createV2TransactionInputSchema } from "./v2-ledger-service";
 import { proposeV2LineText } from "./v2-line-proposal";
 import { dispatchV2LineInbox } from "./v2-line-inbox-dispatch";
 import { claimV2LineInbox, finishV2LineInbox, releaseV2LineInboxForMaintenance, resetStaleV2LineInboxLeases } from "./v2-inbox-worker";
@@ -423,4 +423,59 @@ test("F5 commit-before-ack replay remains processed after the active Ledger chan
     assert.equal((await inboxState(id)).status, "processed");
     assert.equal(await count(), before + 1);
   } finally { await pool.query("delete from ledger_v2.line_inbox where webhook_event_id = $1", [id]); }
+});
+
+test("V3-1 proposal detail exposes Ledger and allocations, then revises without a financial write", async () => {
+  const parent = await createV2Proposal(1, owner, {
+    ledgerId: ledgerA,
+    commands: [expense("120", "V3-1 review source")],
+  }, `v3-1:parent:${randomUUID()}`) as { proposalId: string };
+  const detail = await getV2Proposal(1, owner, parent.proposalId);
+  assert.equal(detail.ledgerId, ledgerA);
+  assert.equal(detail.ledgerName, "共同生活");
+  assert.equal(detail.commandCount, 1);
+  assert.equal(detail.commands[0]?.shares.length, 2);
+  assert.equal(detail.validation.state, "valid");
+  const before = await count();
+  const command = detail.commands[0]!;
+  const revised = await reviseV2Proposal(1, owner, parent.proposalId, {
+    reason: "改正描述與金額",
+    commands: [{
+      ...command,
+      amountTwd: "130",
+      description: "V3-1 corrected",
+      payments: [{ userId: owner, amountTwd: "130" }],
+      shares: [{ userId: owner, amountTwd: "65" }, { userId: partner, amountTwd: "65" }],
+    }],
+  }, `v3-1:revise:${randomUUID()}`) as { proposalId: string; parentProposalId: string };
+  assert.equal(revised.parentProposalId, parent.proposalId);
+  assert.equal(await count(), before);
+  const revisedDetail = await getV2Proposal(1, owner, revised.proposalId);
+  assert.equal(revisedDetail.revision.revision, 2);
+  assert.equal(revisedDetail.revision.parentProposalId, parent.proposalId);
+  assert.equal(revisedDetail.commands[0]?.description, "V3-1 corrected");
+  const parentRow = await pool.query<{ status: string }>("select status from ledger_v2.proposals where id = $1", [parent.proposalId]);
+  assert.equal(parentRow.rows[0]?.status, "cancelled");
+  const [first, second] = await Promise.all([
+    confirmV2Proposal(1, owner, revised.proposalId),
+    confirmV2Proposal(1, owner, revised.proposalId),
+  ]);
+  assert.deepEqual(wire(first), wire(second));
+  assert.equal(await count(), before + 1);
+  const confirmed = await getV2Proposal(1, owner, revised.proposalId);
+  assert.equal(confirmed.status, "confirmed");
+  assert.equal(confirmed.result && typeof confirmed.result === "object", true);
+});
+
+test("V3-1 stale Ledger version is reviewable but blocks every financial write", async () => {
+  const stale = await createV2Proposal(1, owner, {
+    ledgerId: ledgerA,
+    commands: [expense("140", "V3-1 stale source")],
+  }, `v3-1:stale:${randomUUID()}`) as { proposalId: string };
+  await createV2Transaction(1, owner, ledgerA, expense("141", "advance Ledger version"), `v3-1:advance:${randomUUID()}`);
+  const detail = await getV2Proposal(1, owner, stale.proposalId);
+  assert.equal(detail.validation.state, "stale");
+  const before = await count();
+  await assert.rejects(() => confirmV2Proposal(1, owner, stale.proposalId), /Ledger 已變更/);
+  assert.equal(await count(), before);
 });

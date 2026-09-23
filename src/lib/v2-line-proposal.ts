@@ -395,7 +395,7 @@ export async function proposeV2LineText(input: {
     const proposal = await createV2ProposalFromLine(input.user.couple_id, input.user.id, {
       ledgerId: selectedLedger.id,
       commands: validCommands.map(({ ledgerId: _ledgerId, ...command }) => { void _ledgerId; return command; }),
-    }, input.sourceEventId) as { proposalId: string };
+    }, input.sourceEventId, input.source) as { proposalId: string };
     return { kind: "created", proposalId: proposal.proposalId, ledgerName: selectedLedger.name, amountTwd: commands.reduce((sum, command) => sum + Number(command!.amountTwd), 0), description: `${commands.length} 筆交易`, count: commands.length };
   }
 
@@ -405,7 +405,7 @@ export async function proposeV2LineText(input: {
     const settle = buildSettleAllTransfer(memberSet, settleBootstrap.balance);
     if (!settle) return { kind: "not_supported" };
     const command: V2LineProposalDraft = { ledgerId: selectedLedger.id, type: "transfer", amountTwd: settle.amountTwd.toString(), occurredOn: taipeiDate(input.sourceEventTimestamp), description: "全部結清", splitMethod: "none", payments: settle.payments.map((payment) => ({ userId: payment.userId, amountTwd: payment.amountTwd.toString() })), shares: settle.shares.map((share) => ({ userId: share.userId, amountTwd: share.amountTwd.toString() })) };
-    const result = await createV2ProposalFromLine(input.user.couple_id, input.user.id, command, input.sourceEventId) as { proposalId: string };
+    const result = await createV2ProposalFromLine(input.user.couple_id, input.user.id, command, input.sourceEventId, input.source) as { proposalId: string };
     return { kind: "created", proposalId: result.proposalId, ledgerName: selectedLedger.name, amountTwd: Number(settle.amountTwd), description: "全部結清" };
   }
 

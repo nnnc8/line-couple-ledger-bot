@@ -57,7 +57,7 @@ export function isV2IncidentBootstrapWrite(path: readonly string[]): boolean {
   }
   if (path[1] === "transactions" && path[2] && path[3] === "mutate" && path.length === 4) return true;
   if (path[1] === "attachments" && (path.length === 2 || (path[2] && path[3] === "complete" && path.length === 4))) return true;
-  if (path[1] === "proposals" && (path.length === 2 || (path[2] && (path[3] === "confirm" || path[3] === "cancel") && path.length === 4))) return true;
+  if (path[1] === "proposals" && (path.length === 2 || (path[2] && (["confirm", "cancel", "revise"].includes(path[3] ?? "")) && path.length === 4))) return true;
   if (path[1] === "recurring" && path[2] && path[3] === "toggle" && path.length === 4) return true;
   return false;
 }

@@ -7,6 +7,7 @@ import {
   createV2TransactionInputSchema,
 } from "./v2-ledger-service";
 import { parseV2AiProposalCommandsResponse, parseV2AiProposalResponse, parseV2LineIncome, parseV2LineTransfer, v2LineProposalText } from "./v2-line-proposal";
+import { reviseV2ProposalInputSchema, v2ProposalConfirmationSchema, v2ProposalDetailSchema } from "./v2-proposal-contract";
 
 test("V2 proposal input is TWD-only and bounded to a small atomic batch", () => {
   const parsed = createV2ProposalInputSchema.parse({
@@ -119,4 +120,56 @@ test("LINE direct-post acknowledgement includes a safe V2 undo deep link", () =>
   const text = v2LineProposalText({ kind: "posted", transactionId: "10000000-0000-4000-8000-000000000001", ledgerId: "20000000-0000-4000-8000-000000000002", ledgerName: "共同生活", amountTwd: 500, description: "晚餐" });
   assert.match(text, /已記錄/);
   assert.match(text, /撤銷|LIFF/);
+});
+
+test("V3-1 proposal detail contract is explicit, bounded, and rejects unreviewable fields", () => {
+  const owner = "20000000-0000-4000-8000-000000000001";
+  const partner = "20000000-0000-4000-8000-000000000002";
+  const command = {
+    commandIndex: 0,
+    commandId: "10000000-0000-4000-8000-000000000001:0",
+    ledgerId: "10000000-0000-4000-8000-000000000002",
+    ledgerName: "共同生活",
+    type: "expense" as const,
+    amountTwd: "100",
+    occurredOn: "2026-09-22",
+    description: "晚餐",
+    category: "餐飲",
+    categoryId: null,
+    note: null,
+    splitMethod: "equal" as const,
+    payments: [{ userId: owner, amountTwd: "100" }],
+    shares: [{ userId: owner, amountTwd: "50" }, { userId: partner, amountTwd: "50" }],
+    validation: { state: "valid" as const, issues: [] },
+  };
+  const detail = v2ProposalDetailSchema.parse({
+    proposalId: "10000000-0000-4000-8000-000000000001",
+    coupleId: 1,
+    createdAt: "2026-09-22T11:00:00.000Z",
+    ledgerId: "10000000-0000-4000-8000-000000000002",
+    ledgerName: "共同生活",
+    ledgerVersion: 4,
+    currentLedgerVersion: 4,
+    status: "proposed",
+    commands: [command],
+    commandCount: 1,
+    expiresAt: "2026-09-22T12:00:00.000Z",
+    source: null,
+    sourceSummary: null,
+    revision: { revision: 1, parentProposalId: null, rootProposalId: "10000000-0000-4000-8000-000000000001", reason: null, source: null },
+    validation: { state: "valid", issues: [], clarifications: [] },
+    result: { proposal: { revision: 1 } },
+  });
+  assert.equal(detail.commands[0]?.shares[1]?.amountTwd, "50");
+  const confirmation = v2ProposalConfirmationSchema.parse({
+    proposalId: detail.proposalId,
+    status: "confirmed",
+    transactions: [{ amountTwd: "100" }],
+    balance: { [owner]: "-50", [partner]: "50" },
+    nextPayer: { payerUserId: owner, payeeUserId: partner, amountTwd: "50" },
+    ledgerVersion: 5,
+  });
+  assert.equal(confirmation.balance[owner], "-50");
+  assert.throws(() => v2ProposalDetailSchema.parse({ ...detail, commands: [{ ...command, currency: "USD" }] }));
+  assert.throws(() => reviseV2ProposalInputSchema.parse({ commands: [] }));
 });
