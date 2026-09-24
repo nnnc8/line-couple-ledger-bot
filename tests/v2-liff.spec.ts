@@ -268,7 +268,8 @@ test("P1-A keeps the native transaction date fully readable at mobile widths and
       expect(metrics.right).toBeLessThanOrEqual(viewport.width + 1);
       expect(metrics.height).toBeGreaterThanOrEqual(44);
       expect(metrics.fontSize).toBeGreaterThanOrEqual(textScale === 200 ? 30 : 16);
-      expect(metrics.availableTextWidth, JSON.stringify({ viewport, textScale, metrics })).toBeGreaterThanOrEqual(metrics.displayTextWidth);
+      // Keep at least 4 CSS px of layout clearance beyond the native calendar reserve.
+      expect(metrics.availableTextWidth - metrics.displayTextWidth, JSON.stringify({ viewport, textScale, metrics })).toBeGreaterThanOrEqual(4);
 
       if (directory) await dateInput.screenshot({ path: `${directory}/date-${browserName}-${viewport.width}-${textScale}.png` });
     }

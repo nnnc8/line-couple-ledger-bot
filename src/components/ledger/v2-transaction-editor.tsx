@@ -192,7 +192,7 @@ export function V2TransactionEditor({
             {splitMode === "exact" ? <div className="grid grid-cols-2 gap-2"><Input inputMode="numeric" value={selfShare} onChange={(event) => setSelfShare(event.target.value)} placeholder={`${user.label} 分攤`} aria-label={`${user.label} 分攤`} /><Input inputMode="numeric" value={partnerShare} onChange={(event) => setPartnerShare(event.target.value)} placeholder={`${partner.label} 分攤`} aria-label={`${partner.label} 分攤`} /></div> : null}
             {splitMode === "equal" ? <p className="text-xs text-[var(--muted-foreground)]">每位成員各 50%；奇數金額的餘數固定給帳本中的第一位成員。</p> : null}
           </>}
-          <Input type="date" value={occurredOn} onChange={(event) => setOccurredOn(event.target.value)} aria-label="交易日期" className="px-1" />
+          <Input type="date" value={occurredOn} onChange={(event) => setOccurredOn(event.target.value)} aria-label="交易日期" className="px-0.5" />
           {categoryOptions.length ? <Select ariaLabel="分類" value={categoryId} onValueChange={(value) => { setCategoryId(value); setCategory(categoryOptions.find((option) => option.id === value)?.name ?? ""); }} options={[{ value: "", label: "未分類" }, ...categoryOptions.map((option) => ({ value: option.id, label: option.name }))]} /> : <Input value={category} onChange={(event) => setCategory(event.target.value)} placeholder="分類（可選）" aria-label="分類" maxLength={40} />}
           <textarea value={note} onChange={(event) => setNote(event.target.value)} placeholder="備註（可選）" aria-label="備註" maxLength={1000} className="min-h-20 w-full rounded-xl border-[1.5px] border-[var(--border)] bg-[var(--card)] px-3 py-2 text-base outline-none focus:border-accent focus:ring-2 focus:ring-[var(--accent-glow)]" />
         </div>
