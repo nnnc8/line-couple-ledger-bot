@@ -36,7 +36,7 @@ export function Select({
   const selected = options.find((o) => o.value === value);
   const display = selected?.label ?? placeholder ?? "";
   return (
-    <div className={cn("relative inline-flex w-full", className)}>
+    <div className={cn("relative inline-flex min-w-0 w-full", className)}>
       <select
         id={id}
         aria-label={ariaLabel}
@@ -44,8 +44,8 @@ export function Select({
         disabled={disabled}
         onChange={(e) => onValueChange(e.target.value)}
         className={cn(
-          "w-full appearance-none rounded-xl border border-[var(--border)] bg-[var(--card)] pl-3.5 pr-9 text-[15px] text-foreground transition focus:border-accent focus:outline-none focus:ring-[3px] focus:ring-[var(--accent-glow)] disabled:opacity-50",
-          size === "sm" ? "h-9 text-[13px]" : "h-11",
+          "w-full min-w-0 appearance-none rounded-xl border border-[var(--border)] bg-[var(--card)] pl-3.5 pr-9 text-base text-foreground transition focus:border-accent focus:outline-none focus:ring-[3px] focus:ring-[var(--accent-glow)] disabled:opacity-50",
+          size === "sm" ? "h-11 min-w-11" : "h-11",
           !selected && !placeholder && "text-[var(--muted-foreground)]",
         )}
       >

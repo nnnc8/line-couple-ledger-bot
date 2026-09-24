@@ -204,7 +204,7 @@ export function V2LedgerHome({
       const response = await fetch(`/api/app/v2/ledgers/${activeLedgerId}/transactions?${params.toString()}`, { cache: "no-store", credentials: "same-origin", signal: controller.signal });
       const body = await response.json() as { transactions?: V2LedgerBootstrap["transactions"]; nextCursor?: string | null; error?: string };
       if (!mounted.current || controller.signal.aborted || historyAbortRef.current !== controller) return;
-      if (!response.ok) throw new Error(body.error ?? "無法讀取流水");
+      if (!response.ok) throw new Error(body.error ?? "無法讀取紀錄");
       setHistoryResult((current) => ({ bootstrap, scope: historyScope,
         rows: append && current?.scope === historyScope ? [...current.rows, ...(body.transactions ?? [])] : body.transactions ?? [],
         cursor: body.nextCursor ?? null }));
@@ -222,7 +222,7 @@ export function V2LedgerHome({
     }
     const timer = window.setTimeout(() => {
       void loadHistory().catch((reason) => {
-        if ((reason as { name?: string }).name !== "AbortError") setFormError(reason instanceof Error ? reason.message : "無法讀取流水");
+        if ((reason as { name?: string }).name !== "AbortError") setFormError(reason instanceof Error ? reason.message : "無法讀取紀錄");
       });
     }, historyQuery.trim() ? 300 : 0);
     return () => { window.clearTimeout(timer); historyAbortRef.current?.abort(); };
@@ -301,7 +301,7 @@ export function V2LedgerHome({
       <div className="space-y-3 pt-1">
       <V2LedgerSwitcher ledgers={ledgers} activeLedgerId={activeLedgerId} onChange={setActiveLedgerId} onCreate={() => setShowCreate(true)} />
         {showCreate ? <CreateLedgerCard name={newLedgerName} onName={setNewLedgerName} onCancel={() => setShowCreate(false)} onSave={async () => { if (!newLedgerName.trim()) return; await createLedger(newLedgerName.trim()); setNewLedgerName(""); setShowCreate(false); }} /> : null}
-        <Card className="p-4 text-sm text-[var(--muted-foreground)]">{error || "正在載入 Ledger…"}</Card>
+        <Card className="p-4 text-sm text-[var(--muted-foreground)]">{error || "正在載入帳本…"}</Card>
       </div>
     );
   }
@@ -321,7 +321,7 @@ export function V2LedgerHome({
       await refreshLedger();
       setSaveFeedback({ tone: "success", message: lastSavedMessage, retry: false });
     } catch {
-      setSaveFeedback({ tone: "warning", message: `${lastSavedMessage}；流水同步仍失敗，請稍後重試`, retry: true });
+      setSaveFeedback({ tone: "warning", message: `${lastSavedMessage}；紀錄同步仍失敗，請稍後重試`, retry: true });
     } finally {
       setRetryingRefresh(false);
     }
@@ -342,7 +342,7 @@ export function V2LedgerHome({
       const result = await api(`/api/app/v2/ledgers/${activeLedgerId}/transactions`, { ...value, idempotencyKey }) as unknown as Partial<V2CreateTransactionResult>;
       if (!mounted.current) return false;
       const transaction = result.transaction;
-      if (transaction && transaction.ledgerId !== activeLedgerId) throw new Error("交易回應的 Ledger 範圍不符");
+      if (transaction && transaction.ledgerId !== activeLedgerId) throw new Error("交易回應的帳本範圍不符");
       const hasCanonicalResult = Boolean(
         transaction
         && transaction.id
@@ -381,8 +381,8 @@ export function V2LedgerHome({
       if (!hasCanonicalResult) {
         void refreshLedger().catch(() => {
           if (!mounted.current) return;
-          setSaveFeedback({ tone: "warning", message: `${successMessage}；流水同步失敗，請重新整理`, retry: true });
-          toast.warning("已入帳，但流水同步失敗");
+          setSaveFeedback({ tone: "warning", message: `${successMessage}；紀錄同步失敗，請重新整理`, retry: true });
+          toast.warning("已入帳，但紀錄同步失敗");
         });
       }
       return true;
@@ -481,7 +481,7 @@ export function V2LedgerHome({
           { userId: second, weight: defaultWeights[1] },
         ],
       });
-      setDefaultShareMessage("已更新；之後未指定分攤的交易會套用這個 Ledger 設定。");
+      setDefaultShareMessage("已更新；之後未指定分攤的交易會套用這本帳本的設定。");
       await refreshLedger();
     } catch (reason) {
       setDefaultShareMessage(reason instanceof Error ? reason.message : "預設分攤更新失敗");
@@ -557,21 +557,21 @@ export function V2LedgerHome({
     <div className="space-y-3 pt-1">
       <div className="flex items-center justify-between gap-2">
         <V2LedgerSwitcher ledgers={ledgers} activeLedgerId={activeLedgerId} onChange={setActiveLedgerId} onCreate={() => setShowCreate(true)} />
-        <Button variant="ghost" size="icon-sm" aria-label="重新載入 Ledger" onClick={() => void refreshLedger()}><RefreshCw className="size-4" /></Button>
+        <Button variant="ghost" size="icon-sm" aria-label="重新整理帳本" onClick={() => void refreshLedger()}><RefreshCw className="size-4" /></Button>
       </div>
       {proposalId && proposalStatus ? <Card className="border-accent/30 bg-accent-soft p-4"><p className="font-semibold">LINE 待確認草稿</p><p className="mt-1 text-sm text-[var(--muted-foreground)]">狀態：{proposalStatus === "proposed" ? "待確認" : proposalStatus === "confirmed" ? "已入帳" : proposalStatus === "cancelled" ? "已取消" : proposalStatus}</p>{proposalStatus === "proposed" ? <div className="mt-3 flex gap-2"><Button variant="primary" size="sm" onClick={() => void confirmProposal()} disabled={saving}>確認入帳</Button><Button variant="ghost" size="sm" onClick={() => void cancelProposal()} disabled={saving}>取消</Button></div> : null}</Card> : null}
       {showCreate ? <CreateLedgerCard name={newLedgerName} onName={setNewLedgerName} onCancel={() => setShowCreate(false)} onSave={async () => { if (!newLedgerName.trim()) return; await createLedger(newLedgerName.trim()); setNewLedgerName(""); setShowCreate(false); }} /> : null}
 
       <Card className="overflow-hidden p-5 text-white" style={{ background: `linear-gradient(140deg, ${bootstrap.ledger.color}, #0c2240)` }}>
-        <p className="text-[13px] font-semibold text-white/75">{bootstrap.ledger.name}</p>
+        <p className="text-sm font-semibold text-white/75">{bootstrap.ledger.name}</p>
         <h2 className="mt-1 text-xl font-extrabold tracking-tight">{balanceHeadline}</h2>
-        {selfBalance !== 0 ? <p className="mt-0.5 text-[28px] font-extrabold tracking-tight">{money(Math.abs(selfBalance))}</p> : null}
+        {selfBalance !== 0 ? <p className="mt-0.5 text-[clamp(1rem,7vw,1.75rem)] font-extrabold tracking-tight">{money(Math.abs(selfBalance))}</p> : null}
         {nextPayer ? <>
           <p className="mt-3 text-sm text-white/75">下次建議由 {nextPayerUser?.label ?? "另一半"} 付款</p>
         </> : null}
       </Card>
 
-      <div className="grid grid-cols-3 gap-1 rounded-xl bg-[var(--muted)] p-1" role="tablist" aria-label="Ledger 次要功能"><button className={`rounded-lg px-2 py-2 text-xs font-semibold ${secondaryTab === "history" ? "bg-[var(--card)] shadow-sm" : ""}`} onClick={() => setSecondaryTab("history")} role="tab" aria-selected={secondaryTab === "history"}>流水</button><button className={`rounded-lg px-2 py-2 text-xs font-semibold ${secondaryTab === "stats" ? "bg-[var(--card)] shadow-sm" : ""}`} onClick={() => setSecondaryTab("stats")} role="tab" aria-selected={secondaryTab === "stats"}>統計</button><button className={`rounded-lg px-2 py-2 text-xs font-semibold ${secondaryTab === "settings" ? "bg-[var(--card)] shadow-sm" : ""}`} onClick={() => setSecondaryTab("settings")} role="tab" aria-selected={secondaryTab === "settings"}>設定</button></div>
+      <div className="grid grid-cols-3 gap-1 rounded-xl bg-[var(--muted)] p-1" role="tablist" aria-label="帳本功能"><button className={`flex min-h-11 items-center justify-center rounded-lg px-2 py-2 text-sm font-semibold ${secondaryTab === "history" ? "bg-[var(--card)] shadow-sm" : ""}`} onClick={() => setSecondaryTab("history")} role="tab" aria-selected={secondaryTab === "history"}>紀錄</button><button className={`flex min-h-11 items-center justify-center rounded-lg px-2 py-2 text-sm font-semibold ${secondaryTab === "stats" ? "bg-[var(--card)] shadow-sm" : ""}`} onClick={() => setSecondaryTab("stats")} role="tab" aria-selected={secondaryTab === "stats"}>統計</button><button className={`flex min-h-11 items-center justify-center rounded-lg px-2 py-2 text-sm font-semibold ${secondaryTab === "settings" ? "bg-[var(--card)] shadow-sm" : ""}`} onClick={() => setSecondaryTab("settings")} role="tab" aria-selected={secondaryTab === "settings"}>設定</button></div>
 
       <Card className="p-4">
         <div className="mb-3 flex items-center gap-2"><Plus className="size-4 text-accent" /><h2 className="font-bold">快速記一筆</h2></div>
@@ -595,14 +595,14 @@ export function V2LedgerHome({
       </Card>
 
       {secondaryTab === "stats" ? <Card className="p-4">
-        <h2 className="mb-2 font-bold">Ledger 統計</h2>
+        <h2 className="mb-2 font-bold">帳本統計</h2>
         {statistics ? <div className="space-y-4 text-sm"><div className="grid grid-cols-2 gap-2"><p>本期支出 <strong>{money(Number(statistics.byType.expense ?? "0"))}</strong></p><p>收入／退款 <strong>{money(Number(statistics.byType.income ?? "0"))}</strong></p><p>{user.label} 支付 <strong>{money(Number(statistics.paidBy[user.id] ?? "0"))}</strong></p><p>{partner.label} 支付 <strong>{money(Number(statistics.paidBy[partner.id] ?? "0"))}</strong></p><p>{user.label} 負擔 <strong>{money(Number(statistics.borneBy[user.id] ?? "0"))}</strong></p><p>{partner.label} 負擔 <strong>{money(Number(statistics.borneBy[partner.id] ?? "0"))}</strong></p></div><div><p className="mb-1 text-xs font-semibold text-[var(--muted-foreground)]">分類排行</p><div className="space-y-1">{Object.entries(statistics.byCategory).length ? Object.entries(statistics.byCategory).map(([name, amount]) => <div key={name} className="flex justify-between gap-3"><span>{name}</span><strong>{money(Number(amount))}</strong></div>) : <p className="text-xs text-[var(--muted-foreground)]">尚無分類統計</p>}</div></div></div> : <p className="text-sm text-[var(--muted-foreground)]">統計載入中…</p>}
       </Card> : null}
 
       {secondaryTab === "settings" ? <Card className="p-4">
-        <h2 className="mb-4 font-bold">Ledger 設定</h2>
+        <h2 className="mb-4 font-bold">帳本設定</h2>
         <h3 className="mb-1 font-semibold">預設分攤</h3>
-        <p className="mb-3 text-xs text-[var(--muted-foreground)]">新 Ledger 預設 50/50；這裡只設定本 Ledger，不會影響其他 Ledger。</p>
+        <p className="mb-3 text-xs text-[var(--muted-foreground)]">新帳本預設 50 / 50；這裡只設定目前帳本，不會影響其他帳本。</p>
         <form className="space-y-2" onSubmit={(event) => void saveDefaultShares(event)}>
           <div className="grid grid-cols-2 gap-2">
             <Input inputMode="numeric" value={defaultWeights[0]} onChange={(event) => setDefaultWeights((current) => [event.target.value, current[1]])} aria-label={`${users[0]?.label ?? "成員一"} 預設權重`} placeholder={`${users[0]?.label ?? "成員一"} 權重`} />
@@ -612,8 +612,8 @@ export function V2LedgerHome({
           {defaultShareMessage ? <p className="text-xs text-[var(--muted-foreground)]">{defaultShareMessage}</p> : null}
         </form>
         <div className="mt-5 border-t border-[var(--border)] pt-4">
-          <h3 className="mb-1 font-bold">Ledger 分類</h3>
-          <p className="mb-3 text-xs text-[var(--muted-foreground)]">分類只屬於這本 Ledger；封存不會改寫既有交易的文字快照。</p>
+          <h3 className="mb-1 font-bold">帳本分類</h3>
+          <p className="mb-3 text-xs text-[var(--muted-foreground)]">分類只屬於這本帳本；封存不會改寫既有交易的文字快照。</p>
           <form className="mb-3 flex gap-2" onSubmit={(event) => void createCategory(event)}>
             <Input value={newCategoryName} onChange={(event) => setNewCategoryName(event.target.value)} placeholder="新增自訂分類" aria-label="新增自訂分類" maxLength={40} />
             <Button type="submit" variant="outline" size="sm" disabled={saving}>新增</Button>
@@ -640,10 +640,10 @@ export function V2LedgerHome({
         </div>
         {showRecurring ? <form className="mb-3 space-y-2" onSubmit={(event) => void saveRecurring(event)}>
           <Input value={recurringName} onChange={(event) => setRecurringName(event.target.value)} placeholder="例如：房租" aria-label="週期交易名稱" />
-          <div className="grid grid-cols-2 gap-2"><Input inputMode="numeric" value={recurringAmount} onChange={(event) => setRecurringAmount(event.target.value)} placeholder="金額 TWD" aria-label="週期交易金額" /><Select ariaLabel="週期" value={recurringFrequency} onValueChange={(value) => setRecurringFrequency(value as typeof recurringFrequency)} options={[{ value: "weekly", label: "每週" }, { value: "monthly", label: "每月" }, { value: "yearly", label: "每年" }]} /></div>
+          <div className="grid grid-cols-2 gap-2"><Input inputMode="numeric" value={recurringAmount} onChange={(event) => setRecurringAmount(event.target.value)} placeholder="金額" aria-label="週期交易金額（新台幣）" /><Select ariaLabel="週期" value={recurringFrequency} onValueChange={(value) => setRecurringFrequency(value as typeof recurringFrequency)} options={[{ value: "weekly", label: "每週" }, { value: "monthly", label: "每月" }, { value: "yearly", label: "每年" }]} /></div>
           <Select ariaLabel="週期付款人" value={recurringPaymentMode} onValueChange={(value) => setRecurringPaymentMode(value as typeof recurringPaymentMode)} options={[{ value: "self", label: `${user.label} 付款` }, { value: "partner", label: `${partner.label} 付款` }, { value: "both", label: "兩人共同付款" }]} />
           {recurringPaymentMode === "both" ? <div className="grid grid-cols-2 gap-2"><Input inputMode="numeric" value={recurringSelfPayment} onChange={(event) => setRecurringSelfPayment(event.target.value)} placeholder={`${user.label} 付款`} aria-label={`${user.label} 週期付款`} /><Input inputMode="numeric" value={recurringPartnerPayment} onChange={(event) => setRecurringPartnerPayment(event.target.value)} placeholder={`${partner.label} 付款`} aria-label={`${partner.label} 週期付款`} /></div> : null}
-          <Select ariaLabel="週期分攤方式" value={recurringSplitMethod} onValueChange={(value) => setRecurringSplitMethod(value as typeof recurringSplitMethod)} options={[{ value: "equal", label: "平均分 50 / 50" }, { value: "weights", label: `套用 Ledger 預設（${bootstrap.ledger.defaultShares[user.id] ?? "1"} / ${bootstrap.ledger.defaultShares[partner.id] ?? "1"}）` }, { value: "percentage", label: "百分比" }, { value: "exact", label: "指定分攤金額" }]} />
+          <Select ariaLabel="週期分攤方式" value={recurringSplitMethod} onValueChange={(value) => setRecurringSplitMethod(value as typeof recurringSplitMethod)} options={[{ value: "equal", label: "平均分 50 / 50" }, { value: "weights", label: `套用帳本預設（${bootstrap.ledger.defaultShares[user.id] ?? "1"} / ${bootstrap.ledger.defaultShares[partner.id] ?? "1"}）` }, { value: "percentage", label: "百分比" }, { value: "exact", label: "指定分攤金額" }]} />
           {recurringSplitMethod === "percentage" ? <div className="grid grid-cols-2 gap-2"><Input inputMode="decimal" value={recurringSelfPercentage} onChange={(event) => setRecurringSelfPercentage(event.target.value)} placeholder={`${user.label} %`} aria-label={`${user.label} 週期百分比`} /><Input inputMode="decimal" value={recurringPartnerPercentage} onChange={(event) => setRecurringPartnerPercentage(event.target.value)} placeholder={`${partner.label} %`} aria-label={`${partner.label} 週期百分比`} /></div> : null}
           {recurringSplitMethod === "exact" ? <div className="grid grid-cols-2 gap-2"><Input inputMode="numeric" value={recurringSelfShare} onChange={(event) => setRecurringSelfShare(event.target.value)} placeholder={`${user.label} 分攤`} aria-label={`${user.label} 週期分攤`} /><Input inputMode="numeric" value={recurringPartnerShare} onChange={(event) => setRecurringPartnerShare(event.target.value)} placeholder={`${partner.label} 分攤`} aria-label={`${partner.label} 週期分攤`} /></div> : null}
           <Select ariaLabel="週期分類" value={recurringCategoryId} onValueChange={setRecurringCategoryId} options={[{ value: "", label: "未分類" }, ...categories.filter((category) => category.status === "active").map((category) => ({ value: category.id, label: category.name }))]} />
@@ -653,18 +653,18 @@ export function V2LedgerHome({
       </Card> : null}
 
       {secondaryTab === "history" ? <Card className="p-4">
-        <div className="mb-2 flex items-center justify-between gap-2"><h2 className="font-bold">Ledger 流水</h2><span className="text-xs text-[var(--muted-foreground)]">已載入 {historyRows.length} 筆</span></div>
+        <div className="mb-2 flex items-center justify-between gap-2"><h2 className="font-bold">最近紀錄</h2><span className="text-xs text-[var(--muted-foreground)]">已載入 {historyRows.length} 筆</span></div>
         <div className="mb-3 grid grid-cols-2 gap-2">
-          <Input value={historyQuery} onChange={(event) => setHistoryQuery(event.target.value)} placeholder="搜尋說明／分類／備註" aria-label="搜尋 Ledger 流水" />
-          <Select ariaLabel="流水類型" value={historyType} onValueChange={(value) => setHistoryType(value as typeof historyType)} options={[{ value: "all", label: "全部類型" }, { value: "expense", label: "支出" }, { value: "income", label: "收入" }, { value: "transfer", label: "轉帳" }]} />
+          <Input value={historyQuery} onChange={(event) => setHistoryQuery(event.target.value)} placeholder="搜尋用途／分類／備註" aria-label="搜尋紀錄" />
+          <Select ariaLabel="紀錄類型" value={historyType} onValueChange={(value) => setHistoryType(value as typeof historyType)} options={[{ value: "all", label: "全部類型" }, { value: "expense", label: "支出" }, { value: "income", label: "收入" }, { value: "transfer", label: "轉帳" }]} />
           <Select ariaLabel="付款人" value={historyPayer} onValueChange={setHistoryPayer} options={[{ value: "all", label: "全部付款人" }, ...users.map((candidate) => ({ value: candidate.id, label: `${candidate.label} 付款` }))]} />
-          <Select ariaLabel="流水分類" value={historyCategoryId} onValueChange={setHistoryCategoryId} options={[{ value: "all", label: "全部分類" }, ...categories.filter((category) => category.status === "active").map((category) => ({ value: category.id, label: category.name }))]} />
-          <Input type="date" value={historyFrom} onChange={(event) => setHistoryFrom(event.target.value)} aria-label="流水起始日期" />
-          <Input type="date" value={historyTo} onChange={(event) => setHistoryTo(event.target.value)} aria-label="流水結束日期" />
+          <Select ariaLabel="紀錄分類" value={historyCategoryId} onValueChange={setHistoryCategoryId} options={[{ value: "all", label: "全部分類" }, ...categories.filter((category) => category.status === "active").map((category) => ({ value: category.id, label: category.name }))]} />
+          <Input type="date" value={historyFrom} onChange={(event) => setHistoryFrom(event.target.value)} aria-label="紀錄開始日期" />
+          <Input type="date" value={historyTo} onChange={(event) => setHistoryTo(event.target.value)} aria-label="紀錄結束日期" />
         </div>
         <div className="divide-y divide-[var(--border)]">
           {historyRows.map((transaction) => <TransactionRow key={`${transaction.id}:${transaction.version ?? 1}`} transaction={transaction} users={users} currentUser={user} today={today} defaultShares={bootstrap.ledger.defaultShares} categoryOptions={categories.filter((category) => category.status === "active").map((category) => ({ id: category.id, name: category.name }))} highlighted={transaction.id === highlightedTransactionId} initialOpen={transaction.id === transactionIdFromUrl} onChanged={async () => { await refreshLedger(); await loadHistory(); }} />)}
-          {!historyRows.length ? <p className="py-8 text-center text-sm text-[var(--muted-foreground)]">尚無符合條件的流水</p> : null}
+          {!historyRows.length ? <p className="py-8 text-center text-sm text-[var(--muted-foreground)]">沒有符合條件的紀錄</p> : null}
         </div>
         {historyCursor ? <Button variant="outline" size="block" className="mt-3" onClick={() => void loadMoreHistory()} disabled={historyLoadingMore}>{historyLoadingMore ? "載入中…" : "載入更早交易"}</Button> : null}
       </Card> : null}
@@ -673,7 +673,7 @@ export function V2LedgerHome({
 }
 
 function CreateLedgerCard({ name, onName, onCancel, onSave }: { name: string; onName: (value: string) => void; onCancel: () => void; onSave: () => Promise<void> }) {
-  return <Card className="space-y-2 p-4"><p className="font-bold">建立新的 Ledger</p><Input value={name} onChange={(event) => onName(event.target.value)} placeholder="例如：上海旅行" maxLength={40} /><div className="flex justify-end gap-2"><Button variant="ghost" size="sm" onClick={onCancel}>取消</Button><Button variant="primary" size="sm" onClick={() => void onSave()}>建立</Button></div></Card>;
+  return <Card className="space-y-2 p-4"><p className="font-bold">建立新帳本</p><Input value={name} onChange={(event) => onName(event.target.value)} placeholder="例如：上海旅行" aria-label="帳本名稱" maxLength={40} /><div className="flex justify-end gap-2"><Button variant="ghost" size="sm" onClick={onCancel}>取消</Button><Button variant="primary" size="sm" onClick={() => void onSave()}>建立</Button></div></Card>;
 }
 
 function TransactionRow({ transaction, users, currentUser, today, defaultShares, categoryOptions, highlighted = false, initialOpen = false, onChanged }: { transaction: V2LedgerBootstrap["transactions"][number]; users: User[]; currentUser: User; today: string; defaultShares: Record<string, string>; categoryOptions: Array<{ id: string; name: string }>; highlighted?: boolean; initialOpen?: boolean; onChanged: () => Promise<unknown> }) {
@@ -765,5 +765,5 @@ function TransactionRow({ transaction, users, currentUser, today, defaultShares,
       setUploading(false);
     }
   }
-  return <details open={initialOpen || undefined} className={`group py-3 ${transaction.status !== "posted" ? "opacity-60" : ""} ${highlighted ? "rounded-xl bg-accent-soft/50 px-2 transition-colors" : ""}`} onToggle={(event) => { if (event.currentTarget.open && !attachmentsLoaded) void loadAttachments(); }}><summary className="flex cursor-pointer list-none items-start gap-3"><div className="grid size-9 shrink-0 items-center rounded-xl bg-accent-soft text-accent"><ArrowLeftRight className="size-4" /></div><div className="min-w-0 flex-1"><p className="truncate text-sm font-semibold">{transaction.description ?? typeLabel}{transaction.status !== "posted" ? `（${transaction.status === "voided" ? "已作廢" : "已刪除"}）` : ""}</p><p className="mt-0.5 text-xs text-[var(--muted-foreground)]">{transaction.occurredOn} · {typeLabel} · {payments || "付款資訊"}</p></div><p className="text-sm font-bold tabular-nums">{money(Number(transaction.amountTwd))}</p></summary><div className="ml-12 mt-2 space-y-2 text-xs text-[var(--muted-foreground)]"><p>付款：{payments || "—"}</p><p>分攤：{shares || "—"}</p>{categoryLabel ? <p>分類：{categoryLabel}</p> : null}{transaction.type === "income" ? <p>收入／退款由收款人收到，分攤代表兩人的權益。</p> : null}{transaction.type === "transfer" ? <p>轉帳方向：{transaction.payments[0] ? users.find((user) => user.id === transaction.payments[0]!.userId)?.label ?? "成員" : "—"} → {transaction.shares[0] ? users.find((user) => user.id === transaction.shares[0]!.userId)?.label ?? "成員" : "—"}</p> : null}{transaction.replacesTransactionId ? <p>此交易由舊交易修改而來：{transaction.replacesTransactionId}</p> : null}{transaction.replacedByTransactionId ? <p>此交易已被更新，新版交易：{transaction.replacedByTransactionId}</p> : null}<div className="flex flex-wrap items-center gap-2"><Button variant="ghost" size="sm" disabled={busy || transaction.status === "voided"} onClick={() => setEditing((current) => !current)}>{editing ? "收起編輯" : "編輯"}</Button><Button variant="ghost" size="sm" disabled={busy || transaction.status === "voided"} onClick={() => void mutate("void")}>作廢</Button>{transaction.status === "voided" ? <Button variant="ghost" size="sm" disabled={busy} onClick={() => void mutate("restore")}>恢復</Button> : null}<label className="inline-flex cursor-pointer items-center gap-1 rounded-lg px-2 py-1 text-xs font-semibold hover:bg-accent-soft"><Paperclip className="size-3" />{uploading ? "上傳中…" : "加收據"}<input className="sr-only" type="file" accept="image/jpeg,image/png,image/webp,image/heic,image/heif,application/pdf" disabled={uploading} onChange={(event) => { const file = event.target.files?.[0]; if (file) void uploadReceipt(file); event.currentTarget.value = ""; }} /></label></div>{editing ? <div className="rounded-xl border border-[var(--border)] p-3"><V2TransactionEditor user={currentUser} partner={partner} today={today} defaultShares={defaultShares} categoryOptions={categoryOptions} initial={transaction} submitLabel="儲存修改" busy={busy} onCancel={() => setEditing(false)} onSubmit={replaceTransaction} /><p className="mt-2 text-[11px] text-[var(--muted-foreground)]">編輯會保留原交易並建立一筆替代交易；付款人與分攤由你重新確認。</p></div> : null}{attachmentsLoaded && !attachments.length ? <p>尚無收據</p> : null}{attachments.length ? <div className="space-y-1"><p className="font-semibold">收據</p>{attachments.map((attachment) => <div key={attachment.id} className="flex items-center gap-2"><a href={attachment.url ?? undefined} target="_blank" rel="noreferrer" className="min-w-0 flex-1 truncate text-accent underline">{attachment.mimeType === "application/pdf" ? "PDF 收據" : "圖片收據"} · {new Date(attachment.createdAt).toLocaleString("zh-TW")}</a><Button variant="ghost" size="sm" onClick={() => void (async () => { try { await api(`/api/app/v2/attachments/${attachment.id}`, undefined, { method: "DELETE" }); await loadAttachments(); } catch (reason) { setMessage(reason instanceof Error ? reason.message : "收據刪除失敗"); } })()}>刪除</Button></div>)}</div> : null}{message ? <p>{message}</p> : null}</div></details>;
+  return <details open={initialOpen || undefined} className={`group py-3 ${transaction.status !== "posted" ? "opacity-60" : ""} ${highlighted ? "rounded-xl bg-accent-soft/50 px-2 transition-colors" : ""}`} onToggle={(event) => { if (event.currentTarget.open && !attachmentsLoaded) void loadAttachments(); }}><summary className="flex min-h-11 cursor-pointer list-none items-start gap-3"><div className="grid size-9 shrink-0 items-center rounded-xl bg-accent-soft text-accent"><ArrowLeftRight className="size-4" /></div><div className="min-w-0 flex-1"><p className="truncate text-sm font-semibold">{transaction.description ?? typeLabel}{transaction.status !== "posted" ? `（${transaction.status === "voided" ? "已作廢" : "已刪除"}）` : ""}</p><p className="mt-0.5 text-xs text-[var(--muted-foreground)]">{transaction.occurredOn} · {typeLabel} · {payments || "付款資訊"}</p></div><p className="text-sm font-bold tabular-nums">{money(Number(transaction.amountTwd))}</p></summary><div className="ml-12 mt-2 space-y-2 text-xs text-[var(--muted-foreground)]"><p>付款：{payments || "—"}</p><p>分攤：{shares || "—"}</p>{categoryLabel ? <p>分類：{categoryLabel}</p> : null}{transaction.type === "income" ? <p>收入／退款由收款人收到，分攤代表兩人的權益。</p> : null}{transaction.type === "transfer" ? <p>轉帳方向：{transaction.payments[0] ? users.find((user) => user.id === transaction.payments[0]!.userId)?.label ?? "成員" : "—"} → {transaction.shares[0] ? users.find((user) => user.id === transaction.shares[0]!.userId)?.label ?? "成員" : "—"}</p> : null}{transaction.replacesTransactionId ? <p>此交易由舊交易修改而來：{transaction.replacesTransactionId}</p> : null}{transaction.replacedByTransactionId ? <p>此交易已被更新，新版交易：{transaction.replacedByTransactionId}</p> : null}<div className="flex flex-wrap items-center gap-2"><Button variant="ghost" size="sm" disabled={busy || transaction.status === "voided"} onClick={() => setEditing((current) => !current)}>{editing ? "收起編輯" : "編輯"}</Button><Button variant="ghost" size="sm" disabled={busy || transaction.status === "voided"} onClick={() => void mutate("void")}>作廢</Button>{transaction.status === "voided" ? <Button variant="ghost" size="sm" disabled={busy} onClick={() => void mutate("restore")}>恢復</Button> : null}<label className="inline-flex min-h-11 cursor-pointer items-center gap-1 rounded-lg px-3 text-sm font-semibold hover:bg-accent-soft"><Paperclip className="size-3" />{uploading ? "上傳中…" : "加收據"}<input className="sr-only" type="file" accept="image/jpeg,image/png,image/webp,image/heic,image/heif,application/pdf" disabled={uploading} onChange={(event) => { const file = event.target.files?.[0]; if (file) void uploadReceipt(file); event.currentTarget.value = ""; }} /></label></div>{editing ? <div className="rounded-xl border border-[var(--border)] p-3"><V2TransactionEditor user={currentUser} partner={partner} today={today} defaultShares={defaultShares} categoryOptions={categoryOptions} initial={transaction} submitLabel="儲存修改" busy={busy} onCancel={() => setEditing(false)} onSubmit={replaceTransaction} /><p className="mt-2 text-xs text-[var(--muted-foreground)]">編輯會保留原交易並建立一筆替代交易；付款人與分攤由你重新確認。</p></div> : null}{attachmentsLoaded && !attachments.length ? <p>尚無收據</p> : null}{attachments.length ? <div className="space-y-1"><p className="font-semibold">收據</p>{attachments.map((attachment) => <div key={attachment.id} className="flex items-center gap-2"><a href={attachment.url ?? undefined} target="_blank" rel="noreferrer" className="min-w-0 flex-1 truncate text-accent underline">{attachment.mimeType === "application/pdf" ? "PDF 收據" : "圖片收據"} · {new Date(attachment.createdAt).toLocaleString("zh-TW")}</a><Button variant="ghost" size="sm" onClick={() => void (async () => { try { await api(`/api/app/v2/attachments/${attachment.id}`, undefined, { method: "DELETE" }); await loadAttachments(); } catch (reason) { setMessage(reason instanceof Error ? reason.message : "收據刪除失敗"); } })()}>刪除</Button></div>)}</div> : null}{message ? <p>{message}</p> : null}</div></details>;
 }
