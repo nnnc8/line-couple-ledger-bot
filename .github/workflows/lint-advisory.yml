@@ -9,10 +9,9 @@ permissions:
 
 jobs:
   lint:
-    name: pnpm lint (advisory)
+    name: pnpm lint (baseline delta)
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    continue-on-error: true
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -23,5 +22,31 @@ jobs:
           node-version-file: .nvmrc
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - name: Lint (advisory; not a required gate yet)
-        run: pnpm lint
+      - name: Lint and reject new baseline findings
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          set -euo pipefail
+          base_dir="$RUNNER_TEMP/lint-base"
+          base_json="$RUNNER_TEMP/lint-base.json"
+          head_json="$RUNNER_TEMP/lint-head.json"
+          mkdir -p "$base_dir"
+          git fetch --no-tags --depth=1 origin "$BASE_SHA"
+          git archive "$BASE_SHA" | tar -x -C "$base_dir"
+          ln -s "$GITHUB_WORKSPACE/node_modules" "$base_dir/node_modules"
+
+          if pnpm exec eslint . --format json --output-file "$head_json"; then
+            :
+          else
+            eslint_exit_code=$?
+            if [ "$eslint_exit_code" -ne 1 ]; then exit "$eslint_exit_code"; fi
+          fi
+
+          if (cd "$base_dir" && ./node_modules/.bin/eslint . --format json --output-file "$base_json"); then
+            :
+          else
+            eslint_exit_code=$?
+            if [ "$eslint_exit_code" -ne 1 ]; then exit "$eslint_exit_code"; fi
+          fi
+
+          node .github/scripts/check-lint-baseline.mjs "$base_json" "$head_json" "$base_dir" "$GITHUB_WORKSPACE"
