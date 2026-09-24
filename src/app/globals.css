@@ -100,7 +100,7 @@
   }
 
   html {
-    -webkit-text-size-adjust: 100%;
+    -webkit-text-size-adjust: auto;
     -webkit-tap-highlight-color: transparent;
   }
 
@@ -166,6 +166,7 @@
   /* iPhone-safe scrolling & focus rings */
   button:focus-visible,
   a:focus-visible,
+  summary:focus-visible,
   input:focus-visible,
   select:focus-visible,
   textarea:focus-visible {

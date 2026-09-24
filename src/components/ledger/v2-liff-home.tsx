@@ -88,7 +88,7 @@ export function V2LiffHome() {
   }
 
   return <main className="mx-auto min-h-dvh max-w-[640px] px-4 pb-6 pt-[max(16px,env(safe-area-inset-top))]">
-    <header className="mb-3 flex items-center justify-between gap-3"><div><p className="text-[13px] font-semibold uppercase tracking-[0.06em] text-[var(--muted-foreground)]">Couple Ledger</p><h1 className="text-lg font-bold tracking-tight">Ledger</h1></div><span className="rounded-full bg-accent-soft px-2 py-1 text-[11px] font-bold text-accent">TWD</span></header>
+    <header className="mb-3 flex items-center justify-between gap-3"><div><p className="text-sm font-semibold tracking-[0.06em] text-[var(--muted-foreground)]">共同記帳</p><h1 className="text-lg font-bold tracking-tight">帳本</h1></div><span className="rounded-full bg-accent-soft px-2 py-1 text-xs font-bold text-accent">NT$</span></header>
     {proposalMessage ? <div className="mb-3 rounded-xl border border-accent/30 bg-accent-soft p-3 text-sm">{proposalMessage} <Button variant="ghost" size="sm" onClick={() => setProposalDismissed(true)}>知道了</Button></div> : null}
     <V2LedgerHome key={v2.activeLedgerId ?? "no-ledger"} user={v2.context.user} users={v2.context.users} today={v2.context.today} ledgers={v2.ledgers} activeLedgerId={v2.activeLedgerId} setActiveLedgerId={v2.setActiveLedgerId} bootstrap={v2.bootstrap} error={v2.error} busy={v2.busy} reload={async () => v2.activeLedgerId ? v2.loadBootstrap(v2.activeLedgerId) : v2.loadLedgers()} applyCommittedTransaction={v2.applyCommittedTransaction} createLedger={v2.createLedger} proposalIdFromUrl={proposalId} transactionIdFromUrl={transactionId} initialSecondaryTab={v2SecondaryTabFromUrlValue(urlParam("tab"))} />
   </main>;
