@@ -12,6 +12,10 @@ import { proposeV2LineText } from "./v2-line-proposal";
 import { dispatchV2LineInbox } from "./v2-line-inbox-dispatch";
 import { claimV2LineInbox, finishV2LineInbox, releaseV2LineInboxForMaintenance, resetStaleV2LineInboxLeases } from "./v2-inbox-worker";
 import type { BotDependencies } from "./line-webhook-service";
+import { newTransactionDraft, correctionDraft } from "./v2-transaction-draft";
+import { freezeOperation, parseCommitProof, commandOf } from "./v2-entry-operation";
+import { calculateLedgerBalance, splitEqual } from "./v2-ledger";
+import type { V2CreateTransactionResult, V2LedgerBootstrap } from "./types";
 
 const url = requireLocalTestUrl(process.env.V3_TEST_DATABASE_URL).href;
 process.env.DATABASE_URL = url;
@@ -221,6 +225,66 @@ test("F5 maintenance preserves an unclaimed event and attempt budget", async () 
 
 
 const wire = (value: unknown) => JSON.parse(JSON.stringify(value));
+
+test("P1-B frozen explicit 681 shares survive changed defaults, replay once, and reject changed body", async () => {
+  const created = await createV2Ledger(1, owner, { name: "P1-B frozen defaults" }) as { ledger: { id: string } };
+  const ledgerId = created.ledger.id;
+  const base = wire(await getV2LedgerBootstrap(1, ledgerId)) as V2LedgerBootstrap;
+  const input = { ...newTransactionDraft(base, partner, "2026-09-25", randomUUID()), amountTwd: "681", description: "P1-B frozen allocation", paymentMode: "partner" as const };
+  await updateV2LedgerDefaultShares(1, owner, ledgerId, { shares: [{ userId: owner, weight: "2" }, { userId: partner, weight: "1" }] });
+  const operation = freezeOperation(input, randomUUID(), new Date().toISOString());
+  const members = base.ledger.members.map(member => member.userId) as [string, string];
+  const expected = splitEqual("681", members);
+  assert.deepEqual(commandOf(operation).shares, members.map(userId => ({ userId, amountTwd: String(expected[userId]) })));
+  const before = await count();
+  const first = wire(await createV2Transaction(1, partner, ledgerId, operation.body, operation.idempotencyKey)) as V2CreateTransactionResult;
+  const replay = wire(await createV2Transaction(1, partner, ledgerId, JSON.parse(JSON.stringify(operation.body)), operation.idempotencyKey));
+  assert.deepEqual(replay, first); assert.equal(await count(), before + 1);
+  assert.deepEqual(first.transaction.shares, commandOf(operation).shares);
+  assert.deepEqual(first.balance, Object.fromEntries(Object.entries(calculateLedgerBalance([first.transaction], { ledgerId, memberIds: members })).map(([id, value]) => [id, String(value)])));
+  assert.ok(parseCommitProof(first, operation)?.snapshot);
+  await assert.rejects(() => createV2Transaction(1, partner, ledgerId, { ...operation.body, description: "changed" }, operation.idempotencyKey), /範圍/);
+  await assert.rejects(() => createV2Transaction(1, outsider, ledgerId, operation.body, operation.idempotencyKey));
+  assert.equal(await count(), before + 1);
+});
+
+test("P1-B correction exact command replays original replacement despite stale expectedVersion", async () => {
+  const created = await createV2Ledger(1, owner, { name: "P1-B replace proof" }) as { ledger: { id: string } };
+  const ledgerId = created.ledger.id;
+  const original = wire(await createV2Transaction(1, owner, ledgerId, expense("681", "original"), randomUUID())) as V2CreateTransactionResult;
+  const base = wire(await getV2LedgerBootstrap(1, ledgerId)) as V2LedgerBootstrap;
+  const input = { ...correctionDraft(base, partner, "2026-09-25", randomUUID(), original.transaction), description: "corrected" };
+  const operation = freezeOperation(input, randomUUID(), new Date().toISOString());
+  const before = await count();
+  const first = wire(await mutateV2Transaction(1, partner, original.transaction.id, operation.body));
+  assert.deepEqual(wire(await mutateV2Transaction(1, partner, original.transaction.id, operation.body)), first);
+  assert.equal(await count(), before + 1);
+  const proof = parseCommitProof(first, operation)!;
+  assert.equal(proof.replacedTransactionId, original.transaction.id); assert.equal(proof.originalVersion, 2); assert.equal(proof.snapshot, undefined);
+  await assert.rejects(() => mutateV2Transaction(1, partner, original.transaction.id, { ...operation.body, idempotencyKey: randomUUID() }), /其他更新/);
+  assert.ok("replacement" in operation.body);
+  await assert.rejects(() => mutateV2Transaction(1, partner, original.transaction.id, { ...operation.body, replacement: { ...commandOf(operation), description: "different" } }), /範圍/);
+  const current = wire(await getV2LedgerBootstrap(1, ledgerId)) as V2LedgerBootstrap;
+  assert.equal(current.transactions.find(row => row.id === original.transaction.id)?.status, "voided");
+  assert.equal(current.transactions.find(row => row.id === original.transaction.id)?.replacedByTransactionId, proof.transaction.id);
+  assert.deepEqual(current.transactions.find(row => row.id === proof.transaction.id)?.shares, original.transaction.shares);
+});
+
+test("P1-B replacement rollback leaves original posted and no replacement or receipt", async () => {
+  const original = wire(await createV2Transaction(1, owner, ledgerA, expense("681", "rollback replacement"), randomUUID())) as V2CreateTransactionResult;
+  const base = wire(await getV2LedgerBootstrap(1, ledgerA)) as V2LedgerBootstrap;
+  const operation = freezeOperation(correctionDraft(base, owner, "2026-09-25", randomUUID(), original.transaction), randomUUID(), new Date().toISOString());
+  const before = await count();
+  await pool.query("create function public.p1b_fail_event() returns trigger language plpgsql as $$ begin raise exception 'P1-B rollback fixture'; end $$");
+  await pool.query("create trigger p1b_fail_event before insert on ledger_v2.transaction_events for each row execute function public.p1b_fail_event()");
+  try { await assert.rejects(() => mutateV2Transaction(1, owner, original.transaction.id, operation.body), /P1-B rollback fixture/); }
+  finally { await pool.query("drop trigger p1b_fail_event on ledger_v2.transaction_events; drop function public.p1b_fail_event()"); }
+  assert.equal(await count(), before);
+  const current = wire(await getV2LedgerBootstrap(1, ledgerA)) as V2LedgerBootstrap;
+  assert.equal(current.transactions.find(row => row.id === original.transaction.id)?.status, "posted");
+  // The same operation remains applicable after rollback: no premature receipt was committed.
+  assert.ok(parseCommitProof(wire(await mutateV2Transaction(1, owner, original.transaction.id, operation.body)), operation));
+});
 
 test("F4 canonical spelling and participant order replay the same transaction", async () => {
   const key = randomUUID();
