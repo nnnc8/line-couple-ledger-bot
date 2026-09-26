@@ -1,0 +1,9 @@
+{
+  "stage": "after",
+  "project": "chromium-iphone",
+  "requests": [
+    "POST /api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/transactions",
+    "GET /api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories"
+  ],
+  "responseToVisibleUpperBoundMs": 49.568083999998635
+}
