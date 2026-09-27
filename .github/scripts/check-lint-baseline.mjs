@@ -17,7 +17,13 @@ function readReport(reportPath, root) {
     totals.errors += file.errorCount;
     totals.warnings += file.warningCount;
     for (const message of file.messages) {
-      const normalizedMessage = message.message.split(resolvedRoot).join("<project>");
+      // React diagnostics embed source locations and numbered code frames in the
+      // message itself. Moving unchanged code is not a new lint finding. Preserve
+      // the diagnostic and source text, normalizing only those numeric locations.
+      const normalizedMessage = message.message.split(resolvedRoot).join("<project>")
+        .replace(/(\.[cm]?[jt]sx?):\d+:\d+\b/g, "$1:<line>:<column>")
+        .replace(/^(\s*>?)\s*\d+\s*\|/gm, (_, prefix) => `${prefix.includes(">") ? ">" : " "} <line> |`)
+        .replace(/^\s*\|/gm, " | ");
       const signature = JSON.stringify([
         relativePath,
         message.ruleId ?? "<fatal>",

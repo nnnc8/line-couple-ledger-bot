@@ -1,8 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { api, get } from "@/lib/api";
+import { api, ApiError, get } from "@/lib/api";
 import type { V2AppContext, V2CreateTransactionResult, V2LedgerBootstrap, V2LedgerSummary } from "@/lib/types";
+import { applyCanonicalSnapshot, canApplySnapshot, isCurrentBootstrap, type CommitProof, type ReadFreshness } from "@/lib/v2-entry-operation";
 
 export function useV2Ledgers(enabled = true) {
   const [ledgers, setLedgers] = useState<V2LedgerSummary[]>([]);
@@ -11,23 +12,28 @@ export function useV2Ledgers(enabled = true) {
   const [context, setContext] = useState<V2AppContext | null>(null);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
-  const scope = useRef({ ledgerId: null as string | null, request: 0 });
+  const [read, setRead] = useState<ReadFreshness>("initialLoading");
+  const [accessDenied, setAccessDenied] = useState(false);
+  const scope = useRef({ ledgerId: null as string | null, request: 0, known: null as V2LedgerBootstrap | null });
+  const minimumVersions = useRef(new Map<string, number>());
   const activationQueue = useRef<Promise<unknown>>(Promise.resolve());
 
   const selectLedger = useCallback((ledgerId: string | null) => {
     if (scope.current.ledgerId === ledgerId) return;
-    scope.current = { ledgerId, request: 0 };
+    scope.current = { ledgerId, request: 0, known: null };
     setBootstrap(null);
+    setRead("initialLoading");
+    setAccessDenied(false);
     setError("");
     setActiveLedgerId(ledgerId);
   }, []);
 
-  const loadLedgers = useCallback(async (initialLedgerId?: string | null) => {
+  const loadLedgers = useCallback(async (initialLedgerId?: string | null, deferSelection = false) => {
     const result = await get<{ ledgers: V2LedgerSummary[] }>("/api/app/v2/ledgers");
     setError("");
     setLedgers(result.ledgers);
     const current = scope.current.ledgerId ?? initialLedgerId;
-    selectLedger(current && result.ledgers.some((ledger) => ledger.id === current)
+    if (!deferSelection) selectLedger(current && result.ledgers.some((ledger) => ledger.id === current)
       ? current : result.ledgers.find((ledger) => ledger.status === "active")?.id ?? null);
     return result.ledgers;
   }, [selectLedger]);
@@ -43,46 +49,69 @@ export function useV2Ledgers(enabled = true) {
     const owner = scope.current;
     if (owner.ledgerId !== ledgerId) return;
     const request = ++owner.request;
+    setRead(owner.known ? "refreshing" : "initialLoading");
     const current = () => scope.current === owner && owner.request === request;
     try {
       const result = await get<V2LedgerBootstrap>(`/api/app/v2/ledgers/${ledgerId}/bootstrap`);
       if (!current()) return;
       if (result.ledger.id !== ledgerId) throw new Error("Ledger 回應範圍不符");
+      if (!isCurrentBootstrap(owner.known, result, minimumVersions.current.get(ledgerId) ?? 0)) throw new Error("內容尚未更新，已保留目前已確認的紀錄");
+      owner.known = result;
+      minimumVersions.current.set(ledgerId, result.ledger.version);
       setError("");
       setBootstrap(result);
+      setRead("ready");
+      setAccessDenied(false);
       return result;
     } catch (reason) {
       if (!current()) return;
       setError(reason instanceof Error ? reason.message : "無法讀取 Ledger");
+      setRead("failed");
+      if (reason instanceof ApiError && [401, 403, 404].includes(reason.status)) {
+        owner.known = null;
+        setBootstrap(null);
+        setAccessDenied(true);
+      }
       throw reason;
     }
   }, []);
 
   const applyCommittedTransaction = useCallback((result: V2CreateTransactionResult) => {
-    if (scope.current.ledgerId !== result.transaction.ledgerId) return;
+    if (scope.current.ledgerId !== result.transaction.ledgerId || !canApplySnapshot(scope.current.known, result)
+      || result.ledgerVersion < (minimumVersions.current.get(result.transaction.ledgerId) ?? 0)) return false;
     // A read started before this commit must not replace the canonical result.
     scope.current.request += 1;
-    setBootstrap((current) => {
-      if (!current || current.ledger.id !== result.transaction.ledgerId) return current;
-      const transactions = [
-        result.transaction,
-        ...current.transactions.filter((transaction) => transaction.id !== result.transaction.id),
-      ].sort((left, right) => {
-        const occurredOn = (right.occurredOn ?? "").localeCompare(left.occurredOn ?? "");
-        if (occurredOn !== 0) return occurredOn;
-        const createdAt = (right.createdAt ?? "").localeCompare(left.createdAt ?? "");
-        if (createdAt !== 0) return createdAt;
-        return right.id.localeCompare(left.id);
-      });
-      return {
-        ...current,
-        ledger: { ...current.ledger, version: result.ledgerVersion },
-        transactions,
-        balance: result.balance,
-        nextPayer: result.nextPayer,
-      };
-    });
+    const next = applyCanonicalSnapshot(scope.current.known!, result);
+    scope.current.known = next;
+    minimumVersions.current.set(result.transaction.ledgerId, result.ledgerVersion);
+    setBootstrap(next);
+    setRead("ready");
+    setError("");
+    return true;
   }, []);
+
+  const acceptCommitProof = useCallback((proof: CommitProof): boolean => {
+    if (proof.snapshot && applyCommittedTransaction(proof.snapshot)) return true;
+    const owner = scope.current;
+    if (owner.ledgerId !== proof.transaction.ledgerId || !owner.known) return false;
+    owner.request += 1;
+    const minimum = minimumVersions.current.get(owner.ledgerId) ?? 0;
+    if (proof.ledgerVersion) minimumVersions.current.set(owner.ledgerId, Math.max(minimum, proof.ledgerVersion));
+    // Replacement proof identifies both rows. Show that fact while balance/next payer
+    // remain explicitly stale until the read succeeds; never calculate either here.
+    if (proof.replacedTransactionId && proof.originalVersion && (proof.ledgerVersion ?? 0) >= minimum) {
+      const original = owner.known.transactions.find(row => row.id === proof.replacedTransactionId);
+      if (original && (original.version ?? 1) < proof.originalVersion) {
+        const next = { ...owner.known, transactions: [proof.transaction, ...owner.known.transactions
+          .filter(row => row.id !== proof.transaction.id)
+          .map(row => row.id === proof.replacedTransactionId ? { ...row, status: "voided" as const, version: proof.originalVersion, replacedByTransactionId: proof.transaction.id } : row)] };
+        owner.known = next;
+        setBootstrap(next);
+      }
+    }
+    setRead("refreshing");
+    return false;
+  }, [applyCommittedTransaction]);
 
   useEffect(() => {
     if (!enabled) return;
@@ -128,15 +157,19 @@ export function useV2Ledgers(enabled = true) {
   return {
     ledgers,
     activeLedgerId,
+    selectLedger,
     setActiveLedgerId: activateLedger,
     bootstrap,
     error,
     busy,
+    read,
+    accessDenied,
     context,
     loadContext,
     loadLedgers,
     loadBootstrap,
     applyCommittedTransaction,
+    acceptCommitProof,
     createLedger,
   };
 }

@@ -1,5 +1,6 @@
 import { expect, test, type Page, type Route } from "@playwright/test";
 import { mkdirSync, writeFileSync } from "node:fs";
+import { calculateLedgerBalance, recommendNextPayer, splitEqual, type V2Transaction } from "../src/lib/v2-ledger";
 
 const OWNER = "00000000-0000-4000-8000-000000000001";
 const PARTNER = "00000000-0000-4000-8000-000000000002";
@@ -10,7 +11,10 @@ const SECOND_LEDGER = "00000000-0000-4000-8000-000000000012";
 type PostMode = "success" | "failure" | "fail-once" | "delay";
 
 test.beforeEach(async ({ page }) => {
+  // Keep the browser calendar aligned with this fixture's server context.
+  await page.clock.setFixedTime(new Date("2026-08-28T02:00:00Z"));
   let bootstrapCalls = 0;
+  let ledgerVersion = 1;
   let postMode: PostMode = "success";
   let postRequests = 0;
   let postedBodies: Array<Record<string, unknown>> = [];
@@ -59,7 +63,7 @@ test.beforeEach(async ({ page }) => {
         name: ledgerName,
         color: "#173B63",
         status: "active",
-        version: 1,
+        version: ledgerVersion,
         createdAt: "2026-08-01T00:00:00Z",
         updatedAt: "2026-08-01T00:00:00Z",
         coupleId: 1,
@@ -88,8 +92,8 @@ test.beforeEach(async ({ page }) => {
         ledgerId: LEDGER,
         type: body.type ?? "expense",
         amountTwd: body.amountTwd ?? "100",
-        payments: [{ userId: OWNER, amountTwd: body.amountTwd ?? "100" }],
-        shares: [{ userId: OWNER, amountTwd: "50" }, { userId: PARTNER, amountTwd: "50" }],
+        payments: body.payments,
+        shares: body.shares ?? Object.entries(splitEqual(String(body.amountTwd), [OWNER, PARTNER])).map(([userId, value]) => ({ userId, amountTwd: String(value) })),
         status: "posted",
         occurredOn: body.occurredOn ?? "2026-08-28",
         description: body.description ?? "午餐",
@@ -101,13 +105,16 @@ test.beforeEach(async ({ page }) => {
         version: 1,
       };
       rows = [created];
-      balance = { [OWNER]: "-50", [PARTNER]: "50" };
-      nextPayer = { payerUserId: OWNER, payeeUserId: PARTNER, amountTwd: "50" };
+      ledgerVersion += 1;
+      const canonicalBalance = calculateLedgerBalance([created as V2Transaction], { ledgerId: LEDGER, memberIds: [OWNER, PARTNER] });
+      const canonicalNext = recommendNextPayer(canonicalBalance, [OWNER, PARTNER]);
+      balance = { [OWNER]: String(canonicalBalance[OWNER]), [PARTNER]: String(canonicalBalance[PARTNER]) };
+      nextPayer = canonicalNext ? { ...canonicalNext, amountTwd: String(canonicalNext.amountTwd) } : null;
       return route.fulfill({ status: 201, json: {
         transaction: created,
-        balance: { [OWNER]: "-50", [PARTNER]: "50" },
-        nextPayer: { payerUserId: OWNER, payeeUserId: PARTNER, amountTwd: "50" },
-        ledgerVersion: 2,
+        balance,
+        nextPayer,
+        ledgerVersion,
       } });
     }
     const url = new URL(route.request().url());
@@ -123,6 +130,7 @@ test.beforeEach(async ({ page }) => {
   await page.route(`**/api/app/v2/transactions/${TRANSACTION}/mutate`, async (route) => {
     const body = route.request().postDataJSON() as { action?: string };
     if (body.action === "void") {
+      ledgerVersion += 1;
       rows = rows.map((row) => row.id === TRANSACTION ? { ...row, status: "voided", version: 2 } : row);
       balance = { [OWNER]: "0", [PARTNER]: "0" };
       nextPayer = null;
@@ -452,11 +460,11 @@ test("shows server-confirmed saving and success feedback without waiting for his
   await expect(page.getByRole("button", { name: /儲存中/ })).toBeDisabled();
   await expect.poll(() => controls(page).getPostRequests()).toBe(1);
   controls(page).releasePost();
-  await expect(page.getByRole("status").filter({ hasText: "已入帳：午餐 NT$100" }).first()).toBeVisible();
+  await expect(page.getByRole("status").filter({ hasText: "已加入午餐 NT$100" }).first()).toBeVisible();
   await expect(page.getByText("午餐", { exact: true }).last()).toBeVisible();
-  await expect(page.getByRole("heading", { name: "另一半目前多付" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "你目前多付" })).toBeVisible();
   await expect(page.getByText("NT$50", { exact: true }).first()).toBeVisible();
-  await expect(page.getByText("下次建議由 你 付款", { exact: true })).toBeVisible();
+  await expect(page.getByText("下次建議由 另一半 付款", { exact: true })).toBeVisible();
   await expect(page.getByLabel("金額（新台幣）")).toHaveValue("");
   await expect(page.getByLabel("用途")).toHaveValue("");
   await expect(page.getByLabel("交易類型")).toHaveValue("expense");
@@ -530,7 +538,7 @@ test("uses the canonical save response without reloading the Ledger", async ({ p
   await page.getByLabel("金額（新台幣）").fill("100");
   await page.getByLabel("用途").fill("午餐");
   await page.getByRole("button", { name: "儲存交易" }).click();
-  await expect(page.getByRole("status").filter({ hasText: "已入帳：午餐 NT$100" }).first()).toBeVisible();
+  await expect(page.getByRole("status").filter({ hasText: "已加入午餐 NT$100" }).first()).toBeVisible();
   await expect.poll(() => controls(page).getRequestPaths().filter((path) => path === `GET /api/app/v2/ledgers/${LEDGER}/bootstrap`).length).toBe(1);
 });
 
@@ -542,7 +550,7 @@ test("keeps the draft on a rejected POST and does not add a local row", async ({
   await expect(page.getByRole("alert").filter({ hasText: "交易格式錯誤" }).first()).toBeVisible();
   await expect(page.getByLabel("金額（新台幣）")).toHaveValue("100");
   await expect(page.getByLabel("用途")).toHaveValue("午餐");
-  await expect(page.getByText("已入帳：午餐 NT$100", { exact: true })).toHaveCount(0);
+  await expect(page.getByText("已加入午餐 NT$100", { exact: true })).toHaveCount(0);
   await expect(page.getByText("午餐", { exact: true })).toHaveCount(0);
 });
 
@@ -554,7 +562,7 @@ test("reuses the idempotency key on an unchanged retry", async ({ page }) => {
   await expect(page.getByRole("alert").filter({ hasText: "交易格式錯誤" }).first()).toBeVisible();
   controls(page).setPostMode("success");
   await page.getByRole("button", { name: "儲存交易" }).click();
-  await expect(page.getByRole("status").filter({ hasText: "已入帳：午餐 NT$100" }).first()).toBeVisible();
+  await expect(page.getByRole("status").filter({ hasText: "已加入午餐 NT$100" }).first()).toBeVisible();
   const bodies = controls(page).getPostedBodies();
   expect(bodies).toHaveLength(2);
   expect(bodies[0]?.idempotencyKey).toBe(bodies[1]?.idempotencyKey);
@@ -565,7 +573,7 @@ test("does not insert a committed transaction that fails the active history filt
   await page.getByLabel("金額（新台幣）").fill("100");
   await page.getByLabel("用途").fill("午餐");
   await page.getByRole("button", { name: "儲存交易" }).click();
-  await expect(page.getByRole("status").filter({ hasText: "已入帳：午餐 NT$100" }).first()).toBeVisible();
+  await expect(page.getByRole("status").filter({ hasText: "已加入午餐 NT$100" }).first()).toBeVisible();
   await expect(page.getByText("午餐", { exact: true })).toHaveCount(0);
 });
 
@@ -598,7 +606,7 @@ async function releaseScopeResponse(page: Page, route: Route, reply: Parameters<
   await page.evaluate(() => new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
 }
 
-test("V3-0 ignores reversed bootstrap responses and resets the Ledger draft", async ({ page }) => {
+test("V3-0 ignores reversed bootstrap responses after explicit draft discard", async ({ page }) => {
   await twoLedgers(page);
   const held: Route[] = [];
   await page.route(`**/api/app/v2/ledgers/${LEDGER}/bootstrap`, route => { held.push(route); });
@@ -606,6 +614,7 @@ test("V3-0 ignores reversed bootstrap responses and resets the Ledger draft", as
   await page.getByLabel("用途").fill("A draft");
   await page.getByLabel("重新整理帳本").click();
   await expect.poll(() => held.length).toBe(1);
+  page.once("dialog", dialog => dialog.accept());
   await page.getByLabel("切換帳本").selectOption(SECOND_LEDGER);
   const card = page.locator('[style*="linear-gradient"]').first();
   await expect(card).toContainText("Scope B");
@@ -683,7 +692,7 @@ test("V3-0 switching Ledger after a deep link stays on the manual selection", as
 });
 
 
-test("V3-0 a late A save cannot update B feedback or reuse A's draft/key", async ({ page }) => {
+test("V3-0 guards a late A save, then explicit discard cannot reuse A feedback or key in B", async ({ page }) => {
   await twoLedgers(page);
   let held: Route | undefined;
   const requests: Array<{ ledger: string; body: Record<string, unknown> }> = [];
@@ -699,8 +708,12 @@ test("V3-0 a late A save cannot update B feedback or reuse A's draft/key", async
   await page.getByRole("button", { name: "儲存交易" }).click();
   await expect.poll(() => Boolean(held)).toBe(true);
   await page.getByLabel("切換帳本").selectOption(SECOND_LEDGER);
-  await expect(page.locator('[style*="linear-gradient"]').first()).toContainText("Scope B");
+  await expect(page.getByLabel("切換帳本")).toHaveValue(LEDGER);
   await releaseScopeResponse(page, held!, { status: 422, json: { error: "STALE SAVE ERROR" } });
+  await expect(page.getByRole("alert").filter({ hasText: "STALE SAVE ERROR" })).toBeVisible();
+  page.once("dialog", dialog => dialog.accept());
+  await page.getByLabel("切換帳本").selectOption(SECOND_LEDGER);
+  await expect(page.locator('[style*="linear-gradient"]').first()).toContainText("Scope B");
   await expect(page.getByText("STALE SAVE ERROR", { exact: true })).toHaveCount(0);
   await expect(page.getByLabel("金額（新台幣）")).toHaveValue("");
   await page.getByLabel("金額（新台幣）").fill("100");
@@ -709,4 +722,18 @@ test("V3-0 a late A save cannot update B feedback or reuse A's draft/key", async
   await expect(page.getByRole("alert").filter({ hasText: "B rejection" }).first()).toBeVisible();
   expect(requests.map(request => request.ledger)).toEqual([LEDGER, SECOND_LEDGER]);
   expect(requests[0]!.body.idempotencyKey).not.toBe(requests[1]!.body.idempotencyKey);
+});
+
+if (process.env.P1B_MEASURE_STAGE) test("P1-B normal create performance sample", async ({ page }, testInfo) => {
+  await page.getByLabel("金額（新台幣）").fill("100");
+  await page.getByLabel("用途").fill("午餐");
+  const before = controls(page).getRequestPaths().length;
+  let responseAt = 0;
+  page.on("response", response => { if (response.request().method() === "POST" && response.url().endsWith("/transactions")) responseAt = performance.now(); });
+  await page.getByRole("button", { name: "儲存交易" }).click();
+  await expect(page.getByText("午餐", { exact: true }).last()).toBeVisible();
+  const visibleAt = performance.now();
+  const result = { stage: process.env.P1B_MEASURE_STAGE, project: testInfo.project.name, requests: controls(page).getRequestPaths().slice(before), responseToVisibleUpperBoundMs: visibleAt - responseAt };
+  mkdirSync("output/playwright/p1-b", { recursive: true });
+  writeFileSync(`output/playwright/p1-b/performance-${process.env.P1B_MEASURE_STAGE}-${testInfo.project.name}.json`, JSON.stringify(result, null, 2));
 });

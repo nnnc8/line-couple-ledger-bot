@@ -1,0 +1,52 @@
+{
+  "method": "All same-origin script src files in root production HTML; unique chunks; gzip per file. LINE SDK excluded and unchanged.",
+  "files": [
+    {
+      "file": "/_next/static/chunks/0cz1d0mv5g_q7.js",
+      "bytes": 112594,
+      "gzipBytes": 39373
+    },
+    {
+      "file": "/_next/static/chunks/0jds67wmtbffo.js",
+      "bytes": 1580,
+      "gzipBytes": 904
+    },
+    {
+      "file": "/_next/static/chunks/12dp50a39vrlh.js",
+      "bytes": 196803,
+      "gzipBytes": 49052
+    },
+    {
+      "file": "/_next/static/chunks/17gauw-xhye62.js",
+      "bytes": 226349,
+      "gzipBytes": 70529
+    },
+    {
+      "file": "/_next/static/chunks/1qlx8bi43g-89.js",
+      "bytes": 97910,
+      "gzipBytes": 29150
+    },
+    {
+      "file": "/_next/static/chunks/1wvrx_hlsfauw.js",
+      "bytes": 41717,
+      "gzipBytes": 11747
+    },
+    {
+      "file": "/_next/static/chunks/3_2gnfsz1jqfz.js",
+      "bytes": 22979,
+      "gzipBytes": 7673
+    },
+    {
+      "file": "/_next/static/chunks/3nn_ivyly2ig6.js",
+      "bytes": 57885,
+      "gzipBytes": 13758
+    },
+    {
+      "file": "/_next/static/chunks/turbopack-2285bbhngeq-u.js",
+      "bytes": 10547,
+      "gzipBytes": 4140
+    }
+  ],
+  "totalBytes": 768364,
+  "totalGzipBytes": 226326
+}
