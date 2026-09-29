@@ -43,6 +43,7 @@ export type TransactionDraft = DraftFields & {
   transactionId?: string;
   expectedVersion?: number;
   dirty: boolean;
+  seed: DraftFields;
 };
 
 export class DraftValidationError extends Error {
@@ -58,12 +59,15 @@ export function currentEntryDate(now = new Date()): string {
 export function newTransactionDraft(bootstrap: V2LedgerBootstrap, actorUserId: string, today: string, id: string): TransactionDraft {
   const members = bootstrap.ledger.members.map(member => member.userId);
   if (members.length !== 2 || members[0] === members[1] || !members.includes(actorUserId)) throw new Error("帳本成員範圍不符");
+  const fields: DraftFields = {
+    type: "expense", amountTwd: "", description: "", occurredOn: today,
+    category: "", categoryId: "", note: "", paymentMode: "self", selfPayment: "", partnerPayment: "",
+    splitMode: "weights", selfShare: "", partnerShare: "", selfPercentage: "50", partnerPercentage: "50",
+  };
   return {
     id, actorUserId, coupleId: bootstrap.ledger.coupleId, ledgerId: bootstrap.ledger.id,
     memberIds: [members[0]!, members[1]!], defaultShares: { ...bootstrap.ledger.defaultShares },
-    operationType: "create", dirty: false, type: "expense", amountTwd: "", description: "", occurredOn: today,
-    category: "", categoryId: "", note: "", paymentMode: "self", selfPayment: "", partnerPayment: "",
-    splitMode: "weights", selfShare: "", partnerShare: "", selfPercentage: "50", partnerPercentage: "50",
+    operationType: "create", dirty: false, ...fields, seed: { ...fields },
   };
 }
 
@@ -71,8 +75,8 @@ export function correctionDraft(bootstrap: V2LedgerBootstrap, actorUserId: strin
   if (transaction.ledgerId !== bootstrap.ledger.id || transaction.status !== "posted" || !Number.isSafeInteger(transaction.version) || !transaction.version) throw new Error("這筆紀錄目前無法修改，請重新整理");
   const draft = newTransactionDraft(bootstrap, actorUserId, today, id);
   const partnerId = draft.memberIds.find(member => member !== actorUserId)!;
-  return {
-    ...draft, operationType: "replace", transactionId: transaction.id, expectedVersion: transaction.version, dirty: true,
+  const correction: TransactionDraft = {
+    ...draft, operationType: "replace", transactionId: transaction.id, expectedVersion: transaction.version, dirty: false,
     type: transaction.type, amountTwd: transaction.amountTwd, description: transaction.description ?? "",
     occurredOn: transaction.occurredOn ?? today, category: transaction.category ?? "", categoryId: transaction.categoryId ?? "", note: transaction.note ?? "",
     paymentMode: transaction.payments.length === 2 ? "both" : transaction.payments[0]?.userId === actorUserId ? "self" : "partner",
@@ -82,6 +86,17 @@ export function correctionDraft(bootstrap: V2LedgerBootstrap, actorUserId: strin
     splitMode: "exact", selfShare: transaction.shares.find(share => share.userId === actorUserId)?.amountTwd ?? "0",
     partnerShare: transaction.shares.find(share => share.userId === partnerId)?.amountTwd ?? "0",
   };
+  correction.seed = draftFields(correction);
+  return correction;
+}
+
+export function draftFields(draft: TransactionDraft): DraftFields {
+  return Object.fromEntries(Object.keys(draft.seed).map(key => [key, draft[key as keyof DraftFields]])) as DraftFields;
+}
+
+/** Compare every editable value to its opening seed; editing then reverting is clean. */
+export function isDraftDirty(draft: TransactionDraft): boolean {
+  return (Object.keys(draft.seed) as Array<keyof DraftFields>).some(key => draft[key] !== draft.seed[key]);
 }
 
 function integer(value: string, field: keyof DraftFields): string {
