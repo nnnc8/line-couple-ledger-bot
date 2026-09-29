@@ -80,6 +80,17 @@ jobs:
           retention-days: 14
           if-no-files-found: ignore
 
+      - name: Preserve P1-C navigation evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: p1-c-browser-evidence
+          path: |
+            output/playwright/p1-c/
+            output/playwright/results/
+          retention-days: 14
+          if-no-files-found: error
+
       - name: Build
         run: pnpm build
         env:
