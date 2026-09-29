@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { api, get } from "@/lib/api";
-import { correctionDraft, currentEntryDate, DraftValidationError, newTransactionDraft, type DraftFields, type TransactionDraft } from "@/lib/v2-transaction-draft";
+import { correctionDraft, isDraftDirty, currentEntryDate, DraftValidationError, newTransactionDraft, type DraftFields, type TransactionDraft } from "@/lib/v2-transaction-draft";
 import { ENTRY_RECOVERY_KEY, classifyWriteFailure, freezeOperation, parseCommitProof, readRecovery, recoveryMatches, writeRecovery, type CommitProof, type EntryOperation, type ReadFreshness, type WriteOutcome } from "@/lib/v2-entry-operation";
 import type { V2AppContext, V2LedgerBootstrap, V2LedgerSummary, V2LedgerTransaction } from "@/lib/types";
 
@@ -13,9 +13,8 @@ type Session = {
   error: string;
   field?: keyof DraftFields;
   blocked: string;
-  pendingDestination: string | null;
 };
-const initial: Session = { draft: null, write: "idle", operation: null, error: "", blocked: "", pendingDestination: null };
+const initial: Session = { draft: null, write: "idle", operation: null, error: "", blocked: "" };
 const storageError = "這次畫面無法保留送出結果，請重新開啟後再試。尚未送出，輸入內容仍保留。";
 
 export function useV2EntrySession({ context, bootstrap, read, accessDenied, acceptProof, refresh }: {
@@ -39,7 +38,6 @@ export function useV2EntrySession({ context, bootstrap, read, accessDenied, acce
     const targetAllowed = !target || active.some(ledger => ledger.id === target);
     const selectTarget = () => {
       if (targetAllowed) return target;
-      setSession(current => ({ ...current, blocked: "這本帳本無法開啟，可能已失效或你沒有權限。" }));
       return null;
     };
     try { window.sessionStorage.getItem(ENTRY_RECOVERY_KEY); }
@@ -60,8 +58,7 @@ export function useV2EntrySession({ context, bootstrap, read, accessDenied, acce
       return targetAllowed ? target : null;
     }
     pendingRecovery.current = record;
-    setSession(current => ({ ...current, pendingDestination: targetAllowed && target !== record.ledgerId ? target : null,
-      error: targetAllowed ? "" : "連結指定的帳本目前無法開啟，請先確認原帳本已送出的這筆操作。" }));
+    setSession(current => ({ ...current, error: targetAllowed ? "" : "連結指定的帳本目前無法開啟，請先確認原帳本已送出的這筆操作。" }));
     return record.ledgerId;
   }, []);
 
@@ -104,24 +101,35 @@ export function useV2EntrySession({ context, bootstrap, read, accessDenied, acce
 
   function updateDraft(patch: Partial<DraftFields>) {
     if (inFlight.current || accessDenied || session.blocked || session.write === "unknown") return;
-    setSession(current => current.draft ? { ...current, draft: { ...current.draft, ...patch, dirty: true },
+    setSession(current => current.draft ? { ...current, draft: { ...current.draft, ...patch, dirty: isDraftDirty({ ...current.draft, ...patch }) },
       write: current.write === "committed" ? "idle" : current.write, operation: current.write === "committed" ? null : current.operation, error: "", field: undefined } : current);
     if (session.write === "committed") operationRef.current = null;
   }
 
-  function mayLeaveDraft() {
-    if (inFlight.current || accessDenied || session.blocked || session.write === "unknown" || session.write === "submitting") return false;
-    if (session.draft?.dirty && !window.confirm("目前有尚未送出的內容。確定放棄這筆輸入？取消可保留。")) return false;
-    setSession(current => ({ ...current, draft: null, error: "", field: undefined }));
-    if (session.write !== "committed") {
-      operationRef.current = null;
-      setSession(current => ({ ...current, write: "idle", operation: null }));
-    }
+  function leaveStatus(): "ready" | "dirty" | "submitting" | "unknown" | "blocked" {
+    if (inFlight.current || session.write === "submitting") return "submitting";
+    if (session.write === "unknown" || pendingRecovery.current?.phase !== "committed" && pendingRecovery.current) return "unknown";
+    if (session.blocked) return "blocked";
+    return session.draft?.dirty ? "dirty" : "ready";
+  }
+
+  function discardDraft() {
+    if (["submitting", "unknown", "blocked"].includes(leaveStatus())) return false;
+    // A known committed marker may outlive the read that validates its display.
+    // Leaving keeps storage intact but must not hydrate its proof against B.
+    if (pendingRecovery.current?.phase === "committed") pendingRecovery.current = null;
+    setSession(current => ({ ...current, draft: null, error: "", field: undefined,
+      ...(current.write === "committed" ? {} : { write: "idle", operation: null }) }));
+    if (session.write !== "committed") operationRef.current = null;
     return true;
   }
 
-  function openCorrection(transaction: V2LedgerTransaction) {
-    if (!context || !bootstrap || !mayLeaveDraft()) return false;
+  function mayLeaveDraft() {
+    return leaveStatus() === "ready" && discardDraft();
+  }
+
+  function openCorrection(transaction: V2LedgerTransaction, discardAccepted = false) {
+    if (!context || !bootstrap || ["unknown", "submitting", "blocked"].includes(leaveStatus()) || !discardAccepted && !mayLeaveDraft()) return false;
     try {
       const draft = correctionDraft(bootstrap, context.user.id, context.today, crypto.randomUUID(), transaction);
       operationRef.current = null;
@@ -202,10 +210,9 @@ export function useV2EntrySession({ context, bootstrap, read, accessDenied, acce
     ...session, draftState: session.draft?.dirty ? "dirty" as const : "empty" as const, read,
     blocked: accessDenied ? "目前無法驗證這本帳本的存取權限。已保留操作結果；請重新登入後確認。" : session.blocked,
     locked: accessDenied || Boolean(session.blocked) || session.write === "submitting" || session.write === "unknown",
-    initialize, updateDraft, mayLeaveDraft, openCorrection,
+    initialize, recoveryLedger: () => pendingRecovery.current?.ledgerId ?? null, updateDraft, leaveStatus, discardDraft, mayLeaveDraft, openCorrection,
     submit: () => dispatch(false), replay: () => dispatch(true),
     retryRead: () => bootstrap ? refresh(bootstrap.ledger.id).catch(() => undefined) : Promise.resolve(),
-    clearDestination: () => setSession(current => ({ ...current, pendingDestination: null })),
   };
 }
 
