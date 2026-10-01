@@ -174,3 +174,38 @@ for (const field of ["新增自訂分類", "週期交易名稱"]) test(`unsaved 
   await fixture.ready(); await expect(page).toHaveURL(new RegExp(`v2Ledger=${B}$`));
   expect(fixture.state.posts).toHaveLength(0);
 });
+
+for (const tab of ["stats", "recurring", "search"]) for (const code of [401, 500]) test(`${tab} read ${code} offers the correct recovery action without changing Ledger preference`, async ({ page }) => {
+  const fixture = await navigationBrowser(page);
+  const endpoint = tab === "stats" ? "statistics" : tab === "search" ? "transactions*" : "recurring";
+  let failed = true, reads = 0;
+  await page.route(`**/api/app/v2/ledgers/${A}/${endpoint}`, route => {
+    reads += 1;
+    return failed ? route.fulfill({ status: code, json: { error: "SECONDARY READ FAILED" } }) : route.fallback();
+  });
+  await fixture.goto(`${home()}&${tab === "search" ? "view=search&q=A" : `tab=${tab}`}`);
+  const error = page.getByRole("alert").filter({ hasText: "SECONDARY READ FAILED" });
+  await expect(error).toBeVisible();
+  const button = error.getByRole("button", { name: code === 401 ? "重新登入" : "重新讀取", exact: true });
+  await expect(button).toBeVisible();
+  if (code === 500) {
+    if (tab === "recurring") { await page.getByRole("button", { name: "新增", exact: true }).click(); await page.getByLabel("週期交易名稱").fill("保留尚未儲存設定"); }
+    const requests = fixture.state.requests.length; failed = false; await button.click();
+    await expect.poll(() => reads).toBeGreaterThanOrEqual(2); await expect(error).toHaveCount(0);
+    expect(fixture.state.requests.slice(requests).some(item => item.path.endsWith("/bootstrap"))).toBe(false);
+    if (tab === "recurring") await expect(page.getByLabel("週期交易名稱")).toHaveValue("保留尚未儲存設定");
+  }
+  expect(activationRequests(fixture.state)).toEqual([]);
+});
+
+test("stale app-origin row marker falls back to a surviving Home row", async ({ page }) => {
+  const fixture = await navigationBrowser(page); await fixture.goto(); await fixture.ready();
+  await page.getByRole("button", { name: "查看紀錄：A 專屬晚餐", exact: true }).click();
+  // Simulate an origin from an older Home snapshot without violating the P1-B
+  // bootstrap invariant that an accepted read cannot erase a known transaction.
+  await page.evaluate(() => history.replaceState({ ...history.state, v2LedgerOrigin: { ...history.state.v2LedgerOrigin, rowId: "removed-row" } }, "", `${location.href}&revision=2`));
+  await expect(page).toHaveURL(/revision=2/); await expect(heading(page)).toBeFocused();
+  await page.getByRole("button", { name: "返回帳本", exact: true }).click();
+  await expect(page.getByRole("button", { name: "查看紀錄：A 專屬晚餐", exact: true })).toBeFocused();
+  expect(fixture.state.posts).toHaveLength(0);
+});

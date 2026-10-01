@@ -8,7 +8,7 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { V2TransactionEditor } from "./v2-transaction-editor";
-import { api } from "@/lib/api";
+import { api, ApiError } from "@/lib/api";
 import { money } from "@/lib/format";
 import type { V2EntrySession } from "@/hooks/use-v2-entry-session";
 import { commandOf } from "@/lib/v2-entry-operation";
@@ -52,9 +52,13 @@ export function V2LedgerHome({
 }: V2LedgerHomeProps) {
   const partner = users.find((candidate) => candidate.id !== user.id) ?? users[1];
   const errorScope = JSON.stringify([navigation.surface, navigation.proposalId, navigation.transactionId, navigation.filters]);
-  const [surfaceError, setSurfaceError] = React.useState<{ scope: string; message: string } | null>(null);
+  const [surfaceError, setSurfaceError] = React.useState<{ scope: string; message: string; auth?: boolean; retry?: () => Promise<void> } | null>(null);
   const formError = surfaceError?.scope === errorScope ? surfaceError.message : "";
   const setFormError = React.useCallback((message: string) => setSurfaceError({ scope: errorScope, message }), [errorScope]);
+  const setReadError = React.useCallback((reason: unknown, retry: () => Promise<void>) => setSurfaceError({
+    scope: errorScope, message: reason instanceof Error ? reason.message : "無法讀取內容",
+    auth: reason instanceof ApiError && reason.status === 401, retry,
+  }), [errorScope]);
   const [saving, setSaving] = React.useState(false);
   const [recurring, setRecurring] = React.useState<V2RecurringRule[]>([]);
   const recurringLoaded = React.useRef(false);
@@ -145,7 +149,7 @@ export function V2LedgerHome({
       const result = await fetch(`/api/app/v2/ledgers/${activeLedgerId}/recurring`, { cache: "no-store", credentials: "same-origin" });
       const body = await result.json() as { recurring?: V2RecurringRule[]; error?: string };
       if (!mounted.current || reads.current.recurring !== request) return;
-      if (!result.ok) throw new Error(body.error ?? "無法讀取週期規則");
+      if (!result.ok) throw new ApiError(body.error ?? "無法讀取週期規則", result.status, Boolean(body.error));
       recurringLoaded.current = true;
       setRecurring(body.recurring ?? []);
     } catch (reason) {
@@ -181,7 +185,7 @@ export function V2LedgerHome({
       const response = await fetch(`/api/app/v2/ledgers/${activeLedgerId}/statistics`, { cache: "no-store", credentials: "same-origin" });
       const body = await response.json() as typeof statistics & { error?: string };
       if (!mounted.current || reads.current.statistics !== request) return;
-      if (!response.ok) throw new Error(body.error ?? "無法讀取統計");
+      if (!response.ok) throw new ApiError(body.error ?? "無法讀取統計", response.status, Boolean(body.error));
       setStatistics(body);
     } catch (reason) {
       if (mounted.current && reads.current.statistics === request) throw reason;
@@ -207,7 +211,7 @@ export function V2LedgerHome({
       const response = await fetch(`/api/app/v2/ledgers/${activeLedgerId}/transactions?${params.toString()}`, { cache: "no-store", credentials: "same-origin", signal: controller.signal });
       const body = await response.json() as { transactions?: V2LedgerBootstrap["transactions"]; nextCursor?: string | null; error?: string };
       if (!mounted.current || controller.signal.aborted || historyAbortRef.current !== controller) return;
-      if (!response.ok) throw new Error(body.error ?? "無法讀取紀錄");
+      if (!response.ok) throw new ApiError(body.error ?? "無法讀取紀錄", response.status, Boolean(body.error));
       setHistoryResult((current) => ({ bootstrap, scope: historyScope,
         rows: append && current?.scope === historyScope ? [...current.rows, ...(body.transactions ?? [])] : body.transactions ?? [],
         cursor: body.nextCursor ?? null }));
@@ -225,24 +229,24 @@ export function V2LedgerHome({
     }
     const timer = window.setTimeout(() => {
       void loadHistory().catch((reason) => {
-        if ((reason as { name?: string }).name !== "AbortError") setFormError(reason instanceof Error ? reason.message : "無法讀取紀錄");
+        if ((reason as { name?: string }).name !== "AbortError") setReadError(reason, loadHistory);
       });
     }, historyQuery.trim() ? 300 : 0);
     return () => { window.clearTimeout(timer); historyAbortRef.current?.abort(); };
-  }, [bootstrap, historyCategoryId, historyFrom, historyPayer, historyQuery, historyTo, historyType, loadHistory, setFormError]);
+  }, [bootstrap, historyCategoryId, historyFrom, historyPayer, historyQuery, historyTo, historyType, loadHistory, setReadError]);
 
   React.useEffect(() => {
     if (!bootstrap || secondaryTab !== "stats" || statistics) return;
     const timer = window.setTimeout(() => {
-      void loadStatistics().catch((reason) => setFormError(reason instanceof Error ? reason.message : "無法讀取統計"));
+      void loadStatistics().catch((reason) => setReadError(reason, loadStatistics));
     }, 0);
     return () => window.clearTimeout(timer);
-  }, [bootstrap, loadStatistics, secondaryTab, statistics, setFormError]);
+  }, [bootstrap, loadStatistics, secondaryTab, statistics, setReadError]);
 
   React.useEffect(() => {
     if (!bootstrap || secondaryTab !== "settings" || recurringLoaded.current) return;
-    void loadRecurring().catch((reason) => setFormError(reason instanceof Error ? reason.message : "無法讀取週期規則"));
-  }, [bootstrap, loadRecurring, recurring.length, secondaryTab, setFormError]);
+    void loadRecurring().catch((reason) => setReadError(reason, loadRecurring));
+  }, [bootstrap, loadRecurring, recurring.length, secondaryTab, setReadError]);
 
   async function loadMoreHistory() {
     if (!historyCursor || historyLoadingMore) return;
@@ -489,7 +493,14 @@ export function V2LedgerHome({
       {isHome ? <div className="flex items-center justify-end gap-2">
         <Button variant="ghost" size="icon-sm" aria-label="重新整理帳本" onClick={() => void refreshLedger().catch(() => undefined)}><RefreshCw className="size-4" /></Button>
       </div> : null}
-      {formError ? <p className="text-sm font-medium text-destructive" role="alert">{formError}</p> : null}
+      {formError ? <div className="text-sm font-medium text-destructive" role="alert"><p>{formError}</p>
+        {surfaceError?.retry ? <Button variant="outline" size="sm" onClick={() => {
+          if (surfaceError.auth) { location.reload(); return; }
+          const retry = surfaceError.retry!;
+          setSurfaceError(null);
+          void retry().catch(reason => setReadError(reason, retry));
+        }}>{surfaceError.auth ? "重新登入" : "重新讀取"}</Button> : null}
+      </div> : null}
       {!isHome && !(isDetail && (entry.draft?.operationType === "replace" || entry.operation?.operationType === "replace")) ? <EntryStatus entry={entry} ledgerId={activeLedgerId} /> : null}
       {error && entry.write !== "committed" ? <p role="alert" className="text-sm">內容暫時無法更新。{error}</p> : null}
       {proposalId && proposalStatus ? <Card className="border-accent/30 bg-accent-soft p-4"><p className="font-semibold">LINE 待確認草稿</p><p className="mt-1 text-sm text-[var(--muted-foreground)]">狀態：{proposalStatus === "proposed" ? "待確認" : proposalStatus === "confirmed" ? "已入帳" : proposalStatus === "cancelled" ? "已取消" : proposalStatus}</p>{proposalStatus === "proposed" ? <div className="mt-3 flex gap-2"><Button variant="primary" size="sm" onClick={() => void confirmProposal()} disabled={saving}>確認入帳</Button><Button variant="ghost" size="sm" onClick={() => void cancelProposal()} disabled={saving}>取消</Button></div> : null}</Card> : null}
