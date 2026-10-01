@@ -1,0 +1,5 @@
+{
+  "source": "local full final suite",
+  "code_sha": "22b7f66a55954287c5543b2ff7358fa88dca67d9",
+  "note": "Production source, test code and dependency lock are unchanged in the following evidence-only commit. Final-head hosted CI also uploads full recordings."
+}

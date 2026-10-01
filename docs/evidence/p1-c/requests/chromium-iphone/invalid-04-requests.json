@@ -1,0 +1,20 @@
+[
+  {
+    "method": "POST",
+    "path": "/api/app/session",
+    "at": 7608.885959,
+    "finishedAt": 7614.468542
+  },
+  {
+    "method": "GET",
+    "path": "/api/app/v2/context",
+    "at": 7614.514792,
+    "finishedAt": 7636.798292
+  },
+  {
+    "method": "GET",
+    "path": "/api/app/v2/ledgers",
+    "at": 7636.904834,
+    "finishedAt": 7653.239792
+  }
+]

@@ -1,0 +1,252 @@
+{
+  "before": {
+    "gzip": 187468,
+    "steps": {
+      "startup": {
+        "median_ms": 159.3,
+        "request_counts": [
+          5,
+          5,
+          5
+        ],
+        "scroll_calls": [
+          [],
+          [],
+          []
+        ]
+      },
+      "switch-A-B": {
+        "median_ms": 59.1,
+        "request_counts": [
+          3,
+          3,
+          3
+        ],
+        "scroll_calls": [
+          [],
+          [],
+          []
+        ]
+      },
+      "stats": {
+        "median_ms": 61.5,
+        "request_counts": [
+          1,
+          1,
+          1
+        ],
+        "scroll_calls": [
+          [],
+          [],
+          []
+        ]
+      },
+      "settings": {
+        "median_ms": 52.3,
+        "request_counts": [
+          1,
+          1,
+          1
+        ],
+        "scroll_calls": [
+          [],
+          [],
+          []
+        ]
+      },
+      "deep-link-B": {
+        "median_ms": 147.5,
+        "request_counts": [
+          5,
+          5,
+          5
+        ],
+        "scroll_calls": [
+          [],
+          [],
+          []
+        ]
+      }
+    }
+  },
+  "after": {
+    "gzip": 191749,
+    "steps": {
+      "startup": {
+        "median_ms": 149.3,
+        "request_counts": [
+          5,
+          5,
+          5
+        ],
+        "scroll_calls": [
+          [
+            {
+              "durationMs": 0.09999999986030161,
+              "y": 0
+            }
+          ],
+          [
+            {
+              "durationMs": 0.10000000009313226,
+              "y": 0
+            }
+          ],
+          [
+            {
+              "durationMs": 0,
+              "y": 0
+            }
+          ]
+        ]
+      },
+      "dialog-open": {
+        "median_ms": 79.8,
+        "request_counts": [
+          0,
+          0,
+          0
+        ],
+        "scroll_calls": [
+          [],
+          [],
+          []
+        ]
+      },
+      "switch-A-B": {
+        "median_ms": 64.8,
+        "request_counts": [
+          3,
+          3,
+          3
+        ],
+        "scroll_calls": [
+          [
+            {
+              "durationMs": 0,
+              "y": 0
+            }
+          ],
+          [
+            {
+              "durationMs": 0,
+              "y": 0
+            }
+          ],
+          [
+            {
+              "durationMs": 0,
+              "y": 0
+            }
+          ]
+        ]
+      },
+      "stats": {
+        "median_ms": 48.0,
+        "request_counts": [
+          1,
+          1,
+          1
+        ],
+        "scroll_calls": [
+          [
+            {
+              "durationMs": 0,
+              "y": 0
+            }
+          ],
+          [
+            {
+              "durationMs": 0,
+              "y": 0
+            }
+          ],
+          [
+            {
+              "durationMs": 0,
+              "y": 0
+            }
+          ]
+        ]
+      },
+      "settings": {
+        "median_ms": 61.7,
+        "request_counts": [
+          1,
+          1,
+          1
+        ],
+        "scroll_calls": [
+          [
+            {
+              "durationMs": 0,
+              "y": 0
+            }
+          ],
+          [
+            {
+              "durationMs": 0,
+              "y": 0
+            }
+          ],
+          [
+            {
+              "durationMs": 0,
+              "y": 0
+            }
+          ]
+        ]
+      },
+      "scroll-restore-B": {
+        "median_ms": 81.8,
+        "request_counts": [
+          3,
+          3,
+          3
+        ],
+        "scroll_calls": [
+          [
+            {
+              "durationMs": 0,
+              "y": 294
+            }
+          ],
+          [
+            {
+              "durationMs": 0,
+              "y": 294
+            }
+          ],
+          [
+            {
+              "durationMs": 0,
+              "y": 294
+            }
+          ]
+        ]
+      },
+      "deep-link-B": {
+        "median_ms": 146.2,
+        "request_counts": [
+          5,
+          5,
+          5
+        ],
+        "scroll_calls": [
+          [],
+          [],
+          []
+        ]
+      }
+    }
+  },
+  "delta_bytes": 4281,
+  "code_sha": "22b7f66a55954287c5543b2ff7358fa88dca67d9",
+  "local_browser_counts": {
+    "chromium-iphone": 133,
+    "webkit-iphone": 133,
+    "chromium-393": 110,
+    "webkit-393": 110,
+    "chromium-wide": 23
+  }
+}
