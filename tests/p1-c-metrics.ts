@@ -48,7 +48,10 @@ for (let run = 0; run < 3; run += 1) {
     await measure("settings", () => page.getByRole("button", { name: "帳本設定", exact: true }).click(), () => expect(page.getByLabel("新增自訂分類")).toBeVisible());
     await page.getByRole("button", { name: "返回帳本", exact: true }).click();
     await page.evaluate(() => scrollTo(0, 500));
-    await switchLedger(page, A); await fixture.ready(); await page.waitForTimeout(200);
+    // Open without Playwright scrolling the offscreen header to the top first.
+    await page.getByRole("button", { name: "切換帳本", exact: true }).evaluate(element => (element as HTMLElement).click());
+    await page.getByRole("dialog").getByRole("combobox", { name: "切換帳本" }).selectOption(A);
+    await fixture.ready(); await page.waitForTimeout(200);
     await measure("scroll-restore-B", () => switchLedger(page, B), fixture.ready);
   }
   await measure("deep-link-B", () => page.goto(`/?v2Ledger=${B}`), () => expect(page.getByText("B 專屬車票", { exact: true })).toBeVisible());
