@@ -5,6 +5,8 @@ import { Button } from "@/components/ui/button";
 import { V2LedgerSwitcher } from "@/components/ledger/v2-ledger-switcher";
 import { Input } from "@/components/ui/input";
 import { V2LedgerHome, type SettingsLeaveGuard } from "@/components/ledger/v2-ledger-home";
+import { V2EntryControls } from "@/components/ledger/v2-entry-controls";
+import type { EntryControlSurface } from "@/components/ledger/v2-transaction-editor";
 import { LedgerSurfaceHost } from "@/components/ledger/ledger-surface-host";
 import { useV2Ledgers } from "@/hooks/use-v2-ledgers";
 import { useV2EntrySession } from "@/hooks/use-v2-entry-session";
@@ -50,7 +52,7 @@ export function V2LiffHome() {
   const [targetError, setTargetError] = React.useState<"ledger" | "transaction-scope" | null>(null);
   const scopeError = targetError ?? (v2.accessDenied && !v2.authError ? "ledger" : null);
   const [settingsGuard, setSettingsGuard] = React.useState<SettingsLeaveGuard | null>(null);
-  const [dialog, setDialog] = React.useState<"switcher" | "leave" | "create" | null>(null);
+  const [dialog, setDialog] = React.useState<"switcher" | "leave" | "create" | EntryControlSurface | null>(null);
   const [pending, setPending] = React.useState<Intent | null>(null);
   const pendingRef = React.useRef<Intent | null>(null);
   const [newLedgerName, setNewLedgerName] = React.useState("");
@@ -98,7 +100,7 @@ export function V2LiffHome() {
     if (intent.kind === "correction") {
       entry.openCorrection(intent.transaction, true);
       setDialog(null);
-      requestAnimationFrame(() => document.querySelector<HTMLElement>('[aria-label="金額（新台幣）"]')?.focus());
+      requestAnimationFrame(() => document.querySelector<HTMLElement>('[aria-label="金額，新臺幣"]')?.focus());
       return;
     }
     navigationGeneration.current += 1;
@@ -258,7 +260,7 @@ export function V2LiffHome() {
       pendingRef.current = null;
       setPending(null);
       returnFocus.current = editingField.current?.isConnected ? editingField.current : returnFocus.current ?? trigger.current;
-    } else returnFocus.current = trigger.current;
+    } else if (dialog !== "payer" && dialog !== "split") returnFocus.current = trigger.current;
     setDialog(null);
   }
   function openSurface(surface: V2Surface, transactionId: string | null = null) {
@@ -292,11 +294,13 @@ export function V2LiffHome() {
       <V2LedgerHome key={v2.activeLedgerId ?? "no-ledger"} user={v2.context.user} users={v2.context.users} today={v2.context.today}
         ledgers={v2.ledgers} activeLedgerId={v2.activeLedgerId} bootstrap={v2.bootstrap} error={v2.error} busy={v2.busy}
         reload={async () => v2.activeLedgerId ? v2.loadBootstrap(v2.activeLedgerId) : v2.loadLedgers()}
+        onOpenEntryControls={(surface, target) => { if (entry.locked) return; returnFocus.current = target; setDialog(surface); }}
         entry={entry} navigation={nav} onOpenSurface={openSurface} onCloseEntry={() => request({ kind: "close" })}
         onEdit={transaction => request({ kind: "correction", transaction })} onCreateLedger={() => request({ kind: "create" })} onSettingsLeaveChange={setSettingsGuard}
         onSearchChange={filters => { const next = { ...nav, filters }; setNav(next); writeUrl(next, "replace", history.state); }} />
     </>}
-    <LedgerSurfaceHost surface={dialog === "leave" ? `leave-${leaveRevision}` : dialog} title={dialog === "switcher" ? "切換帳本" : dialog === "create" ? "建立帳本" : leaveTitle} onCancel={() => cancelDialog()} returnFocus={() => returnFocus.current}>
+    <LedgerSurfaceHost surface={dialog === "leave" ? `leave-${leaveRevision}` : dialog} title={dialog === "switcher" ? "切換帳本" : dialog === "create" ? "建立帳本" : dialog === "payer" ? entry.draft?.type === "income" ? "選擇收款人" : entry.draft?.type === "transfer" ? "選擇發送人" : "選擇付款人" : dialog === "split" ? entry.draft?.type === "income" ? "款項分配" : "選擇分攤" : leaveTitle} onCancel={() => cancelDialog()} returnFocus={() => returnFocus.current}>
+      {(dialog === "payer" || dialog === "split") && entry.draft && v2.context.users.find(user => user.id !== v2.context!.user.id) ? <V2EntryControls key={`${entry.draft.id}-${dialog}`} surface={dialog} draft={entry.draft} user={v2.context.user} partner={v2.context.users.find(user => user.id !== v2.context!.user.id)!} locked={entry.locked} onCancel={() => cancelDialog()} onApply={patch => { entry.updateDraft(patch); setDialog(null); }} /> : null}
       {dialog === "switcher" || dialog === "leave" && destinationName ? <div className="space-y-3">
         <V2LedgerSwitcher ledgers={v2.ledgers} activeLedgerId={nav.ledgerId}
           selectedLedgerId={pending?.kind === "navigate" && pending.manual ? pending.nav.ledgerId : nav.ledgerId}

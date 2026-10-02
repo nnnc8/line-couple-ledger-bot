@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
-import { V2TransactionEditor } from "./v2-transaction-editor";
+import { V2TransactionEditor, type EntryControlSurface } from "./v2-transaction-editor";
 import { api, ApiError } from "@/lib/api";
 import { money } from "@/lib/format";
 import type { V2EntrySession } from "@/hooks/use-v2-entry-session";
@@ -32,6 +32,7 @@ interface V2LedgerHomeProps {
   onOpenSurface: (surface: V2Surface, transactionId?: string | null) => void;
   onSearchChange: (filters: SearchFilters) => void;
   onCloseEntry: () => void;
+  onOpenEntryControls: (surface: EntryControlSurface, trigger: HTMLElement) => void;
   onEdit: (transaction: V2LedgerBootstrap["transactions"][number]) => void;
   onCreateLedger: () => void;
   onSettingsLeaveChange: (guard: SettingsLeaveGuard | null) => void;
@@ -48,7 +49,7 @@ export function V2LedgerHome({
   busy,
   reload,
   entry,
-  navigation, onOpenSurface, onSearchChange, onCloseEntry, onEdit, onCreateLedger, onSettingsLeaveChange,
+  navigation, onOpenSurface, onSearchChange, onCloseEntry, onOpenEntryControls, onEdit, onCreateLedger, onSettingsLeaveChange,
 }: V2LedgerHomeProps) {
   const partner = users.find((candidate) => candidate.id !== user.id) ?? users[1];
   const errorScope = JSON.stringify([navigation.surface, navigation.proposalId, navigation.transactionId, navigation.filters]);
@@ -532,7 +533,9 @@ export function V2LedgerHome({
           busy={entry.write === "submitting" || saving || busy}
           locked={entry.locked}
           errorField={entry.field}
-          submitLabel={entry.draft.operationType === "replace" ? "儲存修改" : "儲存交易"}
+          serverError={entry.error}
+          scopeValid={Boolean(bootstrap && bootstrap.ledger.id === entry.draft.ledgerId && bootstrap.ledger.members.length === entry.draft.memberIds.length && bootstrap.ledger.status === "active" && entry.draft.actorUserId === user.id && entry.draft.coupleId === bootstrap.ledger.coupleId && entry.draft.memberIds.every((id, index) => id === bootstrap.ledger.members[index]?.userId))}
+          onOpenControls={onOpenEntryControls}
           onChange={entry.updateDraft}
           onCancel={onCloseEntry}
           onSubmit={async () => { await entry.submit(); if (mounted.current) setStatistics(null); }}

@@ -197,7 +197,7 @@ if (evidenceStage === "before" || evidenceStage === "after") {
     await measure("390-normal");
     await capture("home-390");
     await editor.screenshot({ path: `${directory}/transaction-form-390.png`, animations: "disabled" });
-    await page.getByText("更多設定", { exact: true }).click();
+    await page.getByText("更多", { exact: true }).click();
     await expect(page.getByLabel("交易類型")).toBeVisible();
     await editor.screenshot({ path: `${directory}/advanced-fields-390.png`, animations: "disabled" });
     await openSecondary(page, "settings");
@@ -216,8 +216,8 @@ if (evidenceStage === "before" || evidenceStage === "after") {
     await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
     await measure("393-200-percent-root-text-size");
     await capture("enlarged-text-393");
-    await page.getByRole("button", { name: "儲存交易" }).click();
-    await expect(page.locator('p[role="alert"]')).toBeVisible();
+    await expect(page.getByRole("button", { name: "加入" })).toBeDisabled();
+    await expect(page.locator("#entry-disabled-reason")).toContainText("請輸入");
     await capture("form-error-393");
     const controlsWithRequests = (page as typeof page & { __v2Controls?: { getRequestPaths: () => string[] } }).__v2Controls;
     measurements.push({ apiRequests: controlsWithRequests?.getRequestPaths() ?? [] });
@@ -226,7 +226,7 @@ if (evidenceStage === "before" || evidenceStage === "after") {
 }
 
 test("P1-A keeps the native transaction date fully readable at mobile widths and enlarged text", async ({ page, browserName }) => {
-  await page.getByText("更多設定", { exact: true }).click();
+  await page.getByText("更多", { exact: true }).click();
   const dateInput = page.getByLabel("交易日期");
   await expect(dateInput).toBeVisible();
   await expect(dateInput).toHaveAttribute("type", "date");
@@ -292,7 +292,7 @@ async function chooseLedger(page: Page, ledgerId: string) {
 }
 async function returnHome(page: Page) {
   await page.getByRole("button", { name: "返回帳本", exact: true }).click();
-  await expect(page.getByLabel("金額（新台幣）")).toBeVisible();
+  await expect(page.getByLabel("金額，新臺幣")).toBeVisible();
 }
 async function openSecondary(page: Page, surface: "stats" | "settings" | "recurring" | "search") {
   if (await page.getByRole("button", { name: "返回帳本", exact: true }).isVisible()) await returnHome(page);
@@ -355,7 +355,7 @@ test("P1-A restores zoom and keeps primary controls readable and tappable", asyn
   expect(createDimensions!.width).toBeGreaterThanOrEqual(44);
   await page.getByRole("dialog").getByRole("button", { name: "關閉視窗" }).click();
   await expect(page.getByLabel("重新整理帳本")).toBeVisible();
-  await expect(page.getByLabel("金額（新台幣）")).toBeVisible();
+  await expect(page.getByLabel("金額，新臺幣")).toBeVisible();
   await expect(page.getByLabel("用途")).toBeVisible();
   await expect(page.getByRole("heading", { name: "最近紀錄", exact: true })).toBeVisible();
 
@@ -367,9 +367,9 @@ test("P1-A restores zoom and keeps primary controls readable and tappable", asyn
       page.getByRole("button", { name: "切換帳本", exact: true }),
       page.getByRole("button", { name: "搜尋", exact: true }),
       page.getByLabel("重新整理帳本"),
-      page.getByLabel("金額（新台幣）"),
+      page.getByLabel("金額，新臺幣"),
       page.getByLabel("用途"),
-      page.getByRole("button", { name: "儲存交易" }),
+      page.getByRole("button", { name: "加入" }),
       page.getByRole("button", { name: "收支概況", exact: true }),
       page.getByRole("button", { name: "帳本設定", exact: true }),
     ];
@@ -381,7 +381,7 @@ test("P1-A restores zoom and keeps primary controls readable and tappable", asyn
     for (const { width } of dimensions.slice(0, 3)) expect(width).toBeGreaterThanOrEqual(44);
     for (const { fontSize } of dimensions.slice(3, 5)) expect(fontSize).toBeGreaterThanOrEqual(16);
 
-    await page.getByText("更多設定", { exact: true }).click();
+    await page.getByText("更多", { exact: true }).click();
     const advancedSelects = await page.locator("select:visible").evaluateAll((elements) => elements.map((element) => {
       const rect = element.getBoundingClientRect();
       return { height: rect.height, fontSize: Number.parseFloat(getComputedStyle(element).fontSize) };
@@ -391,7 +391,7 @@ test("P1-A restores zoom and keeps primary controls readable and tappable", asyn
       expect(height).toBeGreaterThanOrEqual(44);
       expect(fontSize).toBeGreaterThanOrEqual(16);
     }
-    await page.getByText("更多設定", { exact: true }).click();
+    await page.getByText("更多", { exact: true }).click();
   }
 
   await page.getByRole("button", { name: "切換帳本", exact: true }).click();
@@ -408,14 +408,14 @@ test("P1-A restores zoom and keeps primary controls readable and tappable", asyn
   const enlarged = await page.evaluate((expectedWidth) => ({
     expectedWidth,
     documentWidth: Math.max(document.documentElement.scrollWidth, document.body.scrollWidth),
-    amountFontSize: Number.parseFloat(getComputedStyle(document.querySelector<HTMLInputElement>('input[aria-label="金額（新台幣）"]')!).fontSize),
+    amountFontSize: Number.parseFloat(getComputedStyle(document.querySelector<HTMLInputElement>('input[aria-label="金額，新臺幣"]')!).fontSize),
   }), page.viewportSize()?.width ?? 0);
   expect(enlarged.documentWidth, JSON.stringify(enlarged)).toBeLessThanOrEqual(enlarged.expectedWidth);
   expect(enlarged.amountFontSize).toBeGreaterThanOrEqual(30);
 });
 
 test("P1-A keeps keyboard focus visible and honors reduced motion", async ({ page }) => {
-  await page.getByLabel("金額（新台幣）").focus();
+  await page.getByLabel("金額，新臺幣").focus();
   await page.keyboard.press("Tab");
   const focusStyle = await page.evaluate(() => {
     const element = document.activeElement as HTMLElement;
@@ -477,12 +477,12 @@ test("loads statistics and recurring rules only when their secondary UI is opene
 
 test("shows server-confirmed saving and success feedback without waiting for history reload", async ({ page }) => {
   controls(page).setPostMode("delay");
-  await page.getByLabel("金額（新台幣）").fill("100");
+  await page.getByLabel("金額，新臺幣").fill("100");
   await page.getByLabel("用途").fill("午餐");
-  const submit = page.getByRole("button", { name: "儲存交易" });
+  const submit = page.getByRole("button", { name: "加入" });
   await submit.click();
   await page.evaluate(() => {
-    document.querySelector<HTMLButtonElement>('button[type="submit"]')?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    document.querySelector<HTMLButtonElement>('[data-entry] form button:last-child')?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
   });
   await expect(page.getByRole("button", { name: /儲存中/ })).toBeDisabled();
   await expect.poll(() => controls(page).getPostRequests()).toBe(1);
@@ -492,33 +492,36 @@ test("shows server-confirmed saving and success feedback without waiting for his
   await expect(page.getByRole("heading", { name: "你目前多付" })).toBeVisible();
   await expect(page.getByText("NT$50", { exact: true }).first()).toBeVisible();
   await expect(page.getByText("下次建議由 另一半 付款", { exact: true })).toBeVisible();
-  await expect(page.getByLabel("金額（新台幣）")).toHaveValue("");
+  await expect(page.getByLabel("金額，新臺幣")).toHaveValue("");
   await expect(page.getByLabel("用途")).toHaveValue("");
   await expect(page.getByLabel("交易類型")).toHaveValue("expense");
-  await expect(page.getByLabel("分攤方式")).toHaveValue("weights");
+  await expect(page.getByText("本筆依開啟時的預設", { exact: true })).toBeVisible();
   expect(controls(page).getPostedBodies()[0]).toMatchObject({ type: "expense", amountTwd: "100", occurredOn: "2026-08-28", splitMethod: "weights", payments: [{ userId: OWNER, amountTwd: "100" }] });
 });
 
-test("keeps uncommon transaction choices behind more settings", async ({ page }) => {
+test("payer and split choices use the existing native host while low-frequency fields stay under More", async ({ page }) => {
   await expect(page.getByLabel("交易類型")).not.toBeVisible();
-  await expect(page.getByLabel("分攤方式")).not.toBeVisible();
-  await page.getByText("更多設定", { exact: true }).click();
-  await expect(page.getByLabel("交易類型")).toHaveValue("expense");
-  await page.getByLabel("付款人").first().selectOption("partner");
-  await expect(page.getByLabel("付款人").first()).toHaveValue("partner");
-  await page.getByLabel("付款人").first().selectOption("both");
-  await expect(page.getByLabel("你 金額").first()).toBeVisible();
-  await expect(page.getByLabel("另一半 金額").first()).toBeVisible();
-  await page.getByLabel("分攤方式").first().selectOption("percentage");
-  await expect(page.getByLabel("你 百分比").first()).toBeVisible();
-  await page.getByLabel("分攤方式").first().selectOption("exact");
-  await expect(page.getByLabel("你 分攤").first()).toBeVisible();
-  await page.getByLabel("交易類型").first().selectOption("income");
-  await expect(page.getByLabel("收款人").first()).toBeVisible();
-  await page.getByLabel("交易類型").first().selectOption("transfer");
-  await expect(page.getByLabel("發送人").first()).toBeVisible();
-  await expect(page.getByLabel("分攤方式").first()).not.toBeVisible();
-  await expect(page.getByText("轉帳會記錄發送人 → 接收人，不會出現支出分攤選項。")).toBeVisible();
+  await page.getByTestId("payer-summary").click();
+  await page.getByLabel("付款人", { exact: true }).selectOption("partner");
+  await page.getByRole("button", { name: "套用", exact: true }).click();
+  await expect(page.getByTestId("payer-summary")).toContainText("另一半付款");
+  await page.getByTestId("payer-summary").click();
+  await page.getByLabel("付款人", { exact: true }).selectOption("both");
+  await expect(page.getByLabel("你 金額")).toBeVisible();
+  await expect(page.getByLabel("另一半 金額")).toBeVisible();
+  await page.getByRole("dialog").getByRole("button", { name: "取消", exact: true }).click();
+  await page.getByTestId("split-summary").click();
+  await page.getByLabel("分攤方式").selectOption("percentage");
+  await expect(page.getByLabel("你 百分比")).toBeVisible();
+  await page.getByLabel("分攤方式").selectOption("exact");
+  await expect(page.getByLabel("你 分攤")).toBeVisible();
+  await page.getByRole("dialog").getByRole("button", { name: "取消", exact: true }).click();
+  await page.getByText("更多", { exact: true }).click();
+  await page.getByLabel("交易類型").selectOption("income");
+  await expect(page.getByTestId("payer-summary")).toContainText("另一半收款");
+  await page.getByLabel("交易類型").selectOption("transfer");
+  await expect(page.getByTestId("payer-summary")).toContainText("另一半 → 你");
+  await expect(page.getByTestId("split-summary")).toHaveCount(0);
 });
 
 test("uses continuous balance language for either payer and balanced state", async ({ page }) => {
@@ -533,16 +536,16 @@ test("uses continuous balance language for either payer and balanced state", asy
 });
 
 test("keeps the daily UI usable on a narrow mobile viewport", async ({ page }) => {
-  await expect(page.getByRole("button", { name: "儲存交易" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "加入" })).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   await page.screenshot({ path: "output/playwright/v2-visual/quick-entry.png", fullPage: true });
-  await page.getByText("更多設定", { exact: true }).click();
+  await page.getByText("更多", { exact: true }).click();
   await page.screenshot({ path: "output/playwright/v2-visual/advanced-entry.png", fullPage: true });
   await page.getByLabel("交易類型").first().selectOption("transfer");
   await expect(page.getByText("轉帳會記錄發送人 → 接收人，不會出現支出分攤選項。")).toBeVisible();
   await page.screenshot({ path: "output/playwright/v2-visual/transfer.png", fullPage: true });
   await page.getByLabel("交易類型").first().selectOption("expense");
-  await page.getByText("更多設定", { exact: true }).click();
+  await page.getByText("更多", { exact: true }).click();
   await openSecondary(page, "stats");
   await page.screenshot({ path: "output/playwright/v2-visual/statistics.png", fullPage: true });
   await openSecondary(page, "settings");
@@ -550,9 +553,9 @@ test("keeps the daily UI usable on a narrow mobile viewport", async ({ page }) =
 });
 
 test("keeps voided transactions distinct in the mobile history", async ({ page }) => {
-  await page.getByLabel("金額（新台幣）").fill("100");
+  await page.getByLabel("金額，新臺幣").fill("100");
   await page.getByLabel("用途").fill("午餐");
-  await page.getByRole("button", { name: "儲存交易" }).click();
+  await page.getByRole("button", { name: "加入" }).click();
   await expect(page.getByText("午餐", { exact: true }).last()).toBeVisible();
   await page.getByText("午餐", { exact: true }).last().click();
   await page.getByRole("button", { name: "作廢" }).click();
@@ -562,20 +565,20 @@ test("keeps voided transactions distinct in the mobile history", async ({ page }
 
 test("uses the canonical save response without reloading the Ledger", async ({ page }) => {
   controls(page).setFailRefresh(true);
-  await page.getByLabel("金額（新台幣）").fill("100");
+  await page.getByLabel("金額，新臺幣").fill("100");
   await page.getByLabel("用途").fill("午餐");
-  await page.getByRole("button", { name: "儲存交易" }).click();
+  await page.getByRole("button", { name: "加入" }).click();
   await expect(page.getByRole("status").filter({ hasText: "已加入午餐 NT$100" }).first()).toBeVisible();
   await expect.poll(() => controls(page).getRequestPaths().filter((path) => path === `GET /api/app/v2/ledgers/${LEDGER}/bootstrap`).length).toBe(1);
 });
 
 test("keeps the draft on a rejected POST and does not add a local row", async ({ page }) => {
   controls(page).setPostMode("failure");
-  await page.getByLabel("金額（新台幣）").fill("100");
+  await page.getByLabel("金額，新臺幣").fill("100");
   await page.getByLabel("用途").fill("午餐");
-  await page.getByRole("button", { name: "儲存交易" }).click();
+  await page.getByRole("button", { name: "加入" }).click();
   await expect(page.getByRole("alert").filter({ hasText: "交易格式錯誤" }).first()).toBeVisible();
-  await expect(page.getByLabel("金額（新台幣）")).toHaveValue("100");
+  await expect(page.getByLabel("金額，新臺幣")).toHaveValue("100");
   await expect(page.getByLabel("用途")).toHaveValue("午餐");
   await expect(page.getByText("已加入午餐 NT$100", { exact: true })).toHaveCount(0);
   await expect(page.getByText("午餐", { exact: true })).toHaveCount(0);
@@ -583,12 +586,12 @@ test("keeps the draft on a rejected POST and does not add a local row", async ({
 
 test("reuses the idempotency key on an unchanged retry", async ({ page }) => {
   controls(page).setPostMode("fail-once");
-  await page.getByLabel("金額（新台幣）").fill("100");
+  await page.getByLabel("金額，新臺幣").fill("100");
   await page.getByLabel("用途").fill("午餐");
-  await page.getByRole("button", { name: "儲存交易" }).click();
+  await page.getByRole("button", { name: "加入" }).click();
   await expect(page.getByRole("alert").filter({ hasText: "交易格式錯誤" }).first()).toBeVisible();
   controls(page).setPostMode("success");
-  await page.getByRole("button", { name: "儲存交易" }).click();
+  await page.getByRole("button", { name: "加入" }).click();
   await expect(page.getByRole("status").filter({ hasText: "已加入午餐 NT$100" }).first()).toBeVisible();
   const bodies = controls(page).getPostedBodies();
   expect(bodies).toHaveLength(2);
@@ -596,9 +599,9 @@ test("reuses the idempotency key on an unchanged retry", async ({ page }) => {
 });
 
 test("keeps a committed transaction out of a nonmatching search projection", async ({ page }) => {
-  await page.getByLabel("金額（新台幣）").fill("100");
+  await page.getByLabel("金額，新臺幣").fill("100");
   await page.getByLabel("用途").fill("午餐");
-  await page.getByRole("button", { name: "儲存交易" }).click();
+  await page.getByRole("button", { name: "加入" }).click();
   await expect(page.getByRole("status").filter({ hasText: "已加入午餐 NT$100" }).first()).toBeVisible();
   await openSecondary(page, "search");
   await page.getByLabel("搜尋紀錄").fill("晚餐");
@@ -639,7 +642,7 @@ test("V3-0 ignores reversed bootstrap responses after explicit draft discard", a
   await twoLedgers(page);
   const held: Route[] = [];
   await page.route(`**/api/app/v2/ledgers/${LEDGER}/bootstrap`, route => { held.push(route); });
-  await page.getByLabel("金額（新台幣）").fill("731");
+  await page.getByLabel("金額，新臺幣").fill("731");
   await page.getByLabel("用途").fill("A draft");
   await page.getByLabel("重新整理帳本").click();
   await expect.poll(() => held.length).toBe(1);
@@ -653,7 +656,7 @@ test("V3-0 ignores reversed bootstrap responses after explicit draft discard", a
   await expect(page.getByText("Scope B", { exact: true }).last()).toBeVisible();
   await returnHome(page);
   await expect(card).toContainText("Scope B");
-  await expect(page.getByLabel("金額（新台幣）")).toHaveValue("");
+  await expect(page.getByLabel("金額，新臺幣")).toHaveValue("");
   await expect(page.getByLabel("用途")).toHaveValue("");
   await page.screenshot({ path: "output/playwright/v3-0/ledger-scope.png", fullPage: true });
 });
@@ -671,7 +674,7 @@ test("V3-0 rapid A B A switches ignore the first A generation and stale errors",
   await held[1]!.fulfill({ json: scopeBootstrap(LEDGER, "NEW A") });
   await expect(page.locator('[style*="linear-gradient"]').first()).toContainText("NEW A");
   await releaseScopeResponse(page, held[0]!, { status: 503, json: { error: "STALE ERROR" } });
-  await page.getByLabel("金額（新台幣）").fill("12");
+  await page.getByLabel("金額，新臺幣").fill("12");
   await expect(page.getByText("STALE ERROR", { exact: true })).toHaveCount(0);
   await expect(page.locator('[style*="linear-gradient"]').first()).toContainText("NEW A");
 });
@@ -700,7 +703,7 @@ for (const endpoint of ["statistics", "categories", "recurring", "transactions"]
     await expect(page.getByText(/STALE/)).toHaveCount(0);
     await expect(page.getByLabel("STALE 分類名稱", { exact: true })).toHaveCount(0);
     await returnHome(page);
-    await page.getByLabel("金額（新台幣）").fill("12");
+    await page.getByLabel("金額，新臺幣").fill("12");
     await expect(page.locator('[style*="linear-gradient"]').first()).toContainText("Scope B");
   });
 }
@@ -734,9 +737,9 @@ test("V3-0 guards a late A save, then explicit discard cannot reuse A feedback o
     if (ledger === LEDGER) { held = route; return; }
     return route.fulfill({ status: 422, json: { error: "B rejection" } });
   });
-  await page.getByLabel("金額（新台幣）").fill("100");
+  await page.getByLabel("金額，新臺幣").fill("100");
   await page.getByLabel("用途").fill("late-A");
-  await page.getByRole("button", { name: "儲存交易" }).click();
+  await page.getByRole("button", { name: "加入" }).click();
   await expect.poll(() => Boolean(held)).toBe(true);
   await chooseLedger(page, SECOND_LEDGER);
   await expect.poll(() => new URL(page.url()).searchParams.get("v2Ledger")).toBe(LEDGER);
@@ -747,22 +750,22 @@ test("V3-0 guards a late A save, then explicit discard cannot reuse A feedback o
   await page.getByRole("dialog").getByRole("button", { name: "放棄並切換", exact: true }).click();
   await expect(page.locator('[style*="linear-gradient"]').first()).toContainText("Scope B");
   await expect(page.getByText("STALE SAVE ERROR", { exact: true })).toHaveCount(0);
-  await expect(page.getByLabel("金額（新台幣）")).toHaveValue("");
-  await page.getByLabel("金額（新台幣）").fill("100");
+  await expect(page.getByLabel("金額，新臺幣")).toHaveValue("");
+  await page.getByLabel("金額，新臺幣").fill("100");
   await page.getByLabel("用途").fill("late-A");
-  await page.getByRole("button", { name: "儲存交易" }).click();
+  await page.getByRole("button", { name: "加入" }).click();
   await expect(page.getByRole("alert").filter({ hasText: "B rejection" }).first()).toBeVisible();
   expect(requests.map(request => request.ledger)).toEqual([LEDGER, SECOND_LEDGER]);
   expect(requests[0]!.body.idempotencyKey).not.toBe(requests[1]!.body.idempotencyKey);
 });
 
 if (process.env.P1B_MEASURE_STAGE) test("P1-B normal create performance sample", async ({ page }, testInfo) => {
-  await page.getByLabel("金額（新台幣）").fill("100");
+  await page.getByLabel("金額，新臺幣").fill("100");
   await page.getByLabel("用途").fill("午餐");
   const before = controls(page).getRequestPaths().length;
   let responseAt = 0;
   page.on("response", response => { if (response.request().method() === "POST" && response.url().endsWith("/transactions")) responseAt = performance.now(); });
-  await page.getByRole("button", { name: "儲存交易" }).click();
+  await page.getByRole("button", { name: "加入" }).click();
   await expect(page.getByText("午餐", { exact: true }).last()).toBeVisible();
   const visibleAt = performance.now();
   const result = { stage: process.env.P1B_MEASURE_STAGE, project: testInfo.project.name, requests: controls(page).getRequestPaths().slice(before), responseToVisibleUpperBoundMs: visibleAt - responseAt };

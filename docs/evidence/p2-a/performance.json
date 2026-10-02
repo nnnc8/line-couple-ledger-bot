@@ -1,0 +1,82 @@
+{
+  "baseline": {
+    "sha": "18b64b168ee1afcfc2799f112536c0efbfdea7fe",
+    "method": "Deduplicated rootMainFiles + /page entryJSFiles, gzip level 9 per initial chunk",
+    "chunks": [
+      {
+        "path": "static/chunks/3_2gnfsz1jqfz.js",
+        "gzip": 7673
+      },
+      {
+        "path": "static/chunks/12dp50a39vrlh.js",
+        "gzip": 49052
+      },
+      {
+        "path": "static/chunks/17gauw-xhye62.js",
+        "gzip": 70529
+      },
+      {
+        "path": "static/chunks/turbopack-2285bbhngeq-u.js",
+        "gzip": 4140
+      },
+      {
+        "path": "static/chunks/0jds67wmtbffo.js",
+        "gzip": 904
+      },
+      {
+        "path": "static/chunks/3nn_ivyly2ig6.js",
+        "gzip": 13758
+      },
+      {
+        "path": "static/chunks/1wvrx_hlsfauw.js",
+        "gzip": 11747
+      },
+      {
+        "path": "static/chunks/3z2nh6xjlwq0w.js",
+        "gzip": 33421
+      }
+    ],
+    "gzip": 191224
+  },
+  "candidate": {
+    "method": "Deduplicated rootMainFiles + /page entryJSFiles, gzip level 9 per initial chunk",
+    "chunks": [
+      {
+        "path": "static/chunks/3_2gnfsz1jqfz.js",
+        "gzip": 7673
+      },
+      {
+        "path": "static/chunks/12dp50a39vrlh.js",
+        "gzip": 49052
+      },
+      {
+        "path": "static/chunks/17gauw-xhye62.js",
+        "gzip": 70529
+      },
+      {
+        "path": "static/chunks/turbopack-2285bbhngeq-u.js",
+        "gzip": 4140
+      },
+      {
+        "path": "static/chunks/0jds67wmtbffo.js",
+        "gzip": 904
+      },
+      {
+        "path": "static/chunks/3nn_ivyly2ig6.js",
+        "gzip": 13758
+      },
+      {
+        "path": "static/chunks/1wvrx_hlsfauw.js",
+        "gzip": 11747
+      },
+      {
+        "path": "static/chunks/2m25du8slapk5.js",
+        "gzip": 36501
+      }
+    ],
+    "gzip": 194304
+  },
+  "incrementalGzipBytes": 3080,
+  "runtimeDependenciesAdded": 0,
+  "environment": "Node 22.23.1 / pnpm 11.1.2, same CI stub environment, next build, gzip level 9"
+}

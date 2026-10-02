@@ -2,7 +2,7 @@ import { defineConfig, devices } from "@playwright/test";
 
 export default defineConfig({
   testDir: "./tests",
-  testMatch: /(?:v2-liff|p1-b-entry|p1-c-navigation|p1-c-races)\.spec\.ts/,
+  testMatch: /(?:v2-liff|p1-b-entry|p1-c-navigation|p1-c-races|p2-a-entry)\.spec\.ts/,
   outputDir: "output/playwright/results",
   reporter: "line",
   use: {
@@ -12,10 +12,10 @@ export default defineConfig({
     trace: "retain-on-failure",
   },
   projects: [
-    { name: "chromium-iphone", use: { ...devices["iPhone 13"], browserName: "chromium" } },
-    { name: "webkit-iphone", use: { ...devices["iPhone 13"], browserName: "webkit" } },
-    { name: "chromium-393", testMatch: /(?:p1-b-entry|p1-c-navigation|p1-c-races)\.spec\.ts/, use: { ...devices["iPhone 13"], browserName: "chromium", viewport: { width: 393, height: 852 } } },
-    { name: "webkit-393", testMatch: /(?:p1-b-entry|p1-c-navigation|p1-c-races)\.spec\.ts/, use: { ...devices["iPhone 13"], browserName: "webkit", viewport: { width: 393, height: 852 } } },
+    { name: "chromium-iphone", use: { ...devices["iPhone 13"], browserName: "chromium", viewport: { width: 390, height: 844 } } },
+    { name: "webkit-iphone", use: { ...devices["iPhone 13"], browserName: "webkit", viewport: { width: 390, height: 844 } } },
+    { name: "chromium-393", testMatch: /(?:p1-b-entry|p1-c-navigation|p1-c-races|p2-a-entry)\.spec\.ts/, use: { ...devices["iPhone 13"], browserName: "chromium", viewport: { width: 393, height: 852 } } },
+    { name: "webkit-393", testMatch: /(?:p1-b-entry|p1-c-navigation|p1-c-races|p2-a-entry)\.spec\.ts/, use: { ...devices["iPhone 13"], browserName: "webkit", viewport: { width: 393, height: 852 } } },
     { name: "chromium-wide", testMatch: /v2-liff\.spec\.ts/, use: { browserName: "chromium", viewport: { width: 430, height: 932 } } },
   ],
   webServer: {

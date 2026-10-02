@@ -79,7 +79,7 @@ for (const endpoint of ["categories", "recurring", "statistics", "history"] as c
     if (endpoint === "statistics") await page.getByRole("button", { name: "收支概況", exact: true }).click();
     if (endpoint === "history") { await page.getByRole("button", { name: "搜尋", exact: true }).click(); await page.getByLabel("搜尋紀錄").fill("A"); }
     await expect.poll(() => reads).toBeGreaterThanOrEqual(2);
-    if (endpoint === "categories") { await page.getByText("更多設定", { exact: true }).click(); await expect(page.getByLabel("分類", { exact: true }).locator("option", { hasText: "CURRENT A" })).toHaveCount(1); }
+    if (endpoint === "categories") { await page.getByText("更多", { exact: true }).click(); await expect(page.getByLabel("分類", { exact: true }).locator("option", { hasText: "CURRENT A" })).toHaveCount(1); }
     else await expect(page.getByText(/CURRENT A/).first()).toBeVisible();
     hold.release(); await page.waitForTimeout(100);
     await expect(page.getByText(/STALE A/)).toHaveCount(0);
@@ -123,8 +123,8 @@ for (const mode of ["delay", "drop"] as const) test(`popstate while ${mode === "
   const fixture = await navigationBrowser(page); await fixture.goto(home(B)); await fixture.ready();
   await page.evaluate(url => history.pushState({}, "", url), home()); await fixture.ready();
   fixture.state.mode = mode;
-  await page.getByLabel("金額（新台幣）").fill("681"); await page.getByLabel("用途", { exact: true }).fill("受保護的操作");
-  await page.getByRole("button", { name: "儲存交易" }).click(); await expect.poll(() => fixture.state.posts.length).toBe(1);
+  await page.getByLabel("金額，新臺幣").fill("681"); await page.getByLabel("用途", { exact: true }).fill("受保護的操作");
+  await page.getByRole("button", { name: "加入" }).click(); await expect.poll(() => fixture.state.posts.length).toBe(1);
   if (mode === "drop") await expect(page.locator("[data-write-outcome]")).toContainText("尚未確認");
   const before = fixture.state.requests.length;
   await page.evaluate(() => history.back()); await expect(page.getByRole("dialog")).toContainText(mode === "delay" ? "完成後才能切換" : "結果還沒確認");
@@ -143,7 +143,7 @@ test("late refresh and background resume do not steal editing focus", async ({ p
   await expect.poll(() => fixture.state.requests.filter(item => item.path.endsWith("/bootstrap")).length).toBe(2);
   const field = page.getByLabel("用途", { exact: true }); await field.fill("保持編輯位置");
   await page.evaluate(() => { document.dispatchEvent(new Event("visibilitychange")); window.dispatchEvent(new Event("focus")); });
-  hold.release(); await expect(page.getByRole("button", { name: "儲存交易" })).toBeEnabled();
+  hold.release(); await expect(page.getByLabel("金額，新臺幣")).toBeEnabled(); await expect(page.getByRole("button", { name: "加入" })).toBeDisabled();
   await expect(field).toBeFocused(); await expect(field).toHaveValue("保持編輯位置");
 });
 

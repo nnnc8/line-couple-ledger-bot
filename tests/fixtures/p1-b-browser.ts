@@ -7,10 +7,10 @@ export const LEDGER = "00000000-0000-4000-8000-000000000010", OTHER = "00000000-
 type Mode = "normal" | "drop" | "malformed" | "partial" | "reject" | "unauthorized" | "wrong-scope" | "delay";
 type Receipt = V2CreateTransactionResult & { replacedTransactionId?: string; version?: number };
 
-export async function entryBrowser(page: Page) {
+export async function entryBrowser(page: Page, options: { actor?: string; weights?: Record<string, string>; rows?: V2LedgerTransaction[] } = {}) {
   const state = {
-    actor: OWNER, coupleId: 1, mode: "normal" as Mode, failRead: false, version: 1,
-    weights: { [OWNER]: "1", [PARTNER]: "1" }, rows: [] as V2LedgerTransaction[],
+    actor: options.actor ?? OWNER, coupleId: 1, mode: "normal" as Mode, failRead: false, version: 1,
+    weights: options.weights ?? { [OWNER]: "1", [PARTNER]: "1" }, rows: options.rows ?? [] as V2LedgerTransaction[],
     requests: [] as string[], posts: [] as Array<{ endpoint: string; body: Record<string, unknown>; bytes: string; key: string | undefined; recovery: string | null }>,
     receipts: new Map<string, { body: string; response: Receipt }>(), effects: 0,
     release: null as (() => void) | null,
@@ -72,11 +72,11 @@ export async function entryBrowser(page: Page) {
   await page.route("**/api/app/v2/ledgers/*/transactions*", route => post(route, false));
   await page.route("**/api/app/v2/transactions/*/mutate", route => post(route, true));
   await page.goto("/");
-  await expect(page.getByLabel("金額（新台幣）")).toBeVisible();
+  await expect(page.getByLabel("金額，新臺幣")).toBeVisible();
   return { state, snapshot };
 }
 
 export async function fillEntry(page: Page, description = "晚餐", amount = "681") {
-  await page.getByLabel("金額（新台幣）").fill(amount);
+  await page.getByLabel("金額，新臺幣").fill(amount);
   await page.getByLabel("用途", { exact: true }).fill(description);
 }
