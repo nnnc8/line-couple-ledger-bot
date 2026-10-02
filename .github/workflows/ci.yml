@@ -102,6 +102,17 @@ jobs:
           retention-days: 14
           if-no-files-found: error
 
+      - name: Preserve P2-B identity and creation evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: p2-b-browser-evidence
+          path: |
+            output/playwright/p2-b/
+            output/playwright/results/
+          retention-days: 14
+          if-no-files-found: error
+
       - name: Build
         run: pnpm build
         env:

@@ -34,7 +34,7 @@ interface V2LedgerHomeProps {
   onCloseEntry: () => void;
   onOpenEntryControls: (surface: EntryControlSurface, trigger: HTMLElement) => void;
   onEdit: (transaction: V2LedgerBootstrap["transactions"][number]) => void;
-  onCreateLedger: () => void;
+  onCreateLedger: (trigger: HTMLElement) => void;
   onSettingsLeaveChange: (guard: SettingsLeaveGuard | null) => void;
 }
 
@@ -316,8 +316,8 @@ export function V2LedgerHome({
   if (!partner || !bootstrap) {
     return (
       <div className="space-y-3 pt-1">
-      {!activeLedgerId && !ledgers.length ? <Button onClick={onCreateLedger}>建立帳本</Button> : null}
-        <Card className="p-4 text-sm text-[var(--muted-foreground)]">{error || "正在載入帳本…"}{error ? <Button className="mt-2" variant="outline" size="sm" onClick={() => void reload().catch(() => undefined)}>重新讀取</Button> : null}</Card>
+        {!activeLedgerId && !ledgers.some(ledger => ledger.status === "active") ? <Card className="space-y-3 p-4"><h2 className="font-bold">還沒有帳本</h2><p>建立一本帳本，開始一起記錄生活。</p><Button onClick={event => onCreateLedger(event.currentTarget)}>建立帳本</Button></Card>
+          : <Card className="p-4 text-sm text-[var(--muted-foreground)]">{error || "正在載入帳本…"}{error ? <Button className="mt-2" variant="outline" size="sm" onClick={() => void reload().catch(() => undefined)}>重新讀取</Button> : null}</Card>}
         <EntryStatus entry={entry} ledgerId={activeLedgerId} />
       </div>
     );

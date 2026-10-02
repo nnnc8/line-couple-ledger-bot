@@ -287,8 +287,8 @@ test("P1-A keeps the native transaction date fully readable at mobile widths and
 });
 
 async function chooseLedger(page: Page, ledgerId: string) {
-  await page.getByRole("button", { name: "切換帳本", exact: true }).click();
-  await page.getByRole("dialog").getByRole("combobox", { name: "切換帳本", exact: true }).selectOption(ledgerId);
+  await page.getByTestId("ledger-name-trigger").click();
+  await page.getByRole("dialog").locator(`[data-ledger-option="${ledgerId}"]`).click();
 }
 async function returnHome(page: Page) {
   await page.getByRole("button", { name: "返回帳本", exact: true }).click();
@@ -346,8 +346,8 @@ test("P1-A restores zoom and keeps primary controls readable and tappable", asyn
   if (textSizeAdjust.supported) expect(textSizeAdjust.value).toBe("auto");
 
   await expect(page.getByTestId("surface-heading")).toContainText("共同生活");
-  await expect(page.getByRole("button", { name: "切換帳本", exact: true })).toBeVisible();
-  await page.getByRole("button", { name: "切換帳本", exact: true }).click();
+  await expect(page.getByTestId("ledger-name-trigger")).toBeVisible();
+  await page.getByTestId("ledger-name-trigger").click();
   const createLedger = page.getByRole("dialog").getByRole("button", { name: "建立帳本", exact: true });
   await expect(createLedger).toBeVisible();
   const createDimensions = await createLedger.boundingBox();
@@ -364,7 +364,7 @@ test("P1-A restores zoom and keeps primary controls readable and tappable", asyn
     const overflow = await horizontalOverflow(page);
     expect(overflow.documentWidth, JSON.stringify(overflow)).toBeLessThanOrEqual(overflow.expectedWidth);
     const controlsToMeasure = [
-      page.getByRole("button", { name: "切換帳本", exact: true }),
+      page.getByTestId("ledger-name-trigger"),
       page.getByRole("button", { name: "搜尋", exact: true }),
       page.getByLabel("重新整理帳本"),
       page.getByLabel("金額，新臺幣"),
@@ -394,9 +394,11 @@ test("P1-A restores zoom and keeps primary controls readable and tappable", asyn
     await page.getByText("更多", { exact: true }).click();
   }
 
-  await page.getByRole("button", { name: "切換帳本", exact: true }).click();
+  await page.getByTestId("ledger-name-trigger").click();
   await page.getByRole("dialog").getByRole("button", { name: "建立帳本", exact: true }).click();
   await expect(page.getByRole("textbox", { name: "新帳本名稱" })).toBeVisible();
+  await page.getByRole("dialog").getByRole("button", { name: "關閉視窗" }).click();
+  await expect(page.getByRole("dialog")).toHaveAccessibleName("切換帳本");
   await page.getByRole("dialog").getByRole("button", { name: "關閉視窗" }).click();
   await page.setViewportSize({ width: 393, height: 852 });
   await openSecondary(page, "settings");

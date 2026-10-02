@@ -13,6 +13,7 @@ type Hold = { release: () => void; promise: Promise<void> };
 export function deferred(): Hold { let release!: () => void; const promise = new Promise<void>(resolve => { release = resolve; }); return { release, promise }; }
 export async function navigationBrowser(page: Page, { holdLiffInit = false } = {}) {
   const state = {
+    names: { ...names }, createFailure: false, createHold: null as Hold | null,
     rows: [row(A, TA, "A 專屬晚餐"), row(B, TB, "B 專屬車票")], ledgerIds: [A, B, C], defaultId: A, version: 1,
     requests: [] as { method: string; path: string; at: number; finishedAt?: number }[],
     posts: [] as { endpoint: string; bytes: string; body: Record<string, unknown>; key?: string }[],
@@ -22,7 +23,7 @@ export async function navigationBrowser(page: Page, { holdLiffInit = false } = {
   };
   const snapshot = (ledgerId: string): V2LedgerBootstrap => {
     const transactions = state.rows.filter(item => item.ledgerId === ledgerId), balance = calculateLedgerBalance(transactions, { ledgerId, memberIds: [OWNER, PARTNER] }), next = recommendNextPayer(balance, [OWNER, PARTNER]);
-    return JSON.parse(JSON.stringify({ ledger: { id: ledgerId, name: names[ledgerId], color: "#173B63", status: "active", activeForUser: ledgerId === state.defaultId, version: state.version, createdAt: "2026-09-25T00:00:00Z", updatedAt: "2026-09-25T00:00:00Z", coupleId: 1, members: [{ userId: OWNER, role: "owner" }, { userId: PARTNER, role: "partner" }], defaultShares: { [OWNER]: "1", [PARTNER]: "1" } }, transactions, balance: Object.fromEntries(Object.entries(balance).map(([id, amount]) => [id, String(amount)])), nextPayer: next ? { ...next, amountTwd: String(next.amountTwd) } : null }));
+    return JSON.parse(JSON.stringify({ ledger: { id: ledgerId, name: state.names[ledgerId], color: "#173B63", status: "active", activeForUser: ledgerId === state.defaultId, version: state.version, createdAt: "2026-09-25T00:00:00Z", updatedAt: "2026-09-25T00:00:00Z", coupleId: 1, members: [{ userId: OWNER, role: "owner" }, { userId: PARTNER, role: "partner" }], defaultShares: { [OWNER]: "1", [PARTNER]: "1" } }, transactions, balance: Object.fromEntries(Object.entries(balance).map(([id, amount]) => [id, String(amount)])), nextPayer: next ? { ...next, amountTwd: String(next.amountTwd) } : null }));
   };
   await page.addInitScript(({ holdLiffInit }) => {
     Object.assign(window, { releaseLiff: null, liff: {
@@ -37,11 +38,19 @@ export async function navigationBrowser(page: Page, { holdLiffInit = false } = {
   page.on("requestfailed", request => { const item = trace.get(request); if (item) item.finishedAt = performance.now(); });
   await page.route("**/api/app/session", route => route.fulfill({ json: { ok: true } }));
   await page.route("**/api/app/v2/context", route => route.fulfill({ json: { today: "2026-09-25", user: { id: OWNER, label: "你", role: "owner" }, users: [{ id: OWNER, label: "你", role: "owner" }, { id: PARTNER, label: "另一半", role: "partner" }] } }));
-  await page.route("**/api/app/v2/ledgers", route => route.fulfill({ json: { ledgers: state.ledgerIds.map(id => snapshot(id).ledger) } }));
+  await page.route("**/api/app/v2/ledgers", async route => {
+    if (route.request().method() !== "POST") return route.fulfill({ json: { ledgers: state.ledgerIds.map(id => snapshot(id).ledger) } });
+    if (state.createHold) await state.createHold.promise;
+    if (state.createFailure) return route.fulfill({ status: 500, json: { error: "帳本暫時無法建立" } });
+    const id = "00000000-0000-4000-8000-000000000040";
+    state.names[id] = route.request().postDataJSON().name;
+    state.ledgerIds.push(id); state.defaultId = id;
+    return route.fulfill({ status: 201, json: { ledger: snapshot(id).ledger } });
+  });
   await page.route("**/api/app/v2/ledgers/*/bootstrap", async route => {
     const id = new URL(route.request().url()).pathname.split("/")[5]!, captured = snapshot(id), failure = state.failReads.get(id), hold = state.holdReads.get(id);
     if (hold) await hold.promise;
-    return failure ? route.fulfill({ status: failure, json: { error: `${names[id]} fixture read failure` } }) : route.fulfill({ json: captured });
+    return failure ? route.fulfill({ status: failure, json: { error: `${state.names[id]} fixture read failure` } }) : route.fulfill({ json: captured });
   });
   await page.route("**/api/app/v2/ledgers/*/activate", async route => {
     const id = new URL(route.request().url()).pathname.split("/")[5]!, failure = state.failActivations.has(id), hold = state.holdActivations.get(id);
@@ -52,7 +61,7 @@ export async function navigationBrowser(page: Page, { holdLiffInit = false } = {
   for (const kind of ["categories", "recurring", "statistics"]) await page.route(`**/api/app/v2/ledgers/*/${kind}`, async route => {
     const id = new URL(route.request().url()).pathname.split("/")[5]!, key = `${id}/${kind}`, hold = state.holdSecondary.get(key), failed = state.secondaryFailures.has(key);
     if (hold) await hold.promise;
-    if (failed) return route.fulfill({ status: 500, json: { error: `stale ${names[id]} ${kind}` } });
+    if (failed) return route.fulfill({ status: 500, json: { error: `stale ${state.names[id]} ${kind}` } });
     return route.fulfill({ json: kind === "statistics" ? { byType: { expense: id === A ? "200" : "300" }, byCategory: {}, paidBy: {}, borneBy: {} } : { [kind]: [] } });
   });
   await page.route("**/api/app/v2/transactions/*/attachments", route => route.fulfill({ json: { attachments: [] } }));
@@ -80,5 +89,5 @@ export async function navigationBrowser(page: Page, { holdLiffInit = false } = {
   });
   return { state, snapshot, goto: async (path = "/") => { await page.goto(path); }, ready: async () => { await expect(page.getByLabel("金額，新臺幣")).toBeVisible(); } };
 }
-export async function switchLedger(page: Page, id: string) { await page.getByRole("button", { name: "切換帳本", exact: true }).click(); await page.getByRole("dialog").getByRole("combobox", { name: "切換帳本", exact: true }).selectOption(id); }
+export async function switchLedger(page: Page, id: string) { await page.getByTestId("ledger-name-trigger").click(); await page.getByRole("dialog").locator(`[data-ledger-option="${id}"]`).click(); }
 export const activationRequests = (state: Awaited<ReturnType<typeof navigationBrowser>>["state"]) => state.requests.filter(item => item.method === "POST" && item.path.endsWith("/activate"));

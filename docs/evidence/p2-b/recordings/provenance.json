@@ -1,0 +1,30 @@
+[
+  {
+    "scenario": "switch-A-B-A",
+    "project": "chromium-iphone",
+    "source": "output/playwright/results/p2-b-identity-name-is-the--e8d24--B-A-reuses-canonical-scope-chromium-iphone/video.webm",
+    "target": "switch-A-B-A-chromium-iphone.webm",
+    "origin": "final local full regression run with P1B_MEASURE_STAGE=after; browser API fixtures, no real account writes"
+  },
+  {
+    "scenario": "switch-A-B-A",
+    "project": "webkit-iphone",
+    "source": "output/playwright/results/p2-b-identity-name-is-the--e8d24--B-A-reuses-canonical-scope-webkit-iphone/video.webm",
+    "target": "switch-A-B-A-webkit-iphone.webm",
+    "origin": "final local full regression run with P1B_MEASURE_STAGE=after; browser API fixtures, no real account writes"
+  },
+  {
+    "scenario": "preference-failure",
+    "project": "chromium-iphone",
+    "source": "output/playwright/results/p2-b-identity-activation-s-91ef7-ed-while-B-remains-readable-chromium-iphone/video.webm",
+    "target": "preference-failure-chromium-iphone.webm",
+    "origin": "final local full regression run with P1B_MEASURE_STAGE=after; browser API fixtures, no real account writes"
+  },
+  {
+    "scenario": "preference-failure",
+    "project": "webkit-iphone",
+    "source": "output/playwright/results/p2-b-identity-activation-s-91ef7-ed-while-B-remains-readable-webkit-iphone/video.webm",
+    "target": "preference-failure-webkit-iphone.webm",
+    "origin": "final local full regression run with P1B_MEASURE_STAGE=after; browser API fixtures, no real account writes"
+  }
+]

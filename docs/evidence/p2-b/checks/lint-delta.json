@@ -1,0 +1,12 @@
+{
+  "baseline": {
+    "errors": 280,
+    "warnings": 37
+  },
+  "candidate": {
+    "errors": 280,
+    "warnings": 37
+  },
+  "newFindings": [],
+  "resolvedFindings": []
+}

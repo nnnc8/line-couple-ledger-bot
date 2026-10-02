@@ -1,0 +1,88 @@
+
+[WebServer] (node:1513) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `pnpm --trace-warnings ...` to show where the warning was created)
+
+[WebServer] (node:1521) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+[WebServer] (node:1534) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+[WebServer] (node:1542) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 56 tests using 2 workers
+
+
+(node:1543) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+(node:1544) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+[1/56] [webkit-iphone] › tests/p2-b-identity.spec.ts:22:5 › name is the single Home identity; switch A B A reuses canonical scope
+[2/56] [chromium-iphone] › tests/p2-b-identity.spec.ts:22:5 › name is the single Home identity; switch A B A reuses canonical scope
+[3/56] [chromium-iphone] › tests/p2-b-identity.spec.ts:52:5 › deep-link viewed B and LINE default A remain distinct and selected is announced
+[4/56] [chromium-iphone] › tests/p2-b-identity.spec.ts:65:5 › activation syncing and failure stay bounded while B remains readable
+[5/56] [webkit-iphone] › tests/p2-b-identity.spec.ts:52:5 › deep-link viewed B and LINE default A remain distinct and selected is announced
+[6/56] [chromium-iphone] › tests/p2-b-identity.spec.ts:87:39 › 40 character identities stay complete and wrap at 100% text
+[7/56] [webkit-iphone] › tests/p2-b-identity.spec.ts:65:5 › activation syncing and failure stay bounded while B remains readable
+[8/56] [chromium-iphone] › tests/p2-b-identity.spec.ts:87:39 › 40 character identities stay complete and wrap at 200% text
+[9/56] [webkit-iphone] › tests/p2-b-identity.spec.ts:87:39 › 40 character identities stay complete and wrap at 100% text
+[10/56] [webkit-iphone] › tests/p2-b-identity.spec.ts:87:39 › 40 character identities stay complete and wrap at 200% text
+[11/56] [chromium-iphone] › tests/p2-b-identity.spec.ts:115:5 › 40 unbroken Latin characters wrap without horizontal scroll at 200%
+[12/56] [chromium-iphone] › tests/p2-b-identity.spec.ts:125:5 › keyboard enters titled dialog, moves options without writes, selects and returns focus
+[13/56] [webkit-iphone] › tests/p2-b-identity.spec.ts:115:5 › 40 unbroken Latin characters wrap without horizontal scroll at 200%
+[14/56] [chromium-iphone] › tests/p2-b-identity.spec.ts:148:5 › create cancel returns to the same switcher and never changes scope or history
+[15/56] [webkit-iphone] › tests/p2-b-identity.spec.ts:125:5 › keyboard enters titled dialog, moves options without writes, selects and returns focus
+[16/56] [chromium-iphone] › tests/p2-b-identity.spec.ts:168:40 › create success accepts new name and scope from switcher
+[17/56] [chromium-iphone] › tests/p2-b-identity.spec.ts:168:40 › create success accepts new name and scope from empty list
+[18/56] [webkit-iphone] › tests/p2-b-identity.spec.ts:148:5 › create cancel returns to the same switcher and never changes scope or history
+[19/56] [chromium-iphone] › tests/p2-b-identity.spec.ts:189:5 › empty list cancel returns to one clear create entry
+[20/56] [webkit-iphone] › tests/p2-b-identity.spec.ts:168:40 › create success accepts new name and scope from switcher
+[21/56] [chromium-iphone] › tests/p2-b-identity.spec.ts:202:5 › archived-only list has no broken identity trigger
+[22/56] [chromium-iphone] › tests/p2-b-identity.spec.ts:210:5 › create rejection preserves name and scope; cancelled retry writes nothing
+[23/56] [webkit-iphone] › tests/p2-b-identity.spec.ts:168:40 › create success accepts new name and scope from empty list
+[24/56] [chromium-iphone] › tests/p2-b-identity.spec.ts:223:5 › create is single flight and keeps its only dialog until response
+[25/56] [webkit-iphone] › tests/p2-b-identity.spec.ts:189:5 › empty list cancel returns to one clear create entry
+[26/56] [webkit-iphone] › tests/p2-b-identity.spec.ts:202:5 › archived-only list has no broken identity trigger
+
+(node:1967) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+[27/56] [chromium-393] › tests/p2-b-identity.spec.ts:22:5 › name is the single Home identity; switch A B A reuses canonical scope
+[28/56] [webkit-iphone] › tests/p2-b-identity.spec.ts:210:5 › create rejection preserves name and scope; cancelled retry writes nothing
+[29/56] [webkit-iphone] › tests/p2-b-identity.spec.ts:223:5 › create is single flight and keeps its only dialog until response
+[30/56] [chromium-393] › tests/p2-b-identity.spec.ts:52:5 › deep-link viewed B and LINE default A remain distinct and selected is announced
+[31/56] [chromium-393] › tests/p2-b-identity.spec.ts:65:5 › activation syncing and failure stay bounded while B remains readable
+
+(node:2056) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+[32/56] [webkit-393] › tests/p2-b-identity.spec.ts:22:5 › name is the single Home identity; switch A B A reuses canonical scope
+[33/56] [chromium-393] › tests/p2-b-identity.spec.ts:87:39 › 40 character identities stay complete and wrap at 100% text
+[34/56] [chromium-393] › tests/p2-b-identity.spec.ts:87:39 › 40 character identities stay complete and wrap at 200% text
+[35/56] [webkit-393] › tests/p2-b-identity.spec.ts:52:5 › deep-link viewed B and LINE default A remain distinct and selected is announced
+[36/56] [chromium-393] › tests/p2-b-identity.spec.ts:115:5 › 40 unbroken Latin characters wrap without horizontal scroll at 200%
+[37/56] [webkit-393] › tests/p2-b-identity.spec.ts:65:5 › activation syncing and failure stay bounded while B remains readable
+[38/56] [chromium-393] › tests/p2-b-identity.spec.ts:125:5 › keyboard enters titled dialog, moves options without writes, selects and returns focus
+[39/56] [webkit-393] › tests/p2-b-identity.spec.ts:87:39 › 40 character identities stay complete and wrap at 100% text
+[40/56] [chromium-393] › tests/p2-b-identity.spec.ts:148:5 › create cancel returns to the same switcher and never changes scope or history
+[41/56] [webkit-393] › tests/p2-b-identity.spec.ts:87:39 › 40 character identities stay complete and wrap at 200% text
+[42/56] [chromium-393] › tests/p2-b-identity.spec.ts:168:40 › create success accepts new name and scope from switcher
+[43/56] [chromium-393] › tests/p2-b-identity.spec.ts:168:40 › create success accepts new name and scope from empty list
+[44/56] [webkit-393] › tests/p2-b-identity.spec.ts:115:5 › 40 unbroken Latin characters wrap without horizontal scroll at 200%
+[45/56] [chromium-393] › tests/p2-b-identity.spec.ts:189:5 › empty list cancel returns to one clear create entry
+[46/56] [webkit-393] › tests/p2-b-identity.spec.ts:125:5 › keyboard enters titled dialog, moves options without writes, selects and returns focus
+[47/56] [chromium-393] › tests/p2-b-identity.spec.ts:202:5 › archived-only list has no broken identity trigger
+[48/56] [chromium-393] › tests/p2-b-identity.spec.ts:210:5 › create rejection preserves name and scope; cancelled retry writes nothing
+[49/56] [webkit-393] › tests/p2-b-identity.spec.ts:148:5 › create cancel returns to the same switcher and never changes scope or history
+[50/56] [chromium-393] › tests/p2-b-identity.spec.ts:223:5 › create is single flight and keeps its only dialog until response
+[51/56] [webkit-393] › tests/p2-b-identity.spec.ts:168:40 › create success accepts new name and scope from switcher
+[52/56] [webkit-393] › tests/p2-b-identity.spec.ts:168:40 › create success accepts new name and scope from empty list
+[53/56] [webkit-393] › tests/p2-b-identity.spec.ts:189:5 › empty list cancel returns to one clear create entry
+[54/56] [webkit-393] › tests/p2-b-identity.spec.ts:202:5 › archived-only list has no broken identity trigger
+[55/56] [webkit-393] › tests/p2-b-identity.spec.ts:210:5 › create rejection preserves name and scope; cancelled retry writes nothing
+[56/56] [webkit-393] › tests/p2-b-identity.spec.ts:223:5 › create is single flight and keeps its only dialog until response
+  56 passed (58.5s)

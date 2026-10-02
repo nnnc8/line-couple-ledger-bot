@@ -1,0 +1,38 @@
+[
+  {
+    "method": "POST",
+    "path": "/api/app/session",
+    "at": 29765.336208,
+    "finishedAt": 29773.638125
+  },
+  {
+    "method": "GET",
+    "path": "/api/app/v2/context",
+    "at": 29773.731166,
+    "finishedAt": 29792.060416
+  },
+  {
+    "method": "GET",
+    "path": "/api/app/v2/ledgers",
+    "at": 29792.716,
+    "finishedAt": 29801.864583
+  },
+  {
+    "method": "GET",
+    "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/bootstrap",
+    "at": 29820.371416,
+    "finishedAt": 29835.300583
+  },
+  {
+    "method": "GET",
+    "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories",
+    "at": 29886.97875,
+    "finishedAt": 29901.279583
+  },
+  {
+    "method": "POST",
+    "path": "/api/app/v2/ledgers",
+    "at": 30269.195208,
+    "finishedAt": 30297.548416
+  }
+]
