@@ -11,7 +11,7 @@ export function row(ledgerId: string, id: string, description: string): V2Ledger
 }
 type Hold = { release: () => void; promise: Promise<void> };
 export function deferred(): Hold { let release!: () => void; const promise = new Promise<void>(resolve => { release = resolve; }); return { release, promise }; }
-export async function navigationBrowser(page: Page) {
+export async function navigationBrowser(page: Page, { holdLiffInit = false } = {}) {
   const state = {
     rows: [row(A, TA, "A 專屬晚餐"), row(B, TB, "B 專屬車票")], ledgerIds: [A, B, C], defaultId: A, version: 1,
     requests: [] as { method: string; path: string; at: number; finishedAt?: number }[],
@@ -24,7 +24,12 @@ export async function navigationBrowser(page: Page) {
     const transactions = state.rows.filter(item => item.ledgerId === ledgerId), balance = calculateLedgerBalance(transactions, { ledgerId, memberIds: [OWNER, PARTNER] }), next = recommendNextPayer(balance, [OWNER, PARTNER]);
     return JSON.parse(JSON.stringify({ ledger: { id: ledgerId, name: names[ledgerId], color: "#173B63", status: "active", activeForUser: ledgerId === state.defaultId, version: state.version, createdAt: "2026-09-25T00:00:00Z", updatedAt: "2026-09-25T00:00:00Z", coupleId: 1, members: [{ userId: OWNER, role: "owner" }, { userId: PARTNER, role: "partner" }], defaultShares: { [OWNER]: "1", [PARTNER]: "1" } }, transactions, balance: Object.fromEntries(Object.entries(balance).map(([id, amount]) => [id, String(amount)])), nextPayer: next ? { ...next, amountTwd: String(next.amountTwd) } : null }));
   };
-  await page.addInitScript('window.liff = { init: async () => undefined, isLoggedIn: () => true, login: () => undefined, getIDToken: () => "fixture-id-token", isInClient: () => true, closeWindow: () => undefined };');
+  await page.addInitScript(({ holdLiffInit }) => {
+    Object.assign(window, { releaseLiff: null, liff: {
+      init: () => holdLiffInit ? new Promise<void>(resolve => Object.assign(window, { releaseLiff: resolve })) : Promise.resolve(),
+      isLoggedIn: () => true, login: () => undefined, getIDToken: () => "fixture-id-token", isInClient: () => true, closeWindow: () => undefined,
+    } });
+  }, { holdLiffInit });
   await page.route("https://static.line-scdn.net/**", route => route.fulfill({ contentType: "application/javascript", body: "" }));
   const trace = new Map<unknown, typeof state.requests[number]>();
   page.on("request", request => { const url = new URL(request.url()); if (url.pathname.startsWith("/api/")) { const item = { method: request.method(), path: url.pathname + url.search, at: performance.now() }; state.requests.push(item); trace.set(request, item); } });

@@ -20,14 +20,12 @@ test("native push and replace remain observable and preserve unrelated and Next 
 });
 
 test("LIFF redirect parameters are untouched until init resolves", async ({ page }) => {
-  const fixture = await navigationBrowser(page);
-  await page.addInitScript(() => {
-    Object.assign(window, { releaseLiff: null });
-    window.liff!.init = () => new Promise<void>(resolve => Object.assign(window, { releaseLiff: resolve }));
-  });
+  const fixture = await navigationBrowser(page, { holdLiffInit: true });
   const path = `/?liff.state=${encodeURIComponent(`?v2Ledger=${B}&tab=stats`)}&liff.referrer=line&unrelated=keep`;
   await fixture.goto(path);
   await expect(page.getByText("正在連線至 LINE…")).toBeVisible();
+  // Server-rendered loading text can appear before hydration invokes liff.init.
+  await page.waitForFunction(() => typeof (window as unknown as { releaseLiff: unknown }).releaseLiff === "function");
   expect(new URL(page.url()).search).toBe(path.slice(1)); expect(fixture.state.requests).toHaveLength(0);
   await page.evaluate(() => (window as unknown as { releaseLiff: () => void }).releaseLiff());
   await expect(heading(page)).toContainText("旅行 · 收支概況");
