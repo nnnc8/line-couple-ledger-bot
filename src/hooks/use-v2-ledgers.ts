@@ -14,6 +14,9 @@ export function useV2Ledgers(enabled = true) {
   const [busy, setBusy] = useState(false);
   const [read, setRead] = useState<ReadFreshness>("initialLoading");
   const [accessDenied, setAccessDenied] = useState(false);
+  const [authError, setAuthError] = useState(false);
+  const [preference, setPreference] = useState<{ ledgerId: string; status: "syncing" | "failed" | "synced"; authError?: boolean } | null>(null);
+  const preferenceGeneration = useRef(0);
   const scope = useRef({ ledgerId: null as string | null, request: 0, known: null as V2LedgerBootstrap | null });
   const minimumVersions = useRef(new Map<string, number>());
   const activationQueue = useRef<Promise<unknown>>(Promise.resolve());
@@ -24,17 +27,20 @@ export function useV2Ledgers(enabled = true) {
     setBootstrap(null);
     setRead("initialLoading");
     setAccessDenied(false);
+    setAuthError(false);
+    setPreference(null);
     setError("");
     setActiveLedgerId(ledgerId);
   }, []);
 
   const loadLedgers = useCallback(async (initialLedgerId?: string | null, deferSelection = false) => {
     const result = await get<{ ledgers: V2LedgerSummary[] }>("/api/app/v2/ledgers");
-    setError("");
     setLedgers(result.ledgers);
     const current = scope.current.ledgerId ?? initialLedgerId;
-    if (!deferSelection) selectLedger(current && result.ledgers.some((ledger) => ledger.id === current)
-      ? current : result.ledgers.find((ledger) => ledger.status === "active")?.id ?? null);
+    if (!deferSelection) selectLedger(current !== null && current !== undefined
+      ? result.ledgers.some(ledger => ledger.id === current && ledger.status === "active") ? current : null
+      : result.ledgers.find(ledger => ledger.status === "active" && ledger.activeForUser)?.id
+        ?? result.ledgers.find(ledger => ledger.status === "active")?.id ?? null);
     return result.ledgers;
   }, [selectLedger]);
 
@@ -62,6 +68,7 @@ export function useV2Ledgers(enabled = true) {
       setBootstrap(result);
       setRead("ready");
       setAccessDenied(false);
+      setAuthError(false);
       return result;
     } catch (reason) {
       if (!current()) return;
@@ -71,6 +78,7 @@ export function useV2Ledgers(enabled = true) {
         owner.known = null;
         setBootstrap(null);
         setAccessDenied(true);
+        setAuthError(reason.status === 401);
       }
       throw reason;
     }
@@ -125,40 +133,41 @@ export function useV2Ledgers(enabled = true) {
   }, [activeLedgerId, enabled, loadBootstrap]);
 
   const activateLedger = useCallback(async (ledgerId: string) => {
-    selectLedger(ledgerId);
     const owner = scope.current;
-    // Keep the server-side LINE preference in the same order as UI selections.
+    const generation = ++preferenceGeneration.current;
+    setPreference({ ledgerId, status: "syncing" });
+    // Preference writes are ordered independently of accepted read scope.
     const activation = activationQueue.current.catch(() => undefined).then(() => api(`/api/app/v2/ledgers/${ledgerId}/activate`, {}));
     activationQueue.current = activation;
+    const current = () => scope.current === owner && owner.ledgerId === ledgerId && preferenceGeneration.current === generation;
     try {
       await activation;
+      if (!current()) return;
+      setLedgers(ledgers => ledgers.map(ledger => ({ ...ledger, activeForUser: ledger.id === ledgerId })));
+      setPreference({ ledgerId, status: "synced" });
     } catch (reason) {
-      if (scope.current !== owner) return;
-      setError(reason instanceof Error ? reason.message : "無法切換 Ledger");
+      if (current()) setPreference({ ledgerId, status: "failed", authError: reason instanceof ApiError && reason.status === 401 });
     }
-  }, [selectLedger]);
+  }, []);
 
   const createLedger = useCallback(async (name: string, color = "#173B63") => {
     setBusy(true);
     try {
       const result = await api("/api/app/v2/ledgers", { name, color });
-      await loadLedgers();
-      const ledgerId = (result.ledger as { id: string }).id;
-      await activateLedger(ledgerId);
+      await loadLedgers(undefined, true);
       return result;
-    } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "建立 Ledger 失敗");
-      throw reason;
     } finally {
       setBusy(false);
     }
-  }, [activateLedger, loadLedgers]);
+  }, [loadLedgers]);
 
   return {
     ledgers,
     activeLedgerId,
     selectLedger,
-    setActiveLedgerId: activateLedger,
+    activateLedger,
+    preference,
+    authError,
     bootstrap,
     error,
     busy,

@@ -6,6 +6,15 @@ import { entryBrowser, fillEntry, LEDGER, OTHER, OWNER, PARTNER } from "./fixtur
 test.use({ video: "on" });
 const unknown = "尚未確認是否已加入，請勿再記一次。";
 const status = (page: Page) => page.locator("[data-write-outcome]");
+const transactionRow = (page: Page, description: string) => page.locator("[data-transaction-id], details > summary").filter({ hasText: description });
+async function chooseLedger(page: Page, ledgerId: string) {
+  await page.getByRole("button", { name: "切換帳本", exact: true }).click();
+  await page.getByRole("dialog").getByRole("combobox", { name: "切換帳本", exact: true }).selectOption(ledgerId);
+}
+async function expectLedger(page: Page, ledgerId: string) {
+  await expect.poll(() => new URL(page.url()).searchParams.get("v2Ledger")).toBe(ledgerId);
+  await expect(page.getByTestId("surface-heading")).toContainText(ledgerId === LEDGER ? "共同生活" : "旅行帳本");
+}
 async function capture(page: Page, info: TestInfo, name: string) {
   const directory = `output/playwright/p1-b/${info.project.name}`;
   mkdirSync(directory, { recursive: true });
@@ -20,7 +29,7 @@ test("normal create commits row, balance and next payer together without a boots
   await expect(status(page)).toContainText("已加入晚餐 NT$681");
   await expect(page.getByRole("heading", { name: "你目前多付" })).toBeVisible();
   await expect(page.getByText("下次建議由 另一半 付款", { exact: true })).toBeVisible();
-  await expect(page.locator("summary").filter({ hasText: "晚餐" })).toBeVisible();
+  await expect(transactionRow(page, "晚餐")).toBeVisible();
   expect(state.requests.filter(path => path.endsWith("/bootstrap"))).toHaveLength(reads);
   expect(state.posts).toHaveLength(1); expect(JSON.parse(state.posts[0]!.recovery!).phase).toBe("submitting");
   await expect(page.getByLabel("金額（新台幣）")).toHaveValue("");
@@ -32,8 +41,9 @@ test("double tap owns one operation and guards switching while submitting", asyn
   await page.getByRole("button", { name: "儲存交易" }).click();
   await expect.poll(() => state.posts.length).toBe(1);
   await page.locator("form").first().dispatchEvent("submit");
-  await page.getByLabel("切換帳本").selectOption(OTHER);
-  await expect(page.getByLabel("切換帳本")).toHaveValue(LEDGER);
+  await chooseLedger(page, OTHER);
+  await expectLedger(page, LEDGER);
+  await page.getByRole("dialog").getByRole("button", { name: "查看處理狀態" }).click();
   await expect(status(page)).toContainText("正在加入");
   await expect(page.getByLabel("用途", { exact: true })).toBeDisabled();
   await capture(page, info, "submitting");
@@ -107,13 +117,13 @@ test("Ledger A recovery takes priority over URL B without activating or moving a
   await page.getByRole("button", { name: "儲存交易" }).click(); await expect(status(page)).toContainText(unknown);
   const before = state.requests.length;
   await page.goto(`/?v2Ledger=${OTHER}`); await expect(status(page)).toContainText(unknown);
-  await expect(page.getByText("先確認「共同生活」這筆記帳的結果，再前往連結指定的帳本。")).toBeVisible();
+  await expect(page.getByText("先確認「共同生活」這筆記帳的結果，再前往指定的帳本。")).toBeVisible();
   expect(state.requests.slice(before).some(path => path.includes(`${OTHER}/`))).toBe(false);
   await capture(page, info, "scope-mismatch");
   await page.getByRole("button", { name: "確認並完成這筆" }).click(); await expect(status(page)).toContainText("已加入晚餐");
   expect(state.posts[1]!.bytes).toBe(state.posts[0]!.bytes); expect(state.posts[1]!.endpoint).toBe(state.posts[0]!.endpoint);
   await page.getByRole("button", { name: "繼續前往指定帳本" }).click();
-  await expect(page.getByLabel("切換帳本")).toHaveValue(OTHER); expect(state.effects).toBe(1);
+  await expectLedger(page, OTHER); expect(state.effects).toBe(1);
 });
 
 test("unknown followed by 401 remains unknown with original operation", async ({ page }) => {
@@ -131,7 +141,7 @@ test("authorized A recovery remains available when the linked Ledger no longer e
   const unavailable = "00000000-0000-4000-8000-000000000099";
   await page.goto(`/?v2Ledger=${unavailable}`); await expect(status(page)).toContainText(unknown);
   await expect(status(page)).toContainText("連結指定的帳本目前無法開啟");
-  await expect(page.getByLabel("切換帳本")).toHaveValue(LEDGER);
+  await expectLedger(page, LEDGER);
   await page.getByRole("button", { name: "確認並完成這筆" }).click();
   await expect(status(page)).toContainText("已加入晚餐");
   expect(state.posts[1]!.bytes).toBe(state.posts[0]!.bytes); expect(state.posts[1]!.endpoint).toBe(state.posts[0]!.endpoint);
@@ -151,7 +161,7 @@ test("a new authorization failure hides cached financial content without discard
   const { state } = await entryBrowser(page); state.mode = "partial"; await fillEntry(page, "保留完成證據");
   await page.route(`**/api/app/v2/ledgers/${LEDGER}/bootstrap`, route => route.fulfill({ status: 403, json: { error: "scope no longer authorized" } }));
   await page.getByRole("button", { name: "儲存交易" }).click();
-  await expect(page.getByRole("alert").filter({ hasText: "存取權限" })).toBeVisible();
+  await expect(page.getByRole("alert").filter({ hasText: "這本帳本無法開啟，可能已失效或你沒有權限。" })).toBeVisible();
   await expect(page.getByText("保留完成證據", { exact: false })).toHaveCount(0);
   const record = JSON.parse((await page.evaluate(key => sessionStorage.getItem(key), ENTRY_RECOVERY_KEY))!);
   expect(record.phase).toBe("committed"); expect(record.proof.transaction.description).toBe("保留完成證據");
@@ -171,7 +181,7 @@ test("timeout after dispatch becomes unknown and preserves the exact recovery op
 test("correction drop-response reload replay retains original replacement and expected version", async ({ page }) => {
   const { state } = await entryBrowser(page); await fillEntry(page);
   await page.getByRole("button", { name: "儲存交易" }).click(); await expect(status(page)).toContainText("已加入晚餐");
-  await page.locator("summary").filter({ hasText: "晚餐" }).click(); await page.getByRole("button", { name: "編輯", exact: true }).click();
+  await transactionRow(page, "晚餐").click(); await page.getByRole("button", { name: "編輯", exact: true }).click();
   await page.getByLabel("用途", { exact: true }).fill("更正晚餐"); state.mode = "drop";
   await page.getByRole("button", { name: "儲存修改" }).click(); await expect(status(page)).toContainText("尚未確認是否已修改");
   await page.reload(); await expect(status(page)).toContainText("尚未確認是否已修改");
@@ -190,10 +200,12 @@ test("first rejection preserves editable draft and unchanged retry reuses the ke
 
 test("one create/correction draft requires explicit keep or discard", async ({ page }) => {
   await entryBrowser(page); await fillEntry(page); await page.getByRole("button", { name: "儲存交易" }).click(); await expect(status(page)).toContainText("已加入晚餐");
-  await fillEntry(page, "還在編輯"); await page.locator("summary").filter({ hasText: "晚餐" }).click();
-  page.once("dialog", dialog => dialog.dismiss()); await page.getByRole("button", { name: "編輯", exact: true }).click();
+  await fillEntry(page, "還在編輯"); await transactionRow(page, "晚餐").click();
+  await page.getByRole("dialog").getByRole("button", { name: "繼續編輯", exact: true }).click();
   await expect(page.getByLabel("用途", { exact: true })).toHaveValue("還在編輯");
-  page.once("dialog", dialog => dialog.accept()); await page.getByRole("button", { name: "編輯", exact: true }).click();
+  await transactionRow(page, "晚餐").click();
+  await page.getByRole("dialog").getByRole("button", { name: "放棄這筆輸入", exact: true }).click();
+  await page.getByRole("button", { name: "編輯", exact: true }).click();
   await expect(page.getByLabel("用途", { exact: true })).toHaveValue("晚餐"); await expect(page.getByLabel("分攤方式")).toHaveValue("exact");
   await expect(page.getByText("沿用這筆分攤", { exact: false })).toBeVisible(); expect(await page.getByLabel("金額（新台幣）").count()).toBe(1);
 });
@@ -206,14 +218,15 @@ test("creating a Ledger after discarding A opens a usable draft in the new Ledge
     await new Promise<void>(resolve => { finish = resolve; });
     return route.fulfill({ json: { ledger: { id: OTHER } } });
   });
-  await page.getByRole("button", { name: "建立帳本" }).click();
-  await page.getByLabel("帳本名稱").fill("旅行帳本");
-  page.once("dialog", dialog => dialog.accept());
-  await page.getByRole("button", { name: "建立", exact: true }).click();
+  await page.getByRole("button", { name: "切換帳本", exact: true }).click();
+  await page.getByRole("dialog").getByRole("button", { name: "建立帳本", exact: true }).click();
+  await page.getByRole("dialog").getByRole("button", { name: "放棄這筆輸入", exact: true }).click();
+  await page.getByLabel("新帳本名稱").fill("旅行帳本");
+  await page.getByRole("dialog").getByRole("button", { name: "建立", exact: true }).click();
   await expect.poll(() => Boolean(finish)).toBe(true);
   await expect(page.getByLabel("金額（新台幣）")).toBeDisabled();
   finish!();
-  await expect(page.getByLabel("切換帳本")).toHaveValue(OTHER);
+  await expectLedger(page, OTHER);
   await expect(page.getByLabel("金額（新台幣）")).toBeEnabled();
   await expect(page.getByLabel("用途", { exact: true })).toHaveValue("");
   await fillEntry(page, "B 的第一筆");
@@ -224,13 +237,13 @@ test("creating a Ledger after discarding A opens a usable draft in the new Ledge
 
 for (const failedRead of [false, true]) test(`correction success preserves commit when refresh ${failedRead ? "fails" : "succeeds"}`, async ({ page }, info) => {
   const { state } = await entryBrowser(page); await fillEntry(page); await page.getByRole("button", { name: "儲存交易" }).click(); await expect(status(page)).toContainText("已加入晚餐");
-  await page.locator("summary").filter({ hasText: "晚餐" }).click(); await page.getByRole("button", { name: "編輯", exact: true }).click();
+  await transactionRow(page, "晚餐").click(); await page.getByRole("button", { name: "編輯", exact: true }).click();
   await page.getByLabel("用途", { exact: true }).fill("修改晚餐"); state.failRead = failedRead;
   if (!failedRead) await capture(page, info, "correction-draft");
   await page.getByRole("button", { name: "儲存修改" }).click();
   await expect(status(page)).toContainText("已修改修改晚餐 NT$681");
   if (failedRead) await expect(status(page)).toContainText("其他紀錄暫時無法更新");
-  await expect(page.locator("summary").filter({ hasText: "晚餐（已作廢）" })).toBeVisible();
+  await expect(transactionRow(page, "晚餐（已作廢）")).toBeVisible();
   expect(state.effects).toBe(2); expect(state.posts[1]!.body.expectedVersion).toBe(1);
   await capture(page, info, failedRead ? "correction-read-failed" : "correction");
 });
@@ -242,7 +255,7 @@ test("a stale posted receipt cannot downgrade balance/next payer or resurrect a 
   await page.reload(); await expect(status(page)).toContainText(unknown); await expect(page.getByRole("heading", { name: "目前很平衡" })).toBeVisible();
   await page.getByRole("button", { name: "確認並完成這筆" }).click(); await expect(status(page)).toContainText("已加入晚餐");
   await expect(page.getByRole("heading", { name: "目前很平衡" })).toBeVisible();
-  await expect(page.locator("summary").filter({ hasText: "晚餐（已作廢）" })).toBeVisible();
+  await expect(transactionRow(page, "晚餐（已作廢）")).toBeVisible();
   await expect(page.getByText("下次建議由", { exact: false })).toHaveCount(0); expect(state.effects).toBe(1);
 });
 
@@ -253,8 +266,8 @@ test("a stale posted receipt cannot resurrect a replaced transaction", async ({ 
   state.rows = [{ ...old, status: "voided", version: 2, replacedByTransactionId: OTHER }, { ...old, id: OTHER, description: "較新修正版", replacesTransactionId: old.id }]; state.version = 4;
   await page.reload(); await expect(status(page)).toContainText(unknown);
   await page.getByRole("button", { name: "確認並完成這筆" }).click(); await expect(status(page)).toContainText("已加入晚餐");
-  await expect(page.locator("summary").filter({ hasText: "晚餐（已作廢）" })).toBeVisible();
-  await expect(page.locator("summary").filter({ hasText: "較新修正版" })).toBeVisible();
+  await expect(transactionRow(page, "晚餐（已作廢）")).toBeVisible();
+  await expect(transactionRow(page, "較新修正版")).toBeVisible();
 });
 
 test("partner login odd 681 uses kernel member order and opening defaults despite a background change", async ({ page }) => {

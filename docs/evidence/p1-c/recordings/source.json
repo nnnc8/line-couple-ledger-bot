@@ -1,0 +1,5 @@
+{
+  "source": "local full suite before test synchronization correction",
+  "code_sha": "22b7f66a55954287c5543b2ff7358fa88dca67d9",
+  "note": "These recordings and production code are unchanged from the recorded code_sha. A later test-only commit e698378e6102d723faa13a4ab130b8ec752c370f synchronizes LIFF init with hydration; its complete local suite passed 512/512. Final-head hosted CI results are linked in Issue #13."
+}

@@ -140,7 +140,7 @@ test.beforeEach(async ({ page }) => {
   await page.route("https://static.line-scdn.net/**", (route) => route.fulfill({ contentType: "application/javascript", body: "" }));
 
   await page.goto("/");
-  await expect(page.getByRole("heading", { name: "帳本", exact: true })).toBeVisible();
+  await expect(page.getByTestId("surface-heading")).toContainText("共同生活");
 
   (page as typeof page & { __v2Controls?: unknown }).__v2Controls = { setPostMode: (mode: PostMode) => { postMode = mode; }, releasePost: () => releasePost?.(), getPostRequests: () => postRequests, getPostedBodies: () => postedBodies, setFailRefresh: (value: boolean) => { failRefresh = value; }, setBalance: (owner: string, partner: string) => { balance = { [OWNER]: owner, [PARTNER]: partner }; nextPayer = Number(owner) === 0 ? null : { payerUserId: Number(owner) > 0 ? PARTNER : OWNER, payeeUserId: Number(owner) > 0 ? OWNER : PARTNER, amountTwd: String(Math.abs(Number(owner))) }; }, setLedgerName: (value: string) => { ledgerName = value; }, getRequestPaths: () => requestPaths };
 });
@@ -200,8 +200,9 @@ if (evidenceStage === "before" || evidenceStage === "after") {
     await page.getByText("更多設定", { exact: true }).click();
     await expect(page.getByLabel("交易類型")).toBeVisible();
     await editor.screenshot({ path: `${directory}/advanced-fields-390.png`, animations: "disabled" });
-    await page.getByRole("tab", { name: "設定" }).click();
+    await openSecondary(page, "settings");
     await capture("settings-390");
+    await returnHome(page);
 
     await page.setViewportSize({ width: 393, height: 852 });
     const controls = (page as typeof page & { __v2Controls?: { setLedgerName: (value: string) => void; setBalance: (owner: string, partner: string) => void } }).__v2Controls;
@@ -285,6 +286,20 @@ test("P1-A keeps the native transaction date fully readable at mobile widths and
   if (directory) writeFileSync(`${directory}/measurements-${browserName}.json`, `${JSON.stringify(evidence, null, 2)}\n`);
 });
 
+async function chooseLedger(page: Page, ledgerId: string) {
+  await page.getByRole("button", { name: "切換帳本", exact: true }).click();
+  await page.getByRole("dialog").getByRole("combobox", { name: "切換帳本", exact: true }).selectOption(ledgerId);
+}
+async function returnHome(page: Page) {
+  await page.getByRole("button", { name: "返回帳本", exact: true }).click();
+  await expect(page.getByLabel("金額（新台幣）")).toBeVisible();
+}
+async function openSecondary(page: Page, surface: "stats" | "settings" | "recurring" | "search") {
+  if (await page.getByRole("button", { name: "返回帳本", exact: true }).isVisible()) await returnHome(page);
+  await page.getByRole("button", { name: surface === "stats" ? "收支概況" : surface === "search" ? "搜尋" : "帳本設定", exact: true }).click();
+  if (surface === "recurring") await page.getByRole("button", { name: "固定記帳", exact: true }).click();
+}
+
 function controls(page: Page) {
   return (page as typeof page & { __v2Controls: { setPostMode: (mode: PostMode) => void; releasePost: () => void; getPostRequests: () => number; getPostedBodies: () => Array<Record<string, unknown>>; setFailRefresh: (value: boolean) => void; setBalance: (owner: string, partner: string) => void; setLedgerName: (value: string) => void; getRequestPaths: () => string[] } }).__v2Controls;
 }
@@ -330,26 +345,33 @@ test("P1-A restores zoom and keeps primary controls readable and tappable", asyn
   });
   if (textSizeAdjust.supported) expect(textSizeAdjust.value).toBe("auto");
 
-  await expect(page.getByRole("heading", { name: "帳本", exact: true })).toBeVisible();
-  await expect(page.getByLabel("切換帳本")).toBeVisible();
-  await expect(page.getByLabel("建立帳本")).toBeVisible();
+  await expect(page.getByTestId("surface-heading")).toContainText("共同生活");
+  await expect(page.getByRole("button", { name: "切換帳本", exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "切換帳本", exact: true }).click();
+  const createLedger = page.getByRole("dialog").getByRole("button", { name: "建立帳本", exact: true });
+  await expect(createLedger).toBeVisible();
+  const createDimensions = await createLedger.boundingBox();
+  expect(createDimensions!.height).toBeGreaterThanOrEqual(44);
+  expect(createDimensions!.width).toBeGreaterThanOrEqual(44);
+  await page.getByRole("dialog").getByRole("button", { name: "關閉視窗" }).click();
   await expect(page.getByLabel("重新整理帳本")).toBeVisible();
   await expect(page.getByLabel("金額（新台幣）")).toBeVisible();
   await expect(page.getByLabel("用途")).toBeVisible();
-  await expect(page.getByRole("tab", { name: "紀錄" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "最近紀錄", exact: true })).toBeVisible();
 
   for (const viewportSize of [{ width: 390, height: 844 }, { width: 393, height: 852 }]) {
     await page.setViewportSize(viewportSize);
     const overflow = await horizontalOverflow(page);
     expect(overflow.documentWidth, JSON.stringify(overflow)).toBeLessThanOrEqual(overflow.expectedWidth);
     const controlsToMeasure = [
-      page.getByLabel("切換帳本"),
-      page.getByLabel("建立帳本"),
+      page.getByRole("button", { name: "切換帳本", exact: true }),
+      page.getByRole("button", { name: "搜尋", exact: true }),
       page.getByLabel("重新整理帳本"),
       page.getByLabel("金額（新台幣）"),
       page.getByLabel("用途"),
       page.getByRole("button", { name: "儲存交易" }),
-      ...await page.getByRole("tab").all(),
+      page.getByRole("button", { name: "收支概況", exact: true }),
+      page.getByRole("button", { name: "帳本設定", exact: true }),
     ];
     const dimensions = await Promise.all(controlsToMeasure.map((control) => control.evaluate((element) => {
       const rect = element.getBoundingClientRect();
@@ -372,12 +394,17 @@ test("P1-A restores zoom and keeps primary controls readable and tappable", asyn
     await page.getByText("更多設定", { exact: true }).click();
   }
 
-  await page.getByLabel("建立帳本").click();
-  await expect(page.getByRole("textbox", { name: "帳本名稱" })).toBeVisible();
-    await page.setViewportSize({ width: 393, height: 852 });
-    await page.getByRole("tab", { name: "設定" }).click();
-    await page.evaluate(() => { document.documentElement.style.fontSize = "200%"; });
-    await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
+  await page.getByRole("button", { name: "切換帳本", exact: true }).click();
+  await page.getByRole("dialog").getByRole("button", { name: "建立帳本", exact: true }).click();
+  await expect(page.getByRole("textbox", { name: "新帳本名稱" })).toBeVisible();
+  await page.getByRole("dialog").getByRole("button", { name: "關閉視窗" }).click();
+  await page.setViewportSize({ width: 393, height: 852 });
+  await openSecondary(page, "settings");
+  await page.evaluate(() => { document.documentElement.style.fontSize = "200%"; });
+  await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
+  const settingsOverflow = await horizontalOverflow(page);
+  expect(settingsOverflow.documentWidth, JSON.stringify(settingsOverflow)).toBeLessThanOrEqual(settingsOverflow.expectedWidth);
+  await returnHome(page);
   const enlarged = await page.evaluate((expectedWidth) => ({
     expectedWidth,
     documentWidth: Math.max(document.documentElement.scrollWidth, document.body.scrollWidth),
@@ -442,9 +469,9 @@ test("P1-A keeps long Ledger names and large TWD balances reachable at 200% text
 });
 
 test("loads statistics and recurring rules only when their secondary UI is opened", async ({ page }) => {
-  await page.getByRole("tab", { name: "統計" }).click();
+  await openSecondary(page, "stats");
   await expect.poll(() => controls(page).getRequestPaths().filter((path) => path.includes("/statistics")).length).toBe(1);
-  await page.getByRole("tab", { name: "設定" }).click();
+  await openSecondary(page, "recurring");
   await expect.poll(() => controls(page).getRequestPaths().filter((path) => path.includes("/recurring")).length).toBe(1);
 });
 
@@ -516,9 +543,9 @@ test("keeps the daily UI usable on a narrow mobile viewport", async ({ page }) =
   await page.screenshot({ path: "output/playwright/v2-visual/transfer.png", fullPage: true });
   await page.getByLabel("交易類型").first().selectOption("expense");
   await page.getByText("更多設定", { exact: true }).click();
-  await page.getByRole("tab", { name: "統計" }).click();
+  await openSecondary(page, "stats");
   await page.screenshot({ path: "output/playwright/v2-visual/statistics.png", fullPage: true });
-  await page.getByRole("tab", { name: "設定" }).click();
+  await openSecondary(page, "settings");
   await page.screenshot({ path: "output/playwright/v2-visual/settings.png", fullPage: true });
 });
 
@@ -568,12 +595,14 @@ test("reuses the idempotency key on an unchanged retry", async ({ page }) => {
   expect(bodies[0]?.idempotencyKey).toBe(bodies[1]?.idempotencyKey);
 });
 
-test("does not insert a committed transaction that fails the active history filter", async ({ page }) => {
-  await page.getByLabel("搜尋紀錄").fill("晚餐");
+test("keeps a committed transaction out of a nonmatching search projection", async ({ page }) => {
   await page.getByLabel("金額（新台幣）").fill("100");
   await page.getByLabel("用途").fill("午餐");
   await page.getByRole("button", { name: "儲存交易" }).click();
   await expect(page.getByRole("status").filter({ hasText: "已加入午餐 NT$100" }).first()).toBeVisible();
+  await openSecondary(page, "search");
+  await page.getByLabel("搜尋紀錄").fill("晚餐");
+  await expect.poll(() => controls(page).getRequestPaths().some(path => path.includes("q=%E6%99%9A%E9%A4%90"))).toBe(true);
   await expect(page.getByText("午餐", { exact: true })).toHaveCount(0);
 });
 
@@ -614,14 +643,15 @@ test("V3-0 ignores reversed bootstrap responses after explicit draft discard", a
   await page.getByLabel("用途").fill("A draft");
   await page.getByLabel("重新整理帳本").click();
   await expect.poll(() => held.length).toBe(1);
-  page.once("dialog", dialog => dialog.accept());
-  await page.getByLabel("切換帳本").selectOption(SECOND_LEDGER);
+  await chooseLedger(page, SECOND_LEDGER);
+  await page.getByRole("dialog").getByRole("button", { name: "放棄並切換", exact: true }).click();
   const card = page.locator('[style*="linear-gradient"]').first();
   await expect(card).toContainText("Scope B");
   await releaseScopeResponse(page, held[0]!, { json: scopeBootstrap(LEDGER, "STALE A") });
   // An independent B request gives the browser an observable processing barrier.
-  await page.getByRole("tab", { name: "統計" }).click();
+  await openSecondary(page, "stats");
   await expect(page.getByText("Scope B", { exact: true }).last()).toBeVisible();
+  await returnHome(page);
   await expect(card).toContainText("Scope B");
   await expect(page.getByLabel("金額（新台幣）")).toHaveValue("");
   await expect(page.getByLabel("用途")).toHaveValue("");
@@ -634,9 +664,9 @@ test("V3-0 rapid A B A switches ignore the first A generation and stale errors",
   await page.route(`**/api/app/v2/ledgers/${LEDGER}/bootstrap`, route => { held.push(route); });
   await page.getByLabel("重新整理帳本").click();
   await expect.poll(() => held.length).toBe(1);
-  await page.getByLabel("切換帳本").selectOption(SECOND_LEDGER);
+  await chooseLedger(page, SECOND_LEDGER);
   await expect(page.locator('[style*="linear-gradient"]').first()).toContainText("Scope B");
-  await page.getByLabel("切換帳本").selectOption(LEDGER);
+  await chooseLedger(page, LEDGER);
   await expect.poll(() => held.length).toBe(2);
   await held[1]!.fulfill({ json: scopeBootstrap(LEDGER, "NEW A") });
   await expect(page.locator('[style*="linear-gradient"]').first()).toContainText("NEW A");
@@ -651,14 +681,14 @@ for (const endpoint of ["statistics", "categories", "recurring", "transactions"]
     await twoLedgers(page);
     const held: Route[] = [];
     await page.route(`**/api/app/v2/ledgers/${LEDGER}/${endpoint}${endpoint === "transactions" ? "?*" : ""}`, route => { held.push(route); });
-    if (endpoint === "statistics") await page.getByRole("tab", { name: "統計" }).click();
-    if (endpoint === "recurring") await page.getByRole("tab", { name: "設定" }).click();
+    if (endpoint === "statistics") await openSecondary(page, "stats");
+    if (endpoint === "recurring") await openSecondary(page, "recurring");
     if (endpoint === "categories") await page.getByLabel("重新整理帳本").click();
-    if (endpoint === "transactions") await page.getByLabel("搜尋紀錄").fill("STALE");
+    if (endpoint === "transactions") { await openSecondary(page, "search"); await page.getByLabel("搜尋紀錄").fill("STALE"); }
     await expect.poll(() => held.length).toBeGreaterThan(0);
-    await page.getByLabel("切換帳本").selectOption(SECOND_LEDGER);
+    await chooseLedger(page, SECOND_LEDGER);
     await expect(page.locator('[style*="linear-gradient"]').first()).toContainText("Scope B");
-    await page.getByRole("tab", { name: endpoint === "statistics" ? "統計" : endpoint === "transactions" ? "紀錄" : "設定" }).click();
+    await openSecondary(page, endpoint === "statistics" ? "stats" : endpoint === "transactions" ? "search" : endpoint === "recurring" ? "recurring" : "settings");
     const json = endpoint === "statistics" ? { byType: {}, byCategory: { STALE: "731" }, paidBy: {}, borneBy: {} }
       : endpoint === "categories" ? { categories: [{ id: "stale-cat", ledgerId: LEDGER, name: "STALE", status: "active" }] }
       : endpoint === "recurring" ? { recurring: [{ id: "stale-rule", ledgerId: LEDGER, name: "STALE", amountTwd: "731", frequency: "monthly", nextRunDate: "2026-09-14", active: true }] }
@@ -667,9 +697,10 @@ for (const endpoint of ["statistics", "categories", "recurring", "transactions"]
       if (endpoint === "transactions") await route.fulfill({ json }).catch(() => undefined); // history was aborted by the switch
       else await releaseScopeResponse(page, route, { json });
     }
-    await page.getByLabel("金額（新台幣）").fill("12");
     await expect(page.getByText(/STALE/)).toHaveCount(0);
     await expect(page.getByLabel("STALE 分類名稱", { exact: true })).toHaveCount(0);
+    await returnHome(page);
+    await page.getByLabel("金額（新台幣）").fill("12");
     await expect(page.locator('[style*="linear-gradient"]').first()).toContainText("Scope B");
   });
 }
@@ -683,12 +714,12 @@ test("V3-0 switching Ledger after a deep link stays on the manual selection", as
     activations.push(route.request().url().split("/").at(-2)!);
     return route.fulfill({ json: { ok: true } });
   });
-  await page.getByLabel("切換帳本").selectOption(SECOND_LEDGER);
+  await chooseLedger(page, SECOND_LEDGER);
   await expect(page.locator('[style*="linear-gradient"]').first()).toContainText("Scope B");
   await expect.poll(() => activations.length).toBeGreaterThan(0);
   await page.evaluate(() => new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
   expect(activations).toEqual([SECOND_LEDGER]);
-  await expect(page.getByLabel("切換帳本")).toHaveValue(SECOND_LEDGER);
+  await expect.poll(() => new URL(page.url()).searchParams.get("v2Ledger")).toBe(SECOND_LEDGER);
 });
 
 
@@ -707,12 +738,13 @@ test("V3-0 guards a late A save, then explicit discard cannot reuse A feedback o
   await page.getByLabel("用途").fill("late-A");
   await page.getByRole("button", { name: "儲存交易" }).click();
   await expect.poll(() => Boolean(held)).toBe(true);
-  await page.getByLabel("切換帳本").selectOption(SECOND_LEDGER);
-  await expect(page.getByLabel("切換帳本")).toHaveValue(LEDGER);
+  await chooseLedger(page, SECOND_LEDGER);
+  await expect.poll(() => new URL(page.url()).searchParams.get("v2Ledger")).toBe(LEDGER);
+  await page.getByRole("dialog").getByRole("button", { name: "查看處理狀態", exact: true }).click();
   await releaseScopeResponse(page, held!, { status: 422, json: { error: "STALE SAVE ERROR" } });
   await expect(page.getByRole("alert").filter({ hasText: "STALE SAVE ERROR" })).toBeVisible();
-  page.once("dialog", dialog => dialog.accept());
-  await page.getByLabel("切換帳本").selectOption(SECOND_LEDGER);
+  await chooseLedger(page, SECOND_LEDGER);
+  await page.getByRole("dialog").getByRole("button", { name: "放棄並切換", exact: true }).click();
   await expect(page.locator('[style*="linear-gradient"]').first()).toContainText("Scope B");
   await expect(page.getByText("STALE SAVE ERROR", { exact: true })).toHaveCount(0);
   await expect(page.getByLabel("金額（新台幣）")).toHaveValue("");

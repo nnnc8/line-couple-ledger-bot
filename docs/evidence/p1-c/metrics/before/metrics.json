@@ -1,0 +1,460 @@
+{
+  "stage": "before",
+  "baseURL": "http://localhost:3110",
+  "method": "3 fresh mobile Chromium contexts at 390x844; same mocked APIs/no network throttling; production next start; gzip computed on loaded initial-route JS response bodies; action start until ready assertion plus 2 animation frames; 200ms request settling window",
+  "samples": [
+    {
+      "run": 0,
+      "initialGzipJsBytes": 187468,
+      "initialScripts": {
+        "/_next/static/chunks/3_2gnfsz1jqfz.js": 7678,
+        "/_next/static/chunks/0jds67wmtbffo.js": 904,
+        "/_next/static/chunks/turbopack-2285bbhngeq-u.js": 4140,
+        "/_next/static/chunks/3nn_ivyly2ig6.js": 13815,
+        "/_next/static/chunks/1wvrx_hlsfauw.js": 11775,
+        "/_next/static/chunks/12dp50a39vrlh.js": 49245,
+        "/_next/static/chunks/141c9g-1_flzb.js": 29209,
+        "/_next/static/chunks/17gauw-xhye62.js": 70702
+      },
+      "steps": [
+        {
+          "label": "startup",
+          "responseToPaintProxyMs": 551.849209,
+          "scrollCalls": [],
+          "url": "http://localhost:3110/",
+          "requests": [
+            {
+              "method": "POST",
+              "path": "/api/app/session",
+              "at": 390.5463339999999,
+              "finishedAt": 400.17054200000007
+            },
+            {
+              "method": "GET",
+              "path": "/api/app/v2/context",
+              "at": 401.07166699999993,
+              "finishedAt": 409.974792
+            },
+            {
+              "method": "GET",
+              "path": "/api/app/v2/ledgers",
+              "at": 410.000125,
+              "finishedAt": 431.5127500000001
+            },
+            {
+              "method": "GET",
+              "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/bootstrap",
+              "at": 434.855417,
+              "finishedAt": 443.43558400000006
+            },
+            {
+              "method": "GET",
+              "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories",
+              "at": 503.711959,
+              "finishedAt": 512.0734170000001
+            }
+          ],
+          "count": 5
+        },
+        {
+          "label": "switch-A-B",
+          "responseToPaintProxyMs": 52.26204100000018,
+          "scrollCalls": [],
+          "url": "http://localhost:3110/",
+          "requests": [
+            {
+              "method": "POST",
+              "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000020/activate",
+              "at": 10.832415999999967,
+              "finishedAt": 13.317999999999984
+            },
+            {
+              "method": "GET",
+              "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000020/bootstrap",
+              "at": 11.24958300000003,
+              "finishedAt": 13.338040999999976
+            },
+            {
+              "method": "GET",
+              "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000020/categories",
+              "at": 27.59699999999998,
+              "finishedAt": 32.80504099999985
+            }
+          ],
+          "count": 3
+        },
+        {
+          "label": "stats",
+          "responseToPaintProxyMs": 98.31687499999998,
+          "scrollCalls": [],
+          "url": "http://localhost:3110/",
+          "requests": [
+            {
+              "method": "GET",
+              "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000020/statistics",
+              "at": 55.347749999999905,
+              "finishedAt": 66.33745799999997
+            }
+          ],
+          "count": 1
+        },
+        {
+          "label": "settings",
+          "responseToPaintProxyMs": 82.57091600000012,
+          "scrollCalls": [],
+          "url": "http://localhost:3110/",
+          "requests": [
+            {
+              "method": "GET",
+              "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000020/recurring",
+              "at": 56.61845799999992,
+              "finishedAt": 59.42158300000028
+            }
+          ],
+          "count": 1
+        },
+        {
+          "label": "deep-link-B",
+          "responseToPaintProxyMs": 147.5184159999999,
+          "scrollCalls": [],
+          "url": "http://localhost:3110/?v2Ledger=00000000-0000-4000-8000-000000000020",
+          "requests": [
+            {
+              "method": "POST",
+              "path": "/api/app/session",
+              "at": 74.73049999999967,
+              "finishedAt": 79.63599999999997
+            },
+            {
+              "method": "GET",
+              "path": "/api/app/v2/context",
+              "at": 80.10483299999987,
+              "finishedAt": 82.89224999999988
+            },
+            {
+              "method": "GET",
+              "path": "/api/app/v2/ledgers",
+              "at": 82.91729099999975,
+              "finishedAt": 88.57412499999964
+            },
+            {
+              "method": "GET",
+              "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000020/bootstrap",
+              "at": 90.03212499999972,
+              "finishedAt": 92.00549999999976
+            },
+            {
+              "method": "GET",
+              "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000020/categories",
+              "at": 106.16954099999975,
+              "finishedAt": 116.71437499999956
+            }
+          ],
+          "count": 5
+        }
+      ]
+    },
+    {
+      "run": 1,
+      "initialGzipJsBytes": 187468,
+      "initialScripts": {
+        "/_next/static/chunks/3_2gnfsz1jqfz.js": 7678,
+        "/_next/static/chunks/0jds67wmtbffo.js": 904,
+        "/_next/static/chunks/turbopack-2285bbhngeq-u.js": 4140,
+        "/_next/static/chunks/1wvrx_hlsfauw.js": 11775,
+        "/_next/static/chunks/3nn_ivyly2ig6.js": 13815,
+        "/_next/static/chunks/12dp50a39vrlh.js": 49245,
+        "/_next/static/chunks/141c9g-1_flzb.js": 29209,
+        "/_next/static/chunks/17gauw-xhye62.js": 70702
+      },
+      "steps": [
+        {
+          "label": "startup",
+          "responseToPaintProxyMs": 159.2962080000002,
+          "scrollCalls": [],
+          "url": "http://localhost:3110/",
+          "requests": [
+            {
+              "method": "POST",
+              "path": "/api/app/session",
+              "at": 84.98683299999993,
+              "finishedAt": 92.58474999999999
+            },
+            {
+              "method": "GET",
+              "path": "/api/app/v2/context",
+              "at": 92.81383300000016,
+              "finishedAt": 98.21737500000017
+            },
+            {
+              "method": "GET",
+              "path": "/api/app/v2/ledgers",
+              "at": 98.23758300000009,
+              "finishedAt": 107.12091599999985
+            },
+            {
+              "method": "GET",
+              "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/bootstrap",
+              "at": 108.86074999999983,
+              "finishedAt": 113.03250000000025
+            },
+            {
+              "method": "GET",
+              "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories",
+              "at": 123.17383299999983,
+              "finishedAt": 135.02604100000008
+            }
+          ],
+          "count": 5
+        },
+        {
+          "label": "switch-A-B",
+          "responseToPaintProxyMs": 59.05233399999997,
+          "scrollCalls": [],
+          "url": "http://localhost:3110/",
+          "requests": [
+            {
+              "method": "POST",
+              "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000020/activate",
+              "at": 6.664375000000291,
+              "finishedAt": 9.537459000000126
+            },
+            {
+              "method": "GET",
+              "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000020/bootstrap",
+              "at": 7.005292000000281,
+              "finishedAt": 10.04825000000028
+            },
+            {
+              "method": "GET",
+              "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000020/categories",
+              "at": 16.64904200000001,
+              "finishedAt": 20.732584000000315
+            }
+          ],
+          "count": 3
+        },
+        {
+          "label": "stats",
+          "responseToPaintProxyMs": 59.82508299999972,
+          "scrollCalls": [],
+          "url": "http://localhost:3110/",
+          "requests": [
+            {
+              "method": "GET",
+              "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000020/statistics",
+              "at": 23.02587499999936,
+              "finishedAt": 60.40441699999974
+            }
+          ],
+          "count": 1
+        },
+        {
+          "label": "settings",
+          "responseToPaintProxyMs": 52.282250000000204,
+          "scrollCalls": [],
+          "url": "http://localhost:3110/",
+          "requests": [
+            {
+              "method": "GET",
+              "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000020/recurring",
+              "at": 25.638084000000163,
+              "finishedAt": 38.201874999999745
+            }
+          ],
+          "count": 1
+        },
+        {
+          "label": "deep-link-B",
+          "responseToPaintProxyMs": 149.11483300000054,
+          "scrollCalls": [],
+          "url": "http://localhost:3110/?v2Ledger=00000000-0000-4000-8000-000000000020",
+          "requests": [
+            {
+              "method": "POST",
+              "path": "/api/app/session",
+              "at": 75.42533300000014,
+              "finishedAt": 79.93954099999974
+            },
+            {
+              "method": "GET",
+              "path": "/api/app/v2/context",
+              "at": 80.35025000000041,
+              "finishedAt": 82.3110000000006
+            },
+            {
+              "method": "GET",
+              "path": "/api/app/v2/ledgers",
+              "at": 82.47150000000056,
+              "finishedAt": 88.0458749999998
+            },
+            {
+              "method": "GET",
+              "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000020/bootstrap",
+              "at": 89.51995799999986,
+              "finishedAt": 91.5117909999999
+            },
+            {
+              "method": "GET",
+              "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000020/categories",
+              "at": 104.9970000000003,
+              "finishedAt": 116.16037500000039
+            }
+          ],
+          "count": 5
+        }
+      ]
+    },
+    {
+      "run": 2,
+      "initialGzipJsBytes": 187468,
+      "initialScripts": {
+        "/_next/static/chunks/3_2gnfsz1jqfz.js": 7678,
+        "/_next/static/chunks/turbopack-2285bbhngeq-u.js": 4140,
+        "/_next/static/chunks/0jds67wmtbffo.js": 904,
+        "/_next/static/chunks/1wvrx_hlsfauw.js": 11775,
+        "/_next/static/chunks/3nn_ivyly2ig6.js": 13815,
+        "/_next/static/chunks/141c9g-1_flzb.js": 29209,
+        "/_next/static/chunks/12dp50a39vrlh.js": 49245,
+        "/_next/static/chunks/17gauw-xhye62.js": 70702
+      },
+      "steps": [
+        {
+          "label": "startup",
+          "responseToPaintProxyMs": 147.8530839999994,
+          "scrollCalls": [],
+          "url": "http://localhost:3110/",
+          "requests": [
+            {
+              "method": "POST",
+              "path": "/api/app/session",
+              "at": 71.70124999999916,
+              "finishedAt": 79.00479199999972
+            },
+            {
+              "method": "GET",
+              "path": "/api/app/v2/context",
+              "at": 79.18391699999938,
+              "finishedAt": 84.5054169999994
+            },
+            {
+              "method": "GET",
+              "path": "/api/app/v2/ledgers",
+              "at": 84.64037499999995,
+              "finishedAt": 93.9561249999997
+            },
+            {
+              "method": "GET",
+              "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/bootstrap",
+              "at": 95.6001669999996,
+              "finishedAt": 100.2256669999997
+            },
+            {
+              "method": "GET",
+              "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories",
+              "at": 110.46737499999927,
+              "finishedAt": 122.40733399999954
+            }
+          ],
+          "count": 5
+        },
+        {
+          "label": "switch-A-B",
+          "responseToPaintProxyMs": 67.33233399999972,
+          "scrollCalls": [],
+          "url": "http://localhost:3110/",
+          "requests": [
+            {
+              "method": "POST",
+              "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000020/activate",
+              "at": 8.482500000000073,
+              "finishedAt": 12.07012499999928
+            },
+            {
+              "method": "GET",
+              "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000020/bootstrap",
+              "at": 9.358166999999412,
+              "finishedAt": 12.088833999999224
+            },
+            {
+              "method": "GET",
+              "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000020/categories",
+              "at": 26.98870899999929,
+              "finishedAt": 30.429833999999573
+            }
+          ],
+          "count": 3
+        },
+        {
+          "label": "stats",
+          "responseToPaintProxyMs": 61.54762500000015,
+          "scrollCalls": [],
+          "url": "http://localhost:3110/",
+          "requests": [
+            {
+              "method": "GET",
+              "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000020/statistics",
+              "at": 21.95037499999944,
+              "finishedAt": 62.25070799999958
+            }
+          ],
+          "count": 1
+        },
+        {
+          "label": "settings",
+          "responseToPaintProxyMs": 50.17866700000013,
+          "scrollCalls": [],
+          "url": "http://localhost:3110/",
+          "requests": [
+            {
+              "method": "GET",
+              "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000020/recurring",
+              "at": 24.15216700000019,
+              "finishedAt": 35.01841700000023
+            }
+          ],
+          "count": 1
+        },
+        {
+          "label": "deep-link-B",
+          "responseToPaintProxyMs": 146.96962500000063,
+          "scrollCalls": [],
+          "url": "http://localhost:3110/?v2Ledger=00000000-0000-4000-8000-000000000020",
+          "requests": [
+            {
+              "method": "POST",
+              "path": "/api/app/session",
+              "at": 85.09629100000075,
+              "finishedAt": 89.45091600000069
+            },
+            {
+              "method": "GET",
+              "path": "/api/app/v2/context",
+              "at": 89.7908750000006,
+              "finishedAt": 91.56954100000075
+            },
+            {
+              "method": "GET",
+              "path": "/api/app/v2/ledgers",
+              "at": 91.7162500000004,
+              "finishedAt": 97.71287500000017
+            },
+            {
+              "method": "GET",
+              "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000020/bootstrap",
+              "at": 99.27808300000015,
+              "finishedAt": 100.87841600000047
+            },
+            {
+              "method": "GET",
+              "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000020/categories",
+              "at": 108.75,
+              "finishedAt": 120.50495800000044
+            }
+          ],
+          "count": 5
+        }
+      ]
+    }
+  ]
+}

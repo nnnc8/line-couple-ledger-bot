@@ -134,3 +134,17 @@ test("canonical result atomically changes row, balance and next payer; old recei
   assert.equal(applyCanonicalSnapshot(otherLedger, receipt), otherLedger, "late A receipt never changes B even if a future caller bypasses the UI guard");
   assert.equal(parseCommitProof(receipt, operation())?.transaction.id, T, "historical receipt still proves commit");
 });
+
+test("dirty compares every editable field to its opening seed and clears on reversion", async () => {
+  const { isDraftDirty } = await import("./v2-transaction-draft");
+  const seed = newTransactionDraft(bootstrap(), A, "2026-09-25", "draft");
+  assert.equal(isDraftDirty(seed), false);
+  const changes = { amountTwd: "5", description: "用途", type: "income", occurredOn: "2026-09-26", paymentMode: "partner", splitMode: "exact", category: "分類", categoryId: "category", note: "備註", selfPayment: "1", partnerPayment: "1", selfShare: "1", partnerShare: "1", selfPercentage: "60", partnerPercentage: "40" } as const;
+  for (const [key, value] of Object.entries(changes)) {
+    assert.equal(isDraftDirty({ ...seed, [key]: value }), true, key);
+    assert.equal(isDraftDirty({ ...seed, [key]: value, ...seed.seed }), false, `${key} reverted`);
+  }
+  const correction = correctionDraft(bootstrap(), A, "2026-09-25", "correction", result().transaction);
+  assert.equal(isDraftDirty(correction), false);
+  assert.equal(isDraftDirty({ ...correction, note: "changed" }), true);
+});
