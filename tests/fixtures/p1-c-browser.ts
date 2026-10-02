@@ -78,7 +78,7 @@ export async function navigationBrowser(page: Page, { holdLiffInit = false } = {
     if (state.mode === "partial") { const partial: Partial<V2CreateTransactionResult> = { ...receipt }; delete partial.nextPayer; return route.fulfill({ status: 201, json: partial }); }
     return route.fulfill({ status: 201, json: receipt });
   });
-  return { state, snapshot, goto: async (path = "/") => { await page.goto(path); }, ready: async () => { await expect(page.getByLabel("金額（新台幣）")).toBeVisible(); } };
+  return { state, snapshot, goto: async (path = "/") => { await page.goto(path); }, ready: async () => { await expect(page.getByLabel("金額，新臺幣")).toBeVisible(); } };
 }
 export async function switchLedger(page: Page, id: string) { await page.getByRole("button", { name: "切換帳本", exact: true }).click(); await page.getByRole("dialog").getByRole("combobox", { name: "切換帳本", exact: true }).selectOption(id); }
 export const activationRequests = (state: Awaited<ReturnType<typeof navigationBrowser>>["state"]) => state.requests.filter(item => item.method === "POST" && item.path.endsWith("/activate"));

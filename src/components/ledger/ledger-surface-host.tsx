@@ -35,7 +35,7 @@ export function LedgerSurfaceHost({ surface, title, onCancel, returnFocus, child
     onCancel={event => { event.preventDefault(); onCancel(); }}>
     <div className="mb-3 flex items-start justify-between gap-2">
       <h2 ref={heading} id="ledger-dialog-title" tabIndex={-1} className="py-2 text-lg font-bold">{title}</h2>
-      <Button variant="ghost" size="sm" onClick={onCancel} aria-label="關閉視窗">關閉</Button>
+      <Button tabIndex={0} variant="ghost" size="sm" onClick={onCancel} aria-label="關閉視窗">關閉</Button>
     </div>
     {children}
   </dialog>;

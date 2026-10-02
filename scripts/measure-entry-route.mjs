@@ -1,0 +1,12 @@
+import { readFileSync, writeFileSync } from "node:fs";
+import { runInNewContext } from "node:vm";
+import { gzipSync } from "node:zlib";
+const sandbox = {};
+runInNewContext(readFileSync(".next/server/app/page_client-reference-manifest.js", "utf8"), sandbox);
+const manifest = sandbox.__RSC_MANIFEST["/page"];
+const build = JSON.parse(readFileSync(".next/server/app/page/build-manifest.json", "utf8"));
+const files = [...new Set([...build.rootMainFiles, ...Object.values(manifest.entryJSFiles).flat().map(file => file.replace(/^\/_next\//, ""))])].filter(file => file.endsWith(".js"));
+const chunks = files.map(path => ({ path, gzip: gzipSync(readFileSync(`.next/${path}`), { level: 9 }).length }));
+const result = { method: "Deduplicated rootMainFiles + /page entryJSFiles, gzip level 9 per initial chunk", chunks, gzip: chunks.reduce((total, chunk) => total + chunk.gzip, 0) };
+if (process.argv[2]) writeFileSync(process.argv[2], JSON.stringify(result, null, 2) + "\n");
+console.log(JSON.stringify(result, null, 2));
