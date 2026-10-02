@@ -2,61 +2,61 @@
   {
     "method": "POST",
     "path": "/api/app/session",
-    "at": 33407.546167,
-    "finishedAt": 33412.583084
+    "at": 29330.598875,
+    "finishedAt": 29339.078709
   },
   {
     "method": "GET",
     "path": "/api/app/v2/context",
-    "at": 33413.382917,
-    "finishedAt": 33420.894709
+    "at": 29339.270042,
+    "finishedAt": 29344.380542
   },
   {
     "method": "GET",
     "path": "/api/app/v2/ledgers",
-    "at": 33421.2065,
-    "finishedAt": 33430.47225
+    "at": 29345.073125,
+    "finishedAt": 29354.5435
   },
   {
     "method": "GET",
     "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/bootstrap",
-    "at": 33460.646209,
-    "finishedAt": 33468.685959
+    "at": 29386.743084,
+    "finishedAt": 29454.93475
   },
   {
     "method": "GET",
     "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories",
-    "at": 33542.437,
-    "finishedAt": 33560.153792
+    "at": 29512.587875,
+    "finishedAt": 29554.957584
   },
   {
     "method": "POST",
     "path": "/api/app/v2/ledgers",
-    "at": 33847.447959,
-    "finishedAt": 33865.996709
+    "at": 29908.888292,
+    "finishedAt": 29924.041959
   },
   {
     "method": "GET",
     "path": "/api/app/v2/ledgers",
-    "at": 33867.518875,
-    "finishedAt": 33884.222375
+    "at": 29924.485542,
+    "finishedAt": 29937.1535
   },
   {
     "method": "POST",
     "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000040/activate",
-    "at": 33896.205042,
-    "finishedAt": 33923.084334
+    "at": 29966.274709,
+    "finishedAt": 29973.934125
   },
   {
     "method": "GET",
     "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000040/bootstrap",
-    "at": 33911.082584,
-    "finishedAt": 33925.299334
+    "at": 29969.736209,
+    "finishedAt": 29975.098584
   },
   {
     "method": "GET",
     "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000040/categories",
-    "at": 33938.821375,
-    "finishedAt": 33946.729
+    "at": 29985.97575,
+    "finishedAt": 29993.701959
   }
 ]

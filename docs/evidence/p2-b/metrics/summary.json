@@ -1,18 +1,19 @@
 {
-  "initialGzipJsBefore": 191749,
-  "initialGzipJsAfter": 192668,
-  "initialGzipJsDelta": 919,
+  "baselineSha": "c921f09d4d92f50407d9c6e7f5a29487b238a35e",
+  "initialGzipJsBefore": 194830,
+  "initialGzipJsAfter": 195679,
+  "initialGzipJsDelta": 849,
   "openTapToPaintMs": {
-    "beforeMedian": 41.30000000447035,
-    "afterMedian": 45.899999998509884
+    "beforeMedian": 47.20000000298023,
+    "afterMedian": 50.70000000001164
   },
   "switchTapToIdentityPaintMs": {
-    "beforeMedian": 16.30000000447035,
-    "afterMedian": 30.5
+    "beforeMedian": 5,
+    "afterMedian": 30.599999999976717
   },
   "bootstrapResponseToIdentityPaintMs": {
-    "beforeMedian": 9.0,
-    "afterMedian": 12.5
+    "beforeMedian": 0,
+    "afterMedian": 12.399999999965075
   },
   "startupRequests": {
     "beforeCounts": [

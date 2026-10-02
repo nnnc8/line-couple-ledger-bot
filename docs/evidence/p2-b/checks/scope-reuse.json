@@ -1,0 +1,61 @@
+{
+  "baselineSha": "c921f09d4d92f50407d9c6e7f5a29487b238a35e",
+  "scopeContract": "Root leave-intent -> accepted navigation -> existing selectLedger; activation is independently queued. No new active state or scope controller.",
+  "files": [
+    {
+      "path": "src/hooks/use-v2-ledgers.ts",
+      "unchanged": true,
+      "sha256": "b7193f83b6c4491347e05654bd5b5a9a856be6bc88bc21d2ce895ff0a48215a1"
+    },
+    {
+      "path": "src/hooks/use-v2-entry-session.ts",
+      "unchanged": true,
+      "sha256": "8dc1aa5b0525a77740aae0d119689ae29636a9126c51594bd0c78b036a89b4af"
+    },
+    {
+      "path": "src/lib/v2-navigation.ts",
+      "unchanged": true,
+      "sha256": "84c5e4f35548656002eedff9af9c8c6d3a7c3b9e99d9c2d7ddfb231b21d24b76"
+    },
+    {
+      "path": "src/lib/v2-entry-operation.ts",
+      "unchanged": true,
+      "sha256": "9b39ec4a5bdf0e4f7bc0da3026774959a0b75c9474c3b7f363e9339f14cce373"
+    },
+    {
+      "path": "src/lib/v2-ledger-service.ts",
+      "unchanged": true,
+      "sha256": "1b9c518a6bbb962d795daf55108e67c7954cd4c9147019298dd30a9a4fb1c618"
+    },
+    {
+      "path": "src/app/api/app/[...path]/route.ts",
+      "unchanged": true,
+      "sha256": "49a752abd33141a3d009579d308092031d438d7e7304dd2a530b25ecbfb50338"
+    },
+    {
+      "path": "src/components/ledger/v2-transaction-editor.tsx",
+      "unchanged": true,
+      "sha256": "9000a72431a69a8a517adcca309cdc6a3239695512be81f8546d7fa69df7396d"
+    },
+    {
+      "path": "src/components/ledger/v2-entry-controls.tsx",
+      "unchanged": true,
+      "sha256": "ba9131692494fd7befa769350f2a31b16eb1c75ccc94a460507a84833eab2037"
+    },
+    {
+      "path": "src/lib/v2-entry-presentation.ts",
+      "unchanged": true,
+      "sha256": "ee8c17bbb77e1b3ede80d9008c8877c8edd583da48e25535be28a21f1f50161d"
+    },
+    {
+      "path": "package.json",
+      "unchanged": true,
+      "sha256": "7c7fc8edf52b693b1e30295569ba2a93494d0d6bfd70c1ad7ad0b387585d3f69"
+    },
+    {
+      "path": "pnpm-lock.yaml",
+      "unchanged": true,
+      "sha256": "3dca2b21f1ed5628e726af46e68446a3dfb1e711c8aa4ac122ed04ce23163ac6"
+    }
+  ]
+}

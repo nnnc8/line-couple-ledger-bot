@@ -2,61 +2,61 @@
   {
     "method": "POST",
     "path": "/api/app/session",
-    "at": 21409.736291,
-    "finishedAt": 21424.745458
+    "at": 23537.868375,
+    "finishedAt": 23612.340042
   },
   {
     "method": "GET",
     "path": "/api/app/v2/context",
-    "at": 21424.879,
-    "finishedAt": 21444.63525
+    "at": 23612.409334,
+    "finishedAt": 23621.76025
   },
   {
     "method": "GET",
     "path": "/api/app/v2/ledgers",
-    "at": 21444.748,
-    "finishedAt": 21452.446083
+    "at": 23621.802209,
+    "finishedAt": 23634.86025
   },
   {
     "method": "GET",
     "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/bootstrap",
-    "at": 21481.957416,
-    "finishedAt": 21492.929083
+    "at": 23668.730084,
+    "finishedAt": 23673.555667
   },
   {
     "method": "GET",
     "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories",
-    "at": 21533.058458,
-    "finishedAt": 21536.617291
+    "at": 23713.604625,
+    "finishedAt": 23727.208042
   },
   {
     "method": "POST",
     "path": "/api/app/v2/ledgers",
-    "at": 21934.931125,
-    "finishedAt": 21943.461041
+    "at": 24383.426917,
+    "finishedAt": 24393.61775
   },
   {
     "method": "GET",
     "path": "/api/app/v2/ledgers",
-    "at": 21943.56275,
-    "finishedAt": 21962.720458
+    "at": 24394.018167,
+    "finishedAt": 24417.853625
   },
   {
     "method": "POST",
     "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000040/activate",
-    "at": 21971.941541,
-    "finishedAt": 21981.692958
+    "at": 24450.893167,
+    "finishedAt": 24460.599292
   },
   {
     "method": "GET",
     "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000040/bootstrap",
-    "at": 21976.59575,
-    "finishedAt": 21983.003083
+    "at": 24455.237959,
+    "finishedAt": 24460.617042
   },
   {
     "method": "GET",
     "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000040/categories",
-    "at": 22000.365166,
-    "finishedAt": 22006.938583
+    "at": 24527.346417,
+    "finishedAt": 24552.105334
   }
 ]

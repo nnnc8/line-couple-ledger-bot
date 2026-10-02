@@ -2,19 +2,19 @@
   {
     "method": "POST",
     "path": "/api/app/session",
-    "at": 26616.727083,
-    "finishedAt": 26628.256208
+    "at": 24781.539958,
+    "finishedAt": 24795.987875
   },
   {
     "method": "GET",
     "path": "/api/app/v2/context",
-    "at": 26628.958291,
-    "finishedAt": 26648.831916
+    "at": 24796.086833,
+    "finishedAt": 24820.998333
   },
   {
     "method": "GET",
     "path": "/api/app/v2/ledgers",
-    "at": 26648.941125,
-    "finishedAt": 26654.998708
+    "at": 24821.234375,
+    "finishedAt": 24827.470666
   }
 ]

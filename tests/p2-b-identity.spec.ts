@@ -124,10 +124,10 @@ test("40 unbroken Latin characters wrap without horizontal scroll at 200%", asyn
 
 test("keyboard enters titled dialog, moves options without writes, selects and returns focus", async ({ page }, info) => {
   const fixture = await start(page);
-  // WebKit's native all-control keyboard traversal uses Option-Tab on macOS.
-  // https://support.apple.com/guide/safari/cpsh003/mac
-  const tabKey = info.project.use.browserName === "webkit" ? "Alt+Tab" : "Tab";
-  await trigger(page).focus(); await page.keyboard.press("Enter");
+  // Explicit tab stops also expose buttons in WebKit's native Tab traversal.
+  const tabKey = "Tab";
+  await page.keyboard.press(tabKey); await expect(trigger(page)).toBeFocused();
+  await page.keyboard.press("Enter");
   await expect(dialog(page).getByRole("heading", { name: "切換帳本" })).toBeFocused();
   await page.keyboard.press(tabKey); await expect(dialog(page).getByRole("button", { name: "關閉視窗" })).toBeFocused();
   await page.keyboard.press(tabKey); await expect(option(page, A)).toBeFocused();
@@ -196,6 +196,10 @@ test("empty list cancel returns to one clear create entry", async ({ page }, inf
   await create.click(); await page.getByLabel("新帳本名稱").fill("取消"); await page.keyboard.press("Escape");
   await expect(page.locator("dialog[open]")).toHaveCount(0); await expect(create).toBeFocused();
   await expect(create).toHaveCount(1);
+  await page.getByTestId("surface-heading").focus();
+  await page.keyboard.press("Tab"); await expect(create).toBeFocused();
+  await page.keyboard.press("Enter"); await expect(dialog(page)).toHaveAccessibleName("建立帳本");
+  await page.keyboard.press("Escape"); await expect(create).toBeFocused();
   expect(fixture.state.requests.some(item => item.path.endsWith("/bootstrap"))).toBe(false);
 });
 

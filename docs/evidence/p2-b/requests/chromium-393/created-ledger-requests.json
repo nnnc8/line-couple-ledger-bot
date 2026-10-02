@@ -2,61 +2,61 @@
   {
     "method": "POST",
     "path": "/api/app/session",
-    "at": 22064.941333,
-    "finishedAt": 22078.663333
+    "at": 20114.675083,
+    "finishedAt": 20145.527875
   },
   {
     "method": "GET",
     "path": "/api/app/v2/context",
-    "at": 22083.694958,
-    "finishedAt": 22098.666
+    "at": 20145.582916,
+    "finishedAt": 20353.386
   },
   {
     "method": "GET",
     "path": "/api/app/v2/ledgers",
-    "at": 22098.707916,
-    "finishedAt": 22108.869
+    "at": 20353.555958,
+    "finishedAt": 20384.418791
   },
   {
     "method": "GET",
     "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/bootstrap",
-    "at": 22148.29475,
-    "finishedAt": 22177.429291
+    "at": 20414.049958,
+    "finishedAt": 20419.758541
   },
   {
     "method": "GET",
     "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories",
-    "at": 22193.978958,
-    "finishedAt": 22226.727208
+    "at": 20454.104916,
+    "finishedAt": 20474.008666
   },
   {
     "method": "POST",
     "path": "/api/app/v2/ledgers",
-    "at": 22625.733166,
-    "finishedAt": 22643.465833
+    "at": 20894.065125,
+    "finishedAt": 20899.072875
   },
   {
     "method": "GET",
     "path": "/api/app/v2/ledgers",
-    "at": 22643.491083,
-    "finishedAt": 22651.332291
+    "at": 20899.829875,
+    "finishedAt": 20903.717583
   },
   {
     "method": "POST",
     "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000040/activate",
-    "at": 22670.640833,
-    "finishedAt": 22683.151083
+    "at": 20922.954583,
+    "finishedAt": 20935.241166
   },
   {
     "method": "GET",
     "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000040/bootstrap",
-    "at": 22678.146625,
-    "finishedAt": 22686.36725
+    "at": 20929.789041,
+    "finishedAt": 20936.494
   },
   {
     "method": "GET",
     "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000040/categories",
-    "at": 22705.8755,
-    "finishedAt": 22728.324833
+    "at": 20955.197708,
+    "finishedAt": 20965.181291
   }
 ]

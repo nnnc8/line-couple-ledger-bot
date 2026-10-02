@@ -302,7 +302,7 @@ export function V2LiffHome() {
     } finally { createInFlight.current = false; }
   }
   const ledgerName = v2.ledgers.find(ledger => ledger.id === nav?.ledgerId)?.name ?? "帳本";
-  const identityTrigger = nav?.ledgerId && !scopeError ? <button type="button"
+  const identityTrigger = nav?.ledgerId && !scopeError ? <button type="button" tabIndex={0}
     aria-label={`${ledgerName}，目前查看，切換帳本`} aria-haspopup="dialog" aria-expanded={dialog !== null} aria-controls="ledger-surface-dialog"
     data-testid="ledger-name-trigger" onClick={event => { trigger.current = event.currentTarget; returnFocus.current = event.currentTarget; setDialog("switcher"); }}
     className="inline-flex min-h-11 max-w-full min-w-0 items-center gap-2 rounded-lg py-2 text-left font-bold">
@@ -354,8 +354,8 @@ export function V2LiffHome() {
         <div className="space-y-2"><label htmlFor="new-ledger-name" className="block font-semibold">新帳本名稱</label>
           <Input id="new-ledger-name" value={newLedgerName} onChange={event => setNewLedgerName(event.target.value)} required maxLength={40} disabled={v2.busy} aria-describedby="new-ledger-name-help" />
           <p id="new-ledger-name-help" className="text-sm text-[var(--muted-foreground)]">最多 40 字。</p></div>
-        <div className="flex flex-wrap gap-2"><Button type="submit" disabled={!newLedgerName.trim() || v2.busy}>{v2.busy ? "正在建立…" : "建立"}</Button>
-          <Button variant="ghost" disabled={v2.busy} onClick={() => cancelDialog()}>取消</Button></div>
+        <div className="flex flex-wrap gap-2"><Button type="submit" tabIndex={0} disabled={!newLedgerName.trim() || v2.busy}>{v2.busy ? "正在建立…" : "建立"}</Button>
+          <Button variant="ghost" tabIndex={0} disabled={v2.busy} onClick={() => cancelDialog()}>取消</Button></div>
         {createError ? <p role="alert">{createError}</p> : null}
       </form> : null}
     </LedgerSurfaceHost>

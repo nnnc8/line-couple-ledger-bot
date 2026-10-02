@@ -46,7 +46,7 @@ export function V2LedgerSwitcher({ ledgers, activeLedgerId, selectedLedgerId, on
       })}
     </div> : <p>還沒有帳本。</p>}
     {!choosingDestination ? <div className="border-t border-[var(--border)] pt-3">
-      <Button variant="ghost" size="block" className="h-auto min-h-11 justify-start whitespace-normal text-left" onClick={onCreate}>建立帳本</Button>
+      <Button tabIndex={0} variant="ghost" size="block" className="h-auto min-h-11 justify-start whitespace-normal text-left" onClick={onCreate}>建立帳本</Button>
     </div> : null}
   </div>;
 }

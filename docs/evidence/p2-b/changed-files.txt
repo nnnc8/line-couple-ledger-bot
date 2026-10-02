@@ -1,11 +1,14 @@
 .github/workflows/ci.yml
 docs/evidence/p2-b/README.md
 docs/evidence/p2-b/changed-files.txt
+docs/evidence/p2-b/checks/baseline-lint.json
 docs/evidence/p2-b/checks/build.log
+docs/evidence/p2-b/checks/candidate-lint.json
 docs/evidence/p2-b/checks/e2e.log
 docs/evidence/p2-b/checks/identity-focused.log
 docs/evidence/p2-b/checks/lint-delta.json
 docs/evidence/p2-b/checks/lint.log
+docs/evidence/p2-b/checks/scope-reuse.json
 docs/evidence/p2-b/checks/typecheck.log
 docs/evidence/p2-b/checks/unit.log
 docs/evidence/p2-b/metrics/after/chromium-390-home.png

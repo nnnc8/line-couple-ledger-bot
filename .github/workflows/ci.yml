@@ -109,7 +109,7 @@ jobs:
           name: p2-b-browser-evidence
           path: |
             output/playwright/p2-b/
-            output/playwright/results/
+            output/playwright/results/p2-b-identity-*/
           retention-days: 14
           if-no-files-found: error
 

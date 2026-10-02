@@ -2,61 +2,61 @@
   {
     "method": "POST",
     "path": "/api/app/session",
-    "at": 26263.500292,
-    "finishedAt": 26286.267209
+    "at": 34835.39075,
+    "finishedAt": 34861.341667
   },
   {
     "method": "GET",
     "path": "/api/app/v2/context",
-    "at": 26289.524459,
-    "finishedAt": 26435.678417
+    "at": 34861.509042,
+    "finishedAt": 34894.376209
   },
   {
     "method": "GET",
     "path": "/api/app/v2/ledgers",
-    "at": 26436.012334,
-    "finishedAt": 26453.58525
+    "at": 34894.597459,
+    "finishedAt": 34908.911125
   },
   {
     "method": "GET",
     "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/bootstrap",
-    "at": 26504.474417,
-    "finishedAt": 26547.752334
+    "at": 34964.221875,
+    "finishedAt": 34980.725459
   },
   {
     "method": "GET",
     "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories",
-    "at": 26627.411625,
-    "finishedAt": 26651.790375
+    "at": 35024.312542,
+    "finishedAt": 35057.977875
   },
   {
     "method": "POST",
     "path": "/api/app/v2/ledgers",
-    "at": 26943.212167,
-    "finishedAt": 26958.868125
+    "at": 35446.502584,
+    "finishedAt": 35465.20525
   },
   {
     "method": "GET",
     "path": "/api/app/v2/ledgers",
-    "at": 26960.331875,
-    "finishedAt": 26989.167875
+    "at": 35466.131709,
+    "finishedAt": 35508.462625
   },
   {
     "method": "POST",
     "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000040/activate",
-    "at": 27010.590834,
-    "finishedAt": 27030.999875
+    "at": 35540.365709,
+    "finishedAt": 35573.658959
   },
   {
     "method": "GET",
     "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000040/bootstrap",
-    "at": 27015.023792,
-    "finishedAt": 27045.252875
+    "at": 35543.478334,
+    "finishedAt": 35573.887959
   },
   {
     "method": "GET",
     "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000040/categories",
-    "at": 27082.414042,
-    "finishedAt": 27091.164
+    "at": 35575.45875,
+    "finishedAt": 35583.304959
   }
 ]
