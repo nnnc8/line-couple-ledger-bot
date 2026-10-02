@@ -4,6 +4,7 @@ docs/evidence/p1-c/changed-files.txt
 docs/evidence/p1-c/checks/build-after.log
 docs/evidence/p1-c/checks/build-before.log
 docs/evidence/p1-c/checks/e2e-final.log
+docs/evidence/p1-c/checks/liff-init-repeat.log
 docs/evidence/p1-c/checks/lint-delta.log
 docs/evidence/p1-c/checks/lint-full.log
 docs/evidence/p1-c/checks/typecheck.log
@@ -78,6 +79,7 @@ docs/evidence/p1-c/screenshots/webkit-iphone/settings.png
 docs/evidence/p1-c/screenshots/webkit-iphone/stats.png
 docs/evidence/p1-c/screenshots/webkit-iphone/text-200-dialog.png
 docs/evidence/p1-c/screenshots/webkit-iphone/unknown-blocked.png
+docs/evidence/p1-c/sha256.json
 docs/p1-c-surface-scope-navigation.md
 playwright.config.ts
 src/components/ledger/ledger-surface-host.tsx
@@ -96,4 +98,3 @@ tests/p1-c-metrics.ts
 tests/p1-c-navigation.spec.ts
 tests/p1-c-races.spec.ts
 tests/v2-liff.spec.ts
-docs/evidence/p1-c/sha256.json

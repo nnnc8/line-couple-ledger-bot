@@ -2,12 +2,13 @@
 
 [PR #14](https://github.com/nnnc8/line-couple-ledger-bot/pull/14) · [30-item final report in Issue #13](https://github.com/nnnc8/line-couple-ledger-bot/issues/13) · [implementation contract](../../p1-c-surface-scope-navigation.md)
 
-Baseline: `c8c21e495ce5d52a13c1f7d9e673f23955da6769`. Tested code: `22b7f66a55954287c5543b2ff7358fa88dca67d9`. The following commit adds only this evidence package. The final issue comment records the final remote SHA and its exact hosted CI/PG results, avoiding a self-referential commit hash in this document.
+Baseline: `c8c21e495ce5d52a13c1f7d9e673f23955da6769`. Final local test revision: `e698378e6102d723faa13a4ab130b8ec752c370f`. Production code, build inputs, visual evidence and performance samples are unchanged from `22b7f66a55954287c5543b2ff7358fa88dca67d9`; the later code commit only synchronizes the LIFF-init test with hydration. The following commit updates only this evidence package. The final issue comment records the final remote SHA and its exact hosted CI/PG results, avoiding a self-referential commit hash in this document.
 
 ## Final local checks
 
 - Typecheck and production build: PASS. Unit tests: 272 passed, zero skipped.
-- Full E2E: 509 passed, zero failures. Per project: {"chromium-iphone": 133, "webkit-iphone": 133, "chromium-393": 110, "webkit-393": 110, "chromium-wide": 23}. CI additionally enables three existing P1-B evidence cases (512 total).
+- Full E2E: 512 passed, zero failures/skips, with `P1B_MEASURE_STAGE=after` (the same three additional P1-B evidence cases enabled in CI). Per project: {"chromium-iphone": 134, "webkit-iphone": 134, "chromium-393": 110, "webkit-393": 110, "chromium-wide": 24}.
+- LIFF-init regression: 20/20 repeated runs across all four mobile projects. [An earlier hosted run](https://github.com/nnnc8/line-couple-ledger-bot/actions/runs/36839032619) failed two instances because SSR loading text appeared before the held init callback existed. The fixture now installs the stub/hold together and waits for actual init entry before asserting untouched URL and zero requests; no product behavior or assertion was weakened.
 - Raw lint: 280 errors, 37 warnings; baseline: 282 errors, 37 warnings. Baseline-delta check: no new findings. Raw lint is not clean.
 - [Raw check logs](checks/) are retained; hosted DB results must be read from the exact final-head CI linked in Issue #13. Browser mocks are not DB evidence.
 

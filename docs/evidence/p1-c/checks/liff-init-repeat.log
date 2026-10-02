@@ -1,0 +1,119 @@
+
+[WebServer] (node:76390) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `pnpm --trace-warnings ...` to show where the warning was created)
+
+[WebServer] (node:76396) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+[WebServer] (node:76403) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+[WebServer] (node:76481) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 20 tests using 4 workers
+
+
+(node:76483) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+(node:76486) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+(node:76485) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+(node:76484) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+[1/20] [chromium-iphone] › tests/p1-c-races.spec.ts:22:5 › LIFF redirect parameters are untouched until init resolves
+[2/20] [chromium-iphone] › tests/p1-c-races.spec.ts:22:5 › LIFF redirect parameters are untouched until init resolves
+[3/20] [chromium-iphone] › tests/p1-c-races.spec.ts:22:5 › LIFF redirect parameters are untouched until init resolves
+[4/20] [chromium-iphone] › tests/p1-c-races.spec.ts:22:5 › LIFF redirect parameters are untouched until init resolves
+
+(node:76505) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+(node:76507) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+(node:76504) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+(node:76506) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+[5/20] [webkit-iphone] › tests/p1-c-races.spec.ts:22:5 › LIFF redirect parameters are untouched until init resolves
+[6/20] [webkit-iphone] › tests/p1-c-races.spec.ts:22:5 › LIFF redirect parameters are untouched until init resolves
+[7/20] [chromium-iphone] › tests/p1-c-races.spec.ts:22:5 › LIFF redirect parameters are untouched until init resolves
+[8/20] [webkit-iphone] › tests/p1-c-races.spec.ts:22:5 › LIFF redirect parameters are untouched until init resolves
+
+(node:76609) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+[9/20] [webkit-iphone] › tests/p1-c-races.spec.ts:22:5 › LIFF redirect parameters are untouched until init resolves
+
+(node:76717) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+(node:76719) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+(node:76716) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+(node:76718) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+[10/20] [chromium-393] › tests/p1-c-races.spec.ts:22:5 › LIFF redirect parameters are untouched until init resolves
+[11/20] [chromium-393] › tests/p1-c-races.spec.ts:22:5 › LIFF redirect parameters are untouched until init resolves
+[12/20] [chromium-393] › tests/p1-c-races.spec.ts:22:5 › LIFF redirect parameters are untouched until init resolves
+[13/20] [webkit-iphone] › tests/p1-c-races.spec.ts:22:5 › LIFF redirect parameters are untouched until init resolves
+
+(node:76747) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+(node:76748) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+(node:76749) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+[14/20] [chromium-393] › tests/p1-c-races.spec.ts:22:5 › LIFF redirect parameters are untouched until init resolves
+[15/20] [webkit-393] › tests/p1-c-races.spec.ts:22:5 › LIFF redirect parameters are untouched until init resolves
+[16/20] [chromium-393] › tests/p1-c-races.spec.ts:22:5 › LIFF redirect parameters are untouched until init resolves
+
+(node:76759) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+[17/20] [webkit-393] › tests/p1-c-races.spec.ts:22:5 › LIFF redirect parameters are untouched until init resolves
+
+(node:76862) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+(node:76863) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+[18/20] [webkit-393] › tests/p1-c-races.spec.ts:22:5 › LIFF redirect parameters are untouched until init resolves
+[19/20] [webkit-393] › tests/p1-c-races.spec.ts:22:5 › LIFF redirect parameters are untouched until init resolves
+
+(node:76865) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+[20/20] [webkit-393] › tests/p1-c-races.spec.ts:22:5 › LIFF redirect parameters are untouched until init resolves
+
+[WebServer] (node:76889) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+  20 passed (24.3s)
