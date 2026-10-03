@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { V2LedgerSwitcher } from "@/components/ledger/v2-ledger-switcher";
 import { Input } from "@/components/ui/input";
@@ -57,6 +58,7 @@ export function V2LiffHome() {
   const pendingRef = React.useRef<Intent | null>(null);
   const [newLedgerName, setNewLedgerName] = React.useState("");
   const [createError, setCreateError] = React.useState("");
+  const createInFlight = React.useRef(false);
   const [leaveRevision, setLeaveRevision] = React.useState(0);
   const started = React.useRef(false);
   const [loginAttempt, setLoginAttempt] = React.useState(0);
@@ -95,7 +97,7 @@ export function V2LiffHome() {
   function apply(intent: Intent) {
     pendingRef.current = null;
     setPending(null);
-    if (intent.kind === "create") { setDialog("create"); return; }
+    if (intent.kind === "create") { setNewLedgerName(""); setCreateError(""); setDialog("create"); return; }
     if (intent.kind === "close") { setDialog(null); return; }
     if (intent.kind === "correction") {
       entry.openCorrection(intent.transaction, true);
@@ -256,6 +258,13 @@ export function V2LiffHome() {
   React.useEffect(() => { if (createdLedger) completeCreation(createdLedger); }, [createdLedger]);
 
   function cancelDialog(keepDestination = false) {
+    if (dialog === "create") {
+      if (createInFlight.current) return;
+      setNewLedgerName(""); setCreateError("");
+      returnFocus.current = trigger.current;
+      setDialog(nav?.ledgerId ? "switcher" : null);
+      return;
+    }
     if (dialog === "leave" && !keepDestination) {
       pendingRef.current = null;
       setPending(null);
@@ -270,7 +279,35 @@ export function V2LiffHome() {
   function switchLedger(ledgerId: string) {
     request({ kind: "navigate", nav: ledgerHome(ledgerId), mode: "replace", manual: true });
   }
+  function openCreate(origin?: HTMLElement) {
+    if (!dialog) {
+      trigger.current = origin ?? (document.activeElement instanceof HTMLElement ? document.activeElement : null);
+      returnFocus.current = trigger.current;
+    }
+    request({ kind: "create" });
+  }
+  async function submitCreate(event: React.FormEvent) {
+    event.preventDefault();
+    const name = newLedgerName.trim();
+    if (!name || name.length > 40 || createInFlight.current || v2.busy) return;
+    createInFlight.current = true;
+    const generation = navigationGeneration.current;
+    setCreateError("");
+    try {
+      const result = await v2.createLedger(name);
+      setNewLedgerName("");
+      setCreatedLedger({ id: (result.ledger as { id: string }).id, generation });
+    } catch (reason) {
+      setCreateError(reason instanceof Error ? reason.message : "帳本暫時無法建立，請再試一次。");
+    } finally { createInFlight.current = false; }
+  }
   const ledgerName = v2.ledgers.find(ledger => ledger.id === nav?.ledgerId)?.name ?? "帳本";
+  const identityTrigger = nav?.ledgerId && !scopeError ? <button type="button" tabIndex={0}
+    aria-label={`${ledgerName}，目前查看，切換帳本`} aria-haspopup="dialog" aria-expanded={dialog !== null} aria-controls="ledger-surface-dialog"
+    data-testid="ledger-name-trigger" onClick={event => { trigger.current = event.currentTarget; returnFocus.current = event.currentTarget; setDialog("switcher"); }}
+    className="inline-flex min-h-11 max-w-full min-w-0 items-center gap-2 rounded-lg py-2 text-left font-bold">
+    <span className="min-w-0 [overflow-wrap:anywhere]">{ledgerName}</span><ChevronDown aria-hidden="true" className="size-4 shrink-0" />
+  </button> : null;
   const leave = leaveStatus();
   const destinationName = pending?.kind === "navigate" && pending.manual ? v2.ledgers.find(ledger => ledger.id === pending.nav.ledgerId)?.name : null;
   const leaveTitle = leave === "submitting" ? `這筆正在加入『${ledgerName}』，完成後才能切換。`
@@ -284,10 +321,11 @@ export function V2LiffHome() {
   }}>
     <header className="mb-3 space-y-2">
       {nav.surface !== "HOME" ? <Button variant="ghost" size="sm" onClick={() => request({ kind: "navigate", nav: ledgerHome(nav.ledgerId), mode: "replace" })}>返回帳本</Button> : null}
-      <h1 tabIndex={-1} data-testid="surface-heading" className="text-lg font-bold break-words">{scopeError ? "連結無法開啟" : nav.surface === "PROPOSAL_COMPAT_ENTRY" ? titles[nav.surface] : `${ledgerName}${titles[nav.surface] ? ` · ${titles[nav.surface]}` : ""}`}</h1>
-      {!scopeError ? <Button variant="outline" size="sm" aria-label="切換帳本" onClick={event => { trigger.current = event.currentTarget; returnFocus.current = event.currentTarget; setDialog("switcher"); }}>{ledgerName} ▾</Button> : null}
+      <h1 tabIndex={-1} data-testid="surface-heading" className="text-xl font-bold [overflow-wrap:anywhere]">{scopeError ? "連結無法開啟" : nav.surface === "HOME" ? identityTrigger ?? "帳本" : nav.surface === "PROPOSAL_COMPAT_ENTRY" ? titles[nav.surface] : `${ledgerName} · ${titles[nav.surface]}`}</h1>
+      {nav.surface !== "HOME" ? identityTrigger : null}
     </header>
     {scopeError ? <div role="alert" className="space-y-3"><p>{scopeError === "ledger" ? "這本帳本無法開啟，可能已失效或你沒有權限。" : "這筆紀錄的連結缺少帳本，無法開啟。"}</p><Button onClick={() => request({ kind: "navigate", nav: ledgerHome(null), mode: "replace" })}>回自己的帳本</Button></div> : <>
+      {v2.preference?.ledgerId === nav.ledgerId && v2.preference.status === "syncing" ? <p role="status" className="mb-3 text-sm text-[var(--muted-foreground)]">正在更新 LINE 記帳預設…</p> : null}
       {v2.preference?.ledgerId === nav.ledgerId && v2.preference.status === "failed" ? <div role="status" className="mb-3"><p>這本可查看，LINE 的預設帳本尚未更新</p><Button variant="outline" size="sm" onClick={() => v2.preference?.authError ? location.reload() : void v2.activateLedger(nav.ledgerId!)}>{v2.preference.authError ? "重新登入" : "重試更新 LINE 預設"}</Button></div> : null}
       {pending?.kind === "navigate" && entry.operation && dialog !== "leave" ? <div className="mb-3 rounded-xl border p-3 text-sm"><p>先確認「{ledgerName}」這筆記帳的結果，再前往指定的帳本。</p>{entry.write === "committed" ? <Button variant="outline" size="sm" onClick={() => { if (pendingRef.current) request(pendingRef.current); }}>繼續前往指定帳本</Button> : null}</div> : null}
       {v2.authError ? <div role="alert"><p>登入已失效。</p><Button onClick={() => location.reload()}>重新登入</Button></div> : null}
@@ -296,15 +334,15 @@ export function V2LiffHome() {
         reload={async () => v2.activeLedgerId ? v2.loadBootstrap(v2.activeLedgerId) : v2.loadLedgers()}
         onOpenEntryControls={(surface, target) => { if (entry.locked) return; returnFocus.current = target; setDialog(surface); }}
         entry={entry} navigation={nav} onOpenSurface={openSurface} onCloseEntry={() => request({ kind: "close" })}
-        onEdit={transaction => request({ kind: "correction", transaction })} onCreateLedger={() => request({ kind: "create" })} onSettingsLeaveChange={setSettingsGuard}
+        onEdit={transaction => request({ kind: "correction", transaction })} onCreateLedger={openCreate} onSettingsLeaveChange={setSettingsGuard}
         onSearchChange={filters => { const next = { ...nav, filters }; setNav(next); writeUrl(next, "replace", history.state); }} />
     </>}
-    <LedgerSurfaceHost surface={dialog === "leave" ? `leave-${leaveRevision}` : dialog} title={dialog === "switcher" ? "切換帳本" : dialog === "create" ? "建立帳本" : dialog === "payer" ? entry.draft?.type === "income" ? "選擇收款人" : entry.draft?.type === "transfer" ? "選擇發送人" : "選擇付款人" : dialog === "split" ? entry.draft?.type === "income" ? "款項分配" : "選擇分攤" : leaveTitle} onCancel={() => cancelDialog()} returnFocus={() => returnFocus.current}>
+    <LedgerSurfaceHost surface={dialog === "leave" ? `leave-${leaveRevision}` : dialog} title={dialog === "switcher" ? "切換帳本" : dialog === "create" ? "建立帳本" : dialog === "payer" ? entry.draft?.type === "income" ? "選擇收款人" : entry.draft?.type === "transfer" ? "選擇發送人" : "選擇付款人" : dialog === "split" ? entry.draft?.type === "income" ? "款項分配" : "選擇分攤" : leaveTitle} onCancel={() => cancelDialog()} cancelDisabled={dialog === "create" && v2.busy} returnFocus={() => returnFocus.current}>
       {(dialog === "payer" || dialog === "split") && entry.draft && v2.context.users.find(user => user.id !== v2.context!.user.id) ? <V2EntryControls key={`${entry.draft.id}-${dialog}`} surface={dialog} draft={entry.draft} user={v2.context.user} partner={v2.context.users.find(user => user.id !== v2.context!.user.id)!} locked={entry.locked} onCancel={() => cancelDialog()} onApply={patch => { entry.updateDraft(patch); setDialog(null); }} /> : null}
       {dialog === "switcher" || dialog === "leave" && destinationName ? <div className="space-y-3">
         <V2LedgerSwitcher ledgers={v2.ledgers} activeLedgerId={nav.ledgerId}
           selectedLedgerId={pending?.kind === "navigate" && pending.manual ? pending.nav.ledgerId : nav.ledgerId}
-          onChange={switchLedger} onCreate={() => request({ kind: "create" })} choosingDestination={dialog === "leave"} />
+          onChange={switchLedger} onCreate={() => openCreate()} choosingDestination={dialog === "leave"} />
       </div> : null}
       {dialog === "leave" ? <div className="mt-3 flex flex-wrap gap-2">
         <Button variant="ghost" size="sm" onClick={() => cancelDialog()}>繼續編輯</Button>
@@ -312,7 +350,14 @@ export function V2LiffHome() {
         {leave === "submitting" || leave === "ready" && entry.write === "committed" ? <Button onClick={() => { cancelDialog(true); requestAnimationFrame(() => document.querySelector<HTMLElement>("[data-entry]")?.scrollIntoView()); }}>查看處理狀態</Button> : null}
         {leave === "unknown" ? <Button onClick={() => { cancelDialog(true); void entry.replay(); }}>確認並完成這筆</Button> : null}
       </div> : null}
-      {dialog === "create" ? <form className="space-y-3" onSubmit={event => { event.preventDefault(); if (!newLedgerName.trim() || v2.busy) return; const generation = navigationGeneration.current; setCreateError(""); void v2.createLedger(newLedgerName.trim()).then(result => { setNewLedgerName(""); setCreatedLedger({ id: (result.ledger as { id: string }).id, generation }); }).catch(reason => setCreateError(String(reason))); }}><Input value={newLedgerName} onChange={event => setNewLedgerName(event.target.value)} aria-label="新帳本名稱" /><Button type="submit" disabled={v2.busy}>建立</Button>{createError ? <p role="alert">{createError}</p> : null}</form> : null}
+      {dialog === "create" ? <form className="space-y-3" onSubmit={submitCreate}>
+        <div className="space-y-2"><label htmlFor="new-ledger-name" className="block font-semibold">新帳本名稱</label>
+          <Input id="new-ledger-name" value={newLedgerName} onChange={event => setNewLedgerName(event.target.value)} required maxLength={40} disabled={v2.busy} aria-describedby="new-ledger-name-help" />
+          <p id="new-ledger-name-help" className="text-sm text-[var(--muted-foreground)]">最多 40 字。</p></div>
+        <div className="flex flex-wrap gap-2"><Button type="submit" tabIndex={0} disabled={!newLedgerName.trim() || v2.busy}>{v2.busy ? "正在建立…" : "建立"}</Button>
+          <Button variant="ghost" tabIndex={0} disabled={v2.busy} onClick={() => cancelDialog()}>取消</Button></div>
+        {createError ? <p role="alert">{createError}</p> : null}
+      </form> : null}
     </LedgerSurfaceHost>
   </main>;
 }

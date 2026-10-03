@@ -8,8 +8,8 @@ const unknown = "尚未確認是否已加入，請勿再記一次。";
 const status = (page: Page) => page.locator("[data-write-outcome]");
 const transactionRow = (page: Page, description: string) => page.locator("[data-transaction-id], details > summary").filter({ hasText: description });
 async function chooseLedger(page: Page, ledgerId: string) {
-  await page.getByRole("button", { name: "切換帳本", exact: true }).click();
-  await page.getByRole("dialog").getByRole("combobox", { name: "切換帳本", exact: true }).selectOption(ledgerId);
+  await page.getByTestId("ledger-name-trigger").click();
+  await page.getByRole("dialog").locator(`[data-ledger-option="${ledgerId}"]`).click();
 }
 async function expectLedger(page: Page, ledgerId: string) {
   await expect.poll(() => new URL(page.url()).searchParams.get("v2Ledger")).toBe(ledgerId);
@@ -218,7 +218,7 @@ test("creating a Ledger after discarding A opens a usable draft in the new Ledge
     await new Promise<void>(resolve => { finish = resolve; });
     return route.fulfill({ json: { ledger: { id: OTHER } } });
   });
-  await page.getByRole("button", { name: "切換帳本", exact: true }).click();
+  await page.getByTestId("ledger-name-trigger").click();
   await page.getByRole("dialog").getByRole("button", { name: "建立帳本", exact: true }).click();
   await page.getByRole("dialog").getByRole("button", { name: "放棄這筆輸入", exact: true }).click();
   await page.getByLabel("新帳本名稱").fill("旅行帳本");

@@ -1,0 +1,361 @@
+{
+  "stage": "after",
+  "baseURL": "http://localhost:3166",
+  "method": "Node 22 / Next production build, identical two-empty-ledger fixtures, no network throttling, 3 fresh Chromium 390x844 contexts; gzip level 6 loaded initial JS; browser-clock tap/mutation/fetch-response/two-rAF paint proxies. Cross-engine screenshots use the same build. No physical LINE claim.",
+  "samples": [
+    {
+      "run": 0,
+      "initialGzipJsBytes": 195679,
+      "initialScripts": {
+        "/_next/static/chunks/3_2gnfsz1jqfz.js": 7678,
+        "/_next/static/chunks/turbopack-2285bbhngeq-u.js": 4140,
+        "/_next/static/chunks/0jds67wmtbffo.js": 904,
+        "/_next/static/chunks/1wvrx_hlsfauw.js": 11775,
+        "/_next/static/chunks/3nn_ivyly2ig6.js": 13815,
+        "/_next/static/chunks/12dp50a39vrlh.js": 49245,
+        "/_next/static/chunks/1xgdkf7jwn22w.js": 37420,
+        "/_next/static/chunks/17gauw-xhye62.js": 70702
+      },
+      "startupRequests": [
+        {
+          "method": "POST",
+          "path": "/api/app/session"
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/context"
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/ledgers"
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/bootstrap"
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories"
+        }
+      ],
+      "openRequests": [],
+      "switchRequests": [
+        {
+          "method": "POST",
+          "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000020/activate"
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000020/bootstrap"
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000020/categories"
+        }
+      ],
+      "openTapToPaintMs": 50.70000000001164,
+      "switchTapToIdentityPaintMs": 29.899999999965075,
+      "bootstrapResponseToIdentityPaintMs": 12.399999999965075,
+      "identityAcceptedBeforeBootstrapResponse": true,
+      "browserClock": {
+        "actions": [
+          {
+            "at": 1138.5,
+            "kind": "open"
+          },
+          {
+            "at": 1508.8000000000466,
+            "kind": "choose"
+          }
+        ],
+        "identities": [
+          {
+            "name": "\u5171\u540c\u751f\u6d3b",
+            "at": 324.9000000000233,
+            "paintAt": 333.4000000000233
+          },
+          {
+            "name": "\u65c5\u884c",
+            "at": 1512.5,
+            "paintAt": 1538.7000000000116
+          }
+        ],
+        "responses": [
+          {
+            "path": "/api/app/session",
+            "at": 302.4000000000233
+          },
+          {
+            "path": "/api/app/v2/context",
+            "at": 305.9000000000233
+          },
+          {
+            "path": "/api/app/v2/ledgers",
+            "at": 308.20000000001164
+          },
+          {
+            "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/bootstrap",
+            "at": 367.9000000000233
+          },
+          {
+            "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories",
+            "at": 421.20000000001164
+          },
+          {
+            "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000020/activate",
+            "at": 1523.100000000035
+          },
+          {
+            "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000020/bootstrap",
+            "at": 1526.3000000000466
+          },
+          {
+            "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000020/categories",
+            "at": 1531.4000000000233
+          }
+        ],
+        "dialogs": [
+          {
+            "paintAt": 1189.2000000000116
+          }
+        ]
+      }
+    },
+    {
+      "run": 1,
+      "initialGzipJsBytes": 195679,
+      "initialScripts": {
+        "/_next/static/chunks/3_2gnfsz1jqfz.js": 7678,
+        "/_next/static/chunks/turbopack-2285bbhngeq-u.js": 4140,
+        "/_next/static/chunks/0jds67wmtbffo.js": 904,
+        "/_next/static/chunks/1wvrx_hlsfauw.js": 11775,
+        "/_next/static/chunks/3nn_ivyly2ig6.js": 13815,
+        "/_next/static/chunks/12dp50a39vrlh.js": 49245,
+        "/_next/static/chunks/1xgdkf7jwn22w.js": 37420,
+        "/_next/static/chunks/17gauw-xhye62.js": 70702
+      },
+      "startupRequests": [
+        {
+          "method": "POST",
+          "path": "/api/app/session"
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/context"
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/ledgers"
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/bootstrap"
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories"
+        }
+      ],
+      "openRequests": [],
+      "switchRequests": [
+        {
+          "method": "POST",
+          "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000020/activate"
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000020/bootstrap"
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000020/categories"
+        }
+      ],
+      "openTapToPaintMs": 62.59999999997672,
+      "switchTapToIdentityPaintMs": 30.599999999976717,
+      "bootstrapResponseToIdentityPaintMs": 12.399999999965075,
+      "identityAcceptedBeforeBootstrapResponse": true,
+      "browserClock": {
+        "actions": [
+          {
+            "at": 683.2000000000116,
+            "kind": "open"
+          },
+          {
+            "at": 961.2000000000116,
+            "kind": "choose"
+          }
+        ],
+        "identities": [
+          {
+            "name": "\u5171\u540c\u751f\u6d3b",
+            "at": 123.79999999998836,
+            "paintAt": 146.90000000002328
+          },
+          {
+            "name": "\u65c5\u884c",
+            "at": 964.2000000000116,
+            "paintAt": 991.7999999999884
+          }
+        ],
+        "responses": [
+          {
+            "path": "/api/app/session",
+            "at": 105.5
+          },
+          {
+            "path": "/api/app/v2/context",
+            "at": 110.40000000002328
+          },
+          {
+            "path": "/api/app/v2/ledgers",
+            "at": 113.20000000001164
+          },
+          {
+            "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/bootstrap",
+            "at": 127.10000000003492
+          },
+          {
+            "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories",
+            "at": 148.29999999998836
+          },
+          {
+            "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000020/activate",
+            "at": 976.5
+          },
+          {
+            "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000020/bootstrap",
+            "at": 979.4000000000233
+          },
+          {
+            "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000020/categories",
+            "at": 984.2000000000116
+          }
+        ],
+        "dialogs": [
+          {
+            "paintAt": 745.7999999999884
+          }
+        ]
+      }
+    },
+    {
+      "run": 2,
+      "initialGzipJsBytes": 195679,
+      "initialScripts": {
+        "/_next/static/chunks/3_2gnfsz1jqfz.js": 7678,
+        "/_next/static/chunks/0jds67wmtbffo.js": 904,
+        "/_next/static/chunks/turbopack-2285bbhngeq-u.js": 4140,
+        "/_next/static/chunks/3nn_ivyly2ig6.js": 13815,
+        "/_next/static/chunks/1wvrx_hlsfauw.js": 11775,
+        "/_next/static/chunks/12dp50a39vrlh.js": 49245,
+        "/_next/static/chunks/1xgdkf7jwn22w.js": 37420,
+        "/_next/static/chunks/17gauw-xhye62.js": 70702
+      },
+      "startupRequests": [
+        {
+          "method": "POST",
+          "path": "/api/app/session"
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/context"
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/ledgers"
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/bootstrap"
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories"
+        }
+      ],
+      "openRequests": [],
+      "switchRequests": [
+        {
+          "method": "POST",
+          "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000020/activate"
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000020/bootstrap"
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000020/categories"
+        }
+      ],
+      "openTapToPaintMs": 43.09999999997672,
+      "switchTapToIdentityPaintMs": 32.199999999953434,
+      "bootstrapResponseToIdentityPaintMs": 14.299999999988358,
+      "identityAcceptedBeforeBootstrapResponse": true,
+      "browserClock": {
+        "actions": [
+          {
+            "at": 673.4000000000233,
+            "kind": "open"
+          },
+          {
+            "at": 854.4000000000233,
+            "kind": "choose"
+          }
+        ],
+        "identities": [
+          {
+            "name": "\u5171\u540c\u751f\u6d3b",
+            "at": 113.59999999997672,
+            "paintAt": 137.20000000001164
+          },
+          {
+            "name": "\u65c5\u884c",
+            "at": 857.2000000000116,
+            "paintAt": 886.5999999999767
+          }
+        ],
+        "responses": [
+          {
+            "path": "/api/app/session",
+            "at": 95.09999999997672
+          },
+          {
+            "path": "/api/app/v2/context",
+            "at": 99.90000000002328
+          },
+          {
+            "path": "/api/app/v2/ledgers",
+            "at": 102.90000000002328
+          },
+          {
+            "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/bootstrap",
+            "at": 115.70000000001164
+          },
+          {
+            "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories",
+            "at": 137.09999999997672
+          },
+          {
+            "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000020/activate",
+            "at": 869.4000000000233
+          },
+          {
+            "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000020/bootstrap",
+            "at": 872.2999999999884
+          },
+          {
+            "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000020/categories",
+            "at": 876.9000000000233
+          }
+        ],
+        "dialogs": [
+          {
+            "paintAt": 716.5
+          }
+        ]
+      }
+    }
+  ]
+}
