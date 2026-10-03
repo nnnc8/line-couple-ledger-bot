@@ -1,10 +1,11 @@
 {
-  "README.md": "8b1affc74cecc5c101373153b98ad9005a5ce14f574d959b591f90109e70489c",
-  "changed-files.txt": "f729d8d8f52c314bbff4a0840ef589cc2a868ccf7850e0bb8d6090c24cd5655e",
+  "README.md": "65f689934053a7958a9f47734e6318ccf937adea38ae8576482ee3d676703177",
+  "changed-files.txt": "6bf8a32e074b0273d01a21414d9d9912a4c035e1a51520fd5928bfef51e10761",
   "checks/baseline-lint.json": "ae9811a5bd018283cf974a53250018b36334b720abd6531d95ee86bf7b54703f",
   "checks/build.log": "735fe259583b75440319e01a91e26e9a85ac7b47ef0dd35e04bb05db48784dc4",
   "checks/candidate-lint.json": "20b9216aee26226a63ae4fdf025cb7e1f8e3260940fee0dc7c334f7d8f91fb0f",
   "checks/e2e.log": "bc27c5b6faa13672fb6327b6cf47791df5a533d400ec35e8da9ceb57d119946d",
+  "checks/hosted-attempt-1.json": "cc00332fa7745923dab6298c5aa2ac04bc48d952475e2d04debd3c3876f2c167",
   "checks/identity-focused.log": "8ce7a7dec18b52a853a42769bf7ad0e3ea65610af3e61b988c932a19867b1898",
   "checks/lint-delta.json": "2ba03174378d5a240d9890a211267ebc7330eb81d536941f86bf63ec60ed4408",
   "checks/lint.log": "9a55a66e2d40e77c277218e79cf7564939f93ff1851691756ffcc8de93116286",

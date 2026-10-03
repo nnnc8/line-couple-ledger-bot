@@ -5,6 +5,7 @@ docs/evidence/p2-b/checks/baseline-lint.json
 docs/evidence/p2-b/checks/build.log
 docs/evidence/p2-b/checks/candidate-lint.json
 docs/evidence/p2-b/checks/e2e.log
+docs/evidence/p2-b/checks/hosted-attempt-1.json
 docs/evidence/p2-b/checks/identity-focused.log
 docs/evidence/p2-b/checks/lint-delta.json
 docs/evidence/p2-b/checks/lint.log

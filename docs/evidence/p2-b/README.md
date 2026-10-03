@@ -8,9 +8,11 @@
 - P2-B focused matrix: 56 passed, 14 cases on each of Chromium/WebKit at 390×844 and 393×852.
 - Full regression: **640 passed, zero failures/skips**, with `P1B_MEASURE_STAGE=after` matching CI. Per project: Chromium 390: 166; WebKit 390: 166; Chromium 393: 142; WebKit 393: 142; Chromium 430: 24. [Raw log](checks/e2e.log).
 - Raw lint: **280 errors / 37 warnings**, identical to the baseline. Raw lint exits 1; it is not clean. Semantic baseline comparison (relative file, rule, severity, message, multiplicity) has zero new findings. [Comparison](checks/lint-delta.json).
-- Existing required hosted typecheck, unit, PostgreSQL, E2E, artifact preservation and Build gates remain. Hosted outcomes must be read from the exact candidate's run, not inferred from local or browser evidence.
+- CI uses four browser workers, matching the passed local full run; all test assertions and the original 20-minute job limit remain. Existing required hosted typecheck, unit, PostgreSQL, E2E, artifact preservation and Build gates remain. Hosted outcomes must be read from the exact candidate's run, not inferred from local or browser evidence.
 
 [Raw check logs](checks/) include the focused subset extracted from the final full regression, full regression, build, unit/typecheck and lint comparison. An initial exploratory full run was interrupted after the two WebKit focus failures were identified. The empty-create trigger return was fixed; explicit native tab stops support ordinary Tab in both engines. The standalone baseline then passed 568 tests. After P2-A merged, its editor and control behavior were retained and the entire combined 640-test suite was run again. The final full run includes all 56 focused cases and verifies those corrections without deleting or weakening the original financial/scope assertions.
+
+The [first hosted run](checks/hosted-attempt-1.json), at `b404fc19cdaab760bc665f652a99220cc3f20b67`, was cancelled by GitHub at the existing 20-minute limit with two workers. Its progress reached case 548/640; E2E did not finish and Build was skipped. Typecheck, unit, PostgreSQL and all four evidence uploads succeeded. That run is not all-green. The final candidate reruns every gate using four browser workers; its exact SHA/outcome is recorded in the PR/Issue report.
 
 ## Production-build performance
 

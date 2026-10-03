@@ -1,0 +1,16 @@
+{
+  "headSha": "b404fc19cdaab760bc665f652a99220cc3f20b67",
+  "workflowUrl": "https://github.com/nnnc8/line-couple-ledger-bot/actions/runs/37028037462",
+  "conclusion": "cancelled",
+  "githubAnnotation": "The job has exceeded the maximum execution time of 20m0s",
+  "e2e": "cancelled",
+  "lastCaseStarted": 548,
+  "totalCases": 640,
+  "workers": 2,
+  "build": "skipped",
+  "typecheck": "success",
+  "unit": "success",
+  "postgresql": "success",
+  "allFourEvidenceUploads": "success",
+  "remedy": "Use four CI browser workers, matching the successful local full run. Preserve all assertions, existing gates and the 20-minute job limit."
+}

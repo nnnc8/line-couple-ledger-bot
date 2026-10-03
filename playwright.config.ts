@@ -2,6 +2,7 @@ import { defineConfig, devices } from "@playwright/test";
 
 export default defineConfig({
   testDir: "./tests",
+  workers: process.env.CI ? 4 : undefined,
   testMatch: /(?:v2-liff|p1-b-entry|p1-c-navigation|p1-c-races|p2-a-entry|p2-b-identity)\.spec\.ts/,
   outputDir: "output/playwright/results",
   reporter: "line",
