@@ -135,8 +135,10 @@ test.beforeEach(async ({ page }) => {
       balance = { [OWNER]: "0", [PARTNER]: "0" };
       nextPayer = null;
     }
-    return route.fulfill({ json: { ok: true } });
+    const transaction = rows.find((row) => row.id === TRANSACTION)!;
+    return route.fulfill({ json: { ok: true, transactionId: TRANSACTION, status: transaction.status, version: transaction.version, balance, ledgerVersion } });
   });
+  await page.route("**/api/app/v2/transactions/*/attachments", route => route.fulfill({ json: { attachments: [] } }));
   await page.route("https://static.line-scdn.net/**", (route) => route.fulfill({ contentType: "application/javascript", body: "" }));
 
   await page.goto("/");
@@ -357,7 +359,7 @@ test("P1-A restores zoom and keeps primary controls readable and tappable", asyn
   await expect(page.getByLabel("重新整理帳本")).toBeVisible();
   await expect(page.getByLabel("金額，新臺幣")).toBeVisible();
   await expect(page.getByLabel("用途")).toBeVisible();
-  await expect(page.getByRole("heading", { name: "最近紀錄", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "生活紀錄", exact: true })).toBeVisible();
 
   for (const viewportSize of [{ width: 390, height: 844 }, { width: 393, height: 852 }]) {
     await page.setViewportSize(viewportSize);
@@ -554,15 +556,19 @@ test("keeps the daily UI usable on a narrow mobile viewport", async ({ page }) =
   await page.screenshot({ path: "output/playwright/v2-visual/settings.png", fullPage: true });
 });
 
-test("keeps voided transactions distinct in the mobile history", async ({ page }) => {
+test("keeps voided transactions distinct in canonical Detail and excludes them from daily history", async ({ page }) => {
   await page.getByLabel("金額，新臺幣").fill("100");
   await page.getByLabel("用途").fill("午餐");
   await page.getByRole("button", { name: "加入" }).click();
   await expect(page.getByText("午餐", { exact: true }).last()).toBeVisible();
   await page.getByText("午餐", { exact: true }).last().click();
-  await page.getByRole("button", { name: "作廢" }).click();
-  await expect(page.getByText("午餐（已作廢）", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "更多操作", exact: true }).click();
+  await page.getByRole("button", { name: "作廢", exact: true }).click();
+  await page.getByRole("button", { name: "確認作廢", exact: true }).click();
+  await expect(page.getByTestId("transaction-detail")).toContainText("已作廢，不計入目前近況");
   await page.screenshot({ path: "output/playwright/v2-visual/voided-transaction.png", fullPage: true });
+  await page.getByRole("button", { name: "返回帳本", exact: true }).click();
+  await expect(page.locator(`button[data-transaction-id="${TRANSACTION}"]`)).toHaveCount(0);
 });
 
 test("uses the canonical save response without reloading the Ledger", async ({ page }) => {

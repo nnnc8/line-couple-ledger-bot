@@ -3,7 +3,7 @@ import { defineConfig, devices } from "@playwright/test";
 export default defineConfig({
   testDir: "./tests",
   workers: process.env.CI ? 4 : undefined,
-  testMatch: /(?:v2-liff|p1-b-entry|p1-c-navigation|p1-c-races|p2-a-entry|p2-b-identity)\.spec\.ts/,
+  testMatch: /(?:v2-liff|p1-b-entry|p1-c-navigation|p1-c-races|p2-a-entry|p2-b-identity|p2-c-timeline)\.spec\.ts/,
   outputDir: "output/playwright/results",
   reporter: "line",
   use: {
@@ -15,8 +15,8 @@ export default defineConfig({
   projects: [
     { name: "chromium-iphone", use: { ...devices["iPhone 13"], browserName: "chromium", viewport: { width: 390, height: 844 } } },
     { name: "webkit-iphone", use: { ...devices["iPhone 13"], browserName: "webkit", viewport: { width: 390, height: 844 } } },
-    { name: "chromium-393", testMatch: /(?:p1-b-entry|p1-c-navigation|p1-c-races|p2-a-entry|p2-b-identity)\.spec\.ts/, use: { ...devices["iPhone 13"], browserName: "chromium", viewport: { width: 393, height: 852 } } },
-    { name: "webkit-393", testMatch: /(?:p1-b-entry|p1-c-navigation|p1-c-races|p2-a-entry|p2-b-identity)\.spec\.ts/, use: { ...devices["iPhone 13"], browserName: "webkit", viewport: { width: 393, height: 852 } } },
+    { name: "chromium-393", testMatch: /(?:p1-b-entry|p1-c-navigation|p1-c-races|p2-a-entry|p2-b-identity|p2-c-timeline)\.spec\.ts/, use: { ...devices["iPhone 13"], browserName: "chromium", viewport: { width: 393, height: 852 } } },
+    { name: "webkit-393", testMatch: /(?:p1-b-entry|p1-c-navigation|p1-c-races|p2-a-entry|p2-b-identity|p2-c-timeline)\.spec\.ts/, use: { ...devices["iPhone 13"], browserName: "webkit", viewport: { width: 393, height: 852 } } },
     { name: "chromium-wide", testMatch: /v2-liff\.spec\.ts/, use: { browserName: "chromium", viewport: { width: 430, height: 932 } } },
   ],
   webServer: {

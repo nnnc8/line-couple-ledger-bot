@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { api, ApiError, get } from "@/lib/api";
 import type { V2AppContext, V2CreateTransactionResult, V2LedgerBootstrap, V2LedgerSummary } from "@/lib/types";
 import { applyCanonicalSnapshot, canApplySnapshot, isCurrentBootstrap, type CommitProof, type ReadFreshness } from "@/lib/v2-entry-operation";
+import type { TransactionStatusProof } from "@/lib/v2-transaction-status";
 
 export function useV2Ledgers(enabled = true) {
   const [ledgers, setLedgers] = useState<V2LedgerSummary[]>([]);
@@ -121,6 +122,22 @@ export function useV2Ledgers(enabled = true) {
     return false;
   }, [applyCommittedTransaction]);
 
+  const acceptTransactionStatusProof = useCallback((ledgerId: string, proof: TransactionStatusProof) => {
+    const owner = scope.current;
+    if (owner.ledgerId !== ledgerId || !owner.known) return;
+    const transaction = owner.known.transactions.find(row => row.id === proof.transactionId && row.ledgerId === ledgerId);
+    const minimum = minimumVersions.current.get(ledgerId) ?? 0;
+    if (!transaction || (transaction.version ?? 1) > proof.version || proof.ledgerVersion < minimum) return;
+    // Invalidate reads begun before the confirmed mutation. Balance and next payer
+    // remain pending until the existing full bootstrap supplies their snapshot.
+    owner.request += 1;
+    minimumVersions.current.set(ledgerId, Math.max(minimum, proof.ledgerVersion));
+    const next = { ...owner.known, transactions: owner.known.transactions.map(row => row.id === proof.transactionId ? { ...row, status: proof.status, version: proof.version } : row) };
+    owner.known = next;
+    setBootstrap(next);
+    setRead("refreshing");
+  }, []);
+
   useEffect(() => {
     if (!enabled) return;
     if (!activeLedgerId) {
@@ -179,6 +196,7 @@ export function useV2Ledgers(enabled = true) {
     loadBootstrap,
     applyCommittedTransaction,
     acceptCommitProof,
+    acceptTransactionStatusProof,
     createLedger,
   };
 }

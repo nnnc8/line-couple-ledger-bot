@@ -73,3 +73,13 @@ test("origin is bounded, preserves Next/unrelated state, and expires on reload",
   assert.equal(appOrigin(null, "document-1", "A"), null);
   assert.deepEqual(navigationHistoryState(state, null), { ...next, v2LedgerOrigin: null });
 });
+
+test("Search origin keeps only read filters, and include-void survives the URL", () => {
+  const nav = parseNavigation("?v2Ledger=A&view=search&q=dinner&includeVoided=1");
+  assert.equal(navigationUrl(nav), "/?v2Ledger=A&view=search&q=dinner&includeVoided=1");
+  const origin = { version: 1 as const, documentId: "document", ledgerId: "A", surface: "SEARCH" as const,
+    filters: { ...nav.filters, payload: "secret" }, rowId: "old" };
+  const result = appOrigin(navigationHistoryState(null, origin), "document", "A");
+  assert.deepEqual(result?.filters, { q: "dinner", includeVoided: "1" });
+  assert.equal(JSON.stringify(result).includes("secret"), false);
+});

@@ -1,18 +1,22 @@
 "use client";
 
 import * as React from "react";
-import { ArrowLeftRight, CalendarClock, Download, Paperclip, Plus, RefreshCw } from "lucide-react";
+import { CalendarClock, Download, Plus, RefreshCw } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { V2TransactionEditor, type EntryControlSurface } from "./v2-transaction-editor";
+import { LedgerTimeline, TimelineTransactionRow } from "./ledger-timeline";
+import { TransactionDetail, TransactionDetailSkeleton } from "./transaction-detail";
+import { effectiveTimelineTransactions, lookupTimelineTransaction } from "@/lib/v2-timeline";
+import type { TransactionStatusProof } from "@/lib/v2-transaction-status";
 import { api, ApiError } from "@/lib/api";
 import { money } from "@/lib/format";
 import type { V2EntrySession } from "@/hooks/use-v2-entry-session";
 import { commandOf } from "@/lib/v2-entry-operation";
-import type { User, V2Attachment, V2Category, V2LedgerBootstrap, V2LedgerSummary, V2RecurringRule } from "@/lib/types";
+import type { User, V2Category, V2LedgerBootstrap, V2LedgerSummary, V2RecurringRule } from "@/lib/types";
 import type { SearchFilters, V2Navigation, V2Surface } from "@/lib/v2-navigation";
 
 export type SettingsLeaveGuard = { dirty: boolean; discard: () => void };
@@ -36,6 +40,9 @@ interface V2LedgerHomeProps {
   onEdit: (transaction: V2LedgerBootstrap["transactions"][number]) => void;
   onCreateLedger: (trigger: HTMLElement) => void;
   onSettingsLeaveChange: (guard: SettingsLeaveGuard | null) => void;
+  onConfirmedMutation: (ledgerId: string, proof: TransactionStatusProof) => void;
+  timelineVisibleCount: number;
+  onLoadOlder: () => void;
 }
 
 export function V2LedgerHome({
@@ -49,7 +56,7 @@ export function V2LedgerHome({
   busy,
   reload,
   entry,
-  navigation, onOpenSurface, onSearchChange, onCloseEntry, onOpenEntryControls, onEdit, onCreateLedger, onSettingsLeaveChange,
+  navigation, onOpenSurface, onSearchChange, onCloseEntry, onOpenEntryControls, onEdit, onCreateLedger, onSettingsLeaveChange, onConfirmedMutation, timelineVisibleCount: visibleCount, onLoadOlder,
 }: V2LedgerHomeProps) {
   const partner = users.find((candidate) => candidate.id !== user.id) ?? users[1];
   const errorScope = JSON.stringify([navigation.surface, navigation.proposalId, navigation.transactionId, navigation.filters]);
@@ -94,7 +101,16 @@ export function V2LedgerHome({
   const historyScope = JSON.stringify([historyType, historyPayer, historyCategoryId, historyQuery, historyFrom, historyTo]);
   const hasHistoryFilters = historyType !== "all" || historyPayer !== "all" || historyCategoryId !== "all" || Boolean(historyQuery.trim()) || Boolean(historyFrom) || Boolean(historyTo);
   const [historyResult, setHistoryResult] = React.useState<{ bootstrap: V2LedgerBootstrap | null; scope: string; rows: V2LedgerBootstrap["transactions"]; cursor: string | null } | null>(null);
-  const historyRows = historyResult?.bootstrap === bootstrap && historyResult?.scope === historyScope ? historyResult.rows : hasHistoryFilters ? [] : bootstrap?.transactions ?? [];
+  const [historySettled, setHistorySettled] = React.useState<{ bootstrap: V2LedgerBootstrap; scope: string } | null>(null);
+  const cachedHistory = historyResult?.scope === historyScope ? historyResult : null;
+  const canonicalById = new Map(bootstrap?.transactions.map(transaction => [transaction.id, transaction]));
+  const historyRawRows = hasHistoryFilters ? cachedHistory?.rows.map(transaction => {
+    const canonical = canonicalById.get(transaction.id);
+    return canonical && (canonical.version ?? 1) > (transaction.version ?? 1) ? canonical : transaction;
+  }) ?? [] : bootstrap?.transactions ?? [];
+  const historyRows = filters.includeVoided === "1" ? historyRawRows : effectiveTimelineTransactions(historyRawRows);
+  const historyReady = !hasHistoryFilters || cachedHistory?.bootstrap === bootstrap || historySettled?.bootstrap === bootstrap && historySettled.scope === historyScope;
+  const [mutationFact, setMutationFact] = React.useState("");
   const historyCursor = historyResult?.bootstrap === bootstrap && historyResult?.scope === historyScope ? historyResult.cursor : null;
   const [historyLoadingMore, setHistoryLoadingMore] = React.useState(false);
   const historyAbortRef = React.useRef<AbortController | null>(null);
@@ -134,7 +150,8 @@ export function V2LedgerHome({
   const isHome = navigation.surface === "HOME";
   const isSearch = navigation.surface === "SEARCH";
   const isDetail = navigation.surface === "TRANSACTION_DETAIL";
-  const detail = bootstrap?.transactions.find(transaction => transaction.id === navigation.transactionId && transaction.ledgerId === activeLedgerId);
+  const isCorrection = entry.draft?.operationType === "replace" || entry.operation?.operationType === "replace" && (entry.write === "submitting" || entry.write === "unknown");
+  const detail = bootstrap && activeLedgerId && navigation.transactionId ? lookupTimelineTransaction(bootstrap.transactions, activeLedgerId, navigation.transactionId) : undefined;
 
   const refreshLedger = React.useCallback(async () => {
     if (!mounted.current) return;
@@ -193,8 +210,8 @@ export function V2LedgerHome({
     }
   }, [activeLedgerId]);
 
-  const loadHistory = React.useCallback(async (cursor: string | null = null, append = false) => {
-    if (!activeLedgerId) return;
+  const loadHistory = React.useCallback(async (cursor: string | null = null, append = false, minimumRows = 0) => {
+    if (!activeLedgerId || !bootstrap) return;
     const params = new URLSearchParams();
     if (historyType !== "all") params.set("type", historyType);
     if (historyPayer !== "all") params.set("payerUserId", historyPayer);
@@ -202,39 +219,55 @@ export function V2LedgerHome({
     if (historyQuery.trim()) params.set("q", historyQuery.trim());
     if (historyFrom) params.set("from", historyFrom);
     if (historyTo) params.set("to", historyTo);
-    if (cursor) params.set("cursor", cursor);
     params.set("limit", "50");
     if (append) setHistoryLoadingMore(true);
+    else { setHistoryLoadingMore(false); setHistorySettled(null); }
     historyAbortRef.current?.abort();
     const controller = new AbortController();
     historyAbortRef.current = controller;
     try {
-      const response = await fetch(`/api/app/v2/ledgers/${activeLedgerId}/transactions?${params.toString()}`, { cache: "no-store", credentials: "same-origin", signal: controller.signal });
-      const body = await response.json() as { transactions?: V2LedgerBootstrap["transactions"]; nextCursor?: string | null; error?: string };
-      if (!mounted.current || controller.signal.aborted || historyAbortRef.current !== controller) return;
-      if (!response.ok) throw new ApiError(body.error ?? "無法讀取紀錄", response.status, Boolean(body.error));
+      const rows = new Map<string, V2LedgerBootstrap["transactions"][number]>();
+      let nextCursor = cursor;
+      do {
+        if (nextCursor) params.set("cursor", nextCursor); else params.delete("cursor");
+        const response = await fetch(`/api/app/v2/ledgers/${activeLedgerId}/transactions?${params.toString()}`, { cache: "no-store", credentials: "same-origin", signal: controller.signal });
+        const body = await response.json() as { transactions?: V2LedgerBootstrap["transactions"]; nextCursor?: string | null; error?: string };
+        if (!mounted.current || controller.signal.aborted || historyAbortRef.current !== controller) return;
+        if (!response.ok) throw new ApiError(body.error ?? "無法讀取紀錄", response.status, Boolean(body.error));
+        for (const transaction of body.transactions ?? []) rows.set(transaction.id, transaction);
+        nextCursor = body.nextCursor ?? null;
+      } while (!append && nextCursor && rows.size < minimumRows);
       setHistoryResult((current) => ({ bootstrap, scope: historyScope,
-        rows: append && current?.scope === historyScope ? [...current.rows, ...(body.transactions ?? [])] : body.transactions ?? [],
-        cursor: body.nextCursor ?? null }));
+        rows: append && current?.scope === historyScope ? [...new Map([...current.rows, ...rows.values()].map(row => [row.id, row])).values()] : [...rows.values()],
+        cursor: nextCursor }));
+      setSurfaceError(current => current?.scope === errorScope ? null : current);
     } finally {
-      if (append && mounted.current && historyAbortRef.current === controller) setHistoryLoadingMore(false);
+      if (mounted.current && historyAbortRef.current === controller) {
+        if (append) setHistoryLoadingMore(false);
+        else if (!controller.signal.aborted) setHistorySettled({ bootstrap, scope: historyScope });
+      }
     }
-  }, [activeLedgerId, historyCategoryId, historyFrom, historyPayer, historyQuery, historyTo, historyType, historyScope, bootstrap]);
+  }, [activeLedgerId, historyCategoryId, historyFrom, historyPayer, historyQuery, historyTo, historyType, historyScope, bootstrap, errorScope]);
+
+  const refreshHistory = React.useCallback(() => loadHistory(null, false, cachedHistory?.rows.length ?? 0), [loadHistory, cachedHistory?.rows.length]);
+
+  React.useEffect(() => { if (!isSearch) historyAbortRef.current?.abort(); }, [isSearch]);
 
   React.useEffect(() => {
-    if (!bootstrap) return;
+    if (!bootstrap || !isSearch) return;
     const hasFilters = historyType !== "all" || historyPayer !== "all" || historyCategoryId !== "all" || Boolean(historyQuery.trim()) || Boolean(historyFrom) || Boolean(historyTo);
     if (!hasFilters) {
       historyAbortRef.current?.abort();
       return;
     }
+    if (historyResult?.scope === historyScope && historyResult.bootstrap === bootstrap) return;
     const timer = window.setTimeout(() => {
-      void loadHistory().catch((reason) => {
-        if ((reason as { name?: string }).name !== "AbortError") setReadError(reason, loadHistory);
+      void refreshHistory().catch((reason) => {
+        if ((reason as { name?: string }).name !== "AbortError") setReadError(reason, refreshHistory);
       });
     }, historyQuery.trim() ? 300 : 0);
     return () => { window.clearTimeout(timer); historyAbortRef.current?.abort(); };
-  }, [bootstrap, historyCategoryId, historyFrom, historyPayer, historyQuery, historyTo, historyType, loadHistory, setReadError]);
+  }, [bootstrap, isSearch, historyCategoryId, historyFrom, historyPayer, historyQuery, historyTo, historyType, historyResult?.scope, historyResult?.bootstrap, historyScope, refreshHistory, setReadError]);
 
   React.useEffect(() => {
     if (!bootstrap || secondaryTab !== "stats" || statistics) return;
@@ -317,7 +350,8 @@ export function V2LedgerHome({
     return (
       <div className="space-y-3 pt-1">
         {!activeLedgerId && !ledgers.some(ledger => ledger.status === "active") ? <Card className="space-y-3 p-4"><h2 className="font-bold">還沒有帳本</h2><p>建立一本帳本，開始一起記錄生活。</p><Button tabIndex={0} onClick={event => onCreateLedger(event.currentTarget)}>建立帳本</Button></Card>
-          : <Card className="p-4 text-sm text-[var(--muted-foreground)]">{error || "正在載入帳本…"}{error ? <Button className="mt-2" variant="outline" size="sm" onClick={() => void reload().catch(() => undefined)}>重新讀取</Button> : null}</Card>}
+          : error ? <Card role="alert" className="p-4 text-sm text-[var(--muted-foreground)]">暫時讀不到這本帳本。{error}<Button className="mt-2" variant="outline" size="sm" onClick={() => void reload().catch(() => undefined)}>重新讀取</Button></Card>
+          : isDetail ? <TransactionDetailSkeleton /> : isHome ? <Card className="p-4"><LedgerTimeline transactions={[]} userId={user.id} categories={categories} today={today} visibleCount={visibleCount} onLoadOlder={() => undefined} onOpenTransaction={() => undefined} loading /></Card> : <Card className="p-4">正在載入帳本…</Card>}
         <EntryStatus entry={entry} ledgerId={activeLedgerId} />
       </div>
     );
@@ -502,8 +536,9 @@ export function V2LedgerHome({
           void retry().catch(reason => setReadError(reason, retry));
         }}>{surfaceError.auth ? "重新登入" : "重新讀取"}</Button> : null}
       </div> : null}
-      {!isHome && !(isDetail && (entry.draft?.operationType === "replace" || entry.operation?.operationType === "replace")) ? <EntryStatus entry={entry} ledgerId={activeLedgerId} /> : null}
-      {error && entry.write !== "committed" ? <p role="alert" className="text-sm">內容暫時無法更新。{error}</p> : null}
+      {!isHome && !(isDetail && isCorrection) ? <EntryStatus entry={entry} ledgerId={activeLedgerId} /> : null}
+      {error && entry.write !== "committed" ? <div role="alert" className="text-sm"><p>內容暫時無法更新。{error}</p><Button variant="outline" size="sm" onClick={() => void refreshLedger().catch(() => undefined)}>重新讀取</Button></div> : null}
+      {isHome && mutationFact ? <p role="status">{mutationFact}{entry.read !== "ready" ? "。內容與近況待更新。" : ""}</p> : null}
       {proposalId && proposalStatus ? <Card className="border-accent/30 bg-accent-soft p-4"><p className="font-semibold">LINE 待確認草稿</p><p className="mt-1 text-sm text-[var(--muted-foreground)]">狀態：{proposalStatus === "proposed" ? "待確認" : proposalStatus === "confirmed" ? "已入帳" : proposalStatus === "cancelled" ? "已取消" : proposalStatus}</p>{proposalStatus === "proposed" ? <div className="mt-3 flex gap-2"><Button variant="primary" size="sm" onClick={() => void confirmProposal()} disabled={saving}>確認入帳</Button><Button variant="ghost" size="sm" onClick={() => void cancelProposal()} disabled={saving}>取消</Button></div> : null}</Card> : null}
 
 
@@ -522,7 +557,7 @@ export function V2LedgerHome({
         <Button variant="outline" size="sm" onClick={() => onOpenSurface("SEARCH")}>搜尋</Button>
       </nav></> : null}
 
-      {isHome || isDetail && (entry.draft?.operationType === "replace" || entry.operation?.operationType === "replace") ? <Card className="p-4" data-entry>
+      {isHome || isDetail && isCorrection ? <Card className="p-4" data-entry>
         <div className="mb-3 flex items-center gap-2"><Plus className="size-4 text-accent" /><h2 className="font-bold">{entry.draft?.operationType === "replace" ? "修改這筆紀錄" : "快速記一筆"}</h2></div>
         {entry.draft && entry.draft.ledgerId === activeLedgerId ? <V2TransactionEditor
           key={entry.draft.id}
@@ -601,23 +636,33 @@ export function V2LedgerHome({
           {recurring.length ? <div className="divide-y divide-[var(--border)]">{recurring.map((rule) => <div key={rule.id} className="flex items-center gap-2 py-2"><div className="min-w-0 flex-1"><p className="truncate text-sm font-semibold">{rule.name} · {money(Number(rule.amountTwd))}</p><p className="text-xs text-[var(--muted-foreground)]">{rule.frequency === "weekly" ? "每週" : rule.frequency === "monthly" ? "每月" : "每年"} · {rule.splitMethod} · 下次 {rule.nextRunDate}</p></div><Button variant="ghost" size="sm" onClick={() => void toggleRecurring(rule)} disabled={saving}>{rule.active ? "停用" : "啟用"}</Button></div>)}</div> : <p className="text-sm text-[var(--muted-foreground)]">尚未設定週期交易</p>}
       </Card> : null}
 
-      {isHome || isSearch ? <Card className="p-4">
-        <div className="mb-2 flex items-center justify-between gap-2"><h2 className="font-bold">最近紀錄</h2><span className="text-xs text-[var(--muted-foreground)]">已載入 {historyRows.length} 筆</span></div>
-        {isSearch ? <div className="mb-3 grid grid-cols-2 gap-2">
+      {isHome ? <Card className="p-4"><h2 className="mb-2 font-bold">生活紀錄</h2>
+        <LedgerTimeline transactions={bootstrap.transactions} userId={user.id} categories={categories} today={today}
+          visibleCount={visibleCount} onLoadOlder={onLoadOlder}
+          onOpenTransaction={id => onOpenSurface("TRANSACTION_DETAIL", id)} />
+      </Card> : null}
+      {isSearch ? <Card className="p-4" data-search-ready={historyReady ? "true" : "false"}>
+        <div className="mb-2 flex items-center justify-between gap-2"><h2 className="font-bold">搜尋紀錄</h2><span className="text-xs text-[var(--muted-foreground)]">已載入 {historyRows.length} 筆</span></div>
+        <div className="mb-3 grid grid-cols-2 gap-2">
           <Input value={historyQuery} onChange={(event) => setHistoryQuery(event.target.value)} placeholder="搜尋用途／分類／備註" aria-label="搜尋紀錄" />
           <Select ariaLabel="紀錄類型" value={historyType} onValueChange={(value) => setHistoryType(value as typeof historyType)} options={[{ value: "all", label: "全部類型" }, { value: "expense", label: "支出" }, { value: "income", label: "收入" }, { value: "transfer", label: "轉帳" }]} />
           <Select ariaLabel="付款人" value={historyPayer} onValueChange={setHistoryPayer} options={[{ value: "all", label: "全部付款人" }, ...users.map((candidate) => ({ value: candidate.id, label: `${candidate.label} 付款` }))]} />
           <Select ariaLabel="紀錄分類" value={historyCategoryId} onValueChange={setHistoryCategoryId} options={[{ value: "all", label: "全部分類" }, ...categories.filter((category) => category.status === "active").map((category) => ({ value: category.id, label: category.name }))]} />
           <Input type="date" value={historyFrom} onChange={(event) => setHistoryFrom(event.target.value)} aria-label="紀錄開始日期" />
           <Input type="date" value={historyTo} onChange={(event) => setHistoryTo(event.target.value)} aria-label="紀錄結束日期" />
-        </div> : null}
-        <div className="divide-y divide-[var(--border)]">
-          {historyRows.map((transaction) => <TransactionRow key={`${transaction.id}:${transaction.version ?? 1}`} transaction={transaction} users={users} categoryOptions={categories.filter((category) => category.status === "active").map((category) => ({ id: category.id, name: category.name }))} entryLocked={entry.locked} onEdit={() => onEdit(transaction)} onOpen={() => onOpenSurface("TRANSACTION_DETAIL", transaction.id)} onChanged={async () => { await refreshLedger(); await loadHistory(); }} />)}
-          {!historyRows.length ? <p className="py-8 text-center text-sm text-[var(--muted-foreground)]">沒有符合條件的紀錄</p> : null}
         </div>
-        {historyCursor ? <Button variant="outline" size="block" className="mt-3" onClick={() => void loadMoreHistory()} disabled={historyLoadingMore}>{historyLoadingMore ? "載入中…" : "載入更早交易"}</Button> : null}
+        <label className="mb-3 flex min-h-11 items-center gap-2"><input type="checkbox" checked={filters.includeVoided === "1"} onChange={event => changeFilter("includeVoided", event.target.checked ? "1" : "")} />包含已作廢</label>
+        <ul className="divide-y divide-[var(--border)]">
+          {historyRows.map(transaction => <li key={transaction.id}><TimelineTransactionRow transaction={transaction} userId={user.id} categories={categories} today={today} onOpenTransaction={id => onOpenSurface("TRANSACTION_DETAIL", id)} /></li>)}
+        </ul>
+        {!historyReady ? <p role="status" className="text-sm text-[var(--muted-foreground)]">搜尋內容更新中…</p> : !historyRows.length ? <p className="py-8 text-center text-sm text-[var(--muted-foreground)]">沒有符合條件的紀錄</p> : null}
+        {historyCursor ? <Button variant="outline" size="block" className="mt-3" onClick={() => void loadMoreHistory().catch(reason => setReadError(reason, loadMoreHistory))} disabled={historyLoadingMore}>{historyLoadingMore ? "載入中…" : "載入更早交易"}</Button> : null}
       </Card> : null}
-      {isDetail ? detail ? <Card className="p-4"><TransactionRow key={`${detail.id}:${detail.version ?? 1}`} transaction={detail} users={users} categoryOptions={categories.filter(category => category.status === "active").map(category => ({ id: category.id, name: category.name }))} entryLocked={entry.locked} onEdit={() => onEdit(detail)} initialOpen onChanged={refreshLedger} /></Card> : <p role="alert">這筆紀錄不屬於這本帳本，或已無法開啟。</p> : null}
+      {isDetail ? detail ? <div hidden={isCorrection}><TransactionDetail key={detail.id} transaction={detail} transactions={bootstrap.transactions}
+        userId={user.id} users={users} categories={categories} entryLocked={entry.locked}
+        onEdit={() => onEdit(detail)} onOpenTransaction={id => onOpenSurface("TRANSACTION_DETAIL", id)}
+        onConfirmedMutation={(proof, action) => { onConfirmedMutation(detail.ledgerId, proof); setMutationFact(`${action === "void" ? "已作廢" : "已恢復"}「${detail.description ?? "這筆紀錄"}」`); }} onChanged={refreshLedger} /></div>
+        : <p role="alert">這筆紀錄不屬於這本帳本，或已無法開啟。</p> : null}
     </div>
   );
 }
@@ -647,72 +692,4 @@ function EntryStatus({ entry, ledgerId }: { entry: V2EntrySession; ledgerId: str
     </> : null}
     {committed && entry.read === "failed" ? <Button variant="outline" size="sm" onClick={() => void entry.retryRead()}>重新整理</Button> : null}
   </div>;
-}
-
-function TransactionRow({ transaction, users, categoryOptions, entryLocked, onEdit, onOpen, initialOpen = false, onChanged }: { transaction: V2LedgerBootstrap["transactions"][number]; users: User[]; categoryOptions: Array<{ id: string; name: string }>; entryLocked: boolean; onEdit: () => void; onOpen?: () => void; initialOpen?: boolean; onChanged: () => Promise<unknown> }) {
-  const [busy, setBusy] = React.useState(false);
-  const [message, setMessage] = React.useState("");
-  const [uploading, setUploading] = React.useState(false);
-  const [attachments, setAttachments] = React.useState<V2Attachment[]>([]);
-  const [attachmentsLoaded, setAttachmentsLoaded] = React.useState(false);
-  const payments = transaction.payments.map((payment) => `${users.find((user) => user.id === payment.userId)?.label ?? "成員"} ${money(Number(payment.amountTwd))}`).join("、");
-  const shares = transaction.shares.map((share) => `${users.find((user) => user.id === share.userId)?.label ?? "成員"} ${money(Number(share.amountTwd))}`).join("、");
-  const categoryLabel = transaction.category ?? categoryOptions.find((category) => category.id === transaction.categoryId)?.name;
-  const typeLabel = transaction.type === "income" ? "收入／退款" : transaction.type === "transfer" ? "轉帳" : "支出";
-  const loadAttachments = React.useCallback(async () => {
-    try {
-      const result = await fetch(`/api/app/v2/transactions/${transaction.id}/attachments`, { cache: "no-store", credentials: "same-origin" });
-      const body = await result.json() as { attachments?: V2Attachment[]; error?: string };
-      if (!result.ok) throw new Error(body.error ?? "無法讀取收據");
-      setAttachments(body.attachments ?? []);
-      setAttachmentsLoaded(true);
-    } catch (reason) {
-      setMessage(reason instanceof Error ? reason.message : "無法讀取收據");
-    }
-  }, [transaction.id]);
-  async function mutate(action: "void" | "restore") {
-    setBusy(true);
-    setMessage("");
-    try {
-      await api(`/api/app/v2/transactions/${transaction.id}/mutate`, {
-        action,
-        expectedVersion: transaction.version ?? 1,
-        idempotencyKey: `v2:transaction:${transaction.id}:${action}:${transaction.version ?? 1}`,
-      });
-      await onChanged();
-      setMessage(action === "void" ? "已作廢" : "已恢復");
-    } catch (reason) {
-      setMessage(reason instanceof Error ? reason.message : "更新失敗");
-    } finally {
-      setBusy(false);
-    }
-  }
-  async function uploadReceipt(file: File) {
-    if (!file || file.size > 10 * 1024 * 1024) {
-      setMessage("收據必須小於 10 MB");
-      return;
-    }
-    setUploading(true);
-    setMessage("");
-    try {
-      const result = await api("/api/app/v2/attachments", {
-        ledgerId: transaction.ledgerId,
-        transactionId: transaction.id,
-        fileName: file.name,
-        mimeType: file.type,
-        sizeBytes: file.size,
-      }) as unknown as { attachment: { id: string }; signedUpload: { signedUrl: string } };
-      const response = await fetch(result.signedUpload.signedUrl, { method: "PUT", headers: { "content-type": file.type }, body: file });
-      if (!response.ok) throw new Error("收據上傳失敗");
-      await api(`/api/app/v2/attachments/${(result.attachment as { id: string }).id}/complete`, {});
-      await loadAttachments();
-      setMessage("收據已上傳");
-    } catch (reason) {
-      setMessage(reason instanceof Error ? reason.message : "收據上傳失敗");
-    } finally {
-      setUploading(false);
-    }
-  }
-  if (onOpen) return <button type="button" data-transaction-id={transaction.id} aria-label={`查看紀錄：${transaction.description ?? typeLabel}`} onClick={onOpen} className="flex min-h-11 w-full items-start gap-3 py-3 text-left"><div className="min-w-0 flex-1"><p className="truncate text-sm font-semibold">{transaction.description ?? typeLabel}{transaction.status !== "posted" ? `（${transaction.status === "voided" ? "已作廢" : "已刪除"}）` : ""}</p><p className="text-xs">{transaction.occurredOn} · {payments}</p></div><strong className="text-sm">{money(Number(transaction.amountTwd))}</strong></button>;
-  return <details open={initialOpen || undefined} className={`group py-3 ${transaction.status !== "posted" ? "opacity-60" : ""}`} onToggle={(event) => { if (event.currentTarget.open && !attachmentsLoaded) void loadAttachments(); }}><summary className="flex min-h-11 cursor-pointer list-none items-start gap-3"><div className="grid size-9 shrink-0 items-center rounded-xl bg-accent-soft text-accent"><ArrowLeftRight className="size-4" /></div><div className="min-w-0 flex-1"><p className="truncate text-sm font-semibold">{transaction.description ?? typeLabel}{transaction.status !== "posted" ? `（${transaction.status === "voided" ? "已作廢" : "已刪除"}）` : ""}</p><p className="mt-0.5 text-xs text-[var(--muted-foreground)]">{transaction.occurredOn} · {typeLabel} · {payments || "付款資訊"}</p></div><p className="text-sm font-bold tabular-nums">{money(Number(transaction.amountTwd))}</p></summary><div className="ml-12 mt-2 space-y-2 text-xs text-[var(--muted-foreground)]"><p>付款：{payments || "—"}</p><p>分攤：{shares || "—"}</p>{categoryLabel ? <p>分類：{categoryLabel}</p> : null}{transaction.type === "income" ? <p>收入／退款由收款人收到，分攤代表兩人的權益。</p> : null}{transaction.type === "transfer" ? <p>轉帳方向：{transaction.payments[0] ? users.find((user) => user.id === transaction.payments[0]!.userId)?.label ?? "成員" : "—"} → {transaction.shares[0] ? users.find((user) => user.id === transaction.shares[0]!.userId)?.label ?? "成員" : "—"}</p> : null}{transaction.replacesTransactionId ? <p>此交易由舊交易修改而來：{transaction.replacesTransactionId}</p> : null}{transaction.replacedByTransactionId ? <p>此交易已被更新，新版交易：{transaction.replacedByTransactionId}</p> : null}<div className="flex flex-wrap items-center gap-2"><Button variant="ghost" size="sm" disabled={busy || entryLocked || transaction.status === "voided"} onClick={onEdit}>編輯</Button><Button variant="ghost" size="sm" disabled={busy || entryLocked || transaction.status === "voided"} onClick={() => void mutate("void")}>作廢</Button>{transaction.status === "voided" ? <Button variant="ghost" size="sm" disabled={busy || entryLocked} onClick={() => void mutate("restore")}>恢復</Button> : null}<label className="inline-flex min-h-11 cursor-pointer items-center gap-1 rounded-lg px-3 text-sm font-semibold hover:bg-accent-soft"><Paperclip className="size-3" />{uploading ? "上傳中…" : "加收據"}<input className="sr-only" type="file" accept="image/jpeg,image/png,image/webp,image/heic,image/heif,application/pdf" disabled={uploading} onChange={(event) => { const file = event.target.files?.[0]; if (file) void uploadReceipt(file); event.currentTarget.value = ""; }} /></label></div>{attachmentsLoaded && !attachments.length ? <p>尚無收據</p> : null}{attachments.length ? <div className="space-y-1"><p className="font-semibold">收據</p>{attachments.map((attachment) => <div key={attachment.id} className="flex items-center gap-2"><a href={attachment.url ?? undefined} target="_blank" rel="noreferrer" className="min-w-0 flex-1 truncate text-accent underline">{attachment.mimeType === "application/pdf" ? "PDF 收據" : "圖片收據"} · {new Date(attachment.createdAt).toLocaleString("zh-TW")}</a><Button variant="ghost" size="sm" onClick={() => void (async () => { try { await api(`/api/app/v2/attachments/${attachment.id}`, undefined, { method: "DELETE" }); await loadAttachments(); } catch (reason) { setMessage(reason instanceof Error ? reason.message : "收據刪除失敗"); } })()}>刪除</Button></div>)}</div> : null}{message ? <p>{message}</p> : null}</div></details>;
 }

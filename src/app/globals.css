@@ -244,8 +244,15 @@
 .animate-sheet-up { animation: sheetUp 0.32s var(--ease-out) both; }
 .animate-backdrop-in { animation: backdropIn 0.2s ease-out both; }
 .animate-toast-in { animation: toastIn 0.32s var(--ease-out) both; }
+.detail-enter { view-transition-name: transaction-detail; animation: fadeIn 160ms ease-out both; }
+.timeline-new-row { animation: fadeIn 120ms ease-out both; }
+@keyframes detailFadeOut { from { opacity: 1; } to { opacity: 0; } }
+::view-transition-old(root), ::view-transition-new(root) { animation: none; }
+::view-transition-old(transaction-detail) { animation: detailFadeOut 140ms ease-out both; }
+::view-transition-new(transaction-detail) { animation: fadeIn 160ms ease-out both; }
 
 @media (prefers-reduced-motion: reduce) {
+  ::view-transition-old(transaction-detail), ::view-transition-new(transaction-detail) { animation: none !important; }
   *,
   *::before,
   *::after {
