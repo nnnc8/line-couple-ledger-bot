@@ -1,3 +1,4 @@
+import { openEntry, outerIntentClick } from "./fixtures/p1-b-browser";
 import { expect, test, type Page, type Route } from "@playwright/test";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { calculateLedgerBalance, recommendNextPayer, splitEqual, type V2Transaction } from "../src/lib/v2-ledger";
@@ -199,7 +200,7 @@ if (evidenceStage === "before" || evidenceStage === "after") {
     await measure("390-normal");
     await capture("home-390");
     await editor.screenshot({ path: `${directory}/transaction-form-390.png`, animations: "disabled" });
-    await page.getByText("更多", { exact: true }).click();
+    await openEntry(page); await page.getByText("更多", { exact: true }).click();
     await expect(page.getByLabel("交易類型")).toBeVisible();
     await editor.screenshot({ path: `${directory}/advanced-fields-390.png`, animations: "disabled" });
     await openSecondary(page, "settings");
@@ -228,7 +229,7 @@ if (evidenceStage === "before" || evidenceStage === "after") {
 }
 
 test("P1-A keeps the native transaction date fully readable at mobile widths and enlarged text", async ({ page, browserName }) => {
-  await page.getByText("更多", { exact: true }).click();
+  await openEntry(page); await page.getByText("更多", { exact: true }).click();
   const dateInput = page.getByLabel("交易日期");
   await expect(dateInput).toBeVisible();
   await expect(dateInput).toHaveAttribute("type", "date");
@@ -289,12 +290,12 @@ test("P1-A keeps the native transaction date fully readable at mobile widths and
 });
 
 async function chooseLedger(page: Page, ledgerId: string) {
-  await page.getByTestId("ledger-name-trigger").click();
+  await outerIntentClick(page, page.getByTestId("ledger-name-trigger"));
   await page.getByRole("dialog").locator(`[data-ledger-option="${ledgerId}"]`).click();
 }
 async function returnHome(page: Page) {
-  await page.getByRole("button", { name: "返回帳本", exact: true }).click();
-  await expect(page.getByLabel("金額，新臺幣")).toBeVisible();
+  await outerIntentClick(page, page.getByRole("button", { name: "返回帳本", exact: true }));
+  await expect(page.getByTestId("quick-entry-trigger")).toBeVisible();
 }
 async function openSecondary(page: Page, surface: "stats" | "settings" | "recurring" | "search") {
   if (await page.getByRole("button", { name: "返回帳本", exact: true }).isVisible()) await returnHome(page);
@@ -349,7 +350,7 @@ test("P1-A restores zoom and keeps primary controls readable and tappable", asyn
 
   await expect(page.getByTestId("surface-heading")).toContainText("共同生活");
   await expect(page.getByTestId("ledger-name-trigger")).toBeVisible();
-  await page.getByTestId("ledger-name-trigger").click();
+  await outerIntentClick(page, page.getByTestId("ledger-name-trigger"));
   const createLedger = page.getByRole("dialog").getByRole("button", { name: "建立帳本", exact: true });
   await expect(createLedger).toBeVisible();
   const createDimensions = await createLedger.boundingBox();
@@ -357,8 +358,8 @@ test("P1-A restores zoom and keeps primary controls readable and tappable", asyn
   expect(createDimensions!.width).toBeGreaterThanOrEqual(44);
   await page.getByRole("dialog").getByRole("button", { name: "關閉視窗" }).click();
   await expect(page.getByLabel("重新整理帳本")).toBeVisible();
-  await expect(page.getByLabel("金額，新臺幣")).toBeVisible();
-  await expect(page.getByLabel("用途")).toBeVisible();
+  await expect(page.getByLabel("金額，新臺幣")).toHaveCount(0);
+  await expect(page.getByLabel("用途")).toHaveCount(0);
   await expect(page.getByRole("heading", { name: "生活紀錄", exact: true })).toBeVisible();
 
   for (const viewportSize of [{ width: 390, height: 844 }, { width: 393, height: 852 }]) {
@@ -369,34 +370,41 @@ test("P1-A restores zoom and keeps primary controls readable and tappable", asyn
       page.getByTestId("ledger-name-trigger"),
       page.getByRole("button", { name: "搜尋", exact: true }),
       page.getByLabel("重新整理帳本"),
-      page.getByLabel("金額，新臺幣"),
-      page.getByLabel("用途"),
-      page.getByRole("button", { name: "加入" }),
+      page.getByTestId("quick-entry-trigger"),
       page.getByRole("button", { name: "收支概況", exact: true }),
       page.getByRole("button", { name: "帳本設定", exact: true }),
     ];
     const dimensions = await Promise.all(controlsToMeasure.map((control) => control.evaluate((element) => {
       const rect = element.getBoundingClientRect();
-      return { width: rect.width, height: rect.height, fontSize: Number.parseFloat(getComputedStyle(element).fontSize) };
+      return { width: rect.width, height: Math.round(rect.height), fontSize: Number.parseFloat(getComputedStyle(element).fontSize) };
     })));
     for (const { height } of dimensions) expect(height).toBeGreaterThanOrEqual(44);
     for (const { width } of dimensions.slice(0, 3)) expect(width).toBeGreaterThanOrEqual(44);
-    for (const { fontSize } of dimensions.slice(3, 5)) expect(fontSize).toBeGreaterThanOrEqual(16);
+    expect(dimensions[3]!.height).toBeGreaterThanOrEqual(52);
+    await openEntry(page);
+    const editorDimensions = await page.locator('[data-entry-field="amountTwd"], [data-entry-field="description"], [data-entry] button[aria-busy]').evaluateAll(nodes => nodes.map(node => {
+      const rect = node.getBoundingClientRect();
+      return { height: Math.round(rect.height), fontSize: Number.parseFloat(getComputedStyle(node).fontSize) };
+    }));
+    expect(editorDimensions).toHaveLength(3);
+    for (const { height, fontSize } of editorDimensions) { expect(height).toBeGreaterThanOrEqual(44); expect(fontSize).toBeGreaterThanOrEqual(16); }
 
-    await page.getByText("更多", { exact: true }).click();
+    await openEntry(page); await page.getByText("更多", { exact: true }).click();
     const advancedSelects = await page.locator("select:visible").evaluateAll((elements) => elements.map((element) => {
       const rect = element.getBoundingClientRect();
-      return { height: rect.height, fontSize: Number.parseFloat(getComputedStyle(element).fontSize) };
+      return { height: Math.round(rect.height), fontSize: Number.parseFloat(getComputedStyle(element).fontSize) };
     }));
     expect(advancedSelects.length).toBeGreaterThan(0);
     for (const { height, fontSize } of advancedSelects) {
       expect(height).toBeGreaterThanOrEqual(44);
       expect(fontSize).toBeGreaterThanOrEqual(16);
     }
-    await page.getByText("更多", { exact: true }).click();
+    await openEntry(page); await page.getByText("更多", { exact: true }).click();
+    await page.getByRole("dialog").getByRole("button", { name: "關閉視窗" }).click();
+    await expect(page.locator("dialog[open]")).toHaveCount(0);
   }
 
-  await page.getByTestId("ledger-name-trigger").click();
+  await outerIntentClick(page, page.getByTestId("ledger-name-trigger"));
   await page.getByRole("dialog").getByRole("button", { name: "建立帳本", exact: true }).click();
   await expect(page.getByRole("textbox", { name: "新帳本名稱" })).toBeVisible();
   await page.getByRole("dialog").getByRole("button", { name: "關閉視窗" }).click();
@@ -408,7 +416,7 @@ test("P1-A restores zoom and keeps primary controls readable and tappable", asyn
   await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
   const settingsOverflow = await horizontalOverflow(page);
   expect(settingsOverflow.documentWidth, JSON.stringify(settingsOverflow)).toBeLessThanOrEqual(settingsOverflow.expectedWidth);
-  await returnHome(page);
+  await returnHome(page); await openEntry(page);
   const enlarged = await page.evaluate((expectedWidth) => ({
     expectedWidth,
     documentWidth: Math.max(document.documentElement.scrollWidth, document.body.scrollWidth),
@@ -419,7 +427,7 @@ test("P1-A restores zoom and keeps primary controls readable and tappable", asyn
 });
 
 test("P1-A keeps keyboard focus visible and honors reduced motion", async ({ page }) => {
-  await page.getByLabel("金額，新臺幣").focus();
+  await openEntry(page); await page.getByLabel("金額，新臺幣").focus();
   await page.keyboard.press("Tab");
   const focusStyle = await page.evaluate(() => {
     const element = document.activeElement as HTMLElement;
@@ -453,7 +461,7 @@ test("P1-A keeps long Ledger names and large TWD balances reachable at 200% text
   const ledgerName = "我們的共同生活帳本名稱超過一般長度的範例";
   controls(page).setLedgerName(ledgerName);
   controls(page).setBalance("999999999", "-999999999");
-  await page.getByLabel("重新整理帳本").click();
+  await outerIntentClick(page, page.getByLabel("重新整理帳本"));
   await expect(page.getByText(ledgerName, { exact: true })).toBeVisible();
   await expect(page.getByText("NT$999,999,999", { exact: true })).toBeVisible();
   await page.evaluate(() => { document.documentElement.style.fontSize = "200%"; });
@@ -481,14 +489,14 @@ test("loads statistics and recurring rules only when their secondary UI is opene
 
 test("shows server-confirmed saving and success feedback without waiting for history reload", async ({ page }) => {
   controls(page).setPostMode("delay");
-  await page.getByLabel("金額，新臺幣").fill("100");
-  await page.getByLabel("用途").fill("午餐");
+  await openEntry(page); await page.getByLabel("金額，新臺幣").fill("100");
+  await openEntry(page); await page.getByLabel("用途").fill("午餐");
   const submit = page.getByRole("button", { name: "加入" });
   await submit.click();
   await page.evaluate(() => {
     document.querySelector<HTMLButtonElement>('[data-entry] form button:last-child')?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
   });
-  await expect(page.getByRole("button", { name: /儲存中/ })).toBeDisabled();
+  await expect(page.getByRole("button", { name: /正在加入/ })).toBeDisabled();
   await expect.poll(() => controls(page).getPostRequests()).toBe(1);
   controls(page).releasePost();
   await expect(page.getByRole("status").filter({ hasText: "已加入午餐 NT$100" }).first()).toBeVisible();
@@ -496,14 +504,19 @@ test("shows server-confirmed saving and success feedback without waiting for his
   await expect(page.getByRole("heading", { name: "你目前多付" })).toBeVisible();
   await expect(page.getByText("NT$50", { exact: true }).first()).toBeVisible();
   await expect(page.getByText("下次建議由 另一半 付款", { exact: true })).toBeVisible();
+  await expect(page.getByLabel("金額，新臺幣")).toHaveCount(0);
+  await expect(page.locator("dialog[open]")).toHaveCount(0);
+  await openEntry(page);
   await expect(page.getByLabel("金額，新臺幣")).toHaveValue("");
   await expect(page.getByLabel("用途")).toHaveValue("");
+  await openEntry(page); await page.getByText("更多", { exact: true }).click();
   await expect(page.getByLabel("交易類型")).toHaveValue("expense");
   await expect(page.getByText("本筆依開啟時的預設", { exact: true })).toBeVisible();
   expect(controls(page).getPostedBodies()[0]).toMatchObject({ type: "expense", amountTwd: "100", occurredOn: "2026-08-28", splitMethod: "weights", payments: [{ userId: OWNER, amountTwd: "100" }] });
 });
 
 test("payer and split choices use the existing native host while low-frequency fields stay under More", async ({ page }) => {
+  await openEntry(page);
   await expect(page.getByLabel("交易類型")).not.toBeVisible();
   await page.getByTestId("payer-summary").click();
   await page.getByLabel("付款人", { exact: true }).selectOption("partner");
@@ -520,7 +533,7 @@ test("payer and split choices use the existing native host while low-frequency f
   await page.getByLabel("分攤方式").selectOption("exact");
   await expect(page.getByLabel("你 分攤")).toBeVisible();
   await page.getByRole("dialog").getByRole("button", { name: "取消", exact: true }).click();
-  await page.getByText("更多", { exact: true }).click();
+  await openEntry(page); await page.getByText("更多", { exact: true }).click();
   await page.getByLabel("交易類型").selectOption("income");
   await expect(page.getByTestId("payer-summary")).toContainText("另一半收款");
   await page.getByLabel("交易類型").selectOption("transfer");
@@ -530,26 +543,27 @@ test("payer and split choices use the existing native host while low-frequency f
 
 test("uses continuous balance language for either payer and balanced state", async ({ page }) => {
   controls(page).setBalance("50", "-50");
-  await page.getByLabel("重新整理帳本").click();
+  await outerIntentClick(page, page.getByLabel("重新整理帳本"));
   await expect(page.getByRole("heading", { name: "你目前多付" })).toBeVisible();
   await expect(page.getByText("下次建議由 另一半 付款", { exact: true })).toBeVisible();
   controls(page).setBalance("0", "0");
-  await page.getByLabel("重新整理帳本").click();
+  await outerIntentClick(page, page.getByLabel("重新整理帳本"));
   await expect(page.getByRole("heading", { name: "目前很平衡" })).toBeVisible();
   await expect(page.getByText(/欠|全部結清|轉帳／結清/)).toHaveCount(0);
 });
 
 test("keeps the daily UI usable on a narrow mobile viewport", async ({ page }) => {
-  await expect(page.getByRole("button", { name: "加入" })).toBeVisible();
+  await openEntry(page); await expect(page.getByRole("button", { name: "加入" })).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   await page.screenshot({ path: "output/playwright/v2-visual/quick-entry.png", fullPage: true });
-  await page.getByText("更多", { exact: true }).click();
+  await openEntry(page); await page.getByText("更多", { exact: true }).click();
   await page.screenshot({ path: "output/playwright/v2-visual/advanced-entry.png", fullPage: true });
   await page.getByLabel("交易類型").first().selectOption("transfer");
   await expect(page.getByText("轉帳會記錄發送人 → 接收人，不會出現支出分攤選項。")).toBeVisible();
   await page.screenshot({ path: "output/playwright/v2-visual/transfer.png", fullPage: true });
   await page.getByLabel("交易類型").first().selectOption("expense");
-  await page.getByText("更多", { exact: true }).click();
+  await openEntry(page); await page.getByText("更多", { exact: true }).click();
+  await page.getByRole("dialog").getByRole("button", { name: "關閉視窗" }).click();
   await openSecondary(page, "stats");
   await page.screenshot({ path: "output/playwright/v2-visual/statistics.png", fullPage: true });
   await openSecondary(page, "settings");
@@ -557,8 +571,8 @@ test("keeps the daily UI usable on a narrow mobile viewport", async ({ page }) =
 });
 
 test("keeps voided transactions distinct in canonical Detail and excludes them from daily history", async ({ page }) => {
-  await page.getByLabel("金額，新臺幣").fill("100");
-  await page.getByLabel("用途").fill("午餐");
+  await openEntry(page); await page.getByLabel("金額，新臺幣").fill("100");
+  await openEntry(page); await page.getByLabel("用途").fill("午餐");
   await page.getByRole("button", { name: "加入" }).click();
   await expect(page.getByText("午餐", { exact: true }).last()).toBeVisible();
   await page.getByText("午餐", { exact: true }).last().click();
@@ -567,14 +581,14 @@ test("keeps voided transactions distinct in canonical Detail and excludes them f
   await page.getByRole("button", { name: "確認作廢", exact: true }).click();
   await expect(page.getByTestId("transaction-detail")).toContainText("已作廢，不計入目前近況");
   await page.screenshot({ path: "output/playwright/v2-visual/voided-transaction.png", fullPage: true });
-  await page.getByRole("button", { name: "返回帳本", exact: true }).click();
+  await outerIntentClick(page, page.getByRole("button", { name: "返回帳本", exact: true }));
   await expect(page.locator(`button[data-transaction-id="${TRANSACTION}"]`)).toHaveCount(0);
 });
 
 test("uses the canonical save response without reloading the Ledger", async ({ page }) => {
   controls(page).setFailRefresh(true);
-  await page.getByLabel("金額，新臺幣").fill("100");
-  await page.getByLabel("用途").fill("午餐");
+  await openEntry(page); await page.getByLabel("金額，新臺幣").fill("100");
+  await openEntry(page); await page.getByLabel("用途").fill("午餐");
   await page.getByRole("button", { name: "加入" }).click();
   await expect(page.getByRole("status").filter({ hasText: "已加入午餐 NT$100" }).first()).toBeVisible();
   await expect.poll(() => controls(page).getRequestPaths().filter((path) => path === `GET /api/app/v2/ledgers/${LEDGER}/bootstrap`).length).toBe(1);
@@ -582,8 +596,8 @@ test("uses the canonical save response without reloading the Ledger", async ({ p
 
 test("keeps the draft on a rejected POST and does not add a local row", async ({ page }) => {
   controls(page).setPostMode("failure");
-  await page.getByLabel("金額，新臺幣").fill("100");
-  await page.getByLabel("用途").fill("午餐");
+  await openEntry(page); await page.getByLabel("金額，新臺幣").fill("100");
+  await openEntry(page); await page.getByLabel("用途").fill("午餐");
   await page.getByRole("button", { name: "加入" }).click();
   await expect(page.getByRole("alert").filter({ hasText: "交易格式錯誤" }).first()).toBeVisible();
   await expect(page.getByLabel("金額，新臺幣")).toHaveValue("100");
@@ -594,8 +608,8 @@ test("keeps the draft on a rejected POST and does not add a local row", async ({
 
 test("reuses the idempotency key on an unchanged retry", async ({ page }) => {
   controls(page).setPostMode("fail-once");
-  await page.getByLabel("金額，新臺幣").fill("100");
-  await page.getByLabel("用途").fill("午餐");
+  await openEntry(page); await page.getByLabel("金額，新臺幣").fill("100");
+  await openEntry(page); await page.getByLabel("用途").fill("午餐");
   await page.getByRole("button", { name: "加入" }).click();
   await expect(page.getByRole("alert").filter({ hasText: "交易格式錯誤" }).first()).toBeVisible();
   controls(page).setPostMode("success");
@@ -607,8 +621,8 @@ test("reuses the idempotency key on an unchanged retry", async ({ page }) => {
 });
 
 test("keeps a committed transaction out of a nonmatching search projection", async ({ page }) => {
-  await page.getByLabel("金額，新臺幣").fill("100");
-  await page.getByLabel("用途").fill("午餐");
+  await openEntry(page); await page.getByLabel("金額，新臺幣").fill("100");
+  await openEntry(page); await page.getByLabel("用途").fill("午餐");
   await page.getByRole("button", { name: "加入" }).click();
   await expect(page.getByRole("status").filter({ hasText: "已加入午餐 NT$100" }).first()).toBeVisible();
   await openSecondary(page, "search");
@@ -650,9 +664,9 @@ test("V3-0 ignores reversed bootstrap responses after explicit draft discard", a
   await twoLedgers(page);
   const held: Route[] = [];
   await page.route(`**/api/app/v2/ledgers/${LEDGER}/bootstrap`, route => { held.push(route); });
-  await page.getByLabel("金額，新臺幣").fill("731");
-  await page.getByLabel("用途").fill("A draft");
-  await page.getByLabel("重新整理帳本").click();
+  await openEntry(page); await page.getByLabel("金額，新臺幣").fill("731");
+  await openEntry(page); await page.getByLabel("用途").fill("A draft");
+  await outerIntentClick(page, page.getByLabel("重新整理帳本"));
   await expect.poll(() => held.length).toBe(1);
   await chooseLedger(page, SECOND_LEDGER);
   await page.getByRole("dialog").getByRole("button", { name: "放棄並切換", exact: true }).click();
@@ -664,7 +678,7 @@ test("V3-0 ignores reversed bootstrap responses after explicit draft discard", a
   await expect(page.getByText("Scope B", { exact: true }).last()).toBeVisible();
   await returnHome(page);
   await expect(card).toContainText("Scope B");
-  await expect(page.getByLabel("金額，新臺幣")).toHaveValue("");
+  await openEntry(page); await expect(page.getByLabel("金額，新臺幣")).toHaveValue("");
   await expect(page.getByLabel("用途")).toHaveValue("");
   await page.screenshot({ path: "output/playwright/v3-0/ledger-scope.png", fullPage: true });
 });
@@ -673,7 +687,7 @@ test("V3-0 rapid A B A switches ignore the first A generation and stale errors",
   await twoLedgers(page);
   const held: Route[] = [];
   await page.route(`**/api/app/v2/ledgers/${LEDGER}/bootstrap`, route => { held.push(route); });
-  await page.getByLabel("重新整理帳本").click();
+  await outerIntentClick(page, page.getByLabel("重新整理帳本"));
   await expect.poll(() => held.length).toBe(1);
   await chooseLedger(page, SECOND_LEDGER);
   await expect(page.locator('[style*="linear-gradient"]').first()).toContainText("Scope B");
@@ -682,7 +696,7 @@ test("V3-0 rapid A B A switches ignore the first A generation and stale errors",
   await held[1]!.fulfill({ json: scopeBootstrap(LEDGER, "NEW A") });
   await expect(page.locator('[style*="linear-gradient"]').first()).toContainText("NEW A");
   await releaseScopeResponse(page, held[0]!, { status: 503, json: { error: "STALE ERROR" } });
-  await page.getByLabel("金額，新臺幣").fill("12");
+  await openEntry(page); await page.getByLabel("金額，新臺幣").fill("12");
   await expect(page.getByText("STALE ERROR", { exact: true })).toHaveCount(0);
   await expect(page.locator('[style*="linear-gradient"]').first()).toContainText("NEW A");
 });
@@ -694,7 +708,7 @@ for (const endpoint of ["statistics", "categories", "recurring", "transactions"]
     await page.route(`**/api/app/v2/ledgers/${LEDGER}/${endpoint}${endpoint === "transactions" ? "?*" : ""}`, route => { held.push(route); });
     if (endpoint === "statistics") await openSecondary(page, "stats");
     if (endpoint === "recurring") await openSecondary(page, "recurring");
-    if (endpoint === "categories") await page.getByLabel("重新整理帳本").click();
+    if (endpoint === "categories") await outerIntentClick(page, page.getByLabel("重新整理帳本"));
     if (endpoint === "transactions") { await openSecondary(page, "search"); await page.getByLabel("搜尋紀錄").fill("STALE"); }
     await expect.poll(() => held.length).toBeGreaterThan(0);
     await chooseLedger(page, SECOND_LEDGER);
@@ -711,7 +725,7 @@ for (const endpoint of ["statistics", "categories", "recurring", "transactions"]
     await expect(page.getByText(/STALE/)).toHaveCount(0);
     await expect(page.getByLabel("STALE 分類名稱", { exact: true })).toHaveCount(0);
     await returnHome(page);
-    await page.getByLabel("金額，新臺幣").fill("12");
+    await openEntry(page); await page.getByLabel("金額，新臺幣").fill("12");
     await expect(page.locator('[style*="linear-gradient"]').first()).toContainText("Scope B");
   });
 }
@@ -745,8 +759,8 @@ test("V3-0 guards a late A save, then explicit discard cannot reuse A feedback o
     if (ledger === LEDGER) { held = route; return; }
     return route.fulfill({ status: 422, json: { error: "B rejection" } });
   });
-  await page.getByLabel("金額，新臺幣").fill("100");
-  await page.getByLabel("用途").fill("late-A");
+  await openEntry(page); await page.getByLabel("金額，新臺幣").fill("100");
+  await openEntry(page); await page.getByLabel("用途").fill("late-A");
   await page.getByRole("button", { name: "加入" }).click();
   await expect.poll(() => Boolean(held)).toBe(true);
   await chooseLedger(page, SECOND_LEDGER);
@@ -758,9 +772,9 @@ test("V3-0 guards a late A save, then explicit discard cannot reuse A feedback o
   await page.getByRole("dialog").getByRole("button", { name: "放棄並切換", exact: true }).click();
   await expect(page.locator('[style*="linear-gradient"]').first()).toContainText("Scope B");
   await expect(page.getByText("STALE SAVE ERROR", { exact: true })).toHaveCount(0);
-  await expect(page.getByLabel("金額，新臺幣")).toHaveValue("");
-  await page.getByLabel("金額，新臺幣").fill("100");
-  await page.getByLabel("用途").fill("late-A");
+  await openEntry(page); await expect(page.getByLabel("金額，新臺幣")).toHaveValue("");
+  await openEntry(page); await page.getByLabel("金額，新臺幣").fill("100");
+  await openEntry(page); await page.getByLabel("用途").fill("late-A");
   await page.getByRole("button", { name: "加入" }).click();
   await expect(page.getByRole("alert").filter({ hasText: "B rejection" }).first()).toBeVisible();
   expect(requests.map(request => request.ledger)).toEqual([LEDGER, SECOND_LEDGER]);
@@ -768,8 +782,8 @@ test("V3-0 guards a late A save, then explicit discard cannot reuse A feedback o
 });
 
 if (process.env.P1B_MEASURE_STAGE) test("P1-B normal create performance sample", async ({ page }, testInfo) => {
-  await page.getByLabel("金額，新臺幣").fill("100");
-  await page.getByLabel("用途").fill("午餐");
+  await openEntry(page); await page.getByLabel("金額，新臺幣").fill("100");
+  await openEntry(page); await page.getByLabel("用途").fill("午餐");
   const before = controls(page).getRequestPaths().length;
   let responseAt = 0;
   page.on("response", response => { if (response.request().method() === "POST" && response.url().endsWith("/transactions")) responseAt = performance.now(); });

@@ -1,3 +1,4 @@
+import { openEntry, outerIntentClick } from "./fixtures/p1-b-browser";
 import { test, expect, type Page } from "@playwright/test";
 import { navigationBrowser, A, B, TA, row, deferred, switchLedger, activationRequests } from "./fixtures/p1-c-browser";
 
@@ -14,7 +15,7 @@ test("native push and replace remain observable and preserve unrelated and Next 
   await expect(heading(page)).toContainText("帳本設定");
   expect(await page.evaluate(() => history.state.custom)).toEqual({ keep: 42 });
   expect(await page.evaluate(() => Boolean(history.state.__NA && history.state.__PRIVATE_NEXTJS_INTERNALS_TREE))).toBe(true);
-  await page.getByRole("button", { name: "返回帳本", exact: true }).click();
+  await outerIntentClick(page, page.getByRole("button", { name: "返回帳本", exact: true }));
   await fixture.ready(); expect(await page.evaluate(() => history.state.custom)).toEqual({ keep: 42 });
   expect(errors).toEqual([]);
 });
@@ -75,11 +76,11 @@ for (const endpoint of ["categories", "recurring", "statistics", "history"] as c
     const query = endpoint === "recurring" ? "&tab=recurring" : endpoint === "statistics" ? "&tab=stats" : endpoint === "history" ? "&view=search&q=A" : "";
     await fixture.goto(home() + query); await expect.poll(() => reads).toBe(1);
     await switchLedger(page, B); await fixture.ready(); await switchLedger(page, A); await fixture.ready();
-    if (endpoint === "recurring") await page.getByRole("button", { name: "帳本設定", exact: true }).click();
-    if (endpoint === "statistics") await page.getByRole("button", { name: "收支概況", exact: true }).click();
-    if (endpoint === "history") { await page.getByRole("button", { name: "搜尋", exact: true }).click(); await page.getByLabel("搜尋紀錄").fill("A"); }
+    if (endpoint === "recurring") await outerIntentClick(page, page.getByRole("button", { name: "帳本設定", exact: true }));
+    if (endpoint === "statistics") await outerIntentClick(page, page.getByRole("button", { name: "收支概況", exact: true }));
+    if (endpoint === "history") { await outerIntentClick(page, page.getByRole("button", { name: "搜尋", exact: true })); await page.getByLabel("搜尋紀錄").fill("A"); }
     await expect.poll(() => reads).toBeGreaterThanOrEqual(2);
-    if (endpoint === "categories") { await page.getByText("更多", { exact: true }).click(); await expect(page.getByLabel("分類", { exact: true }).locator("option", { hasText: "CURRENT A" })).toHaveCount(1); }
+    if (endpoint === "categories") { await openEntry(page); await page.getByText("更多", { exact: true }).click(); await expect(page.getByLabel("分類", { exact: true }).locator("option", { hasText: "CURRENT A" })).toHaveCount(1); }
     else await expect(page.getByText(/CURRENT A/).first()).toBeVisible();
     hold.release(); await page.waitForTimeout(100);
     await expect(page.getByText(/STALE A/)).toHaveCount(0);
@@ -101,9 +102,9 @@ test("same-ledger Detail identity change cannot reuse previous attachments", asy
 test("search failure is visible on Search and absent after leaving its scope", async ({ page }) => {
   const fixture = await navigationBrowser(page); await fixture.goto(); await fixture.ready();
   await page.route(`**/api/app/v2/ledgers/${A}/transactions*`, route => route.fulfill({ status: 500, json: { error: "SEARCH READ FAILED" } }));
-  await page.getByRole("button", { name: "搜尋", exact: true }).click(); await page.getByLabel("搜尋紀錄").fill("query");
+  await outerIntentClick(page, page.getByRole("button", { name: "搜尋", exact: true })); await page.getByLabel("搜尋紀錄").fill("query");
   await expect(page.getByRole("alert").filter({ hasText: "SEARCH READ FAILED" })).toBeVisible();
-  await page.getByRole("button", { name: "返回帳本", exact: true }).click(); await fixture.ready();
+  await outerIntentClick(page, page.getByRole("button", { name: "返回帳本", exact: true })); await fixture.ready();
   await expect(page.getByText("SEARCH READ FAILED")).toHaveCount(0);
 });
 
@@ -123,7 +124,7 @@ for (const mode of ["delay", "drop"] as const) test(`popstate while ${mode === "
   const fixture = await navigationBrowser(page); await fixture.goto(home(B)); await fixture.ready();
   await page.evaluate(url => history.pushState({}, "", url), home()); await fixture.ready();
   fixture.state.mode = mode;
-  await page.getByLabel("金額，新臺幣").fill("681"); await page.getByLabel("用途", { exact: true }).fill("受保護的操作");
+  await openEntry(page); await page.getByLabel("金額，新臺幣").fill("681"); await openEntry(page); await page.getByLabel("用途", { exact: true }).fill("受保護的操作");
   await page.getByRole("button", { name: "加入" }).click(); await expect.poll(() => fixture.state.posts.length).toBe(1);
   if (mode === "drop") await expect(page.locator("[data-write-outcome]")).toContainText("尚未確認");
   const before = fixture.state.requests.length;
@@ -141,7 +142,7 @@ test("late refresh and background resume do not steal editing focus", async ({ p
   const hold = deferred(); fixture.state.holdReads.set(A, hold);
   await page.getByRole("button", { name: "重新整理帳本" }).click();
   await expect.poll(() => fixture.state.requests.filter(item => item.path.endsWith("/bootstrap")).length).toBe(2);
-  const field = page.getByLabel("用途", { exact: true }); await field.fill("保持編輯位置");
+  const field = page.getByLabel("用途", { exact: true }); await openEntry(page); await field.fill("保持編輯位置");
   await page.evaluate(() => { document.dispatchEvent(new Event("visibilitychange")); window.dispatchEvent(new Event("focus")); });
   hold.release(); await expect(page.getByLabel("金額，新臺幣")).toBeEnabled(); await expect(page.getByRole("button", { name: "加入" })).toBeDisabled();
   await expect(field).toBeFocused(); await expect(field).toHaveValue("保持編輯位置");
@@ -155,7 +156,7 @@ for (const label of ["收支概況", "帳本設定", "搜尋"]) test(`${label} B
   await page.getByRole("button", { name: /滾動 15/ }).scrollIntoViewIfNeeded();
   const before = await page.evaluate(() => scrollY); expect(before).toBeGreaterThan(500);
   await page.getByRole("button", { name: label, exact: true }).evaluate(element => (element as HTMLElement).click());
-  await expect(heading(page)).toBeFocused(); await page.getByRole("button", { name: "返回帳本", exact: true }).click();
+  await expect(heading(page)).toBeFocused(); await outerIntentClick(page, page.getByRole("button", { name: "返回帳本", exact: true }));
   await expect.poll(() => page.evaluate(() => scrollY)).toBeGreaterThan(before - 100);
   await expect.poll(() => page.evaluate(() => scrollY)).toBeLessThan(before + 100);
   await page.reload(); await fixture.ready(); await expect.poll(() => page.evaluate(() => scrollY)).toBe(0);
@@ -204,7 +205,7 @@ test("stale app-origin row marker falls back to a surviving Home row", async ({ 
   // bootstrap invariant that an accepted read cannot erase a known transaction.
   await page.evaluate(() => history.replaceState({ ...history.state, v2LedgerOrigin: { ...history.state.v2LedgerOrigin, rowId: "removed-row" } }, "", `${location.href}&revision=2`));
   await expect(page).toHaveURL(/revision=2/); await expect(page.locator("[data-detail-heading]")).toBeFocused();
-  await page.getByRole("button", { name: "返回帳本", exact: true }).click();
+  await outerIntentClick(page, page.getByRole("button", { name: "返回帳本", exact: true }));
   await expect(page.getByRole("button", { name: /A 專屬晚餐/ })).toBeFocused();
   expect(fixture.state.posts).toHaveLength(0);
 });

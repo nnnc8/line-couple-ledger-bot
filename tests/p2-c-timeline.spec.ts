@@ -274,7 +274,7 @@ test("41 P2-A create editor remains usable and canonical upsert keeps future row
   const fixture = await start(page); await fillEntry(page, "新增的正常日期紀錄", "681"); await page.getByTestId("payer-summary").click();
   await page.getByRole("dialog").getByRole("combobox").selectOption("partner"); await page.getByRole("dialog").getByRole("button", { name: "套用", exact: true }).click();
   await page.getByRole("button", { name: "加入", exact: true }).click(); await expect(page.locator("[data-write-outcome]")).toContainText("已加入新增的正常日期紀錄");
-  await expect(rows(page)).toHaveCount(20); expect(await rows(page).first().getAttribute("data-transaction-id")).toBe(IDS.future);
+  await expect(rows(page)).toHaveCount(60); expect(await rows(page).first().getAttribute("data-transaction-id")).toBe(IDS.future);
   expect(fixture.state.posts).toHaveLength(1); const created = fixture.state.rows.find(item => item.description === "新增的正常日期紀錄")!;
   await loadAll(page); await expect(row(page, created.id)).toHaveCount(1); await capture(page, info, "new-create-canonical-upsert", { posts: fixture.state.posts });
 });

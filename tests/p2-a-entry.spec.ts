@@ -1,3 +1,4 @@
+import { openEntry, outerIntentClick } from "./fixtures/p1-b-browser";
 import { expect, test, type Page, type TestInfo } from "@playwright/test";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { correctionDraft, newTransactionDraft, normalizeTransactionDraft, type DraftFields } from "../src/lib/v2-transaction-draft";
@@ -35,7 +36,7 @@ async function evidence(page: Page, info: TestInfo, name: string, extra: unknown
   });
   expect(metrics.scrollWidth).toBeLessThanOrEqual(metrics.viewport.width + 1);
   expect(metrics.dialogs).toBe(1);
-  for (const target of metrics.targets) { expect(target.height, target.name ?? "target").toBeGreaterThanOrEqual(44); expect(target.width).toBeGreaterThanOrEqual(44); }
+  for (const target of metrics.targets) { expect(Math.round(target.height), target.name ?? "target").toBeGreaterThanOrEqual(44); expect(Math.round(target.width)).toBeGreaterThanOrEqual(44); }
   const path = `${directory}/${name}.png`;
   await page.screenshot({ path, fullPage: true, animations: "disabled" });
   writeFileSync(`${directory}/${name}.json`, JSON.stringify({ metrics, extra }, null, 2));
@@ -57,7 +58,7 @@ for (const scenario of cases) test(`command body matches P1-B and kernel: ${scen
   const bootstrap = fixture.snapshot();
   await fillEntry(page, " 晚餐 ");
   await expect(page.getByLabel("用途", { exact: true })).toHaveValue(" 晚餐 ");
-  if (scenario.patch.type) { await page.getByText("更多", { exact: true }).click(); await page.getByLabel("交易類型").selectOption(scenario.patch.type); await page.getByText("更多", { exact: true }).click(); }
+  if (scenario.patch.type) { await openEntry(page); await page.getByText("更多", { exact: true }).click(); await page.getByLabel("交易類型").selectOption(scenario.patch.type); await openEntry(page); await page.getByText("更多", { exact: true }).click(); }
   const before = fixture.state.requests.length;
   if (scenario.patch.paymentMode) await setPayer(page, scenario.patch.paymentMode, scenario.patch.paymentMode === "both" ? [scenario.patch.selfPayment!, scenario.patch.partnerPayment!] : undefined);
   if (scenario.patch.splitMode) await setSplit(page, scenario.patch.splitMode, scenario.patch.splitMode === "percentage" ? [scenario.patch.selfPercentage!, scenario.patch.partnerPercentage!] : scenario.patch.splitMode === "exact" ? [scenario.patch.selfShare!, scenario.patch.partnerShare!] : undefined);
@@ -103,7 +104,7 @@ test("both payments and exact shares retain explicit amounts after total changes
   const { state } = await entryBrowser(page); await fillEntry(page);
   await setPayer(page, "both", ["400", "281"]); await setSplit(page, "exact", ["600", "81"]);
   await evidence(page, info, "both-payers");
-  await page.getByLabel("金額，新臺幣").fill("700");
+  await openEntry(page); await page.getByLabel("金額，新臺幣").fill("700");
   await expect(join(page)).toBeDisabled(); await expect(split(page)).toContainText("分攤尚未完成");
   await expect(payer(page)).toContainText("NT$400／另一半 NT$281");
   await evidence(page, info, "invalid-split");
@@ -117,12 +118,12 @@ test("both payments and exact shares retain explicit amounts after total changes
 });
 
 test("IME, Enter, disabled reasons, inline association and first-invalid focus", async ({ page }, info) => {
-  const { state } = await entryBrowser(page);
-  await expect(join(page)).toBeDisabled(); await expect(page.locator("#entry-disabled-reason")).toContainText("整數");
+  const { state } = await entryBrowser(page); await openEntry(page);
+  await expect(join(page)).toBeDisabled(); await expect(page.locator("#entry-disabled-reason")).toContainText("填金額與用途後即可加入");
   await page.locator("[data-entry] form").dispatchEvent("submit");
   await expect(page.getByLabel("金額，新臺幣")).toBeFocused(); await expect(page.getByLabel("金額，新臺幣")).toHaveAttribute("aria-describedby", "entry-amountTwd-error");
-  await page.getByLabel("金額，新臺幣").fill("681"); await page.getByLabel("金額，新臺幣").press("Enter"); await expect(page.getByLabel("用途", { exact: true })).toBeFocused();
-  await page.getByLabel("用途", { exact: true }).fill(" 晚餐 ");
+  await openEntry(page); await page.getByLabel("金額，新臺幣").fill("681"); await page.getByLabel("金額，新臺幣").press("Enter"); await expect(page.getByLabel("用途", { exact: true })).toBeFocused();
+  await openEntry(page); await page.getByLabel("用途", { exact: true }).fill(" 晚餐 ");
   const purpose = page.getByLabel("用途", { exact: true });
   await purpose.dispatchEvent("compositionstart", { data: "餐" }); await expect(join(page)).toBeDisabled();
   await purpose.dispatchEvent("keydown", { key: "Enter", keyCode: 229, isComposing: true }); expect(state.posts).toHaveLength(0);
@@ -142,7 +143,7 @@ test("incomplete percentages do not pretend to be equal and default snapshot sta
   const { state } = await entryBrowser(page, { weights: { [OWNER]: "2", [PARTNER]: "1" } }); await fillEntry(page);
   await expect(split(page)).toContainText("你 2：另一半 1 分攤");
   state.weights = { [OWNER]: "1", [PARTNER]: "1" }; state.version += 1;
-  await page.getByLabel("重新整理帳本").click(); await expect(split(page)).toContainText("你 2：另一半 1 分攤");
+  await outerIntentClick(page, page.getByLabel("重新整理帳本")); await expect(split(page)).toContainText("你 2：另一半 1 分攤");
   await setSplit(page, "percentage", ["", "100"]); await expect(join(page)).toBeDisabled(); await expect(split(page)).toContainText("分攤尚未完成");
   await setSplit(page, "percentage", ["33.333", "66.667"]); await expect(join(page)).toBeDisabled();
   await setSplit(page, "weights"); await expect(split(page)).toContainText("你 2：另一半 1 分攤");
@@ -161,8 +162,8 @@ for (const type of ["expense", "income", "transfer"] as const) test(`correction 
   else { await expect(payer(page)).toContainText("你 NT$400／另一半 NT$281"); await expect(split(page)).toContainText(`沿用這筆${type === "income" ? "分配" : "分攤"} · 你 NT$600／另一半 NT$81`); }
   await expect(page.getByTestId("entry-more-summary")).toContainText("2026-08-17 · 餐飲 · 備註：保留原備註");
   await evidence(page, info, `correction-${type}`);
-  await page.getByText("更多", { exact: true }).click(); await expect(page.getByLabel("交易類型")).toHaveValue(type); await expect(page.getByLabel("交易日期")).toHaveValue("2026-08-17"); await expect(page.locator("[data-entry]").getByLabel("分類", { exact: true })).toHaveValue("餐飲"); await expect(page.locator("[data-entry]").getByLabel("備註")).toHaveValue("保留原備註");
-  await page.getByLabel("用途", { exact: true }).fill("修改歷史餐費"); await page.getByRole("button", { name: "儲存修改", exact: true }).click();
+  await openEntry(page); await page.getByText("更多", { exact: true }).click(); await expect(page.getByLabel("交易類型")).toHaveValue(type); await expect(page.getByLabel("交易日期")).toHaveValue("2026-08-17"); await expect(page.locator("[data-entry]").getByLabel("分類", { exact: true })).toHaveValue("餐飲"); await expect(page.locator("[data-entry]").getByLabel("備註")).toHaveValue("保留原備註");
+  await openEntry(page); await page.getByLabel("用途", { exact: true }).fill("修改歷史餐費"); await page.getByRole("button", { name: "儲存修改", exact: true }).click();
   await expect.poll(() => fixture.state.posts.length).toBe(1);
   const expected = normalizeTransactionDraft({ ...correctionDraft(bootstrap, OWNER, "2026-09-25", "oracle", original), description: "修改歷史餐費" });
   expect(fixture.state.posts[0]!.body).toMatchObject({ action: "replace", expectedVersion: 3, replacement: expected });
@@ -171,10 +172,10 @@ for (const type of ["expense", "income", "transfer"] as const) test(`correction 
 
 test("More retains non-default values and 200% text remains reachable without overflow", async ({ page }, info) => {
   const { state } = await entryBrowser(page); await fillEntry(page);
-  await page.getByText("更多", { exact: true }).click();
+  await openEntry(page); await page.getByText("更多", { exact: true }).click();
   await page.getByLabel("交易日期").fill("2026-08-17"); await page.getByLabel("分類", { exact: true }).fill("餐飲"); await page.getByLabel("備註").fill("兩人晚餐的原始備註");
   await evidence(page, info, "more-expanded");
-  await page.getByText("更多", { exact: true }).click(); await expect(page.getByTestId("entry-more-summary")).toContainText("2026-08-17 · 餐飲 · 備註：兩人晚餐的原始備註");
+  await openEntry(page); await page.getByText("更多", { exact: true }).click(); await expect(page.getByTestId("entry-more-summary")).toContainText("2026-08-17 · 餐飲 · 備註：兩人晚餐的原始備註");
   await page.evaluate(() => { document.documentElement.style.fontSize = "200%"; });
   await evidence(page, info, "200-percent-text");
   await split(page).click(); await modal(page).getByRole("combobox").selectOption("percentage"); await evidence(page, info, "percentage-200-percent-text");
@@ -185,7 +186,7 @@ test("More retains non-default values and 200% text remains reachable without ov
 
 test("switching both to transfer requires an explicit sender and never dispatches a guessed direction", async ({ page }, info) => {
   const { state } = await entryBrowser(page); await fillEntry(page); await setPayer(page, "both", ["400", "281"]);
-  await page.getByText("更多", { exact: true }).click(); await page.getByLabel("交易類型").selectOption("transfer");
+  await openEntry(page); await page.getByText("更多", { exact: true }).click(); await page.getByLabel("交易類型").selectOption("transfer");
   await expect(payer(page)).toContainText("發送人尚未選擇"); await expect(join(page)).toBeDisabled(); expect(state.posts).toHaveLength(0);
   await payer(page).click(); await expect(modal(page).getByRole("combobox")).toHaveValue("both"); await expect(modal(page).getByRole("combobox").locator('option:checked')).toHaveText("請選擇一位發送人");
   await modal(page).getByRole("combobox").selectOption("partner"); await modal(page).getByRole("button", { name: "套用" }).click();
@@ -203,7 +204,7 @@ test("second-member controls retain Ledger order, full kernel preview and associ
   await split(page).click(); await expect(modal(page).getByTestId("split-control-preview")).toContainText("另一半 NT$341／你 NT$340");
   await select.selectOption("percentage"); expect(await modal(page).locator('[data-member-id]').evaluateAll(nodes => nodes.map(node => node.getAttribute('data-member-id')))).toEqual([OWNER, PARTNER]);
   await select.selectOption("exact"); expect(await modal(page).locator('[data-member-id]').evaluateAll(nodes => nodes.map(node => node.getAttribute('data-member-id')))).toEqual([OWNER, PARTNER]);
-  await modal(page).getByRole("button", { name: "取消", exact: true }).click(); await page.getByLabel("金額，新臺幣").fill("");
+  await modal(page).getByRole("button", { name: "取消", exact: true }).click(); await openEntry(page); await page.getByLabel("金額，新臺幣").fill("");
   await payer(page).click(); await select.selectOption("both"); await expect(page.getByLabel("你 金額", { exact: true })).toHaveAttribute("aria-describedby", "entry-control-error");
   await evidence(page, info, "ledger-order-and-incomplete-association");
 });

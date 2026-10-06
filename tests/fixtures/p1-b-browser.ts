@@ -1,4 +1,4 @@
-import { expect, type Page, type Route } from "@playwright/test";
+import { expect, type Locator, type Page, type Route } from "@playwright/test";
 import { calculateLedgerBalance, recommendNextPayer } from "../../src/lib/v2-ledger";
 import type { V2CreateTransactionResult, V2LedgerBootstrap, V2LedgerTransaction } from "../../src/lib/types";
 
@@ -7,7 +7,8 @@ export const LEDGER = "00000000-0000-4000-8000-000000000010", OTHER = "00000000-
 type Mode = "normal" | "drop" | "malformed" | "partial" | "reject" | "unauthorized" | "wrong-scope" | "delay";
 type Receipt = V2CreateTransactionResult & { replacedTransactionId?: string; version?: number };
 
-export async function entryBrowser(page: Page, options: { actor?: string; weights?: Record<string, string>; rows?: V2LedgerTransaction[] } = {}) {
+export async function entryBrowser(page: Page, options: { actor?: string; weights?: Record<string, string>; rows?: V2LedgerTransaction[]; legacyInline?: boolean } = {}) {
+  await page.clock.setFixedTime(new Date("2026-09-25T04:00:00Z"));
   const state = {
     actor: options.actor ?? OWNER, coupleId: 1, mode: "normal" as Mode, failRead: false, version: 1,
     weights: options.weights ?? { [OWNER]: "1", [PARTNER]: "1" }, rows: options.rows ?? [] as V2LedgerTransaction[],
@@ -72,11 +73,24 @@ export async function entryBrowser(page: Page, options: { actor?: string; weight
   await page.route("**/api/app/v2/ledgers/*/transactions*", route => post(route, false));
   await page.route("**/api/app/v2/transactions/*/mutate", route => post(route, true));
   await page.goto("/");
-  await expect(page.getByLabel("金額，新臺幣")).toBeVisible();
+  await expect(options.legacyInline ? page.getByLabel("金額，新臺幣") : page.getByTestId("quick-entry-trigger")).toBeVisible();
   return { state, snapshot };
 }
 
+export async function openEntry(page: Page) {
+  if (!await page.getByLabel("金額，新臺幣").isVisible()) await page.getByTestId("quick-entry-trigger").click();
+  await expect(page.getByLabel("金額，新臺幣")).toBeVisible();
+}
+
+/** Exercise an outer P1-C intent while the native host makes background UI inert.
+ * Actual P2-D pointer/keyboard flows close/discard before switching surfaces. */
+export async function outerIntentClick(page: Page, target: Locator) {
+  if (await page.locator("dialog[open][data-full-height]").count()) await target.evaluate(node => (node as HTMLElement).click());
+  else await target.click();
+}
+
 export async function fillEntry(page: Page, description = "晚餐", amount = "681") {
+  await openEntry(page);
   await page.getByLabel("金額，新臺幣").fill(amount);
   await page.getByLabel("用途", { exact: true }).fill(description);
 }

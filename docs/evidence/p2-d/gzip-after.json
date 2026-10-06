@@ -1,0 +1,38 @@
+{
+  "method": "Deduplicated rootMainFiles + /page entryJSFiles, gzip level 9 per initial chunk",
+  "chunks": [
+    {
+      "path": "static/chunks/3_2gnfsz1jqfz.js",
+      "gzip": 7673
+    },
+    {
+      "path": "static/chunks/12dp50a39vrlh.js",
+      "gzip": 49052
+    },
+    {
+      "path": "static/chunks/17gauw-xhye62.js",
+      "gzip": 70529
+    },
+    {
+      "path": "static/chunks/turbopack-2285bbhngeq-u.js",
+      "gzip": 4140
+    },
+    {
+      "path": "static/chunks/0jds67wmtbffo.js",
+      "gzip": 904
+    },
+    {
+      "path": "static/chunks/3nn_ivyly2ig6.js",
+      "gzip": 13758
+    },
+    {
+      "path": "static/chunks/1wvrx_hlsfauw.js",
+      "gzip": 11747
+    },
+    {
+      "path": "static/chunks/3hoo2rz-c_4-q.js",
+      "gzip": 44104
+    }
+  ],
+  "gzip": 201907
+}
