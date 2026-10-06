@@ -134,7 +134,8 @@ export function useV2EntrySession({ context, bootstrap, read, accessDenied, acce
     if (!context || !bootstrap || accessDenied || ["submitting", "unknown", "blocked"].includes(leaveStatus())) return false;
     if (session.draft?.dirty) return session.draft.operationType === "create";
     operationRef.current = null;
-    setSession(current => ({ ...current, draft: newTransactionDraft(bootstrap, context.user.id, currentEntryDate(), crypto.randomUUID()), error: "", field: undefined }));
+    setSession(current => ({ ...current, draft: newTransactionDraft(bootstrap, context.user.id, currentEntryDate(), crypto.randomUUID()),
+      write: current.write === "committed" ? "idle" : current.write, operation: current.write === "committed" ? null : current.operation, error: "", field: undefined }));
     return true;
   }
 

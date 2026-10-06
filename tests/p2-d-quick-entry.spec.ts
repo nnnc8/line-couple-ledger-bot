@@ -257,6 +257,8 @@ test("the next explicit open snapshots fresh defaults and has no prior amount, p
   state.weights = { [OWNER]: "2", [PARTNER]: "1" }; state.version += 1;
   await page.getByLabel("重新整理帳本").click(); await expect(outcome(page)).toHaveAttribute("data-read-freshness", "ready");
   await openEntry(page); await expect(amount(page)).toHaveValue(""); await expect(purpose(page)).toHaveValue("");
+  await expect(page.getByTestId("entry-success-copy")).toHaveCount(0);
+  await expect(outcome(page)).toHaveCount(0);
   await expect(page.getByTestId("payer-summary")).toContainText("你付款");
   await fillEntry(page, "下一筆", "681"); await expect(page.getByTestId("split-summary")).toContainText("你 2：另一半 1 分攤"); await add(page).click(); await expect(outcome(page)).toContainText("已加入下一筆");
   expect(state.posts[1]!.key).not.toBe(state.posts[0]!.key); expect(state.effects).toBe(2);

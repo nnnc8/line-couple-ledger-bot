@@ -18,7 +18,7 @@ Payer/split replace the one host's content. Quick Entry stays mounted but hidden
 
 | Existing owner | P2-D interface and preserved boundary |
 | --- | --- |
-| P1-B root session | `openCreateDraft()` exposes explicit opening with a current verified default snapshot. Dirty unsent create drafts retain their identity. It does not dispatch; `dispatch`, command freezing, storage read-back, idempotency, replay and commit proof remain unchanged. |
+| P1-B root session | `openCreateDraft()` exposes explicit opening with a current verified default snapshot. Dirty unsent create drafts retain their identity. A fresh explicit opening clears the prior committed display state using the same transition as the existing first edit, so an old success is not announced again. It does not dispatch; `dispatch`, command freezing, storage read-back, idempotency, replay and commit proof remain unchanged. |
 | P2-A editor | Quick Entry composes the existing controlled editor and its validation/payer/split controls. The pending label is 「正在加入…」 with unchanged geometry and `aria-busy`. |
 | P1-C root/host | Opening, close, dirty discard and locked leave use the existing intent/leave contract and `LedgerSurfaceHost`. There is one native `dialog`, no nested modal or additional navigation owner. |
 | P2-C canonical collection | `entryCompletionTarget()` reuses `effectiveTimelineTransactions()` and its page size. It returns a row/window or Detail target; it never stores, sorts independently, fetches or changes transactions. Row identity, canonical Detail and origin restoration remain P2-C's. |
@@ -64,12 +64,12 @@ Baseline was built from an exact archive of `bc4d966…`; candidate used the sam
 
 | Measurement | Baseline median / p95 / max | Candidate median / p95 / max |
 | --- | --- | --- |
-| Initial gzip JS (deduplicated manifest, level 9) | 199,527 bytes | 201,936 bytes: **+2,409 bytes**, below 10KB |
-| Quick Entry tap → focus | N/A: permanent inline form | 20 / 22 / 30ms |
-| Quick Entry tap → painted-frame proxy | N/A: permanent inline form | 69 / 82 / 84ms |
-| Add → pending painted-frame proxy | 65 / 80 / 80ms | 25 / 33 / 36ms |
-| Canonical JSON → Home painted-frame proxy | 30 / 36 / 36ms | 34 / 41 / 42ms |
-| Canonical JSON → logical dialog close | N/A | 8 / 9 / 11ms |
+| Initial gzip JS (deduplicated manifest, level 9) | 199,527 bytes | 201,954 bytes: **+2,427 bytes**, below 10KB |
+| Quick Entry tap → focus | N/A: permanent inline form | 12 / 14 / 32ms |
+| Quick Entry tap → painted-frame proxy | N/A: permanent inline form | 57 / 76 / 89ms |
+| Add → pending painted-frame proxy | 65 / 80 / 80ms | 29 / 31 / 31ms |
+| Canonical JSON → Home painted-frame proxy | 30 / 36 / 36ms | 29 / 32 / 44ms |
+| Canonical JSON → logical dialog close | N/A | 7 / 8 / 10ms |
 | Close CSS duration | N/A | 160ms |
 | Recovery sessionStorage write (40 per stage) | 0 / 0 / 1ms | 0 / 0 / 1ms |
 
