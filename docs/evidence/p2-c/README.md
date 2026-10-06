@@ -34,7 +34,7 @@ Each engine/size folder retains 19 selected screenshots and all 57 measured JSON
 | `chromium-393/` | Chromium | 393×852 |
 | `webkit-393/` | WebKit | 393×852 |
 
-`recordings/` preserves 16 representative videos for each required project. The hosted CI also uploads the complete P2-C screenshots/JSON/test-results as an artifact with 14-day retention. Repository evidence remains available after that retention expires. `SHA256SUMS` verifies the permanent package's files; its own hash is not included.
+`recordings/` preserves 16 representative videos in total, four for each required project. The hosted CI also uploads the complete P2-C screenshots/JSON/test-results as an artifact with 14-day retention. Repository evidence remains available after that retention expires. `SHA256SUMS` verifies the permanent package's files; its own hash is not included.
 
 ## Measurement and limits
 
