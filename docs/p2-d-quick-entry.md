@@ -25,7 +25,7 @@ Payer/split replace the one host's content. Quick Entry stays mounted but hidden
 
 The root's extra state is presentation state: whether Quick Entry is shown, category options copied from the existing read surface, a focus/scroll origin, and a completion target. The existing Home statistics cache is invalidated once per committed operation, matching the former editor completion callback; this does not fix the known Statistics defect.
 
-The hook's opening method is the only addition to the P1-B owner. Financial command/service/math, commit application, recovery parsing and the lockfile are unchanged. There is no DB migration, accounting change, command ownership change, idempotency change, persistent generic/offline draft, new runtime dependency, P2-E or V3-1.
+The [byte comparison](evidence/p2-d/ownership-proof.json) records unchanged financial files and the unchanged dispatch body. The hook's opening method is the only addition to the P1-B owner. Financial command/service/math, commit application, recovery parsing and the lockfile are unchanged. There is no DB migration, accounting change, command ownership change, idempotency change, persistent generic/offline draft, new runtime dependency, P2-E or V3-1.
 
 ## T0–T6 and completion
 
@@ -71,7 +71,7 @@ Baseline was built from an exact archive of `bc4d966…`; candidate used the sam
 | Canonical JSON → Home painted-frame proxy | 30 / 36 / 36ms | 38 / 42 / 43ms |
 | Canonical JSON → logical dialog close | N/A | 8 / 13 / 14ms |
 | Close CSS duration | N/A | 160ms |
-| Recovery sessionStorage write (40 per stage) | 0 / 0 / 1ms | 0 / 1 / 1ms |
+| Recovery sessionStorage write (40 per stage) | 0 / 0 / 1ms | 0 / 0 / 1ms |
 
 Every measured candidate feedback frame was below 100ms. Timer resolution limits storage precision. CSS duration is recorded separately from logical close/first Home paint; it is not added to response latency.
 
