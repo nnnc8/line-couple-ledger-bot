@@ -24,12 +24,13 @@ export function V2TransactionEditor({ user, partner, draft, categoryOptions = []
   const [composing, setComposing] = React.useState(false);
   const [touched, setTouched] = React.useState<Array<keyof DraftFields>>([]);
   const composingRef = React.useRef(false);
+  const compositionEnding = React.useRef(false);
   const form = React.useRef<HTMLFormElement>(null);
   const purpose = React.useRef<HTMLInputElement>(null);
   const primary = React.useRef<HTMLButtonElement>(null);
   const { validation, payer, split } = entryPresentation(draft);
   const summaries = entrySummaries(draft, { [user.id]: user.label, [partner.id]: partner.label });
-  const disabledReason = busy ? "正在處理這筆，請稍候" : locked ? "請先確認已送出操作的結果或帳本存取權限" : !scopeValid ? "目前無法確認這本帳本，請重新讀取" : composing ? "請先完成文字輸入" : validation.error;
+  const disabledReason = busy ? "正在處理這筆，請稍候" : locked ? "請先確認已送出操作的結果或帳本存取權限" : !scopeValid ? "目前無法確認這本帳本，請重新讀取" : composing ? "請先完成文字輸入" : !draft.amountTwd && !draft.description ? "填金額與用途後即可加入" : validation.error;
   const fieldError = (field: keyof DraftFields) => errorField === field ? serverError : validation.field === field && (Boolean(draft[field]) || touched.includes(field)) ? validation.error : undefined;
   const focusField = React.useCallback((field: keyof DraftFields) => {
     const target = ["paymentMode", "selfPayment", "partnerPayment"].includes(field) ? "paymentMode" : ["splitMode", "selfShare", "partnerShare", "selfPercentage", "partnerPercentage"].includes(field) ? "splitMode" : field;
@@ -57,10 +58,10 @@ export function V2TransactionEditor({ user, partner, draft, categoryOptions = []
   const notePreview = noteCharacters.slice(0, 40).join("") + (noteCharacters.length > 40 ? "…" : "");
   const indications = [draft.type === "income" ? "收入／退款" : draft.type === "transfer" ? "轉帳" : "", draft.occurredOn !== currentEntryDate() ? draft.occurredOn : "", draft.category || (draft.categoryId ? "已選分類" : ""), draft.note ? `備註：${notePreview}` : ""].filter(Boolean);
   return <form ref={form} className="space-y-3" onSubmit={event => { event.preventDefault(); if (validation.field) { blur(validation.field); focusField(validation.field); } }} aria-busy={busy}
-    onCompositionStart={() => { composingRef.current = true; setComposing(true); }} onCompositionEnd={() => { composingRef.current = false; setComposing(false); }}
+    onCompositionStart={() => { compositionEnding.current = false; composingRef.current = true; setComposing(true); }} onCompositionEnd={() => { composingRef.current = false; compositionEnding.current = true; setComposing(false); requestAnimationFrame(() => { compositionEnding.current = false; }); }}
     onKeyDown={event => {
       if (event.key !== "Enter") return;
-      if (composingRef.current || event.nativeEvent.isComposing || event.nativeEvent.keyCode === 229) { event.preventDefault(); return; }
+      if (composingRef.current || compositionEnding.current || event.nativeEvent.isComposing || event.nativeEvent.keyCode === 229) { event.preventDefault(); return; }
       if (event.target instanceof HTMLInputElement) {
         event.preventDefault();
         if (event.target.dataset.entryField === "amountTwd") purpose.current?.focus();
@@ -70,12 +71,12 @@ export function V2TransactionEditor({ user, partner, draft, categoryOptions = []
     <fieldset disabled={busy || locked} className="min-w-0 space-y-3">
       <div className="space-y-1">
         <label htmlFor="entry-amount" className="block text-sm font-semibold">金額</label>
-        <div className="relative"><span aria-hidden="true" className="absolute left-3 top-1/2 -translate-y-1/2 text-base">NT$</span><Input id="entry-amount" className="pl-12" inputMode="numeric" enterKeyHint="next" value={draft.amountTwd} onChange={event => onChange({ amountTwd: event.target.value })} onBlur={() => blur("amountTwd")} placeholder="0" aria-label="金額，新臺幣" {...associate("amountTwd")} /></div>
+        <div className="relative"><span aria-hidden="true" className="absolute left-3 top-1/2 -translate-y-1/2 text-base">NT$</span><Input id="entry-amount" className="pl-12" inputMode="numeric" enterKeyHint="next" value={draft.amountTwd} onChange={event => onChange({ amountTwd: event.target.value })} onBlur={() => { if (draft.amountTwd) blur("amountTwd"); }} placeholder="0" aria-label="金額，新臺幣" {...associate("amountTwd")} /></div>
         {draft.amountTwd || touched.includes("amountTwd") ? inline("amountTwd") : null}
       </div>
       <div className="space-y-1">
         <label htmlFor="entry-purpose" className="block text-sm font-semibold">用途</label>
-        <Input id="entry-purpose" ref={purpose} value={draft.description} onChange={event => onChange({ description: event.target.value })} onBlur={() => blur("description")} placeholder="晚餐" aria-label="用途" maxLength={120} enterKeyHint="done" {...associate("description")} />
+        <Input id="entry-purpose" ref={purpose} value={draft.description} onChange={event => onChange({ description: event.target.value })} onBlur={() => { if (draft.description) blur("description"); }} placeholder="晚餐" aria-label="用途" maxLength={120} enterKeyHint="done" {...associate("description")} />
         {draft.description || touched.includes("description") ? inline("description") : null}
       </div>
       <div className="space-y-2">
@@ -101,7 +102,7 @@ export function V2TransactionEditor({ user, partner, draft, categoryOptions = []
     {disabledReason ? <p id="entry-disabled-reason" role="status" className="text-sm text-[var(--muted-foreground)]">{disabledReason}</p> : null}
     <div className="flex gap-2">
       {onCancel ? <Button type="button" variant="ghost" size="sm" onClick={onCancel} disabled={busy || locked}>取消</Button> : null}
-      <button tabIndex={0} ref={primary} type="button" className="flex min-h-12 flex-1 items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2 text-base font-semibold text-primary-foreground disabled:opacity-50" disabled={Boolean(disabledReason)} aria-describedby={disabledReason ? "entry-disabled-reason" : undefined} onClick={submit}>{busy ? <><LoaderCircle className="size-4 animate-spin" aria-hidden="true" /> 儲存中…</> : draft.operationType === "replace" ? "儲存修改" : "加入"}</button>
+      <button tabIndex={0} ref={primary} type="button" className="flex min-h-[52px] flex-1 items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2 text-base font-semibold text-primary-foreground disabled:opacity-50" disabled={Boolean(disabledReason)} aria-busy={busy} aria-describedby={disabledReason ? "entry-disabled-reason" : undefined} onClick={submit}>{busy ? <><LoaderCircle className="size-4 animate-spin" aria-hidden="true" /> {draft.operationType === "replace" ? "儲存中…" : "正在加入…"}</> : draft.operationType === "replace" ? "儲存修改" : "加入"}</button>
     </div>
   </form>;
 }

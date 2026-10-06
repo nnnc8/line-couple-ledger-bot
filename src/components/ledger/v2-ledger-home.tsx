@@ -15,7 +15,8 @@ import type { TransactionStatusProof } from "@/lib/v2-transaction-status";
 import { api, ApiError } from "@/lib/api";
 import { money } from "@/lib/format";
 import type { V2EntrySession } from "@/hooks/use-v2-entry-session";
-import { commandOf } from "@/lib/v2-entry-operation";
+import { EntryStatus } from "./entry-status";
+import { currentEntryDate } from "@/lib/v2-transaction-draft";
 import type { User, V2Category, V2LedgerBootstrap, V2LedgerSummary, V2RecurringRule } from "@/lib/types";
 import type { SearchFilters, V2Navigation, V2Surface } from "@/lib/v2-navigation";
 
@@ -43,6 +44,11 @@ interface V2LedgerHomeProps {
   onConfirmedMutation: (ledgerId: string, proof: TransactionStatusProof) => void;
   timelineVisibleCount: number;
   onLoadOlder: () => void;
+  onQuickEntry: (trigger: HTMLElement) => void;
+  quickEntryActive: boolean;
+  onCategoriesChange: (categories: V2Category[]) => void;
+  highlightedId?: string;
+  onViewCreated?: () => void;
 }
 
 export function V2LedgerHome({
@@ -56,7 +62,7 @@ export function V2LedgerHome({
   busy,
   reload,
   entry,
-  navigation, onOpenSurface, onSearchChange, onCloseEntry, onOpenEntryControls, onEdit, onCreateLedger, onSettingsLeaveChange, onConfirmedMutation, timelineVisibleCount: visibleCount, onLoadOlder,
+  navigation, onOpenSurface, onSearchChange, onCloseEntry, onOpenEntryControls, onEdit, onCreateLedger, onSettingsLeaveChange, onConfirmedMutation, timelineVisibleCount: visibleCount, onLoadOlder, onQuickEntry, quickEntryActive, onCategoriesChange, highlightedId, onViewCreated,
 }: V2LedgerHomeProps) {
   const partner = users.find((candidate) => candidate.id !== user.id) ?? users[1];
   const errorScope = JSON.stringify([navigation.surface, navigation.proposalId, navigation.transactionId, navigation.filters]);
@@ -71,6 +77,7 @@ export function V2LedgerHome({
   const [recurring, setRecurring] = React.useState<V2RecurringRule[]>([]);
   const recurringLoaded = React.useRef(false);
   const [categories, setCategories] = React.useState<V2Category[]>([]);
+  React.useEffect(() => { onCategoriesChange(categories); }, [categories, onCategoriesChange]);
   const [categoryDrafts, setCategoryDrafts] = React.useState<Record<string, string>>({});
   const [newCategoryName, setNewCategoryName] = React.useState("");
   const [categoryMessage, setCategoryMessage] = React.useState("");
@@ -88,6 +95,12 @@ export function V2LedgerHome({
   const [recurringPartnerShare, setRecurringPartnerShare] = React.useState("");
   const [recurringCategoryId, setRecurringCategoryId] = React.useState("");
   const [statistics, setStatistics] = React.useState<{ byType: Record<string, string>; byCategory: Record<string, string>; paidBy: Record<string, string>; borneBy: Record<string, string> } | null>(null);
+  const [statisticsCommit, setStatisticsCommit] = React.useState<string | null>(null);
+  const committedKey = entry.write === "committed" ? entry.operation?.idempotencyKey : null;
+  if (committedKey && statisticsCommit !== committedKey) {
+    setStatisticsCommit(committedKey);
+    setStatistics(null);
+  }
   const { filters } = navigation;
   const historyType = filters.type ?? "all", historyPayer = filters.payerUserId ?? "all", historyCategoryId = filters.categoryId ?? "all";
   const historyQuery = filters.q ?? "", historyFrom = filters.from ?? "", historyTo = filters.to ?? "";
@@ -352,7 +365,7 @@ export function V2LedgerHome({
         {!activeLedgerId && !ledgers.some(ledger => ledger.status === "active") ? <Card className="space-y-3 p-4"><h2 className="font-bold">還沒有帳本</h2><p>建立一本帳本，開始一起記錄生活。</p><Button tabIndex={0} onClick={event => onCreateLedger(event.currentTarget)}>建立帳本</Button></Card>
           : error ? <Card role="alert" className="p-4 text-sm text-[var(--muted-foreground)]">暫時讀不到這本帳本。{error}<Button className="mt-2" variant="outline" size="sm" onClick={() => void reload().catch(() => undefined)}>重新讀取</Button></Card>
           : isDetail ? <TransactionDetailSkeleton /> : isHome ? <Card className="p-4"><LedgerTimeline transactions={[]} userId={user.id} categories={categories} today={today} visibleCount={visibleCount} onLoadOlder={() => undefined} onOpenTransaction={() => undefined} loading /></Card> : <Card className="p-4">正在載入帳本…</Card>}
-        <EntryStatus entry={entry} ledgerId={activeLedgerId} />
+        {!quickEntryActive ? <EntryStatus entry={entry} ledgerId={activeLedgerId} today={currentEntryDate()} onView={onViewCreated} /> : null}
       </div>
     );
   }
@@ -536,13 +549,15 @@ export function V2LedgerHome({
           void retry().catch(reason => setReadError(reason, retry));
         }}>{surfaceError.auth ? "重新登入" : "重新讀取"}</Button> : null}
       </div> : null}
-      {!isHome && !(isDetail && isCorrection) ? <EntryStatus entry={entry} ledgerId={activeLedgerId} /> : null}
+      <div data-testid={isHome ? "home-entry-status" : undefined} className={isHome ? "sticky top-0 z-20 bg-[var(--background)] py-1" : undefined}>
+        {!quickEntryActive && !(isDetail && isCorrection) ? <EntryStatus entry={entry} ledgerId={activeLedgerId} today={currentEntryDate()} onView={onViewCreated} /> : null}
+      </div>
       {error && entry.write !== "committed" ? <div role="alert" className="text-sm"><p>內容暫時無法更新。{error}</p><Button variant="outline" size="sm" onClick={() => void refreshLedger().catch(() => undefined)}>重新讀取</Button></div> : null}
       {isHome && mutationFact ? <p role="status">{mutationFact}{entry.read !== "ready" ? "。內容與近況待更新。" : ""}</p> : null}
       {proposalId && proposalStatus ? <Card className="border-accent/30 bg-accent-soft p-4"><p className="font-semibold">LINE 待確認草稿</p><p className="mt-1 text-sm text-[var(--muted-foreground)]">狀態：{proposalStatus === "proposed" ? "待確認" : proposalStatus === "confirmed" ? "已入帳" : proposalStatus === "cancelled" ? "已取消" : proposalStatus}</p>{proposalStatus === "proposed" ? <div className="mt-3 flex gap-2"><Button variant="primary" size="sm" onClick={() => void confirmProposal()} disabled={saving}>確認入帳</Button><Button variant="ghost" size="sm" onClick={() => void cancelProposal()} disabled={saving}>取消</Button></div> : null}</Card> : null}
 
 
-      {isHome ? <><Card className="overflow-hidden p-5 text-white" style={{ background: `linear-gradient(140deg, ${bootstrap.ledger.color}, #0c2240)` }}>
+      {isHome ? <><Card data-testid="ledger-balance" data-ledger-version={bootstrap.ledger.version} className="overflow-hidden p-5 text-white" style={{ background: `linear-gradient(140deg, ${bootstrap.ledger.color}, #0c2240)` }}>
         <p className="text-sm font-semibold text-white/75">{bootstrap.ledger.name}</p>
         <h2 className="mt-1 text-xl font-extrabold tracking-tight">{balanceHeadline}</h2>
         {selfBalance !== 0 ? <p className="mt-0.5 text-[clamp(1rem,7vw,1.75rem)] font-extrabold tracking-tight">{money(Math.abs(selfBalance))}</p> : null}
@@ -557,8 +572,8 @@ export function V2LedgerHome({
         <Button variant="outline" size="sm" onClick={() => onOpenSurface("SEARCH")}>搜尋</Button>
       </nav></> : null}
 
-      {isHome || isDetail && isCorrection ? <Card className="p-4" data-entry>
-        <div className="mb-3 flex items-center gap-2"><Plus className="size-4 text-accent" /><h2 className="font-bold">{entry.draft?.operationType === "replace" ? "修改這筆紀錄" : "快速記一筆"}</h2></div>
+      {isDetail && isCorrection ? <Card className="p-4" data-entry>
+        <h2 className="mb-3 font-bold">修改這筆紀錄</h2>
         {entry.draft && entry.draft.ledgerId === activeLedgerId ? <V2TransactionEditor
           key={entry.draft.id}
           user={user}
@@ -575,7 +590,7 @@ export function V2LedgerHome({
           onCancel={onCloseEntry}
           onSubmit={async () => { await entry.submit(); if (mounted.current) setStatistics(null); }}
         /> : null}
-        <EntryStatus entry={entry} ledgerId={activeLedgerId} />
+        <EntryStatus entry={entry} ledgerId={activeLedgerId} today={currentEntryDate()} onView={onViewCreated} />
       </Card> : null}
 
       {secondaryTab === "stats" ? <Card className="p-4">
@@ -636,11 +651,14 @@ export function V2LedgerHome({
           {recurring.length ? <div className="divide-y divide-[var(--border)]">{recurring.map((rule) => <div key={rule.id} className="flex items-center gap-2 py-2"><div className="min-w-0 flex-1"><p className="truncate text-sm font-semibold">{rule.name} · {money(Number(rule.amountTwd))}</p><p className="text-xs text-[var(--muted-foreground)]">{rule.frequency === "weekly" ? "每週" : rule.frequency === "monthly" ? "每月" : "每年"} · {rule.splitMethod} · 下次 {rule.nextRunDate}</p></div><Button variant="ghost" size="sm" onClick={() => void toggleRecurring(rule)} disabled={saving}>{rule.active ? "停用" : "啟用"}</Button></div>)}</div> : <p className="text-sm text-[var(--muted-foreground)]">尚未設定週期交易</p>}
       </Card> : null}
 
-      {isHome ? <Card className="p-4"><h2 className="mb-2 font-bold">生活紀錄</h2>
+      {isHome ? <Card data-testid="home-timeline-card" data-ledger-version={bootstrap.ledger.version} className="p-4"><h2 className="mb-2 font-bold">生活紀錄</h2>
         <LedgerTimeline transactions={bootstrap.transactions} userId={user.id} categories={categories} today={today}
-          visibleCount={visibleCount} onLoadOlder={onLoadOlder}
+          visibleCount={visibleCount} onLoadOlder={onLoadOlder} highlightedId={highlightedId}
           onOpenTransaction={id => onOpenSurface("TRANSACTION_DETAIL", id)} />
       </Card> : null}
+      {isHome ? <div data-testid="home-entry-action" className="pointer-events-none fixed inset-x-0 bottom-0 z-10 mx-auto max-w-[640px] px-4 pb-[max(12px,env(safe-area-inset-bottom))] pt-3">
+        <Button data-testid="quick-entry-trigger" aria-haspopup="dialog" aria-controls="ledger-surface-dialog" className="pointer-events-auto min-h-[52px] w-full text-base shadow-md" onClick={event => onQuickEntry(event.currentTarget)}><Plus aria-hidden="true" className="size-5" />記一筆</Button>
+      </div> : null}
       {isSearch ? <Card className="p-4" data-search-ready={historyReady ? "true" : "false"}>
         <div className="mb-2 flex items-center justify-between gap-2"><h2 className="font-bold">搜尋紀錄</h2><span className="text-xs text-[var(--muted-foreground)]">已載入 {historyRows.length} 筆</span></div>
         <div className="mb-3 grid grid-cols-2 gap-2">
@@ -665,31 +683,4 @@ export function V2LedgerHome({
         : <p role="alert">這筆紀錄不屬於這本帳本，或已無法開啟。</p> : null}
     </div>
   );
-}
-
-function EntryStatus({ entry, ledgerId }: { entry: V2EntrySession; ledgerId: string | null }) {
-  if (entry.blocked) return <p role="alert" className="mt-3 rounded-xl border p-3 text-sm">{entry.blocked}</p>;
-  const operation = entry.operation?.ledgerId === ledgerId ? entry.operation : null;
-  const command = operation ? commandOf(operation) : null;
-  const committed = operation && entry.write === "committed";
-  const unknown = operation && entry.write === "unknown";
-  const submitting = operation && entry.write === "submitting";
-  const rejected = operation && entry.write === "rejected";
-  let message = submitting ? (operation.operationType === "replace" ? "正在修改…" : "正在加入…")
-    : unknown ? "尚未確認是否已加入，請勿再記一次。"
-    : committed && command ? `${operation.operationType === "replace" ? "已修改" : "已加入"}${command.description} ${money(Number(command.amountTwd))}${entry.read === "failed" ? "。其他紀錄暫時無法更新。" : entry.read === "refreshing" ? "。其他紀錄更新中…" : ""}`
-    : rejected ? "尚未加入，請檢查標示欄位。" : "";
-  if (unknown && operation.operationType === "replace") message = "尚未確認是否已修改，請勿另送一次修改。";
-  if (rejected && operation.operationType === "replace") message = "尚未修改，請檢查標示欄位。";
-  if (!message && !entry.error) return null;
-  return <div className="mt-3 space-y-2 rounded-xl border p-3 text-sm" role={entry.error && !unknown ? "alert" : "status"} aria-live="polite" data-write-outcome={entry.write} data-read-freshness={entry.read}>
-    {message ? <p>{message}</p> : null}
-    {entry.error ? <p id="entry-error" className="text-destructive">{entry.error}</p> : null}
-    {unknown && command ? <>
-      <p className="font-semibold">{command.description} {money(Number(command.amountTwd))} · {command.occurredOn}</p>
-      <p>{command.type === "income" ? "收款" : "付款"}：{command.payments.map(payment => `${payment.userId === operation.actorUserId ? "你" : "另一半"} ${money(Number(payment.amountTwd))}`).join("、")}<br />{command.type === "transfer" ? "接收" : "分攤"}：{command.shares.map(share => `${share.userId === operation.actorUserId ? "你" : "另一半"} ${money(Number(share.amountTwd))}`).join("、")}</p>
-      <p>{operation.operationType === "replace" ? "若已修改會讀回原結果；若未修改會完成這一筆。" : "若已加入會讀回原結果；若未加入會完成這一筆。"}</p><Button variant="outline" size="sm" onClick={() => void entry.replay()}>確認並完成這筆</Button>
-    </> : null}
-    {committed && entry.read === "failed" ? <Button variant="outline" size="sm" onClick={() => void entry.retryRead()}>重新整理</Button> : null}
-  </div>;
 }

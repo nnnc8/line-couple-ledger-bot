@@ -9,14 +9,17 @@ import { Input } from "@/components/ui/input";
 import { V2LedgerHome, type SettingsLeaveGuard } from "@/components/ledger/v2-ledger-home";
 import { V2EntryControls } from "@/components/ledger/v2-entry-controls";
 import type { EntryControlSurface } from "@/components/ledger/v2-transaction-editor";
+import { QuickEntry } from "@/components/ledger/quick-entry";
+import { entryCompletionTarget } from "@/lib/v2-entry-completion";
 import { LedgerSurfaceHost } from "@/components/ledger/ledger-surface-host";
 import { useV2Ledgers } from "@/hooks/use-v2-ledgers";
 import { useV2EntrySession } from "@/hooks/use-v2-entry-session";
 import { api } from "@/lib/api";
 import { appOrigin, ledgerHome, navigationHistoryState, navigationParams, navigationUrl, parseNavigation, resolveLedgerTarget, searchKeys, type V2Navigation, type V2Surface } from "@/lib/v2-navigation";
-import type { V2LedgerTransaction } from "@/lib/types";
+import type { V2Category, V2LedgerTransaction } from "@/lib/types";
 import { effectiveTimelineTransactions, TIMELINE_PAGE_SIZE } from "@/lib/v2-timeline";
 import { resourceId } from "@/lib/v2-entry-operation";
+import { currentEntryDate } from "@/lib/v2-transaction-draft";
 
 declare global {
   interface Window {
@@ -44,7 +47,7 @@ function waitForLiffSdk(timeoutMs = 10_000): Promise<NonNullable<Window["liff"]>
 }
 
 type Intent = { kind: "navigate"; nav: V2Navigation; mode: "push" | "replace"; manual?: boolean; state?: unknown; rowId?: string }
-  | { kind: "close" } | { kind: "correction"; transaction: V2LedgerTransaction } | { kind: "create" };
+  | { kind: "quick-entry" } | { kind: "close" } | { kind: "correction"; transaction: V2LedgerTransaction } | { kind: "create" };
 type ScrollMemory = { rowId?: string; neighbors: string[]; offset: number; y: number };
 const titles: Record<V2Surface, string> = { HOME: "", TRANSACTION_DETAIL: "紀錄詳情", STATS: "收支概況", SETTINGS: "帳本設定", RECURRING: "固定記帳", SEARCH: "搜尋紀錄", PROPOSAL_COMPAT_ENTRY: "LINE 待確認草稿" };
 
@@ -57,7 +60,15 @@ export function V2LiffHome() {
   const [timelineWindows, setTimelineWindows] = React.useState<Record<string, number>>({});
   const scopeError = targetError ?? (v2.accessDenied && !v2.authError ? "ledger" : null);
   const [settingsGuard, setSettingsGuard] = React.useState<SettingsLeaveGuard | null>(null);
-  const [dialog, setDialog] = React.useState<"switcher" | "leave" | "create" | EntryControlSurface | null>(null);
+  const [dialog, setDialog] = React.useState<"switcher" | "leave" | "create" | "quick-entry" | EntryControlSurface | null>(null);
+  const [quickEntryActive, setQuickEntryActive] = React.useState(false);
+  const [entryCategories, setEntryCategories] = React.useState<V2Category[]>([]);
+  const quickTrigger = React.useRef<HTMLElement | null>(null);
+  const quickOrigin = React.useRef<{ ledgerId: string; y: number; generation: number } | null>(null);
+  const quickFocus = React.useRef({ selector: '[data-entry-field="amountTwd"]', scrollTop: 0 });
+  const handledCreate = React.useRef<string | null>(null);
+  const [completion, setCompletion] = React.useState<{ ledgerId: string; id: string; kind: "row" | "detail" } | null>(null);
+  const completionFocus = React.useRef<{ ledgerId: string; id: string; kind: "row" | "detail" } | null>(null);
   const [pending, setPending] = React.useState<Intent | null>(null);
   const pendingRef = React.useRef<Intent | null>(null);
   const [newLedgerName, setNewLedgerName] = React.useState("");
@@ -120,15 +131,28 @@ export function V2LiffHome() {
   function applyAccepted(intent: Intent) {
     pendingRef.current = null;
     setPending(null);
-    if (intent.kind === "create") { setNewLedgerName(""); setCreateError(""); setDialog("create"); return; }
+    if (intent.kind === "create") { setQuickEntryActive(false); quickOrigin.current = null; setNewLedgerName(""); setCreateError(""); setDialog("create"); return; }
+    if (intent.kind === "quick-entry") {
+      if (!nav?.ledgerId || !entry.openCreateDraft()) return;
+      quickOrigin.current = { ledgerId: nav.ledgerId, y: window.scrollY, generation: navigationGeneration.current };
+      quickFocus.current = { selector: '[data-entry-field="amountTwd"]', scrollTop: 0 };
+      returnFocus.current = quickTrigger.current;
+      setCompletion(null); setQuickEntryActive(true); setDialog("quick-entry"); return;
+    }
+    if (intent.kind === "close" && quickEntryActive) {
+      quickOrigin.current = null; returnFocus.current = quickTrigger.current;
+      setQuickEntryActive(false); setDialog(null); return;
+    }
     if (intent.kind === "close") { correctionDetailOrigin.current = null; setDialog(null); requestAnimationFrame(() => (document.querySelector<HTMLElement>('[data-testid="transaction-edit"]') ?? document.querySelector<HTMLElement>("[data-detail-heading]"))?.focus({ preventScroll: true })); return; }
     if (intent.kind === "correction") {
+      setQuickEntryActive(false); quickOrigin.current = null;
       if (entry.openCorrection(intent.transaction, true)) correctionDetailOrigin.current = { ledgerId: intent.transaction.ledgerId, transactionId: intent.transaction.id };
       setDialog(null);
       requestAnimationFrame(() => document.querySelector<HTMLElement>('[aria-label="金額，新臺幣"]')?.focus());
       return;
     }
     navigationGeneration.current += 1;
+    setQuickEntryActive(false); quickOrigin.current = null;
     rememberOrigin(intent.rowId);
     const resolved = resolveLedgerTarget(intent.nav, v2.ledgers);
     const next = resolved.error ? intent.nav : { ...intent.nav, ledgerId: resolved.ledgerId, explicitLedger: resolved.ledgerId !== null };
@@ -168,9 +192,17 @@ export function V2LiffHome() {
     settingsGuard?.discard();
     return true;
   }
+  function rememberQuickFocus() {
+    if (!quickEntryActive || dialog !== "quick-entry") return;
+    const field = editingField.current;
+    const selector = field?.dataset.entryField ? `[data-entry-field="${field.dataset.entryField}"]` : field?.getAttribute("aria-label") ? `[aria-label="${field.getAttribute("aria-label")}"]` : quickFocus.current.selector;
+    quickFocus.current = { selector, scrollTop: document.getElementById("ledger-surface-dialog")?.scrollTop ?? 0 };
+  }
   function request(intent: Intent) {
+    if (intent.kind === "quick-entry" && entry.draft?.operationType === "create" && entry.draft.dirty && !entry.locked) { apply(intent); return; }
     const status = leaveStatus();
     if (status !== "ready") {
+      rememberQuickFocus();
       pendingRef.current = intent;
       setPending(intent);
       setLeaveRevision(value => value + 1);
@@ -278,6 +310,48 @@ export function V2LiffHome() {
   });
   React.useEffect(() => { showCorrectedDetail(); }, [entry.write, entry.operation, nav]);
 
+  const showCreatedTransaction = React.useEffectEvent(() => {
+    const operation = entry.operation;
+    if (entry.write !== "committed" || operation?.operationType !== "create" || !operation.proof || handledCreate.current === operation.idempotencyKey) return;
+    handledCreate.current = operation.idempotencyKey;
+    const transaction = operation.proof.transaction;
+    if (!nav || transaction.ledgerId !== nav.ledgerId || scopeError) return;
+    const origin = quickOrigin.current;
+    const moved = !origin || origin.ledgerId !== nav.ledgerId || origin.generation !== navigationGeneration.current || Math.abs(window.scrollY - origin.y) > 2 || document.hidden;
+    const target = entryCompletionTarget({ transaction, transactions: v2.bootstrap?.transactions ?? [], today: currentEntryDate(), surface: nav.surface, moved,
+      visibleCount: timelineWindows[nav.ledgerId ?? ""] ?? TIMELINE_PAGE_SIZE });
+    if (target.kind === "row") {
+      const ledgerId = transaction.ledgerId;
+      setTimelineWindows(current => ({ ...current, [ledgerId]: target.visibleCount }));
+    }
+    const result = { ledgerId: transaction.ledgerId, id: transaction.id, kind: target.kind };
+    setCompletion(result);
+    if (origin && !document.hidden) completionFocus.current = result;
+    if (quickEntryActive) {
+      if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
+      returnFocus.current = null;
+      quickOrigin.current = null;
+      if (pendingRef.current?.kind !== "navigate") { pendingRef.current = null; setPending(null); }
+      setQuickEntryActive(false); setDialog(null);
+    }
+  });
+  React.useLayoutEffect(() => { showCreatedTransaction(); }, [entry.write, entry.operation, v2.bootstrap, nav]);
+  React.useLayoutEffect(() => {
+    const target = completionFocus.current;
+    if (!target || dialog || nav?.ledgerId !== target.ledgerId || document.hidden) return;
+    const node = target.kind === "row" ? document.querySelector<HTMLElement>(`button[data-transaction-id="${target.id}"]`) : document.querySelector<HTMLElement>('[data-testid="entry-view-created"]');
+    if (!node) return;
+    completionFocus.current = null;
+    node.focus({ preventScroll: true });
+    if (target.kind === "row") {
+      const rect = node.getBoundingClientRect();
+      const top = document.querySelector('[data-testid="home-entry-status"]')?.getBoundingClientRect().bottom ?? 0;
+      const bottom = document.querySelector('[data-testid="home-entry-action"]')?.getBoundingClientRect().top ?? innerHeight;
+      const adjustment = rect.top < top ? rect.top - top - 8 : rect.bottom > bottom ? rect.bottom - bottom + 8 : 0;
+      if (adjustment) window.scrollBy(0, adjustment);
+    }
+  }, [dialog, completion, nav, timelineWindows]);
+
   const startLiff = React.useEffectEvent(async () => {
     const liffId = process.env.NEXT_PUBLIC_LIFF_ID;
     if (!liffId) throw new Error("尚未設定 LIFF ID");
@@ -328,6 +402,7 @@ export function V2LiffHome() {
   React.useEffect(() => { if (createdLedger) completeCreation(createdLedger); }, [createdLedger]);
 
   function cancelDialog(keepDestination = false) {
+    if (dialog === "quick-entry") { request({ kind: "close" }); return; }
     if (dialog === "create") {
       if (createInFlight.current) return;
       setNewLedgerName(""); setCreateError("");
@@ -340,7 +415,18 @@ export function V2LiffHome() {
       setPending(null);
       returnFocus.current = editingField.current?.isConnected ? editingField.current : returnFocus.current ?? trigger.current;
     } else if (dialog !== "payer" && dialog !== "split") returnFocus.current = trigger.current;
-    setDialog(null);
+    setDialog(quickEntryActive ? "quick-entry" : null);
+  }
+  function openQuickEntry(origin: HTMLElement) {
+    quickTrigger.current = origin;
+    // Commit the host and its amount input during the opening user gesture.
+    flushSync(() => request({ kind: "quick-entry" }));
+  }
+  function openEntryControls(surface: EntryControlSurface, target: HTMLElement) {
+    if (entry.locked) return;
+    returnFocus.current = target;
+    if (quickEntryActive) quickFocus.current = { selector: `[data-testid="${surface}-summary"]`, scrollTop: document.getElementById("ledger-surface-dialog")?.scrollTop ?? 0 };
+    setDialog(surface);
   }
   function openSurface(surface: V2Surface, transactionId: string | null = null) {
     if (!nav) return;
@@ -374,7 +460,7 @@ export function V2LiffHome() {
   const ledgerName = v2.ledgers.find(ledger => ledger.id === nav?.ledgerId)?.name ?? "帳本";
   const identityTrigger = nav?.ledgerId && !scopeError ? <button type="button" tabIndex={0}
     aria-label={`${ledgerName}，目前查看，切換帳本`} aria-haspopup="dialog" aria-expanded={dialog !== null} aria-controls="ledger-surface-dialog"
-    data-testid="ledger-name-trigger" onClick={event => { trigger.current = event.currentTarget; returnFocus.current = event.currentTarget; setDialog("switcher"); }}
+    data-testid="ledger-name-trigger" onClick={event => { rememberQuickFocus(); trigger.current = event.currentTarget; returnFocus.current = event.currentTarget; setDialog("switcher"); }}
     className="inline-flex min-h-11 max-w-full min-w-0 items-center gap-2 rounded-lg py-2 text-left font-bold">
     <span className="min-w-0 [overflow-wrap:anywhere]">{ledgerName}</span><ChevronDown aria-hidden="true" className="size-4 shrink-0" />
   </button> : null;
@@ -386,8 +472,8 @@ export function V2LiffHome() {
 
   if (!v2.context || !nav) return <main className="mx-auto flex min-h-dvh max-w-[640px] flex-col items-center justify-center gap-3 px-6 text-center"><h1 className="text-xl font-bold">共同帳本</h1><p>{error || "正在連線至 LINE…"}</p>{error ? <Button onClick={() => { setError(""); setLoginAttempt(value => value + 1); }}>重新登入</Button> : null}</main>;
 
-  return <main className="mx-auto min-h-dvh max-w-[640px] px-4 pb-6 pt-[max(16px,env(safe-area-inset-top))]" onFocusCapture={event => {
-    if (event.target instanceof HTMLElement && event.target.closest("[data-entry]") || event.target instanceof HTMLInputElement || event.target instanceof HTMLSelectElement) editingField.current = event.target;
+  return <main className={`mx-auto min-h-dvh max-w-[640px] px-4 ${nav.surface === "HOME" ? "pb-[calc(104px+env(safe-area-inset-bottom))]" : "pb-6"} pt-[max(16px,env(safe-area-inset-top))]`} onFocusCapture={event => {
+    if (event.target instanceof HTMLElement && event.target.matches("[data-entry-field], input, select, textarea")) editingField.current = event.target;
   }}>
     <header className="mb-3 space-y-2">
       {nav.surface !== "HOME" ? <Button data-testid="transaction-detail-back" aria-label="返回帳本" variant="ghost" size="sm" className="h-auto min-h-11 max-w-full whitespace-normal text-left [overflow-wrap:anywhere]" onClick={() => {
@@ -406,16 +492,28 @@ export function V2LiffHome() {
       <V2LedgerHome key={v2.activeLedgerId ?? "no-ledger"} user={v2.context.user} users={v2.context.users} today={v2.context.today}
         ledgers={v2.ledgers} activeLedgerId={v2.activeLedgerId} bootstrap={v2.bootstrap} error={v2.error} busy={v2.busy}
         reload={async () => v2.activeLedgerId ? v2.loadBootstrap(v2.activeLedgerId) : v2.loadLedgers()}
-        onOpenEntryControls={(surface, target) => { if (entry.locked) return; returnFocus.current = target; setDialog(surface); }}
+        onOpenEntryControls={openEntryControls}
         entry={entry} navigation={nav} onOpenSurface={openSurface} onCloseEntry={() => request({ kind: "close" })}
         onEdit={transaction => request({ kind: "correction", transaction })} onCreateLedger={openCreate} onSettingsLeaveChange={setSettingsGuard}
+        onQuickEntry={openQuickEntry} quickEntryActive={quickEntryActive} onCategoriesChange={setEntryCategories}
+        highlightedId={completion?.ledgerId === nav.ledgerId && completion.kind === "row" ? completion.id : undefined}
+        onViewCreated={entry.write === "committed" && entry.operation?.operationType === "create" && entry.operation.proof?.transaction.ledgerId === nav.ledgerId && (nav.surface !== "HOME" || completion?.kind !== "row")
+          ? () => openSurface("TRANSACTION_DETAIL", entry.operation!.proof!.transaction.id) : undefined}
         onConfirmedMutation={v2.acceptTransactionStatusProof}
         timelineVisibleCount={timelineWindows[nav.ledgerId ?? ""] ?? TIMELINE_PAGE_SIZE}
         onLoadOlder={() => { const ledgerId = nav.ledgerId; if (ledgerId) setTimelineWindows(current => ({ ...current, [ledgerId]: (current[ledgerId] ?? TIMELINE_PAGE_SIZE) + TIMELINE_PAGE_SIZE })); }}
         onSearchChange={filters => { const next = { ...nav, filters }; setNav(next); writeUrl(next, "replace", history.state); }} />
     </>}
-    <LedgerSurfaceHost surface={dialog === "leave" ? `leave-${leaveRevision}` : dialog} title={dialog === "switcher" ? "切換帳本" : dialog === "create" ? "建立帳本" : dialog === "payer" ? entry.draft?.type === "income" ? "選擇收款人" : entry.draft?.type === "transfer" ? "選擇發送人" : "選擇付款人" : dialog === "split" ? entry.draft?.type === "income" ? "款項分配" : "選擇分攤" : leaveTitle} onCancel={() => cancelDialog()} cancelDisabled={dialog === "create" && v2.busy} returnFocus={() => returnFocus.current}>
-      {(dialog === "payer" || dialog === "split") && entry.draft && v2.context.users.find(user => user.id !== v2.context!.user.id) ? <V2EntryControls key={`${entry.draft.id}-${dialog}`} surface={dialog} draft={entry.draft} user={v2.context.user} partner={v2.context.users.find(user => user.id !== v2.context!.user.id)!} locked={entry.locked} onCancel={() => cancelDialog()} onApply={patch => { entry.updateDraft(patch); setDialog(null); }} /> : null}
+    <LedgerSurfaceHost surface={dialog === "leave" ? `leave-${leaveRevision}` : dialog} fullHeight={quickEntryActive} initialFocus={() => {
+      if (dialog !== "quick-entry") return null;
+      const host = document.getElementById("ledger-surface-dialog");
+      if (host) host.scrollTop = quickFocus.current.scrollTop;
+      return host?.querySelector<HTMLElement>(quickFocus.current.selector) ?? null;
+    }} title={dialog === "quick-entry" ? "記一筆" : dialog === "switcher" ? "切換帳本" : dialog === "create" ? "建立帳本" : dialog === "payer" ? entry.draft?.type === "income" ? "選擇收款人" : entry.draft?.type === "transfer" ? "選擇發送人" : "選擇付款人" : dialog === "split" ? entry.draft?.type === "income" ? "款項分配" : "選擇分攤" : leaveTitle} onCancel={() => cancelDialog()} cancelDisabled={dialog === "create" && v2.busy} returnFocus={() => returnFocus.current}>
+      {quickEntryActive && !scopeError && v2.bootstrap && v2.bootstrap.ledger.id === nav.ledgerId && v2.context.users.find(user => user.id !== v2.context!.user.id) ? <div hidden={dialog !== "quick-entry"}>
+        <QuickEntry entry={entry} bootstrap={v2.bootstrap} user={v2.context.user} partner={v2.context.users.find(user => user.id !== v2.context!.user.id)!} categories={entryCategories} onCancel={() => request({ kind: "close" })} onOpenControls={openEntryControls} />
+      </div> : null}
+      {(dialog === "payer" || dialog === "split") && entry.draft && v2.context.users.find(user => user.id !== v2.context!.user.id) ? <V2EntryControls key={`${entry.draft.id}-${dialog}`} surface={dialog} draft={entry.draft} user={v2.context.user} partner={v2.context.users.find(user => user.id !== v2.context!.user.id)!} locked={entry.locked} onCancel={() => cancelDialog()} onApply={patch => { entry.updateDraft(patch); cancelDialog(); }} /> : null}
       {dialog === "switcher" || dialog === "leave" && destinationName ? <div className="space-y-3">
         <V2LedgerSwitcher ledgers={v2.ledgers} activeLedgerId={nav.ledgerId}
           selectedLedgerId={pending?.kind === "navigate" && pending.manual ? pending.nav.ledgerId : nav.ledgerId}
@@ -424,7 +522,7 @@ export function V2LiffHome() {
       {dialog === "leave" ? <div className="mt-3 flex flex-wrap gap-2">
         <Button variant="ghost" size="sm" onClick={() => cancelDialog()}>繼續編輯</Button>
         {leave === "dirty" || leave === "ready" ? <Button variant="primary" size="sm" onClick={() => { if (discardInput() && pendingRef.current) apply(pendingRef.current); }}>{destinationName ? "放棄並切換" : "放棄這筆輸入"}</Button> : null}
-        {leave === "submitting" || leave === "ready" && entry.write === "committed" ? <Button onClick={() => { cancelDialog(true); requestAnimationFrame(() => document.querySelector<HTMLElement>("[data-entry]")?.scrollIntoView()); }}>查看處理狀態</Button> : null}
+        {leave === "submitting" || leave === "ready" && entry.write === "committed" ? <Button onClick={() => { cancelDialog(true); if (!quickEntryActive) requestAnimationFrame(() => document.querySelector<HTMLElement>("[data-entry]")?.scrollIntoView()); }}>查看處理狀態</Button> : null}
         {leave === "unknown" ? <Button onClick={() => { cancelDialog(true); void entry.replay(); }}>確認並完成這筆</Button> : null}
       </div> : null}
       {dialog === "create" ? <form className="space-y-3" onSubmit={submitCreate}>
