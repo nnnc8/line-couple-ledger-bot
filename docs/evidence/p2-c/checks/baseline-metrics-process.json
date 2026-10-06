@@ -1,0 +1,8 @@
+{
+  "baseline_sha": "aa9799cdb78fab7bc91d0648113e77a76b58f70d",
+  "server_pid": 22245,
+  "server_exit": -15,
+  "metrics_exit": 0,
+  "measured_at_utc": "2026-10-03T08:30:21.667528+00:00",
+  "port_3119_closed": true
+}

@@ -1,0 +1,49 @@
+{
+  "test": {
+    "title": "32–34 receipt existing open upload and delete stay within Detail attachment capability",
+    "project": "chromium-393",
+    "resultDir": "/Users/nc8/.codex/worktrees/p2-c-timeline-detail/New project/output/playwright/results/p2-c-timeline-32–34-receip-fecb4-etail-attachment-capability-chromium-393"
+  },
+  "metrics": {
+    "viewport": {
+      "width": 393,
+      "height": 852
+    },
+    "scrollY": 757,
+    "documentWidth": 393,
+    "bodyWidth": 393,
+    "timelineRows": 0,
+    "rowIds": [],
+    "rowRects": [],
+    "amountRects": [],
+    "dateHeadings": [],
+    "focus": "BODY"
+  },
+  "extra": {
+    "attachmentRequests": [
+      {
+        "method": "POST",
+        "path": "/api/app/v2/attachments",
+        "body": {
+          "ledgerId": "00000000-0000-4000-8000-000000000010",
+          "transactionId": "00000000-0000-4000-8000-000000001004",
+          "fileName": "browser-receipt.pdf",
+          "mimeType": "application/pdf",
+          "sizeBytes": 25
+        }
+      },
+      {
+        "method": "PUT",
+        "path": "signed-upload"
+      },
+      {
+        "method": "POST",
+        "path": "/api/app/v2/attachments/fixture-uploaded-receipt/complete"
+      },
+      {
+        "method": "DELETE",
+        "path": "/api/app/v2/attachments/fixture-existing-receipt"
+      }
+    ]
+  }
+}

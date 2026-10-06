@@ -1,0 +1,121 @@
+
+[WebServer] (node:12730) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `pnpm --trace-warnings ...` to show where the warning was created)
+
+[WebServer] (node:12774) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+[WebServer] (node:12780) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+[WebServer] (node:12784) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 21 tests using 1 worker
+
+
+(node:12785) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+[1/21] [chromium-iphone] › tests/p2-c-timeline.spec.ts:306:5 › Detail pending read and read500 never guess a transaction or reveal foreign scope
+
+(node:12870) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+[2/21] [chromium-iphone] › tests/p2-c-timeline.spec.ts:306:5 › Detail pending read and read500 never guess a transaction or reveal foreign scope
+
+(node:12876) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+[3/21] [chromium-iphone] › tests/p2-c-timeline.spec.ts:306:5 › Detail pending read and read500 never guess a transaction or reveal foreign scope
+
+(node:12883) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+[4/21] [chromium-iphone] › tests/v2-liff.spec.ts:691:7 › V3-0 ignores reversed recurring responses across Ledgers
+
+(node:12963) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+[5/21] [chromium-iphone] › tests/v2-liff.spec.ts:691:7 › V3-0 ignores reversed recurring responses across Ledgers
+
+(node:12969) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+[6/21] [chromium-iphone] › tests/v2-liff.spec.ts:691:7 › V3-0 ignores reversed recurring responses across Ledgers
+
+(node:12975) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+[7/21] [webkit-iphone] › tests/p2-c-timeline.spec.ts:306:5 › Detail pending read and read500 never guess a transaction or reveal foreign scope
+
+(node:13066) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+[8/21] [webkit-iphone] › tests/p2-c-timeline.spec.ts:306:5 › Detail pending read and read500 never guess a transaction or reveal foreign scope
+
+(node:13080) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+[9/21] [webkit-iphone] › tests/p2-c-timeline.spec.ts:306:5 › Detail pending read and read500 never guess a transaction or reveal foreign scope
+
+(node:13171) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+[10/21] [webkit-iphone] › tests/v2-liff.spec.ts:691:7 › V3-0 ignores reversed recurring responses across Ledgers
+
+(node:13184) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+[11/21] [webkit-iphone] › tests/v2-liff.spec.ts:691:7 › V3-0 ignores reversed recurring responses across Ledgers
+
+(node:13201) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+[12/21] [webkit-iphone] › tests/v2-liff.spec.ts:691:7 › V3-0 ignores reversed recurring responses across Ledgers
+
+(node:13291) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+[13/21] [chromium-393] › tests/p2-c-timeline.spec.ts:306:5 › Detail pending read and read500 never guess a transaction or reveal foreign scope
+
+(node:13297) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+[14/21] [chromium-393] › tests/p2-c-timeline.spec.ts:306:5 › Detail pending read and read500 never guess a transaction or reveal foreign scope
+
+(node:13305) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+[15/21] [chromium-393] › tests/p2-c-timeline.spec.ts:306:5 › Detail pending read and read500 never guess a transaction or reveal foreign scope
+
+(node:13387) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+[16/21] [webkit-393] › tests/p2-c-timeline.spec.ts:306:5 › Detail pending read and read500 never guess a transaction or reveal foreign scope
+
+(node:13403) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+[17/21] [webkit-393] › tests/p2-c-timeline.spec.ts:306:5 › Detail pending read and read500 never guess a transaction or reveal foreign scope
+
+(node:13420) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+[18/21] [webkit-393] › tests/p2-c-timeline.spec.ts:306:5 › Detail pending read and read500 never guess a transaction or reveal foreign scope
+
+(node:13509) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+[19/21] [chromium-wide] › tests/v2-liff.spec.ts:691:7 › V3-0 ignores reversed recurring responses across Ledgers
+
+(node:13515) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+[20/21] [chromium-wide] › tests/v2-liff.spec.ts:691:7 › V3-0 ignores reversed recurring responses across Ledgers
+
+(node:13580) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+[21/21] [chromium-wide] › tests/v2-liff.spec.ts:691:7 › V3-0 ignores reversed recurring responses across Ledgers
+  21 passed (43.1s)

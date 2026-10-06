@@ -1,0 +1,26 @@
+P2-C legacy removal proof
+Baseline: aa9799cdb78fab7bc91d0648113e77a76b58f70d
+Scope: transaction-specific Home/Search row presentation only. Unrelated details are preserved.
+
+legacy TransactionRow definition
+Command: rg -n 'function TransactionRow|const TransactionRow' src/components/ledger/ledger-timeline.tsx src/components/ledger/v2-ledger-home.tsx
+Exit: 1
+No matches.
+
+transaction expandable detail
+Command: rg -n '<details|<summary' src/components/ledger/ledger-timeline.tsx src/components/ledger/v2-ledger-home.tsx
+Exit: 1
+No matches.
+
+reading-row financial/receipt action
+Command: rg -n 'transaction-edit|type="file"|/mutate|/attachments|onEdit|onVoid|onRestore' src/components/ledger/ledger-timeline.tsx
+Exit: 1
+No matches.
+
+Canonical hosts:
+351:          : isDetail ? <TransactionDetailSkeleton /> : isHome ? <Card className="p-4"><LedgerTimeline transactions={[]} userId={user.id} categories={categories} today={today} visibleCount={visibleCount} onLoadOlder={() => undefined} onOpenTransaction={() => undefined} loading /></Card> : <Card className="p-4">正在載入帳本…</Card>}
+559:        {entry.draft && entry.draft.ledgerId === activeLedgerId ? <V2TransactionEditor
+653:          {historyRows.map(transaction => <li key={transaction.id}><TimelineTransactionRow transaction={transaction} userId={user.id} categories={categories} today={today} onOpenTransaction={id => onOpenSurface("TRANSACTION_DETAIL", id)} /></li>)}
+658:      {isDetail ? detail ? <div hidden={isCorrection}><TransactionDetail key={detail.id} transaction={detail} transactions={bootstrap.transactions}
+
+Runtime: tests/p2-c-timeline.spec.ts cases36-37 verify one interactive button per row, zero details/summary, zero row edit/void/restore/file controls, single Detail and actions only after More.

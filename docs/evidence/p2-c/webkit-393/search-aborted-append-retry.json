@@ -1,0 +1,446 @@
+{
+  "test": {
+    "title": "aborted filtered Search append returns an enabled retry and preserves the loaded first page",
+    "project": "webkit-393",
+    "resultDir": "/Users/nc8/.codex/worktrees/p2-c-timeline-detail/New project/output/playwright/results/p2-c-timeline-aborted-filt-e6692-erves-the-loaded-first-page-webkit-393"
+  },
+  "metrics": {
+    "viewport": {
+      "width": 393,
+      "height": 852
+    },
+    "scrollY": 2922,
+    "documentWidth": 393,
+    "bodyWidth": 393,
+    "timelineRows": 0,
+    "rowIds": [],
+    "rowRects": [],
+    "amountRects": [
+      {
+        "text": "NT$200",
+        "width": 56,
+        "scrollWidth": 56,
+        "fontSize": "14px",
+        "fontVariantNumeric": "tabular-nums"
+      },
+      {
+        "text": "NT$200",
+        "width": 56,
+        "scrollWidth": 56,
+        "fontSize": "14px",
+        "fontVariantNumeric": "tabular-nums"
+      },
+      {
+        "text": "NT$200",
+        "width": 56,
+        "scrollWidth": 56,
+        "fontSize": "14px",
+        "fontVariantNumeric": "tabular-nums"
+      },
+      {
+        "text": "NT$200",
+        "width": 56,
+        "scrollWidth": 56,
+        "fontSize": "14px",
+        "fontVariantNumeric": "tabular-nums"
+      },
+      {
+        "text": "NT$200",
+        "width": 56,
+        "scrollWidth": 56,
+        "fontSize": "14px",
+        "fontVariantNumeric": "tabular-nums"
+      },
+      {
+        "text": "NT$200",
+        "width": 56,
+        "scrollWidth": 56,
+        "fontSize": "14px",
+        "fontVariantNumeric": "tabular-nums"
+      },
+      {
+        "text": "NT$200",
+        "width": 56,
+        "scrollWidth": 56,
+        "fontSize": "14px",
+        "fontVariantNumeric": "tabular-nums"
+      },
+      {
+        "text": "NT$200",
+        "width": 56,
+        "scrollWidth": 56,
+        "fontSize": "14px",
+        "fontVariantNumeric": "tabular-nums"
+      },
+      {
+        "text": "NT$200",
+        "width": 56,
+        "scrollWidth": 56,
+        "fontSize": "14px",
+        "fontVariantNumeric": "tabular-nums"
+      },
+      {
+        "text": "NT$200",
+        "width": 56,
+        "scrollWidth": 56,
+        "fontSize": "14px",
+        "fontVariantNumeric": "tabular-nums"
+      },
+      {
+        "text": "NT$200",
+        "width": 56,
+        "scrollWidth": 56,
+        "fontSize": "14px",
+        "fontVariantNumeric": "tabular-nums"
+      },
+      {
+        "text": "NT$200",
+        "width": 56,
+        "scrollWidth": 56,
+        "fontSize": "14px",
+        "fontVariantNumeric": "tabular-nums"
+      },
+      {
+        "text": "NT$200",
+        "width": 56,
+        "scrollWidth": 56,
+        "fontSize": "14px",
+        "fontVariantNumeric": "tabular-nums"
+      },
+      {
+        "text": "NT$200",
+        "width": 56,
+        "scrollWidth": 56,
+        "fontSize": "14px",
+        "fontVariantNumeric": "tabular-nums"
+      },
+      {
+        "text": "NT$200",
+        "width": 56,
+        "scrollWidth": 56,
+        "fontSize": "14px",
+        "fontVariantNumeric": "tabular-nums"
+      },
+      {
+        "text": "NT$200",
+        "width": 56,
+        "scrollWidth": 56,
+        "fontSize": "14px",
+        "fontVariantNumeric": "tabular-nums"
+      },
+      {
+        "text": "NT$200",
+        "width": 56,
+        "scrollWidth": 56,
+        "fontSize": "14px",
+        "fontVariantNumeric": "tabular-nums"
+      },
+      {
+        "text": "NT$200",
+        "width": 56,
+        "scrollWidth": 56,
+        "fontSize": "14px",
+        "fontVariantNumeric": "tabular-nums"
+      },
+      {
+        "text": "NT$200",
+        "width": 56,
+        "scrollWidth": 56,
+        "fontSize": "14px",
+        "fontVariantNumeric": "tabular-nums"
+      },
+      {
+        "text": "NT$200",
+        "width": 56,
+        "scrollWidth": 56,
+        "fontSize": "14px",
+        "fontVariantNumeric": "tabular-nums"
+      },
+      {
+        "text": "NT$200",
+        "width": 56,
+        "scrollWidth": 56,
+        "fontSize": "14px",
+        "fontVariantNumeric": "tabular-nums"
+      },
+      {
+        "text": "NT$200",
+        "width": 56,
+        "scrollWidth": 56,
+        "fontSize": "14px",
+        "fontVariantNumeric": "tabular-nums"
+      },
+      {
+        "text": "NT$200",
+        "width": 56,
+        "scrollWidth": 56,
+        "fontSize": "14px",
+        "fontVariantNumeric": "tabular-nums"
+      },
+      {
+        "text": "NT$200",
+        "width": 56,
+        "scrollWidth": 56,
+        "fontSize": "14px",
+        "fontVariantNumeric": "tabular-nums"
+      },
+      {
+        "text": "NT$200",
+        "width": 56,
+        "scrollWidth": 56,
+        "fontSize": "14px",
+        "fontVariantNumeric": "tabular-nums"
+      },
+      {
+        "text": "NT$200",
+        "width": 56,
+        "scrollWidth": 56,
+        "fontSize": "14px",
+        "fontVariantNumeric": "tabular-nums"
+      },
+      {
+        "text": "NT$200",
+        "width": 56,
+        "scrollWidth": 56,
+        "fontSize": "14px",
+        "fontVariantNumeric": "tabular-nums"
+      },
+      {
+        "text": "NT$200",
+        "width": 56,
+        "scrollWidth": 56,
+        "fontSize": "14px",
+        "fontVariantNumeric": "tabular-nums"
+      },
+      {
+        "text": "NT$200",
+        "width": 56,
+        "scrollWidth": 56,
+        "fontSize": "14px",
+        "fontVariantNumeric": "tabular-nums"
+      },
+      {
+        "text": "NT$200",
+        "width": 56,
+        "scrollWidth": 56,
+        "fontSize": "14px",
+        "fontVariantNumeric": "tabular-nums"
+      },
+      {
+        "text": "NT$200",
+        "width": 56,
+        "scrollWidth": 56,
+        "fontSize": "14px",
+        "fontVariantNumeric": "tabular-nums"
+      },
+      {
+        "text": "NT$200",
+        "width": 56,
+        "scrollWidth": 56,
+        "fontSize": "14px",
+        "fontVariantNumeric": "tabular-nums"
+      },
+      {
+        "text": "NT$200",
+        "width": 56,
+        "scrollWidth": 56,
+        "fontSize": "14px",
+        "fontVariantNumeric": "tabular-nums"
+      },
+      {
+        "text": "NT$200",
+        "width": 56,
+        "scrollWidth": 56,
+        "fontSize": "14px",
+        "fontVariantNumeric": "tabular-nums"
+      },
+      {
+        "text": "NT$200",
+        "width": 56,
+        "scrollWidth": 56,
+        "fontSize": "14px",
+        "fontVariantNumeric": "tabular-nums"
+      },
+      {
+        "text": "NT$200",
+        "width": 56,
+        "scrollWidth": 56,
+        "fontSize": "14px",
+        "fontVariantNumeric": "tabular-nums"
+      },
+      {
+        "text": "NT$200",
+        "width": 56,
+        "scrollWidth": 56,
+        "fontSize": "14px",
+        "fontVariantNumeric": "tabular-nums"
+      },
+      {
+        "text": "NT$200",
+        "width": 56,
+        "scrollWidth": 56,
+        "fontSize": "14px",
+        "fontVariantNumeric": "tabular-nums"
+      },
+      {
+        "text": "NT$200",
+        "width": 56,
+        "scrollWidth": 56,
+        "fontSize": "14px",
+        "fontVariantNumeric": "tabular-nums"
+      },
+      {
+        "text": "NT$200",
+        "width": 56,
+        "scrollWidth": 56,
+        "fontSize": "14px",
+        "fontVariantNumeric": "tabular-nums"
+      },
+      {
+        "text": "NT$200",
+        "width": 56,
+        "scrollWidth": 56,
+        "fontSize": "14px",
+        "fontVariantNumeric": "tabular-nums"
+      },
+      {
+        "text": "NT$200",
+        "width": 56,
+        "scrollWidth": 56,
+        "fontSize": "14px",
+        "fontVariantNumeric": "tabular-nums"
+      },
+      {
+        "text": "NT$200",
+        "width": 56,
+        "scrollWidth": 56,
+        "fontSize": "14px",
+        "fontVariantNumeric": "tabular-nums"
+      },
+      {
+        "text": "NT$200",
+        "width": 56,
+        "scrollWidth": 56,
+        "fontSize": "14px",
+        "fontVariantNumeric": "tabular-nums"
+      },
+      {
+        "text": "NT$200",
+        "width": 56,
+        "scrollWidth": 56,
+        "fontSize": "14px",
+        "fontVariantNumeric": "tabular-nums"
+      },
+      {
+        "text": "NT$200",
+        "width": 56,
+        "scrollWidth": 56,
+        "fontSize": "14px",
+        "fontVariantNumeric": "tabular-nums"
+      },
+      {
+        "text": "NT$200",
+        "width": 56,
+        "scrollWidth": 56,
+        "fontSize": "14px",
+        "fontVariantNumeric": "tabular-nums"
+      },
+      {
+        "text": "NT$200",
+        "width": 56,
+        "scrollWidth": 56,
+        "fontSize": "14px",
+        "fontVariantNumeric": "tabular-nums"
+      },
+      {
+        "text": "NT$200",
+        "width": 56,
+        "scrollWidth": 56,
+        "fontSize": "14px",
+        "fontVariantNumeric": "tabular-nums"
+      },
+      {
+        "text": "NT$200",
+        "width": 56,
+        "scrollWidth": 56,
+        "fontSize": "14px",
+        "fontVariantNumeric": "tabular-nums"
+      },
+      {
+        "text": "NT$200",
+        "width": 56,
+        "scrollWidth": 56,
+        "fontSize": "14px",
+        "fontVariantNumeric": "tabular-nums"
+      },
+      {
+        "text": "NT$200",
+        "width": 56,
+        "scrollWidth": 56,
+        "fontSize": "14px",
+        "fontVariantNumeric": "tabular-nums"
+      },
+      {
+        "text": "NT$200",
+        "width": 56,
+        "scrollWidth": 56,
+        "fontSize": "14px",
+        "fontVariantNumeric": "tabular-nums"
+      }
+    ],
+    "dateHeadings": [],
+    "focus": "BODY"
+  },
+  "extra": {
+    "requests": [
+      {
+        "method": "POST",
+        "path": "/api/app/session",
+        "at": 168057.729291,
+        "finishedAt": 168059.206875
+      },
+      {
+        "method": "GET",
+        "path": "/api/app/v2/context",
+        "at": 168060.621041,
+        "finishedAt": 168062.013291
+      },
+      {
+        "method": "GET",
+        "path": "/api/app/v2/ledgers",
+        "at": 168062.38075,
+        "finishedAt": 168065.717375
+      },
+      {
+        "method": "GET",
+        "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/bootstrap",
+        "at": 168087.817,
+        "finishedAt": 168092.473625
+      },
+      {
+        "method": "GET",
+        "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories",
+        "at": 168138.561166,
+        "finishedAt": 168140.911875
+      },
+      {
+        "method": "GET",
+        "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/transactions?q=%E6%97%A5%E5%B8%B8%E7%B4%80%E9%8C%84&limit=50",
+        "at": 168551.153791,
+        "finishedAt": 168555.894708
+      },
+      {
+        "method": "GET",
+        "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/transactions?q=%E6%97%A5%E5%B8%B8%E7%B4%80%E9%8C%84&limit=50&cursor=50",
+        "at": 169087.819333,
+        "finishedAt": 169145.495
+      },
+      {
+        "method": "GET",
+        "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/transactions?q=%E6%97%A5%E5%B8%B8%E7%B4%80%E9%8C%84&limit=50&cursor=50",
+        "at": 169562.037583,
+        "finishedAt": 169571.226
+      }
+    ]
+  }
+}

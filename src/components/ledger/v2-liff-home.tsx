@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { flushSync } from "react-dom";
 import { ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { V2LedgerSwitcher } from "@/components/ledger/v2-ledger-switcher";
@@ -12,8 +13,10 @@ import { LedgerSurfaceHost } from "@/components/ledger/ledger-surface-host";
 import { useV2Ledgers } from "@/hooks/use-v2-ledgers";
 import { useV2EntrySession } from "@/hooks/use-v2-entry-session";
 import { api } from "@/lib/api";
-import { appOrigin, ledgerHome, navigationHistoryState, navigationParams, navigationUrl, parseNavigation, resolveLedgerTarget, type V2Navigation, type V2Surface } from "@/lib/v2-navigation";
+import { appOrigin, ledgerHome, navigationHistoryState, navigationParams, navigationUrl, parseNavigation, resolveLedgerTarget, searchKeys, type V2Navigation, type V2Surface } from "@/lib/v2-navigation";
 import type { V2LedgerTransaction } from "@/lib/types";
+import { effectiveTimelineTransactions, TIMELINE_PAGE_SIZE } from "@/lib/v2-timeline";
+import { resourceId } from "@/lib/v2-entry-operation";
 
 declare global {
   interface Window {
@@ -42,7 +45,7 @@ function waitForLiffSdk(timeoutMs = 10_000): Promise<NonNullable<Window["liff"]>
 
 type Intent = { kind: "navigate"; nav: V2Navigation; mode: "push" | "replace"; manual?: boolean; state?: unknown; rowId?: string }
   | { kind: "close" } | { kind: "correction"; transaction: V2LedgerTransaction } | { kind: "create" };
-type ScrollMemory = { rowId?: string; offset: number; y: number };
+type ScrollMemory = { rowId?: string; neighbors: string[]; offset: number; y: number };
 const titles: Record<V2Surface, string> = { HOME: "", TRANSACTION_DETAIL: "紀錄詳情", STATS: "收支概況", SETTINGS: "帳本設定", RECURRING: "固定記帳", SEARCH: "搜尋紀錄", PROPOSAL_COMPAT_ENTRY: "LINE 待確認草稿" };
 
 export function V2LiffHome() {
@@ -51,6 +54,7 @@ export function V2LiffHome() {
   const [nav, setNav] = React.useState<V2Navigation | null>(null);
   const [error, setError] = React.useState("");
   const [targetError, setTargetError] = React.useState<"ledger" | "transaction-scope" | null>(null);
+  const [timelineWindows, setTimelineWindows] = React.useState<Record<string, number>>({});
   const scopeError = targetError ?? (v2.accessDenied && !v2.authError ? "ledger" : null);
   const [settingsGuard, setSettingsGuard] = React.useState<SettingsLeaveGuard | null>(null);
   const [dialog, setDialog] = React.useState<"switcher" | "leave" | "create" | EntryControlSurface | null>(null);
@@ -71,7 +75,8 @@ export function V2LiffHome() {
   const trigger = React.useRef<HTMLElement | null>(null);
   const editingField = React.useRef<HTMLElement | null>(null);
   const returnFocus = React.useRef<HTMLElement | null>(null);
-  const focusRequest = React.useRef<{ ledgerId: string | null; home: boolean; rowId?: string; headingDone?: boolean } | null>(null);
+  const focusRequest = React.useRef<{ ledgerId: string | null; list: boolean; rowId?: string; headingDone?: boolean } | null>(null);
+  const correctionDetailOrigin = React.useRef<{ ledgerId: string; transactionId: string } | null>(null);
 
   function writeUrl(next: V2Navigation, mode: "push" | "replace", state: unknown) {
     const url = navigationUrl(next, window.location.href);
@@ -88,32 +93,62 @@ export function V2LiffHome() {
     accepted.current = { url, state: window.history.state };
   }
 
-  function rememberHome() {
-    if (nav?.surface !== "HOME" || !nav.ledgerId) return;
-    const row = [...document.querySelectorAll<HTMLElement>("[data-transaction-id]")].find(node => node.getBoundingClientRect().bottom > 0);
-    scroll.current.set(nav.ledgerId, { rowId: row?.dataset.transactionId, offset: row?.getBoundingClientRect().top ?? 0, y: window.scrollY });
+  function memoryKey(location: V2Navigation) {
+    return JSON.stringify([location.ledgerId, location.surface, location.surface === "SEARCH" ? searchKeys.map(key => location.filters[key] ?? "") : []]);
+  }
+  function rememberOrigin(rowId?: string) {
+    if (!nav || !["HOME", "SEARCH"].includes(nav.surface) || !nav.ledgerId) return;
+    const rows = [...document.querySelectorAll<HTMLElement>("[data-transaction-id]")];
+    const row = rows.find(node => node.dataset.transactionId === rowId) ?? rows.find(node => node.getBoundingClientRect().bottom > 0);
+    const position = row ? rows.indexOf(row) : -1;
+    const neighbors = position < 0 ? [] : [...rows.slice(position + 1), ...rows.slice(0, position).reverse()].map(node => node.dataset.transactionId!);
+    scroll.current.set(memoryKey(nav), { rowId: row?.dataset.transactionId, neighbors, offset: row?.getBoundingClientRect().top ?? 0, y: window.scrollY });
   }
 
   function apply(intent: Intent) {
+    if (intent.kind === "navigate" && intent.state === undefined && nav?.surface === "TRANSACTION_DETAIL" && ["HOME", "SEARCH"].includes(intent.nav.surface)
+      && typeof document.startViewTransition === "function" && !window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      // The browser snapshots the departing Detail; the destination is usable as
+      // soon as it commits, while CSS fades only that snapshot for 140ms.
+      const transition = document.startViewTransition(() => { flushSync(() => applyAccepted(intent)); });
+      void transition.ready.catch(() => undefined);
+      return;
+    }
+    applyAccepted(intent);
+  }
+
+  function applyAccepted(intent: Intent) {
     pendingRef.current = null;
     setPending(null);
     if (intent.kind === "create") { setNewLedgerName(""); setCreateError(""); setDialog("create"); return; }
-    if (intent.kind === "close") { setDialog(null); return; }
+    if (intent.kind === "close") { correctionDetailOrigin.current = null; setDialog(null); requestAnimationFrame(() => (document.querySelector<HTMLElement>('[data-testid="transaction-edit"]') ?? document.querySelector<HTMLElement>("[data-detail-heading]"))?.focus({ preventScroll: true })); return; }
     if (intent.kind === "correction") {
-      entry.openCorrection(intent.transaction, true);
+      if (entry.openCorrection(intent.transaction, true)) correctionDetailOrigin.current = { ledgerId: intent.transaction.ledgerId, transactionId: intent.transaction.id };
       setDialog(null);
       requestAnimationFrame(() => document.querySelector<HTMLElement>('[aria-label="金額，新臺幣"]')?.focus());
       return;
     }
     navigationGeneration.current += 1;
-    rememberHome();
+    rememberOrigin(intent.rowId);
     const resolved = resolveLedgerTarget(intent.nav, v2.ledgers);
     const next = resolved.error ? intent.nav : { ...intent.nav, ledgerId: resolved.ledgerId, explicitLedger: resolved.ledgerId !== null };
-    const origin = intent.mode === "push" && nav?.surface === "HOME" && nav.ledgerId
-      ? { version: 1 as const, documentId: documentId.current, ledgerId: nav.ledgerId, ...(intent.rowId ? { rowId: intent.rowId } : {}) } : null;
+    if (next.surface !== "TRANSACTION_DETAIL" || next.ledgerId !== correctionDetailOrigin.current?.ledgerId || next.transactionId !== correctionDetailOrigin.current?.transactionId) correctionDetailOrigin.current = null;
     const previousOrigin = appOrigin(accepted.current.state, documentId.current, nav?.ledgerId ?? null);
+    const origin = intent.mode === "push" && nav && ["HOME", "SEARCH"].includes(nav.surface) && nav.ledgerId
+      ? { version: 1 as const, documentId: documentId.current, ledgerId: nav.ledgerId, ...(intent.rowId ? { rowId: intent.rowId } : {}),
+        ...(nav.surface === "SEARCH" ? { surface: "SEARCH" as const, filters: nav.filters } : {}) }
+      : next.surface === "TRANSACTION_DETAIL" && previousOrigin?.ledgerId === next.ledgerId ? previousOrigin : null;
     const state = intent.state ?? navigationHistoryState(window.history.state, origin);
-    focusRequest.current = { ledgerId: next.ledgerId, home: next.surface === "HOME", rowId: intent.rowId ?? (next.surface === "HOME" ? previousOrigin?.rowId : undefined) };
+    const originRowId = intent.rowId ?? previousOrigin?.rowId;
+    if (next.surface === "HOME" && next.ledgerId && v2.bootstrap?.ledger.id === next.ledgerId && originRowId) {
+      const position = effectiveTimelineTransactions(v2.bootstrap.transactions).findIndex(row => row.id === originRowId);
+      if (position >= 0) {
+        const needed = Math.ceil((position + 1) / TIMELINE_PAGE_SIZE) * TIMELINE_PAGE_SIZE;
+        const ledgerId = next.ledgerId;
+        setTimelineWindows(current => ({ ...current, [ledgerId]: Math.max(current[ledgerId] ?? TIMELINE_PAGE_SIZE, needed) }));
+      }
+    }
+    focusRequest.current = { ledgerId: next.ledgerId, list: ["HOME", "SEARCH"].includes(next.surface), rowId: intent.rowId ?? (["HOME", "SEARCH"].includes(next.surface) ? previousOrigin?.rowId : undefined) };
     // Clear old data and accept scope in the same update as URL/identity.
     v2.selectLedger(resolved.ledgerId);
     setTargetError(resolved.error);
@@ -194,19 +229,54 @@ export function V2LiffHome() {
   React.useLayoutEffect(() => {
     const focus = focusRequest.current;
     if (!focus || nav?.ledgerId !== focus.ledgerId) return;
-    const heading = document.querySelector<HTMLElement>('[data-testid="surface-heading"]');
-    if (!focus.headingDone) { heading?.focus({ preventScroll: true }); focus.headingDone = true; }
-    if (focus.home && v2.bootstrap?.ledger.id !== focus.ledgerId && !targetError) return;
-    const memory = focus.ledgerId ? scroll.current.get(focus.ledgerId) : undefined;
-    const rows = [...document.querySelectorAll<HTMLElement>("[data-transaction-id]")];
-    const anchor = rows.find(node => node.dataset.transactionId === memory?.rowId);
-    if (focus.home) {
+    if (!focus.list && nav.surface === "TRANSACTION_DETAIL" && v2.bootstrap?.ledger.id !== focus.ledgerId && !scopeError) {
+      window.scrollTo(0, 0);
+      if (v2.error) document.querySelector<HTMLElement>('[data-testid="surface-heading"]')?.focus({ preventScroll: true });
+      // Retain the request through a failed first read. A successful retry must
+      // focus the real Detail heading rather than the removed retry control.
+      return;
+    }
+    const heading = document.querySelector<HTMLElement>(nav?.surface === "TRANSACTION_DETAIL" ? '[data-detail-heading], [data-testid="surface-heading"]' : '[data-testid="surface-heading"]');
+    const detailHeading = nav?.surface === "TRANSACTION_DETAIL" ? document.querySelector<HTMLElement>("[data-detail-heading]") : null;
+    if (!focus.headingDone) { (detailHeading ?? heading)?.focus({ preventScroll: true }); focus.headingDone = true; }
+    if (focus.list && v2.bootstrap?.ledger.id !== focus.ledgerId && !scopeError) return;
+    if (!focus.list) { window.scrollTo(0, 0); focusRequest.current = null; return; }
+    const restoreList = (delayed = false) => {
+      if (focusRequest.current !== focus) return true;
+      if (nav.surface === "SEARCH" && document.querySelector('[data-search-ready="false"]')) return false;
+      if (delayed && document.activeElement !== heading && document.activeElement !== document.body) { focusRequest.current = null; return true; }
+      const memory = scroll.current.get(memoryKey(nav));
+      const rows = [...document.querySelectorAll<HTMLElement>("[data-transaction-id]")];
+      const nearest = memory?.neighbors.map(id => rows.find(node => node.dataset.transactionId === id)).find(Boolean);
+      const anchor = rows.find(node => node.dataset.transactionId === memory?.rowId) ?? nearest;
       window.scrollTo(0, anchor && memory ? window.scrollY + anchor.getBoundingClientRect().top - memory.offset : memory?.y ?? 0);
       const row = rows.find(node => node.dataset.transactionId === focus.rowId);
-      if (document.activeElement === heading && focus.rowId) (row ?? rows[0] ?? heading)?.focus({ preventScroll: true });
-    } else window.scrollTo(0, 0);
-    focusRequest.current = null;
-  }, [nav, v2.bootstrap, targetError]);
+      if (document.activeElement === heading && focus.rowId) (row ?? nearest ?? rows[0] ?? document.querySelector<HTMLElement>("[data-timeline-date]") ?? heading)?.focus({ preventScroll: true });
+      focusRequest.current = null;
+      return true;
+    };
+    if (restoreList()) return;
+    const observer = new MutationObserver(() => { if (restoreList(true)) observer.disconnect(); });
+    observer.observe(document.querySelector("main") ?? document.body, { subtree: true, childList: true, attributes: true, attributeFilter: ["data-search-ready"] });
+    return () => observer.disconnect();
+  }, [nav, v2.bootstrap, scopeError, v2.error]);
+
+  const showCorrectedDetail = React.useEffectEvent(() => {
+    const operation = entry.operation;
+    if (entry.write === "submitting" && operation?.operationType === "replace" && nav?.surface === "TRANSACTION_DETAIL"
+      && operation.ledgerId === nav.ledgerId && resourceId(operation) === nav.transactionId) {
+      correctionDetailOrigin.current = { ledgerId: operation.ledgerId, transactionId: nav.transactionId! };
+    }
+    const proof = entry.write === "committed" && entry.operation?.operationType === "replace" ? entry.operation.proof : null;
+    if (nav?.surface !== "TRANSACTION_DETAIL" || !proof || proof.transaction.ledgerId !== nav.ledgerId || proof.replacedTransactionId !== nav.transactionId
+      || correctionDetailOrigin.current?.ledgerId !== nav.ledgerId || correctionDetailOrigin.current.transactionId !== nav.transactionId) return;
+    correctionDetailOrigin.current = null;
+    const next = { ...nav, transactionId: proof.transaction.id };
+    focusRequest.current = { ledgerId: next.ledgerId, list: false };
+    setNav(next);
+    writeUrl(next, "replace", history.state);
+  });
+  React.useEffect(() => { showCorrectedDetail(); }, [entry.write, entry.operation, nav]);
 
   const startLiff = React.useEffectEvent(async () => {
     const liffId = process.env.NEXT_PUBLIC_LIFF_ID;
@@ -240,7 +310,7 @@ export function V2LiffHome() {
     v2.selectLedger(ledgerId);
     setTargetError(recoveryLedger ? null : resolved.error);
     setNav(next);
-    focusRequest.current = { ledgerId: next.ledgerId, home: next.surface === "HOME" };
+    focusRequest.current = { ledgerId: next.ledgerId, list: next.surface === "HOME" };
     // Initialization is the first permitted URL mutation, after liff.init resolves.
     writeUrl(next, "replace", navigationHistoryState(history.state, null));
   });
@@ -320,7 +390,11 @@ export function V2LiffHome() {
     if (event.target instanceof HTMLElement && event.target.closest("[data-entry]") || event.target instanceof HTMLInputElement || event.target instanceof HTMLSelectElement) editingField.current = event.target;
   }}>
     <header className="mb-3 space-y-2">
-      {nav.surface !== "HOME" ? <Button variant="ghost" size="sm" onClick={() => request({ kind: "navigate", nav: ledgerHome(nav.ledgerId), mode: "replace" })}>返回帳本</Button> : null}
+      {nav.surface !== "HOME" ? <Button data-testid="transaction-detail-back" aria-label="返回帳本" variant="ghost" size="sm" className="h-auto min-h-11 max-w-full whitespace-normal text-left [overflow-wrap:anywhere]" onClick={() => {
+        const origin = nav.surface === "TRANSACTION_DETAIL" ? appOrigin(accepted.current.state, documentId.current, nav.ledgerId) : null;
+        const destination = origin?.surface === "SEARCH" ? { ...ledgerHome(nav.ledgerId), surface: "SEARCH" as const, filters: origin.filters ?? {} } : ledgerHome(nav.ledgerId);
+        request({ kind: "navigate", nav: destination, mode: "replace", rowId: origin?.rowId });
+      }}>‹ {ledgerName}</Button> : null}
       <h1 tabIndex={-1} data-testid="surface-heading" className="text-xl font-bold [overflow-wrap:anywhere]">{scopeError ? "連結無法開啟" : nav.surface === "HOME" ? identityTrigger ?? "帳本" : nav.surface === "PROPOSAL_COMPAT_ENTRY" ? titles[nav.surface] : `${ledgerName} · ${titles[nav.surface]}`}</h1>
       {nav.surface !== "HOME" ? identityTrigger : null}
     </header>
@@ -335,6 +409,9 @@ export function V2LiffHome() {
         onOpenEntryControls={(surface, target) => { if (entry.locked) return; returnFocus.current = target; setDialog(surface); }}
         entry={entry} navigation={nav} onOpenSurface={openSurface} onCloseEntry={() => request({ kind: "close" })}
         onEdit={transaction => request({ kind: "correction", transaction })} onCreateLedger={openCreate} onSettingsLeaveChange={setSettingsGuard}
+        onConfirmedMutation={v2.acceptTransactionStatusProof}
+        timelineVisibleCount={timelineWindows[nav.ledgerId ?? ""] ?? TIMELINE_PAGE_SIZE}
+        onLoadOlder={() => { const ledgerId = nav.ledgerId; if (ledgerId) setTimelineWindows(current => ({ ...current, [ledgerId]: (current[ledgerId] ?? TIMELINE_PAGE_SIZE) + TIMELINE_PAGE_SIZE })); }}
         onSearchChange={filters => { const next = { ...nav, filters }; setNav(next); writeUrl(next, "replace", history.state); }} />
     </>}
     <LedgerSurfaceHost surface={dialog === "leave" ? `leave-${leaveRevision}` : dialog} title={dialog === "switcher" ? "切換帳本" : dialog === "create" ? "建立帳本" : dialog === "payer" ? entry.draft?.type === "income" ? "選擇收款人" : entry.draft?.type === "transfer" ? "選擇發送人" : "選擇付款人" : dialog === "split" ? entry.draft?.type === "income" ? "款項分配" : "選擇分攤" : leaveTitle} onCancel={() => cancelDialog()} cancelDisabled={dialog === "create" && v2.busy} returnFocus={() => returnFocus.current}>

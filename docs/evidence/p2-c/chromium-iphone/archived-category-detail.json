@@ -1,0 +1,119 @@
+{
+  "test": {
+    "title": "09 expense row and Detail use truthful type/payment semantics",
+    "project": "chromium-iphone",
+    "resultDir": "/Users/nc8/.codex/worktrees/p2-c-timeline-detail/New project/output/playwright/results/p2-c-timeline-09-expense-r-1abf2-hful-type-payment-semantics-chromium-iphone"
+  },
+  "metrics": {
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "scrollY": 0,
+    "documentWidth": 390,
+    "bodyWidth": 390,
+    "timelineRows": 0,
+    "rowIds": [],
+    "rowRects": [],
+    "amountRects": [],
+    "dateHeadings": [],
+    "focus": "H2"
+  },
+  "extra": {
+    "categoryId": "00000000-0000-4000-8000-000000003000",
+    "categoryReadStatus": 200,
+    "categoryStatus": "archived",
+    "requests": [
+      {
+        "method": "POST",
+        "path": "/api/app/session",
+        "at": 39265.710167,
+        "finishedAt": 39271.890167
+      },
+      {
+        "method": "GET",
+        "path": "/api/app/v2/context",
+        "at": 39271.913958,
+        "finishedAt": 39275.880333
+      },
+      {
+        "method": "GET",
+        "path": "/api/app/v2/ledgers",
+        "at": 39276.7005,
+        "finishedAt": 39308.339833
+      },
+      {
+        "method": "GET",
+        "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/bootstrap",
+        "at": 39308.37175,
+        "finishedAt": 39326.910833
+      },
+      {
+        "method": "GET",
+        "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories",
+        "at": 39386.96475,
+        "finishedAt": 39393.605833
+      },
+      {
+        "method": "POST",
+        "path": "/api/app/session",
+        "at": 40743.0065,
+        "finishedAt": 40751.083125
+      },
+      {
+        "method": "GET",
+        "path": "/api/app/v2/context",
+        "at": 40752.254542,
+        "finishedAt": 40758.519
+      },
+      {
+        "method": "GET",
+        "path": "/api/app/v2/ledgers",
+        "at": 40759.016917,
+        "finishedAt": 40765.81225
+      },
+      {
+        "method": "GET",
+        "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/bootstrap",
+        "at": 40792.049458,
+        "finishedAt": 40818.529292
+      },
+      {
+        "method": "GET",
+        "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories",
+        "at": 40834.158083,
+        "finishedAt": 40989.955792
+      },
+      {
+        "method": "POST",
+        "path": "/api/app/session",
+        "at": 42032.525583,
+        "finishedAt": 42036.290625
+      },
+      {
+        "method": "GET",
+        "path": "/api/app/v2/context",
+        "at": 42036.690333,
+        "finishedAt": 42045.107708
+      },
+      {
+        "method": "GET",
+        "path": "/api/app/v2/ledgers",
+        "at": 42045.134917,
+        "finishedAt": 42054.753292
+      },
+      {
+        "method": "GET",
+        "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/bootstrap",
+        "at": 42078.572875,
+        "finishedAt": 42111.088833
+      },
+      {
+        "method": "GET",
+        "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories",
+        "at": 42115.837625,
+        "finishedAt": 42129.308875
+      }
+    ]
+  }
+}

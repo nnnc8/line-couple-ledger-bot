@@ -92,9 +92,9 @@ test("same-ledger Detail identity change cannot reuse previous attachments", asy
   const fixture = await navigationBrowser(page), secondId = "00000000-0000-4000-8000-000000000012";
   fixture.state.rows.push(row(A, secondId, "第二筆"));
   await page.route(`**/api/app/v2/transactions/${TA}/attachments`, route => route.fulfill({ json: { attachments: [{ id: "first-receipt", mimeType: "application/pdf", createdAt: "2026-09-25T00:00:00Z", url: "https://example.invalid/receipt" }] } }));
-  await fixture.goto(`${home()}&v2Transaction=${TA}`); await expect(page.getByRole("link", { name: /PDF 收據/ })).toBeVisible();
+  await fixture.goto(`${home()}&v2Transaction=${TA}`); await page.getByRole("button", { name: "更多操作", exact: true }).click(); await expect(page.getByRole("link", { name: /PDF 收據/ })).toBeVisible();
   await page.evaluate(url => history.pushState({}, "", url), `${home()}&v2Transaction=${secondId}`);
-  await expect(page.getByText("第二筆", { exact: true })).toBeVisible(); await expect(page.getByText("尚無收據")).toBeVisible();
+  await expect(page.getByText("第二筆", { exact: true })).toBeVisible(); await page.getByRole("button", { name: "更多操作", exact: true }).click(); await expect(page.getByText("尚無收據")).toBeVisible();
   await expect(page.getByRole("link", { name: /PDF 收據/ })).toHaveCount(0);
 });
 
@@ -151,7 +151,8 @@ for (const label of ["收支概況", "帳本設定", "搜尋"]) test(`${label} B
   const fixture = await navigationBrowser(page);
   fixture.state.rows.push(...Array.from({ length: 30 }, (_, index) => row(A, `scroll-${index}`, `滾動 ${index}`)));
   await fixture.goto(); await fixture.ready();
-  await page.getByRole("button", { name: "查看紀錄：滾動 15", exact: true }).scrollIntoViewIfNeeded();
+  await page.getByRole("button", { name: "更早紀錄", exact: true }).click();
+  await page.getByRole("button", { name: /滾動 15/ }).scrollIntoViewIfNeeded();
   const before = await page.evaluate(() => scrollY); expect(before).toBeGreaterThan(500);
   await page.getByRole("button", { name: label, exact: true }).evaluate(element => (element as HTMLElement).click());
   await expect(heading(page)).toBeFocused(); await page.getByRole("button", { name: "返回帳本", exact: true }).click();
@@ -198,12 +199,12 @@ for (const tab of ["stats", "recurring", "search"]) for (const code of [401, 500
 
 test("stale app-origin row marker falls back to a surviving Home row", async ({ page }) => {
   const fixture = await navigationBrowser(page); await fixture.goto(); await fixture.ready();
-  await page.getByRole("button", { name: "查看紀錄：A 專屬晚餐", exact: true }).click();
+  await page.getByRole("button", { name: /A 專屬晚餐/ }).click();
   // Simulate an origin from an older Home snapshot without violating the P1-B
   // bootstrap invariant that an accepted read cannot erase a known transaction.
   await page.evaluate(() => history.replaceState({ ...history.state, v2LedgerOrigin: { ...history.state.v2LedgerOrigin, rowId: "removed-row" } }, "", `${location.href}&revision=2`));
-  await expect(page).toHaveURL(/revision=2/); await expect(heading(page)).toBeFocused();
+  await expect(page).toHaveURL(/revision=2/); await expect(page.locator("[data-detail-heading]")).toBeFocused();
   await page.getByRole("button", { name: "返回帳本", exact: true }).click();
-  await expect(page.getByRole("button", { name: "查看紀錄：A 專屬晚餐", exact: true })).toBeFocused();
+  await expect(page.getByRole("button", { name: /A 專屬晚餐/ })).toBeFocused();
   expect(fixture.state.posts).toHaveLength(0);
 });

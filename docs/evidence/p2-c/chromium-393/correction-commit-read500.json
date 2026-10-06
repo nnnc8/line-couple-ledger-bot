@@ -1,0 +1,116 @@
+{
+  "test": {
+    "title": "28 correction known commit remains success when read 500",
+    "project": "chromium-393",
+    "resultDir": "/Users/nc8/.codex/worktrees/p2-c-timeline-detail/New project/output/playwright/results/p2-c-timeline-28-correctio-a8359-mains-success-when-read-500-chromium-393"
+  },
+  "metrics": {
+    "viewport": {
+      "width": 393,
+      "height": 852
+    },
+    "scrollY": 0,
+    "documentWidth": 393,
+    "bodyWidth": 393,
+    "timelineRows": 0,
+    "rowIds": [],
+    "rowRects": [],
+    "amountRects": [],
+    "dateHeadings": [],
+    "focus": "H2"
+  },
+  "extra": {
+    "mutations": [
+      {
+        "transactionId": "00000000-0000-4000-8000-000000001004",
+        "body": {
+          "action": "replace",
+          "expectedVersion": 1,
+          "replacement": {
+            "type": "expense",
+            "amountTwd": "200",
+            "occurredOn": "2026-09-25",
+            "description": "已修正的晚餐",
+            "category": "餐飲",
+            "categoryId": "stored-archived-category",
+            "note": "這是完整備註，應該在詳情清楚換行。這是完整備註，應該在詳情清楚換行。這是完整備註，應該在詳情清楚換行。這是完整備註，應該在詳情清楚換行。這是完整備註，應該在詳情清楚換行。這是完整備註，應該在詳情清楚換行。這是完整備註，應該在詳情清楚換行。這是完整備註，應該在詳情清楚換行。這是完整備註，應該在詳情清楚換行。這是完整備註，應該在詳情清楚換行。這是完整備註，應該在詳情清楚換行。這是完整備註，應該在詳情清楚換行。https://example.invalid/receipt-context-receipt-context-receipt-context-receipt-context-receipt-context-receipt-context-receipt-context-receipt-context-receipt-context-receipt-context-receipt-context-receipt-context-receipt-context-receipt-context-receipt-context-receipt-context-receipt-context-receipt-context-receipt-context-receipt-context-",
+            "splitMethod": "exact",
+            "payments": [
+              {
+                "userId": "00000000-0000-4000-8000-000000000001",
+                "amountTwd": "200"
+              }
+            ],
+            "shares": [
+              {
+                "userId": "00000000-0000-4000-8000-000000000001",
+                "amountTwd": "100"
+              },
+              {
+                "userId": "00000000-0000-4000-8000-000000000002",
+                "amountTwd": "100"
+              }
+            ]
+          },
+          "idempotencyKey": "34291876-9dfc-4177-b63b-d6001fc8b1be"
+        }
+      }
+    ],
+    "requests": [
+      {
+        "method": "POST",
+        "path": "/api/app/session",
+        "at": 108157.910208,
+        "finishedAt": 108179.57425
+      },
+      {
+        "method": "GET",
+        "path": "/api/app/v2/context",
+        "at": 108180.412458,
+        "finishedAt": 108183.979
+      },
+      {
+        "method": "GET",
+        "path": "/api/app/v2/ledgers",
+        "at": 108184.842041,
+        "finishedAt": 108188.217916
+      },
+      {
+        "method": "GET",
+        "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/bootstrap",
+        "at": 108211.842833,
+        "finishedAt": 108235.798916
+      },
+      {
+        "method": "GET",
+        "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories",
+        "at": 108279.323375,
+        "finishedAt": 108294.776083
+      },
+      {
+        "method": "GET",
+        "path": "/api/app/v2/transactions/00000000-0000-4000-8000-000000001004/attachments",
+        "at": 108494.486708,
+        "finishedAt": 108507.565791
+      },
+      {
+        "method": "POST",
+        "path": "/api/app/v2/transactions/00000000-0000-4000-8000-000000001004/mutate",
+        "at": 108708.710041,
+        "finishedAt": 108723.634208
+      },
+      {
+        "method": "GET",
+        "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/bootstrap",
+        "at": 108724.203166,
+        "finishedAt": 108754.117
+      },
+      {
+        "method": "GET",
+        "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories",
+        "at": 108750.039791,
+        "finishedAt": 108775.358791
+      }
+    ]
+  }
+}

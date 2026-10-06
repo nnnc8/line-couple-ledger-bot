@@ -1,0 +1,140 @@
+$ playwright test --grep 'correction success preserves commit|A-B-A late history|P1-A restores zoom|45 browser Back|Back restores Home scroll; reload|31 historical void|27 correction known|28 correction known|native view-transition'
+
+[WebServer] (node:19028) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `pnpm --trace-warnings ...` to show where the warning was created)
+
+[WebServer] (node:19108) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+[WebServer] (node:19114) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+[WebServer] (node:19116) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 51 tests using 4 workers
+
+
+(node:19117) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+(node:19119) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+(node:19120) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+(node:19118) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+[1/51] [chromium-iphone] › tests/p1-b-entry.spec.ts:238:45 › correction success preserves commit when refresh succeeds
+[2/51] [chromium-iphone] › tests/p2-c-timeline.spec.ts:178:46 › 27 correction known commit remains success when read succeeds
+[3/51] [chromium-iphone] › tests/p1-c-races.spec.ts:61:7 › A-B-A late history success stays in its generation
+[4/51] [chromium-iphone] › tests/p1-c-navigation.spec.ts:55:5 › 45 browser Back restores the original transaction row focus
+[5/51] [chromium-iphone] › tests/p2-c-timeline.spec.ts:178:46 › 28 correction known commit remains success when read 500
+
+(node:19214) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+[6/51] [chromium-iphone] › tests/p1-c-races.spec.ts:61:7 › A-B-A late history failure stays in its generation
+[7/51] [chromium-iphone] › tests/v2-liff.spec.ts:334:5 › P1-A restores zoom and keeps primary controls readable and tappable
+[8/51] [chromium-iphone] › tests/p1-b-entry.spec.ts:238:45 › correction success preserves commit when refresh fails
+[9/51] [chromium-iphone] › tests/p2-c-timeline.spec.ts:200:5 › 31 historical void Detail retains service restore ability
+[10/51] [chromium-iphone] › tests/p1-c-races.spec.ts:150:49 › 收支概況 Back restores Home scroll; reload resets it
+[11/51] [chromium-iphone] › tests/p2-c-timeline.spec.ts:373:5 › browser records native view-transition support for bounded Detail-close motion
+
+(node:19243) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+[12/51] [webkit-iphone] › tests/p1-b-entry.spec.ts:238:45 › correction success preserves commit when refresh succeeds
+
+(node:19244) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+[13/51] [webkit-iphone] › tests/p1-c-navigation.spec.ts:55:5 › 45 browser Back restores the original transaction row focus
+[14/51] [chromium-iphone] › tests/p1-c-races.spec.ts:150:49 › 帳本設定 Back restores Home scroll; reload resets it
+[15/51] [chromium-iphone] › tests/p1-c-races.spec.ts:150:49 › 搜尋 Back restores Home scroll; reload resets it
+
+(node:19349) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+[16/51] [webkit-iphone] › tests/p2-c-timeline.spec.ts:178:46 › 27 correction known commit remains success when read succeeds
+
+(node:19372) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+[17/51] [webkit-iphone] › tests/p1-c-races.spec.ts:61:7 › A-B-A late history success stays in its generation
+[18/51] [webkit-iphone] › tests/p1-b-entry.spec.ts:238:45 › correction success preserves commit when refresh fails
+
+(node:19373) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+[19/51] [webkit-iphone] › tests/v2-liff.spec.ts:334:5 › P1-A restores zoom and keeps primary controls readable and tappable
+[20/51] [webkit-iphone] › tests/p2-c-timeline.spec.ts:178:46 › 28 correction known commit remains success when read 500
+[21/51] [webkit-iphone] › tests/p2-c-timeline.spec.ts:200:5 › 31 historical void Detail retains service restore ability
+[22/51] [webkit-iphone] › tests/p1-c-races.spec.ts:61:7 › A-B-A late history failure stays in its generation
+
+(node:19497) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+[23/51] [chromium-393] › tests/p1-b-entry.spec.ts:238:45 › correction success preserves commit when refresh succeeds
+
+(node:19500) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+[24/51] [chromium-393] › tests/p1-c-navigation.spec.ts:55:5 › 45 browser Back restores the original transaction row focus
+[25/51] [webkit-iphone] › tests/p2-c-timeline.spec.ts:373:5 › browser records native view-transition support for bounded Detail-close motion
+[26/51] [webkit-iphone] › tests/p1-c-races.spec.ts:150:49 › 收支概況 Back restores Home scroll; reload resets it
+[27/51] [chromium-393] › tests/p2-c-timeline.spec.ts:178:46 › 27 correction known commit remains success when read succeeds
+[28/51] [chromium-393] › tests/p1-b-entry.spec.ts:238:45 › correction success preserves commit when refresh fails
+[29/51] [webkit-iphone] › tests/p1-c-races.spec.ts:150:49 › 帳本設定 Back restores Home scroll; reload resets it
+[30/51] [chromium-393] › tests/p2-c-timeline.spec.ts:178:46 › 28 correction known commit remains success when read 500
+
+(node:19596) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+[31/51] [chromium-393] › tests/p1-c-races.spec.ts:61:7 › A-B-A late history success stays in its generation
+[32/51] [chromium-393] › tests/p2-c-timeline.spec.ts:200:5 › 31 historical void Detail retains service restore ability
+[33/51] [webkit-iphone] › tests/p1-c-races.spec.ts:150:49 › 搜尋 Back restores Home scroll; reload resets it
+
+(node:19703) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+[34/51] [webkit-393] › tests/p1-b-entry.spec.ts:238:45 › correction success preserves commit when refresh succeeds
+[35/51] [chromium-393] › tests/p2-c-timeline.spec.ts:373:5 › browser records native view-transition support for bounded Detail-close motion
+[36/51] [chromium-393] › tests/p1-c-races.spec.ts:61:7 › A-B-A late history failure stays in its generation
+
+(node:19712) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+[37/51] [webkit-393] › tests/p1-c-navigation.spec.ts:55:5 › 45 browser Back restores the original transaction row focus
+[38/51] [chromium-393] › tests/p1-c-races.spec.ts:150:49 › 收支概況 Back restores Home scroll; reload resets it
+
+(node:19737) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+[39/51] [webkit-393] › tests/p2-c-timeline.spec.ts:178:46 › 27 correction known commit remains success when read succeeds
+
+(node:19815) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+[40/51] [webkit-393] › tests/p1-c-races.spec.ts:61:7 › A-B-A late history success stays in its generation
+[41/51] [webkit-393] › tests/p1-b-entry.spec.ts:238:45 › correction success preserves commit when refresh fails
+[42/51] [chromium-393] › tests/p1-c-races.spec.ts:150:49 › 帳本設定 Back restores Home scroll; reload resets it
+[43/51] [chromium-393] › tests/p1-c-races.spec.ts:150:49 › 搜尋 Back restores Home scroll; reload resets it
+[44/51] [webkit-393] › tests/p2-c-timeline.spec.ts:178:46 › 28 correction known commit remains success when read 500
+[45/51] [webkit-393] › tests/p1-c-races.spec.ts:61:7 › A-B-A late history failure stays in its generation
+
+(node:19936) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+[46/51] [chromium-wide] › tests/v2-liff.spec.ts:334:5 › P1-A restores zoom and keeps primary controls readable and tappable
+[47/51] [webkit-393] › tests/p2-c-timeline.spec.ts:200:5 › 31 historical void Detail retains service restore ability
+[48/51] [webkit-393] › tests/p1-c-races.spec.ts:150:49 › 收支概況 Back restores Home scroll; reload resets it
+[49/51] [webkit-393] › tests/p2-c-timeline.spec.ts:373:5 › browser records native view-transition support for bounded Detail-close motion
+[50/51] [webkit-393] › tests/p1-c-races.spec.ts:150:49 › 帳本設定 Back restores Home scroll; reload resets it
+[51/51] [webkit-393] › tests/p1-c-races.spec.ts:150:49 › 搜尋 Back restores Home scroll; reload resets it
+  51 passed (48.1s)

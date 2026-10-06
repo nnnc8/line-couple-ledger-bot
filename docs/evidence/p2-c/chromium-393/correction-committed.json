@@ -1,0 +1,122 @@
+{
+  "test": {
+    "title": "27 correction known commit remains success when read succeeds",
+    "project": "chromium-393",
+    "resultDir": "/Users/nc8/.codex/worktrees/p2-c-timeline-detail/New project/output/playwright/results/p2-c-timeline-27-correctio-96559--success-when-read-succeeds-chromium-393"
+  },
+  "metrics": {
+    "viewport": {
+      "width": 393,
+      "height": 852
+    },
+    "scrollY": 0,
+    "documentWidth": 393,
+    "bodyWidth": 393,
+    "timelineRows": 0,
+    "rowIds": [],
+    "rowRects": [],
+    "amountRects": [],
+    "dateHeadings": [],
+    "focus": "H2"
+  },
+  "extra": {
+    "mutations": [
+      {
+        "transactionId": "00000000-0000-4000-8000-000000001004",
+        "body": {
+          "action": "replace",
+          "expectedVersion": 1,
+          "replacement": {
+            "type": "expense",
+            "amountTwd": "200",
+            "occurredOn": "2026-09-25",
+            "description": "已修正的晚餐",
+            "category": "餐飲",
+            "categoryId": "stored-archived-category",
+            "note": "這是完整備註，應該在詳情清楚換行。這是完整備註，應該在詳情清楚換行。這是完整備註，應該在詳情清楚換行。這是完整備註，應該在詳情清楚換行。這是完整備註，應該在詳情清楚換行。這是完整備註，應該在詳情清楚換行。這是完整備註，應該在詳情清楚換行。這是完整備註，應該在詳情清楚換行。這是完整備註，應該在詳情清楚換行。這是完整備註，應該在詳情清楚換行。這是完整備註，應該在詳情清楚換行。這是完整備註，應該在詳情清楚換行。https://example.invalid/receipt-context-receipt-context-receipt-context-receipt-context-receipt-context-receipt-context-receipt-context-receipt-context-receipt-context-receipt-context-receipt-context-receipt-context-receipt-context-receipt-context-receipt-context-receipt-context-receipt-context-receipt-context-receipt-context-receipt-context-",
+            "splitMethod": "exact",
+            "payments": [
+              {
+                "userId": "00000000-0000-4000-8000-000000000001",
+                "amountTwd": "200"
+              }
+            ],
+            "shares": [
+              {
+                "userId": "00000000-0000-4000-8000-000000000001",
+                "amountTwd": "100"
+              },
+              {
+                "userId": "00000000-0000-4000-8000-000000000002",
+                "amountTwd": "100"
+              }
+            ]
+          },
+          "idempotencyKey": "dda8cb28-0d55-4651-97a6-51c80c87af04"
+        }
+      }
+    ],
+    "requests": [
+      {
+        "method": "POST",
+        "path": "/api/app/session",
+        "at": 106614.934791,
+        "finishedAt": 106627.054125
+      },
+      {
+        "method": "GET",
+        "path": "/api/app/v2/context",
+        "at": 106628.209666,
+        "finishedAt": 106645.105291
+      },
+      {
+        "method": "GET",
+        "path": "/api/app/v2/ledgers",
+        "at": 106645.141708,
+        "finishedAt": 106651.123208
+      },
+      {
+        "method": "GET",
+        "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/bootstrap",
+        "at": 106678.941166,
+        "finishedAt": 106688.254416
+      },
+      {
+        "method": "GET",
+        "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories",
+        "at": 106737.801083,
+        "finishedAt": 106744.192083
+      },
+      {
+        "method": "GET",
+        "path": "/api/app/v2/transactions/00000000-0000-4000-8000-000000001004/attachments",
+        "at": 106945.940166,
+        "finishedAt": 106952.743291
+      },
+      {
+        "method": "POST",
+        "path": "/api/app/v2/transactions/00000000-0000-4000-8000-000000001004/mutate",
+        "at": 107095.452041,
+        "finishedAt": 107102.685125
+      },
+      {
+        "method": "GET",
+        "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/bootstrap",
+        "at": 107102.71525,
+        "finishedAt": 107124.552958
+      },
+      {
+        "method": "GET",
+        "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories",
+        "at": 107119.315541,
+        "finishedAt": 107136.2035
+      },
+      {
+        "method": "GET",
+        "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories",
+        "at": 107136.905333,
+        "finishedAt": 107144.210958
+      }
+    ]
+  }
+}

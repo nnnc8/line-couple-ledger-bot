@@ -6,7 +6,7 @@ import { entryBrowser, fillEntry, LEDGER, OTHER, OWNER, PARTNER } from "./fixtur
 test.use({ video: "on" });
 const unknown = "尚未確認是否已加入，請勿再記一次。";
 const status = (page: Page) => page.locator("[data-write-outcome]");
-const transactionRow = (page: Page, description: string) => page.locator("[data-transaction-id], details > summary").filter({ hasText: description });
+const transactionRow = (page: Page, description: string) => page.locator("button[data-transaction-id]").filter({ hasText: description });
 async function chooseLedger(page: Page, ledgerId: string) {
   await page.getByTestId("ledger-name-trigger").click();
   await page.getByRole("dialog").locator(`[data-ledger-option="${ledgerId}"]`).click();
@@ -181,7 +181,7 @@ test("timeout after dispatch becomes unknown and preserves the exact recovery op
 test("correction drop-response reload replay retains original replacement and expected version", async ({ page }) => {
   const { state } = await entryBrowser(page); await fillEntry(page);
   await page.getByRole("button", { name: "加入" }).click(); await expect(status(page)).toContainText("已加入晚餐");
-  await transactionRow(page, "晚餐").click(); await page.getByRole("button", { name: "編輯", exact: true }).click();
+  await transactionRow(page, "晚餐").click(); await page.getByRole("button", { name: "更多操作", exact: true }).click(); await page.getByRole("button", { name: "修改", exact: true }).click();
   await page.getByLabel("用途", { exact: true }).fill("更正晚餐"); state.mode = "drop";
   await page.getByRole("button", { name: "儲存修改" }).click(); await expect(status(page)).toContainText("尚未確認是否已修改");
   await page.reload(); await expect(status(page)).toContainText("尚未確認是否已修改");
@@ -205,7 +205,7 @@ test("one create/correction draft requires explicit keep or discard", async ({ p
   await expect(page.getByLabel("用途", { exact: true })).toHaveValue("還在編輯");
   await transactionRow(page, "晚餐").click();
   await page.getByRole("dialog").getByRole("button", { name: "放棄這筆輸入", exact: true }).click();
-  await page.getByRole("button", { name: "編輯", exact: true }).click();
+  await page.getByRole("button", { name: "更多操作", exact: true }).click(); await page.getByRole("button", { name: "修改", exact: true }).click();
   await expect(page.getByLabel("用途", { exact: true })).toHaveValue("晚餐"); await expect(page.getByTestId("split-summary")).toContainText("沿用這筆分攤");
   await expect(page.getByText("沿用這筆分攤", { exact: false })).toBeVisible(); expect(await page.getByLabel("金額，新臺幣").count()).toBe(1);
 });
@@ -237,15 +237,24 @@ test("creating a Ledger after discarding A opens a usable draft in the new Ledge
 
 for (const failedRead of [false, true]) test(`correction success preserves commit when refresh ${failedRead ? "fails" : "succeeds"}`, async ({ page }, info) => {
   const { state } = await entryBrowser(page); await fillEntry(page); await page.getByRole("button", { name: "加入" }).click(); await expect(status(page)).toContainText("已加入晚餐");
-  await transactionRow(page, "晚餐").click(); await page.getByRole("button", { name: "編輯", exact: true }).click();
+  await transactionRow(page, "晚餐").click(); await page.getByRole("button", { name: "更多操作", exact: true }).click(); await page.getByRole("button", { name: "修改", exact: true }).click();
   await page.getByLabel("用途", { exact: true }).fill("修改晚餐"); state.failRead = failedRead;
   if (!failedRead) await capture(page, info, "correction-draft");
   await page.getByRole("button", { name: "儲存修改" }).click();
   await expect(status(page)).toContainText("已修改修改晚餐 NT$681");
   if (failedRead) await expect(status(page)).toContainText("其他紀錄暫時無法更新");
-  await expect(transactionRow(page, "晚餐（已作廢）")).toBeVisible();
+  await expect(page.getByTestId("transaction-detail")).toContainText("修改晚餐");
+  await expect(transactionRow(page, "晚餐")).toHaveCount(0);
   expect(state.effects).toBe(2); expect(state.posts[1]!.body.expectedVersion).toBe(1);
   await capture(page, info, failedRead ? "correction-read-failed" : "correction");
+  const old = state.rows.find(item => item.description === "晚餐")!;
+  await page.getByRole("button", { name: "返回帳本", exact: true }).click();
+  await expect(page.locator(`button[data-transaction-id="${old.id}"]`)).toHaveCount(0);
+  await expect(transactionRow(page, "修改晚餐")).toBeVisible();
+  state.failRead = false;
+  await page.goto(`/?v2Ledger=${LEDGER}&v2Transaction=${old.id}`);
+  await expect(page.getByTestId("transaction-detail")).toContainText("這筆已更新");
+  await expect(page.getByRole("button", { name: "查看新版", exact: true })).toBeVisible();
 });
 
 test("a stale posted receipt cannot downgrade balance/next payer or resurrect a later void", async ({ page }) => {
@@ -255,8 +264,10 @@ test("a stale posted receipt cannot downgrade balance/next payer or resurrect a 
   await page.reload(); await expect(status(page)).toContainText(unknown); await expect(page.getByRole("heading", { name: "目前很平衡" })).toBeVisible();
   await page.getByRole("button", { name: "確認並完成這筆" }).click(); await expect(status(page)).toContainText("已加入晚餐");
   await expect(page.getByRole("heading", { name: "目前很平衡" })).toBeVisible();
-  await expect(transactionRow(page, "晚餐（已作廢）")).toBeVisible();
+  await expect(transactionRow(page, "晚餐")).toHaveCount(0);
   await expect(page.getByText("下次建議由", { exact: false })).toHaveCount(0); expect(state.effects).toBe(1);
+  await page.goto(`/?v2Ledger=${LEDGER}&v2Transaction=${state.rows[0]!.id}`);
+  await expect(page.getByTestId("transaction-detail")).toContainText("已作廢，不計入目前近況");
 });
 
 test("a stale posted receipt cannot resurrect a replaced transaction", async ({ page }) => {
@@ -266,8 +277,11 @@ test("a stale posted receipt cannot resurrect a replaced transaction", async ({ 
   state.rows = [{ ...old, status: "voided", version: 2, replacedByTransactionId: OTHER }, { ...old, id: OTHER, description: "較新修正版", replacesTransactionId: old.id }]; state.version = 4;
   await page.reload(); await expect(status(page)).toContainText(unknown);
   await page.getByRole("button", { name: "確認並完成這筆" }).click(); await expect(status(page)).toContainText("已加入晚餐");
-  await expect(transactionRow(page, "晚餐（已作廢）")).toBeVisible();
+  await expect(transactionRow(page, "晚餐")).toHaveCount(0);
   await expect(transactionRow(page, "較新修正版")).toBeVisible();
+  await page.goto(`/?v2Ledger=${LEDGER}&v2Transaction=${old.id}`);
+  await expect(page.getByTestId("transaction-detail")).toContainText("這筆已更新");
+  await expect(page.getByRole("button", { name: "查看新版", exact: true })).toBeVisible();
 });
 
 test("partner login odd 681 uses kernel member order and opening defaults despite a background change", async ({ page }) => {

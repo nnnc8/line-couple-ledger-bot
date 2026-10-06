@@ -1,0 +1,23 @@
+{
+  "test": {
+    "title": "25–26 edit uses shared P2-A controls and clean cancel returns to Detail",
+    "project": "chromium-iphone",
+    "resultDir": "/Users/nc8/.codex/worktrees/p2-c-timeline-detail/New project/output/playwright/results/p2-c-timeline-25–26-edit-u-12617-an-cancel-returns-to-Detail-chromium-iphone"
+  },
+  "metrics": {
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "scrollY": 0,
+    "documentWidth": 390,
+    "bodyWidth": 390,
+    "timelineRows": 0,
+    "rowIds": [],
+    "rowRects": [],
+    "amountRects": [],
+    "dateHeadings": [],
+    "focus": "INPUT"
+  },
+  "extra": {}
+}

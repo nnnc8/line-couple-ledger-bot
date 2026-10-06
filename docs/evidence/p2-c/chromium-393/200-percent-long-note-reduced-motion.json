@@ -1,0 +1,23 @@
+{
+  "test": {
+    "title": "200% long notes and reduced motion keep Back and More actions reachable without overflow",
+    "project": "chromium-393",
+    "resultDir": "/Users/nc8/.codex/worktrees/p2-c-timeline-detail/New project/output/playwright/results/p2-c-timeline-200-long-not-92956--reachable-without-overflow-chromium-393"
+  },
+  "metrics": {
+    "viewport": {
+      "width": 393,
+      "height": 852
+    },
+    "scrollY": 3626,
+    "documentWidth": 393,
+    "bodyWidth": 393,
+    "timelineRows": 0,
+    "rowIds": [],
+    "rowRects": [],
+    "amountRects": [],
+    "dateHeadings": [],
+    "focus": "BUTTON"
+  },
+  "extra": {}
+}

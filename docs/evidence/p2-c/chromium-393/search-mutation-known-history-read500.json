@@ -1,0 +1,479 @@
+{
+  "test": {
+    "title": "Search mutation refresh restores loaded history window and preserves known rows on read500",
+    "project": "chromium-393",
+    "resultDir": "/Users/nc8/.codex/worktrees/p2-c-timeline-detail/New project/output/playwright/results/p2-c-timeline-Search-mutat-5f488-erves-known-rows-on-read500-chromium-393"
+  },
+  "metrics": {
+    "viewport": {
+      "width": 393,
+      "height": 852
+    },
+    "scrollY": 3069,
+    "documentWidth": 393,
+    "bodyWidth": 393,
+    "timelineRows": 0,
+    "rowIds": [],
+    "rowRects": [],
+    "amountRects": [
+      {
+        "text": "NT$200",
+        "width": 56,
+        "scrollWidth": 56,
+        "fontSize": "14px",
+        "fontVariantNumeric": "tabular-nums"
+      },
+      {
+        "text": "NT$200",
+        "width": 56,
+        "scrollWidth": 56,
+        "fontSize": "14px",
+        "fontVariantNumeric": "tabular-nums"
+      },
+      {
+        "text": "NT$200",
+        "width": 56,
+        "scrollWidth": 56,
+        "fontSize": "14px",
+        "fontVariantNumeric": "tabular-nums"
+      },
+      {
+        "text": "NT$200",
+        "width": 56,
+        "scrollWidth": 56,
+        "fontSize": "14px",
+        "fontVariantNumeric": "tabular-nums"
+      },
+      {
+        "text": "NT$200",
+        "width": 56,
+        "scrollWidth": 56,
+        "fontSize": "14px",
+        "fontVariantNumeric": "tabular-nums"
+      },
+      {
+        "text": "NT$200",
+        "width": 56,
+        "scrollWidth": 56,
+        "fontSize": "14px",
+        "fontVariantNumeric": "tabular-nums"
+      },
+      {
+        "text": "NT$200",
+        "width": 56,
+        "scrollWidth": 56,
+        "fontSize": "14px",
+        "fontVariantNumeric": "tabular-nums"
+      },
+      {
+        "text": "NT$200",
+        "width": 56,
+        "scrollWidth": 56,
+        "fontSize": "14px",
+        "fontVariantNumeric": "tabular-nums"
+      },
+      {
+        "text": "NT$200",
+        "width": 56,
+        "scrollWidth": 56,
+        "fontSize": "14px",
+        "fontVariantNumeric": "tabular-nums"
+      },
+      {
+        "text": "NT$200",
+        "width": 56,
+        "scrollWidth": 56,
+        "fontSize": "14px",
+        "fontVariantNumeric": "tabular-nums"
+      },
+      {
+        "text": "NT$200",
+        "width": 56,
+        "scrollWidth": 56,
+        "fontSize": "14px",
+        "fontVariantNumeric": "tabular-nums"
+      },
+      {
+        "text": "NT$200",
+        "width": 56,
+        "scrollWidth": 56,
+        "fontSize": "14px",
+        "fontVariantNumeric": "tabular-nums"
+      },
+      {
+        "text": "NT$200",
+        "width": 56,
+        "scrollWidth": 56,
+        "fontSize": "14px",
+        "fontVariantNumeric": "tabular-nums"
+      },
+      {
+        "text": "NT$200",
+        "width": 56,
+        "scrollWidth": 56,
+        "fontSize": "14px",
+        "fontVariantNumeric": "tabular-nums"
+      },
+      {
+        "text": "NT$200",
+        "width": 56,
+        "scrollWidth": 56,
+        "fontSize": "14px",
+        "fontVariantNumeric": "tabular-nums"
+      },
+      {
+        "text": "NT$200",
+        "width": 56,
+        "scrollWidth": 56,
+        "fontSize": "14px",
+        "fontVariantNumeric": "tabular-nums"
+      },
+      {
+        "text": "NT$200",
+        "width": 56,
+        "scrollWidth": 56,
+        "fontSize": "14px",
+        "fontVariantNumeric": "tabular-nums"
+      },
+      {
+        "text": "NT$200",
+        "width": 56,
+        "scrollWidth": 56,
+        "fontSize": "14px",
+        "fontVariantNumeric": "tabular-nums"
+      },
+      {
+        "text": "NT$200",
+        "width": 56,
+        "scrollWidth": 56,
+        "fontSize": "14px",
+        "fontVariantNumeric": "tabular-nums"
+      },
+      {
+        "text": "NT$200",
+        "width": 56,
+        "scrollWidth": 56,
+        "fontSize": "14px",
+        "fontVariantNumeric": "tabular-nums"
+      },
+      {
+        "text": "NT$200",
+        "width": 56,
+        "scrollWidth": 56,
+        "fontSize": "14px",
+        "fontVariantNumeric": "tabular-nums"
+      },
+      {
+        "text": "NT$200",
+        "width": 56,
+        "scrollWidth": 56,
+        "fontSize": "14px",
+        "fontVariantNumeric": "tabular-nums"
+      },
+      {
+        "text": "NT$200",
+        "width": 56,
+        "scrollWidth": 56,
+        "fontSize": "14px",
+        "fontVariantNumeric": "tabular-nums"
+      },
+      {
+        "text": "NT$200",
+        "width": 56,
+        "scrollWidth": 56,
+        "fontSize": "14px",
+        "fontVariantNumeric": "tabular-nums"
+      },
+      {
+        "text": "NT$200",
+        "width": 56,
+        "scrollWidth": 56,
+        "fontSize": "14px",
+        "fontVariantNumeric": "tabular-nums"
+      },
+      {
+        "text": "NT$200",
+        "width": 56,
+        "scrollWidth": 56,
+        "fontSize": "14px",
+        "fontVariantNumeric": "tabular-nums"
+      },
+      {
+        "text": "NT$200",
+        "width": 56,
+        "scrollWidth": 56,
+        "fontSize": "14px",
+        "fontVariantNumeric": "tabular-nums"
+      },
+      {
+        "text": "NT$200",
+        "width": 56,
+        "scrollWidth": 56,
+        "fontSize": "14px",
+        "fontVariantNumeric": "tabular-nums"
+      },
+      {
+        "text": "NT$200",
+        "width": 56,
+        "scrollWidth": 56,
+        "fontSize": "14px",
+        "fontVariantNumeric": "tabular-nums"
+      },
+      {
+        "text": "NT$200",
+        "width": 56,
+        "scrollWidth": 56,
+        "fontSize": "14px",
+        "fontVariantNumeric": "tabular-nums"
+      },
+      {
+        "text": "NT$200",
+        "width": 56,
+        "scrollWidth": 56,
+        "fontSize": "14px",
+        "fontVariantNumeric": "tabular-nums"
+      },
+      {
+        "text": "NT$200",
+        "width": 56,
+        "scrollWidth": 56,
+        "fontSize": "14px",
+        "fontVariantNumeric": "tabular-nums"
+      },
+      {
+        "text": "NT$200",
+        "width": 56,
+        "scrollWidth": 56,
+        "fontSize": "14px",
+        "fontVariantNumeric": "tabular-nums"
+      },
+      {
+        "text": "NT$200",
+        "width": 56,
+        "scrollWidth": 56,
+        "fontSize": "14px",
+        "fontVariantNumeric": "tabular-nums"
+      },
+      {
+        "text": "NT$200",
+        "width": 56,
+        "scrollWidth": 56,
+        "fontSize": "14px",
+        "fontVariantNumeric": "tabular-nums"
+      },
+      {
+        "text": "NT$200",
+        "width": 56,
+        "scrollWidth": 56,
+        "fontSize": "14px",
+        "fontVariantNumeric": "tabular-nums"
+      },
+      {
+        "text": "NT$200",
+        "width": 56,
+        "scrollWidth": 56,
+        "fontSize": "14px",
+        "fontVariantNumeric": "tabular-nums"
+      },
+      {
+        "text": "NT$200",
+        "width": 56,
+        "scrollWidth": 56,
+        "fontSize": "14px",
+        "fontVariantNumeric": "tabular-nums"
+      },
+      {
+        "text": "NT$200",
+        "width": 56,
+        "scrollWidth": 56,
+        "fontSize": "14px",
+        "fontVariantNumeric": "tabular-nums"
+      },
+      {
+        "text": "NT$200",
+        "width": 56,
+        "scrollWidth": 56,
+        "fontSize": "14px",
+        "fontVariantNumeric": "tabular-nums"
+      },
+      {
+        "text": "NT$200",
+        "width": 56,
+        "scrollWidth": 56,
+        "fontSize": "14px",
+        "fontVariantNumeric": "tabular-nums"
+      },
+      {
+        "text": "NT$200",
+        "width": 56,
+        "scrollWidth": 56,
+        "fontSize": "14px",
+        "fontVariantNumeric": "tabular-nums"
+      },
+      {
+        "text": "NT$200",
+        "width": 56,
+        "scrollWidth": 56,
+        "fontSize": "14px",
+        "fontVariantNumeric": "tabular-nums"
+      },
+      {
+        "text": "NT$200",
+        "width": 56,
+        "scrollWidth": 56,
+        "fontSize": "14px",
+        "fontVariantNumeric": "tabular-nums"
+      },
+      {
+        "text": "NT$200",
+        "width": 56,
+        "scrollWidth": 56,
+        "fontSize": "14px",
+        "fontVariantNumeric": "tabular-nums"
+      },
+      {
+        "text": "NT$200",
+        "width": 56,
+        "scrollWidth": 56,
+        "fontSize": "14px",
+        "fontVariantNumeric": "tabular-nums"
+      },
+      {
+        "text": "NT$200",
+        "width": 56,
+        "scrollWidth": 56,
+        "fontSize": "14px",
+        "fontVariantNumeric": "tabular-nums"
+      },
+      {
+        "text": "NT$200",
+        "width": 56,
+        "scrollWidth": 56,
+        "fontSize": "14px",
+        "fontVariantNumeric": "tabular-nums"
+      },
+      {
+        "text": "NT$200",
+        "width": 56,
+        "scrollWidth": 56,
+        "fontSize": "14px",
+        "fontVariantNumeric": "tabular-nums"
+      },
+      {
+        "text": "NT$200",
+        "width": 56,
+        "scrollWidth": 56,
+        "fontSize": "14px",
+        "fontVariantNumeric": "tabular-nums"
+      },
+      {
+        "text": "NT$200",
+        "width": 56,
+        "scrollWidth": 56,
+        "fontSize": "14px",
+        "fontVariantNumeric": "tabular-nums"
+      },
+      {
+        "text": "NT$200",
+        "width": 56,
+        "scrollWidth": 56,
+        "fontSize": "14px",
+        "fontVariantNumeric": "tabular-nums"
+      }
+    ],
+    "dateHeadings": [],
+    "focus": "00000000-0000-4000-8000-000000001058"
+  },
+  "extra": {
+    "requests": [
+      {
+        "method": "POST",
+        "path": "/api/app/session",
+        "at": 155456.573041,
+        "finishedAt": 155488.750375
+      },
+      {
+        "method": "GET",
+        "path": "/api/app/v2/context",
+        "at": 155488.807625,
+        "finishedAt": 155501.871583
+      },
+      {
+        "method": "GET",
+        "path": "/api/app/v2/ledgers",
+        "at": 155501.976833,
+        "finishedAt": 155575.281083
+      },
+      {
+        "method": "GET",
+        "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/bootstrap",
+        "at": 155577.38275,
+        "finishedAt": 155603.303583
+      },
+      {
+        "method": "GET",
+        "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories",
+        "at": 155742.890291,
+        "finishedAt": 155769.858708
+      },
+      {
+        "method": "GET",
+        "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/transactions?q=%E6%97%A5%E5%B8%B8%E7%B4%80%E9%8C%84&limit=50",
+        "at": 156387.343541,
+        "finishedAt": 156401.730083
+      },
+      {
+        "method": "GET",
+        "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/transactions?q=%E6%97%A5%E5%B8%B8%E7%B4%80%E9%8C%84&limit=50&cursor=50",
+        "at": 156489.262875,
+        "finishedAt": 156500.776916
+      },
+      {
+        "method": "GET",
+        "path": "/api/app/v2/transactions/00000000-0000-4000-8000-000000001059/attachments",
+        "at": 156737.734625,
+        "finishedAt": 156745.773125
+      },
+      {
+        "method": "POST",
+        "path": "/api/app/v2/transactions/00000000-0000-4000-8000-000000001059/mutate",
+        "at": 156883.779166,
+        "finishedAt": 156896.905125
+      },
+      {
+        "method": "GET",
+        "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/bootstrap",
+        "at": 156896.922416,
+        "finishedAt": 156908.519208
+      },
+      {
+        "method": "GET",
+        "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories",
+        "at": 156908.536583,
+        "finishedAt": 156925.715291
+      },
+      {
+        "method": "GET",
+        "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories",
+        "at": 156925.79075,
+        "finishedAt": 156931.242083
+      },
+      {
+        "method": "GET",
+        "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/transactions?q=%E6%97%A5%E5%B8%B8%E7%B4%80%E9%8C%84&limit=50",
+        "at": 157409.193833,
+        "finishedAt": 157421.33225
+      }
+    ],
+    "mutations": [
+      {
+        "transactionId": "00000000-0000-4000-8000-000000001059",
+        "body": {
+          "action": "void",
+          "expectedVersion": 1,
+          "idempotencyKey": "v2:transaction:00000000-0000-4000-8000-000000001059:void:1"
+        }
+      }
+    ]
+  }
+}

@@ -1,0 +1,70 @@
+{
+  "test": {
+    "title": "38–39 Search preserves secondary filters and include-void reveals historical row, with origin Back",
+    "project": "webkit-iphone",
+    "resultDir": "/Users/nc8/.codex/worktrees/p2-c-timeline-detail/New project/output/playwright/results/p2-c-timeline-38–39-Search-332ce-orical-row-with-origin-Back-webkit-iphone"
+  },
+  "metrics": {
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "scrollY": 0,
+    "documentWidth": 390,
+    "bodyWidth": 390,
+    "timelineRows": 0,
+    "rowIds": [],
+    "rowRects": [],
+    "amountRects": [
+      {
+        "text": "NT$200",
+        "width": 56,
+        "scrollWidth": 56,
+        "fontSize": "14px",
+        "fontVariantNumeric": "tabular-nums"
+      }
+    ],
+    "dateHeadings": [],
+    "focus": "00000000-0000-4000-8000-000000001072"
+  },
+  "extra": {
+    "requests": [
+      {
+        "method": "POST",
+        "path": "/api/app/session",
+        "at": 135002.038417,
+        "finishedAt": 135017.295208
+      },
+      {
+        "method": "GET",
+        "path": "/api/app/v2/context",
+        "at": 135017.438917,
+        "finishedAt": 135040.288042
+      },
+      {
+        "method": "GET",
+        "path": "/api/app/v2/ledgers",
+        "at": 135040.435083,
+        "finishedAt": 135065.755458
+      },
+      {
+        "method": "GET",
+        "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/bootstrap",
+        "at": 135136.237375,
+        "finishedAt": 135185.635542
+      },
+      {
+        "method": "GET",
+        "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories",
+        "at": 135277.24875,
+        "finishedAt": 135313.415833
+      },
+      {
+        "method": "GET",
+        "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/transactions?q=%E5%B7%B2%E4%BD%9C%E5%BB%A2%E6%97%A9%E9%A4%90&limit=50",
+        "at": 136126.29025,
+        "finishedAt": 136142.702125
+      }
+    ]
+  }
+}

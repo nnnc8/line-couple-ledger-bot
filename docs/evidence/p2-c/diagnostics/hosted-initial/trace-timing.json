@@ -1,0 +1,2329 @@
+[
+  {
+    "case": "p2-a-entry-both-payments-a-b7967-amounts-after-total-changes-webkit-iphone",
+    "trace": "p2-a-trace.zip",
+    "actions": [
+      {
+        "durationMs": 1119.4,
+        "method": "newPage",
+        "params": {},
+        "error": null
+      },
+      {
+        "durationMs": 96.0,
+        "method": "clockSetFixedTime",
+        "params": {
+          "timeNumber": 1790308800000
+        },
+        "error": null
+      },
+      {
+        "durationMs": 14.2,
+        "method": "addInitScript",
+        "params": {
+          "source": "(() => {\n    window.liff = {\n      init: async () => undefined,\n      isLoggedIn: () => true,\n      login: () => undefined,\n      getIDToken: () => \"fixture-id-token\",\n      isInClient: () => true,\n      closeWindow: () => undefined\n    };\n  })(undefined)"
+        },
+        "error": null
+      },
+      {
+        "durationMs": 64.9,
+        "method": "setNetworkInterceptionPatterns",
+        "params": {
+          "patterns": [
+            {
+              "glob": "https://static.line-scdn.net/**"
+            }
+          ]
+        },
+        "error": null
+      },
+      {
+        "durationMs": 0.1,
+        "method": "setNetworkInterceptionPatterns",
+        "params": {
+          "patterns": [
+            {
+              "glob": "**/api/app/session"
+            },
+            {
+              "glob": "https://static.line-scdn.net/**"
+            }
+          ]
+        },
+        "error": null
+      },
+      {
+        "durationMs": 0.1,
+        "method": "setNetworkInterceptionPatterns",
+        "params": {
+          "patterns": [
+            {
+              "glob": "**/api/app/v2/context"
+            },
+            {
+              "glob": "**/api/app/session"
+            },
+            {
+              "glob": "https://static.line-scdn.net/**"
+            }
+          ]
+        },
+        "error": null
+      },
+      {
+        "durationMs": 0.1,
+        "method": "setNetworkInterceptionPatterns",
+        "params": {
+          "patterns": [
+            {
+              "glob": "**/api/app/v2/ledgers"
+            },
+            {
+              "glob": "**/api/app/v2/context"
+            },
+            {
+              "glob": "**/api/app/session"
+            },
+            {
+              "glob": "https://static.line-scdn.net/**"
+            }
+          ]
+        },
+        "error": null
+      },
+      {
+        "durationMs": 0.1,
+        "method": "setNetworkInterceptionPatterns",
+        "params": {
+          "patterns": [
+            {
+              "glob": "**/api/app/v2/ledgers/*/bootstrap"
+            },
+            {
+              "glob": "**/api/app/v2/ledgers"
+            },
+            {
+              "glob": "**/api/app/v2/context"
+            },
+            {
+              "glob": "**/api/app/session"
+            },
+            {
+              "glob": "https://static.line-scdn.net/**"
+            }
+          ]
+        },
+        "error": null
+      },
+      {
+        "durationMs": 0.1,
+        "method": "setNetworkInterceptionPatterns",
+        "params": {
+          "patterns": [
+            {
+              "glob": "**/api/app/v2/ledgers/*/categories"
+            },
+            {
+              "glob": "**/api/app/v2/ledgers/*/bootstrap"
+            },
+            {
+              "glob": "**/api/app/v2/ledgers"
+            },
+            {
+              "glob": "**/api/app/v2/context"
+            },
+            {
+              "glob": "**/api/app/session"
+            },
+            {
+              "glob": "https://static.line-scdn.net/**"
+            }
+          ]
+        },
+        "error": null
+      },
+      {
+        "durationMs": 0.1,
+        "method": "setNetworkInterceptionPatterns",
+        "params": {
+          "patterns": [
+            {
+              "glob": "**/api/app/v2/ledgers/*/activate"
+            },
+            {
+              "glob": "**/api/app/v2/ledgers/*/categories"
+            },
+            {
+              "glob": "**/api/app/v2/ledgers/*/bootstrap"
+            },
+            {
+              "glob": "**/api/app/v2/ledgers"
+            },
+            {
+              "glob": "**/api/app/v2/context"
+            },
+            {
+              "glob": "**/api/app/session"
+            },
+            {
+              "glob": "https://static.line-scdn.net/**"
+            }
+          ]
+        },
+        "error": null
+      },
+      {
+        "durationMs": 0.1,
+        "method": "setNetworkInterceptionPatterns",
+        "params": {
+          "patterns": [
+            {
+              "glob": "**/api/app/v2/transactions/*/attachments"
+            },
+            {
+              "glob": "**/api/app/v2/ledgers/*/activate"
+            },
+            {
+              "glob": "**/api/app/v2/ledgers/*/categories"
+            },
+            {
+              "glob": "**/api/app/v2/ledgers/*/bootstrap"
+            },
+            {
+              "glob": "**/api/app/v2/ledgers"
+            },
+            {
+              "glob": "**/api/app/v2/context"
+            },
+            {
+              "glob": "**/api/app/session"
+            },
+            {
+              "glob": "https://static.line-scdn.net/**"
+            }
+          ]
+        },
+        "error": null
+      },
+      {
+        "durationMs": 0.0,
+        "method": "setNetworkInterceptionPatterns",
+        "params": {
+          "patterns": [
+            {
+              "glob": "**/api/app/v2/ledgers/*/transactions*"
+            },
+            {
+              "glob": "**/api/app/v2/transactions/*/attachments"
+            },
+            {
+              "glob": "**/api/app/v2/ledgers/*/activate"
+            },
+            {
+              "glob": "**/api/app/v2/ledgers/*/categories"
+            },
+            {
+              "glob": "**/api/app/v2/ledgers/*/bootstrap"
+            },
+            {
+              "glob": "**/api/app/v2/ledgers"
+            },
+            {
+              "glob": "**/api/app/v2/context"
+            },
+            {
+              "glob": "**/api/app/session"
+            },
+            {
+              "glob": "https://static.line-scdn.net/**"
+            }
+          ]
+        },
+        "error": null
+      },
+      {
+        "durationMs": 0.1,
+        "method": "setNetworkInterceptionPatterns",
+        "params": {
+          "patterns": [
+            {
+              "glob": "**/api/app/v2/transactions/*/mutate"
+            },
+            {
+              "glob": "**/api/app/v2/ledgers/*/transactions*"
+            },
+            {
+              "glob": "**/api/app/v2/transactions/*/attachments"
+            },
+            {
+              "glob": "**/api/app/v2/ledgers/*/activate"
+            },
+            {
+              "glob": "**/api/app/v2/ledgers/*/categories"
+            },
+            {
+              "glob": "**/api/app/v2/ledgers/*/bootstrap"
+            },
+            {
+              "glob": "**/api/app/v2/ledgers"
+            },
+            {
+              "glob": "**/api/app/v2/context"
+            },
+            {
+              "glob": "**/api/app/session"
+            },
+            {
+              "glob": "https://static.line-scdn.net/**"
+            }
+          ]
+        },
+        "error": null
+      },
+      {
+        "durationMs": 10.6,
+        "method": "fulfill",
+        "params": {
+          "status": 200,
+          "headers": [
+            {
+              "name": "content-type",
+              "value": "application/javascript"
+            }
+          ],
+          "body": "",
+          "isBase64": false
+        },
+        "error": null
+      },
+      {
+        "durationMs": 2289.2,
+        "method": "goto",
+        "params": {
+          "url": "/",
+          "timeout": 0,
+          "waitUntil": "load"
+        },
+        "error": null
+      },
+      {
+        "durationMs": 35.7,
+        "method": "fulfill",
+        "params": {
+          "status": 200,
+          "headers": [
+            {
+              "name": "content-type",
+              "value": "application/json"
+            },
+            {
+              "name": "content-length",
+              "value": "11"
+            }
+          ],
+          "body": "{\"ok\":true}",
+          "isBase64": false
+        },
+        "error": null
+      },
+      {
+        "durationMs": 75.1,
+        "method": "fulfill",
+        "params": {
+          "status": 200,
+          "headers": [
+            {
+              "name": "content-type",
+              "value": "application/json"
+            },
+            {
+              "name": "content-length",
+              "value": "272"
+            }
+          ],
+          "body": "{\"today\":\"2026-09-25\",\"user\":{\"id\":\"00000000-0000-4000-8000-000000000001\",\"label\":\"你\",\"role\":\"owner\"},\"users\":[{\"id\":\"00000000-0000-4000-8000-000000000001\",\"label\":\"你\",\"role\":\"owner\"},{\"id\":\"00000000-0000-4000-8000-000000000002\",\"label\":\"另一半\",\"role\":\"partner\"}]}",
+          "isBase64": false
+        },
+        "error": null
+      },
+      {
+        "durationMs": 18.9,
+        "method": "fulfill",
+        "params": {
+          "status": 200,
+          "headers": [
+            {
+              "name": "content-type",
+              "value": "application/json"
+            },
+            {
+              "name": "content-length",
+              "value": "907"
+            }
+          ],
+          "body": "{\"ledgers\":[{\"id\":\"00000000-0000-4000-8000-000000000010\",\"name\":\"共同生活\",\"color\":\"#173B63\",\"status\":\"active\",\"version\":1,\"createdAt\":\"2026-09-25T00:00:00Z\",\"updatedAt\":\"2026-09-25T00:00:00Z\",\"coupleId\":1,\"members\":[{\"userId\":\"00000000-0000-4000-8000-000000000001\",\"role\":\"owner\"},{\"userId\":\"00000000-0000-4000-8000-000000000002\",\"role\":\"partner\"}],\"defaultShares\":{\"00000000-0000-4000-8000-000000000001\":\"1\",\"00000000-0000-4000-8000-000000000002\":\"1\"}},{\"id\":\"00000000-0000-4000-8000-000000000020\",\"name\":\"旅行帳本\",\"color\":\"#173B63\",\"status\":\"active\",\"version\":1,\"createdAt\":\"2026-09-25T00:00:00Z\",\"updatedAt\":\"2026-09-25T00:00:00Z\",\"coupleId\":1,\"members\":[{\"userId\":\"00000000-0000-4000-8000-000000000001\",\"role\":\"owner\"},{\"userId\":\"00000000-0000-4000-8000-000000000002\",\"role\":\"partner\"}],\"defaultShares\":{\"00000000-0000-4000-8000-000000000001\":\"1\",\"00000000-0000-4000-8000-000000000002\":\"1\"}}]}",
+          "isBase64": false
+        },
+        "error": null
+      },
+      {
+        "durationMs": 15.1,
+        "method": "fulfill",
+        "params": {
+          "status": 200,
+          "headers": [
+            {
+              "name": "content-type",
+              "value": "application/json"
+            },
+            {
+              "name": "content-length",
+              "value": "590"
+            }
+          ],
+          "body": "{\"ledger\":{\"id\":\"00000000-0000-4000-8000-000000000010\",\"name\":\"共同生活\",\"color\":\"#173B63\",\"status\":\"active\",\"version\":1,\"createdAt\":\"2026-09-25T00:00:00Z\",\"updatedAt\":\"2026-09-25T00:00:00Z\",\"coupleId\":1,\"members\":[{\"userId\":\"00000000-0000-4000-8000-000000000001\",\"role\":\"owner\"},{\"userId\":\"00000000-0000-4000-8000-000000000002\",\"role\":\"partner\"}],\"defaultShares\":{\"00000000-0000-4000-8000-000000000001\":\"1\",\"00000000-0000-4000-8000-000000000002\":\"1\"}},\"transactions\":[],\"balance\":{\"00000000-0000-4000-8000-000000000001\":\"0\",\"00000000-0000-4000-8000-000000000002\":\"0\"},\"nextPayer\":null}",
+          "isBase64": false
+        },
+        "error": null
+      },
+      {
+        "durationMs": 1804.6,
+        "method": "expect",
+        "params": {
+          "selector": "internal:label=\"金額，新臺幣\"i",
+          "expression": "to.be.visible",
+          "expectedValue": {
+            "value": {
+              "v": "undefined"
+            },
+            "handles": []
+          },
+          "isNot": false,
+          "timeout": 5000
+        },
+        "error": null
+      },
+      {
+        "durationMs": 49.8,
+        "method": "fulfill",
+        "params": {
+          "status": 200,
+          "headers": [
+            {
+              "name": "content-type",
+              "value": "application/json"
+            },
+            {
+              "name": "content-length",
+              "value": "17"
+            }
+          ],
+          "body": "{\"categories\":[]}",
+          "isBase64": false
+        },
+        "error": null
+      },
+      {
+        "durationMs": 295.3,
+        "method": "fill",
+        "params": {
+          "selector": "internal:label=\"金額，新臺幣\"i",
+          "strict": true,
+          "value": "681",
+          "timeout": 0
+        },
+        "error": null
+      },
+      {
+        "durationMs": 130.0,
+        "method": "fill",
+        "params": {
+          "selector": "internal:label=\"用途\"s",
+          "strict": true,
+          "value": "晚餐",
+          "timeout": 0
+        },
+        "error": null
+      },
+      {
+        "durationMs": 2552.4,
+        "method": "click",
+        "params": {
+          "selector": "internal:testid=[data-testid=\"payer-summary\"s]",
+          "strict": true,
+          "timeout": 0
+        },
+        "error": null
+      },
+      {
+        "durationMs": 63.7,
+        "method": "selectOption",
+        "params": {
+          "selector": "internal:role=dialog >> internal:role=combobox",
+          "strict": true,
+          "options": [
+            {
+              "valueOrLabel": "both"
+            }
+          ],
+          "timeout": 0
+        },
+        "error": null
+      },
+      {
+        "durationMs": 87.3,
+        "method": "fill",
+        "params": {
+          "selector": "internal:label=\"你 金額\"s",
+          "strict": true,
+          "value": "400",
+          "timeout": 0
+        },
+        "error": null
+      },
+      {
+        "durationMs": 101.8,
+        "method": "fill",
+        "params": {
+          "selector": "internal:label=\"另一半 金額\"s",
+          "strict": true,
+          "value": "281",
+          "timeout": 0
+        },
+        "error": null
+      },
+      {
+        "durationMs": 1384.7,
+        "method": "click",
+        "params": {
+          "selector": "internal:role=dialog >> internal:role=button[name=\"套用\"s]",
+          "strict": true,
+          "timeout": 0
+        },
+        "error": null
+      },
+      {
+        "durationMs": 56.8,
+        "method": "expect",
+        "params": {
+          "selector": "internal:testid=[data-testid=\"payer-summary\"s]",
+          "expression": "to.be.focused",
+          "expectedValue": {
+            "value": {
+              "v": "undefined"
+            },
+            "handles": []
+          },
+          "isNot": false,
+          "timeout": 5000
+        },
+        "error": null
+      },
+      {
+        "durationMs": 1716.5,
+        "method": "click",
+        "params": {
+          "selector": "internal:testid=[data-testid=\"split-summary\"s]",
+          "strict": true,
+          "timeout": 0
+        },
+        "error": null
+      },
+      {
+        "durationMs": 86.0,
+        "method": "selectOption",
+        "params": {
+          "selector": "internal:role=dialog >> internal:role=combobox",
+          "strict": true,
+          "options": [
+            {
+              "valueOrLabel": "exact"
+            }
+          ],
+          "timeout": 0
+        },
+        "error": null
+      },
+      {
+        "durationMs": 102.4,
+        "method": "fill",
+        "params": {
+          "selector": "internal:label=\"你 分攤\"s",
+          "strict": true,
+          "value": "600",
+          "timeout": 0
+        },
+        "error": null
+      },
+      {
+        "durationMs": 115.4,
+        "method": "fill",
+        "params": {
+          "selector": "internal:label=\"另一半 分攤\"s",
+          "strict": true,
+          "value": "81",
+          "timeout": 0
+        },
+        "error": null
+      },
+      {
+        "durationMs": 1381.0,
+        "method": "click",
+        "params": {
+          "selector": "internal:role=dialog >> internal:role=button[name=\"套用\"s]",
+          "strict": true,
+          "timeout": 0
+        },
+        "error": null
+      },
+      {
+        "durationMs": 9.0,
+        "method": "expect",
+        "params": {
+          "selector": "internal:testid=[data-testid=\"split-summary\"s]",
+          "expression": "to.be.focused",
+          "expectedValue": {
+            "value": {
+              "v": "undefined"
+            },
+            "handles": []
+          },
+          "isNot": false,
+          "timeout": 5000
+        },
+        "error": null
+      },
+      {
+        "durationMs": 31.4,
+        "method": "evaluateExpression",
+        "params": {
+          "expression": "() => {\n    const visible = node => node.getBoundingClientRect().height > 0 && (!node.closest(\"dialog\") || node.closest(\"dialog\").open) && (!node.closest(\"details\") || node.closest(\"details\").open || node.tagName === \"SUMMARY\");\n    return {\n      viewport: {\n        width: innerWidth,\n        height: innerHeight\n      },\n      scrollWidth: document.documentElement.scrollWidth,\n      dialogs: document.querySelectorAll(\"dialog\").length,\n      targets: Array.from(document.querySelectorAll(\"[data-entry] button, [data-entry] input, [data-entry] summary, dialog[open] button, dialog[open] input, dialog[open] select\")).filter(visible).map(node => ({\n        name: node.getAttribute(\"aria-label\") || node.textContent,\n        width: node.getBoundingClientRect().width,\n        height: node.getBoundingClientRect().height\n      }))\n    };\n  }",
+          "isFunction": true,
+          "arg": {
+            "value": {
+              "v": "undefined"
+            },
+            "handles": []
+          }
+        },
+        "error": null
+      },
+      {
+        "durationMs": 1553.6,
+        "method": "screenshot",
+        "params": {
+          "timeout": 0,
+          "type": "png",
+          "fullPage": true,
+          "animations": "disabled"
+        },
+        "error": null
+      },
+      {
+        "durationMs": 102.8,
+        "method": "fill",
+        "params": {
+          "selector": "internal:label=\"金額，新臺幣\"i",
+          "strict": true,
+          "value": "700",
+          "timeout": 0
+        },
+        "error": null
+      },
+      {
+        "durationMs": 38.5,
+        "method": "expect",
+        "params": {
+          "selector": "internal:role=button[name=\"加入\"s]",
+          "expression": "to.be.disabled",
+          "expectedValue": {
+            "value": {
+              "v": "undefined"
+            },
+            "handles": []
+          },
+          "isNot": false,
+          "timeout": 5000
+        },
+        "error": null
+      },
+      {
+        "durationMs": 9.6,
+        "method": "expect",
+        "params": {
+          "selector": "internal:testid=[data-testid=\"split-summary\"s]",
+          "expression": "to.have.text",
+          "expectedText": [
+            {
+              "string": "分攤尚未完成",
+              "matchSubstring": true,
+              "normalizeWhiteSpace": true
+            }
+          ],
+          "expectedValue": {
+            "value": {
+              "v": "undefined"
+            },
+            "handles": []
+          },
+          "isNot": false,
+          "timeout": 5000
+        },
+        "error": null
+      },
+      {
+        "durationMs": 8.7,
+        "method": "expect",
+        "params": {
+          "selector": "internal:testid=[data-testid=\"payer-summary\"s]",
+          "expression": "to.have.text",
+          "expectedText": [
+            {
+              "string": "NT$400／另一半 NT$281",
+              "matchSubstring": true,
+              "normalizeWhiteSpace": true
+            }
+          ],
+          "expectedValue": {
+            "value": {
+              "v": "undefined"
+            },
+            "handles": []
+          },
+          "isNot": false,
+          "timeout": 5000
+        },
+        "error": null
+      },
+      {
+        "durationMs": 10.0,
+        "method": "evaluateExpression",
+        "params": {
+          "expression": "() => {\n    const visible = node => node.getBoundingClientRect().height > 0 && (!node.closest(\"dialog\") || node.closest(\"dialog\").open) && (!node.closest(\"details\") || node.closest(\"details\").open || node.tagName === \"SUMMARY\");\n    return {\n      viewport: {\n        width: innerWidth,\n        height: innerHeight\n      },\n      scrollWidth: document.documentElement.scrollWidth,\n      dialogs: document.querySelectorAll(\"dialog\").length,\n      targets: Array.from(document.querySelectorAll(\"[data-entry] button, [data-entry] input, [data-entry] summary, dialog[open] button, dialog[open] input, dialog[open] select\")).filter(visible).map(node => ({\n        name: node.getAttribute(\"aria-label\") || node.textContent,\n        width: node.getBoundingClientRect().width,\n        height: node.getBoundingClientRect().height\n      }))\n    };\n  }",
+          "isFunction": true,
+          "arg": {
+            "value": {
+              "v": "undefined"
+            },
+            "handles": []
+          }
+        },
+        "error": null
+      },
+      {
+        "durationMs": 929.8,
+        "method": "screenshot",
+        "params": {
+          "timeout": 0,
+          "type": "png",
+          "fullPage": true,
+          "animations": "disabled"
+        },
+        "error": null
+      },
+      {
+        "durationMs": 1535.8,
+        "method": "click",
+        "params": {
+          "selector": "internal:testid=[data-testid=\"payer-summary\"s]",
+          "strict": true,
+          "timeout": 0
+        },
+        "error": null
+      },
+      {
+        "durationMs": 26.2,
+        "method": "expect",
+        "params": {
+          "selector": "internal:label=\"你 金額\"s",
+          "expression": "to.have.value",
+          "expectedText": [
+            {
+              "string": "400"
+            }
+          ],
+          "expectedValue": {
+            "value": {
+              "v": "undefined"
+            },
+            "handles": []
+          },
+          "isNot": false,
+          "timeout": 5000
+        },
+        "error": null
+      },
+      {
+        "durationMs": 17.7,
+        "method": "expect",
+        "params": {
+          "selector": "internal:label=\"另一半 金額\"s",
+          "expression": "to.have.value",
+          "expectedText": [
+            {
+              "string": "281"
+            }
+          ],
+          "expectedValue": {
+            "value": {
+              "v": "undefined"
+            },
+            "handles": []
+          },
+          "isNot": false,
+          "timeout": 5000
+        },
+        "error": null
+      },
+      {
+        "durationMs": 30.2,
+        "method": "expect",
+        "params": {
+          "selector": "#entry-control-error",
+          "expression": "to.have.text",
+          "expectedText": [
+            {
+              "string": "還差 NT$19",
+              "matchSubstring": true,
+              "normalizeWhiteSpace": true
+            }
+          ],
+          "expectedValue": {
+            "value": {
+              "v": "undefined"
+            },
+            "handles": []
+          },
+          "isNot": false,
+          "timeout": 5000
+        },
+        "error": null
+      },
+      {
+        "durationMs": 1775.0,
+        "method": "click",
+        "params": {
+          "selector": "internal:role=dialog >> internal:role=button[name=\"取消\"s]",
+          "strict": true,
+          "timeout": 0
+        },
+        "error": null
+      },
+      {
+        "durationMs": 1769.8,
+        "method": "click",
+        "params": {
+          "selector": "internal:testid=[data-testid=\"split-summary\"s]",
+          "strict": true,
+          "timeout": 0
+        },
+        "error": null
+      },
+      {
+        "durationMs": 12.0,
+        "method": "expect",
+        "params": {
+          "selector": "internal:label=\"你 分攤\"s",
+          "expression": "to.have.value",
+          "expectedText": [
+            {
+              "string": "600"
+            }
+          ],
+          "expectedValue": {
+            "value": {
+              "v": "undefined"
+            },
+            "handles": []
+          },
+          "isNot": false,
+          "timeout": 5000
+        },
+        "error": null
+      },
+      {
+        "durationMs": 18.6,
+        "method": "expect",
+        "params": {
+          "selector": "internal:label=\"另一半 分攤\"s",
+          "expression": "to.have.value",
+          "expectedText": [
+            {
+              "string": "81"
+            }
+          ],
+          "expectedValue": {
+            "value": {
+              "v": "undefined"
+            },
+            "handles": []
+          },
+          "isNot": false,
+          "timeout": 5000
+        },
+        "error": null
+      },
+      {
+        "durationMs": 16.0,
+        "method": "expect",
+        "params": {
+          "selector": "#entry-control-error",
+          "expression": "to.have.text",
+          "expectedText": [
+            {
+              "string": "還差 NT$19",
+              "matchSubstring": true,
+              "normalizeWhiteSpace": true
+            }
+          ],
+          "expectedValue": {
+            "value": {
+              "v": "undefined"
+            },
+            "handles": []
+          },
+          "isNot": false,
+          "timeout": 5000
+        },
+        "error": null
+      },
+      {
+        "durationMs": 1593.8,
+        "method": "click",
+        "params": {
+          "selector": "internal:role=dialog >> internal:role=button[name=\"取消\"s]",
+          "strict": true,
+          "timeout": 0
+        },
+        "error": null
+      },
+      {
+        "durationMs": 1717.9,
+        "method": "click",
+        "params": {
+          "selector": "internal:testid=[data-testid=\"payer-summary\"s]",
+          "strict": true,
+          "timeout": 0
+        },
+        "error": null
+      },
+      {
+        "durationMs": 70.9,
+        "method": "selectOption",
+        "params": {
+          "selector": "internal:role=dialog >> internal:role=combobox",
+          "strict": true,
+          "options": [
+            {
+              "valueOrLabel": "both"
+            }
+          ],
+          "timeout": 0
+        },
+        "error": null
+      },
+      {
+        "durationMs": 116.2,
+        "method": "fill",
+        "params": {
+          "selector": "internal:label=\"你 金額\"s",
+          "strict": true,
+          "value": "400",
+          "timeout": 0
+        },
+        "error": null
+      },
+      {
+        "durationMs": 44.4,
+        "method": "fill",
+        "params": {
+          "selector": "internal:label=\"另一半 金額\"s",
+          "strict": true,
+          "value": "300",
+          "timeout": 0
+        },
+        "error": null
+      },
+      {
+        "durationMs": 1464.3,
+        "method": "click",
+        "params": {
+          "selector": "internal:role=dialog >> internal:role=button[name=\"套用\"s]",
+          "strict": true,
+          "timeout": 0
+        },
+        "error": null
+      },
+      {
+        "durationMs": 17.8,
+        "method": "expect",
+        "params": {
+          "selector": "internal:testid=[data-testid=\"payer-summary\"s]",
+          "expression": "to.be.focused",
+          "expectedValue": {
+            "value": {
+              "v": "undefined"
+            },
+            "handles": []
+          },
+          "isNot": false,
+          "timeout": 5000
+        },
+        "error": null
+      },
+      {
+        "durationMs": 1420.2,
+        "method": "click",
+        "params": {
+          "selector": "internal:testid=[data-testid=\"split-summary\"s]",
+          "strict": true,
+          "timeout": 0
+        },
+        "error": null
+      },
+      {
+        "durationMs": 97.0,
+        "method": "selectOption",
+        "params": {
+          "selector": "internal:role=dialog >> internal:role=combobox",
+          "strict": true,
+          "options": [
+            {
+              "valueOrLabel": "exact"
+            }
+          ],
+          "timeout": 0
+        },
+        "error": null
+      },
+      {
+        "durationMs": 23.8,
+        "method": "fill",
+        "params": {
+          "selector": "internal:label=\"你 分攤\"s",
+          "strict": true,
+          "value": "600",
+          "timeout": 0
+        },
+        "error": null
+      },
+      {
+        "durationMs": 41.5,
+        "method": "fill",
+        "params": {
+          "selector": "internal:label=\"另一半 分攤\"s",
+          "strict": true,
+          "value": "100",
+          "timeout": 0
+        },
+        "error": null
+      }
+    ]
+  },
+  {
+    "case": "p2-c-timeline-01–05-20-20--ffbf2-ings-across-20-21-and-40-41-webkit-iphone",
+    "trace": "p2-c-trace.zip",
+    "actions": [
+      {
+        "durationMs": 1256.7,
+        "method": "newPage",
+        "params": {},
+        "error": null
+      },
+      {
+        "durationMs": 71.2,
+        "method": "clockSetFixedTime",
+        "params": {
+          "timeNumber": 1790308800000
+        },
+        "error": null
+      },
+      {
+        "durationMs": 14.1,
+        "method": "addInitScript",
+        "params": {
+          "source": "(({\n    holdLiffInit\n  }) => {\n    Object.assign(window, {\n      releaseLiff: null,\n      liff: {\n        init: () => holdLiffInit ? new Promise(resolve => Object.assign(window, {\n          releaseLiff: resolve\n        })) : Promise.resolve(),\n        isLoggedIn: () => true,\n        login: () => undefined,\n        getIDToken: () => \"fixture-id-token\",\n        isInClient: () => true,\n        closeWindow: () => undefined\n      }\n    });\n  })({\"holdLiffInit\":false})"
+        },
+        "error": null
+      },
+      {
+        "durationMs": 73.1,
+        "method": "setNetworkInterceptionPatterns",
+        "params": {
+          "patterns": [
+            {
+              "glob": "https://static.line-scdn.net/**"
+            }
+          ]
+        },
+        "error": null
+      },
+      {
+        "durationMs": 0.1,
+        "method": "setNetworkInterceptionPatterns",
+        "params": {
+          "patterns": [
+            {
+              "glob": "**/api/app/session"
+            },
+            {
+              "glob": "https://static.line-scdn.net/**"
+            }
+          ]
+        },
+        "error": null
+      },
+      {
+        "durationMs": 0.1,
+        "method": "setNetworkInterceptionPatterns",
+        "params": {
+          "patterns": [
+            {
+              "glob": "**/api/app/v2/context"
+            },
+            {
+              "glob": "**/api/app/session"
+            },
+            {
+              "glob": "https://static.line-scdn.net/**"
+            }
+          ]
+        },
+        "error": null
+      },
+      {
+        "durationMs": 0.1,
+        "method": "setNetworkInterceptionPatterns",
+        "params": {
+          "patterns": [
+            {
+              "glob": "**/api/app/v2/ledgers"
+            },
+            {
+              "glob": "**/api/app/v2/context"
+            },
+            {
+              "glob": "**/api/app/session"
+            },
+            {
+              "glob": "https://static.line-scdn.net/**"
+            }
+          ]
+        },
+        "error": null
+      },
+      {
+        "durationMs": 0.1,
+        "method": "setNetworkInterceptionPatterns",
+        "params": {
+          "patterns": [
+            {
+              "glob": "**/api/app/v2/ledgers/*/bootstrap"
+            },
+            {
+              "glob": "**/api/app/v2/ledgers"
+            },
+            {
+              "glob": "**/api/app/v2/context"
+            },
+            {
+              "glob": "**/api/app/session"
+            },
+            {
+              "glob": "https://static.line-scdn.net/**"
+            }
+          ]
+        },
+        "error": null
+      },
+      {
+        "durationMs": 2.9,
+        "method": "setNetworkInterceptionPatterns",
+        "params": {
+          "patterns": [
+            {
+              "glob": "**/api/app/v2/ledgers/*/activate"
+            },
+            {
+              "glob": "**/api/app/v2/ledgers/*/bootstrap"
+            },
+            {
+              "glob": "**/api/app/v2/ledgers"
+            },
+            {
+              "glob": "**/api/app/v2/context"
+            },
+            {
+              "glob": "**/api/app/session"
+            },
+            {
+              "glob": "https://static.line-scdn.net/**"
+            }
+          ]
+        },
+        "error": null
+      },
+      {
+        "durationMs": 0.0,
+        "method": "setNetworkInterceptionPatterns",
+        "params": {
+          "patterns": [
+            {
+              "glob": "**/api/app/v2/ledgers/*/categories"
+            },
+            {
+              "glob": "**/api/app/v2/ledgers/*/activate"
+            },
+            {
+              "glob": "**/api/app/v2/ledgers/*/bootstrap"
+            },
+            {
+              "glob": "**/api/app/v2/ledgers"
+            },
+            {
+              "glob": "**/api/app/v2/context"
+            },
+            {
+              "glob": "**/api/app/session"
+            },
+            {
+              "glob": "https://static.line-scdn.net/**"
+            }
+          ]
+        },
+        "error": null
+      },
+      {
+        "durationMs": 0.0,
+        "method": "setNetworkInterceptionPatterns",
+        "params": {
+          "patterns": [
+            {
+              "glob": "**/api/app/v2/ledgers/*/recurring"
+            },
+            {
+              "glob": "**/api/app/v2/ledgers/*/categories"
+            },
+            {
+              "glob": "**/api/app/v2/ledgers/*/activate"
+            },
+            {
+              "glob": "**/api/app/v2/ledgers/*/bootstrap"
+            },
+            {
+              "glob": "**/api/app/v2/ledgers"
+            },
+            {
+              "glob": "**/api/app/v2/context"
+            },
+            {
+              "glob": "**/api/app/session"
+            },
+            {
+              "glob": "https://static.line-scdn.net/**"
+            }
+          ]
+        },
+        "error": null
+      },
+      {
+        "durationMs": 0.1,
+        "method": "setNetworkInterceptionPatterns",
+        "params": {
+          "patterns": [
+            {
+              "glob": "**/api/app/v2/ledgers/*/statistics"
+            },
+            {
+              "glob": "**/api/app/v2/ledgers/*/recurring"
+            },
+            {
+              "glob": "**/api/app/v2/ledgers/*/categories"
+            },
+            {
+              "glob": "**/api/app/v2/ledgers/*/activate"
+            },
+            {
+              "glob": "**/api/app/v2/ledgers/*/bootstrap"
+            },
+            {
+              "glob": "**/api/app/v2/ledgers"
+            },
+            {
+              "glob": "**/api/app/v2/context"
+            },
+            {
+              "glob": "**/api/app/session"
+            },
+            {
+              "glob": "https://static.line-scdn.net/**"
+            }
+          ]
+        },
+        "error": null
+      },
+      {
+        "durationMs": 0.1,
+        "method": "setNetworkInterceptionPatterns",
+        "params": {
+          "patterns": [
+            {
+              "glob": "**/api/app/v2/transactions/*/attachments"
+            },
+            {
+              "glob": "**/api/app/v2/ledgers/*/statistics"
+            },
+            {
+              "glob": "**/api/app/v2/ledgers/*/recurring"
+            },
+            {
+              "glob": "**/api/app/v2/ledgers/*/categories"
+            },
+            {
+              "glob": "**/api/app/v2/ledgers/*/activate"
+            },
+            {
+              "glob": "**/api/app/v2/ledgers/*/bootstrap"
+            },
+            {
+              "glob": "**/api/app/v2/ledgers"
+            },
+            {
+              "glob": "**/api/app/v2/context"
+            },
+            {
+              "glob": "**/api/app/session"
+            },
+            {
+              "glob": "https://static.line-scdn.net/**"
+            }
+          ]
+        },
+        "error": null
+      },
+      {
+        "durationMs": 0.1,
+        "method": "setNetworkInterceptionPatterns",
+        "params": {
+          "patterns": [
+            {
+              "glob": "**/api/app/v2/proposals/*"
+            },
+            {
+              "glob": "**/api/app/v2/transactions/*/attachments"
+            },
+            {
+              "glob": "**/api/app/v2/ledgers/*/statistics"
+            },
+            {
+              "glob": "**/api/app/v2/ledgers/*/recurring"
+            },
+            {
+              "glob": "**/api/app/v2/ledgers/*/categories"
+            },
+            {
+              "glob": "**/api/app/v2/ledgers/*/activate"
+            },
+            {
+              "glob": "**/api/app/v2/ledgers/*/bootstrap"
+            },
+            {
+              "glob": "**/api/app/v2/ledgers"
+            },
+            {
+              "glob": "**/api/app/v2/context"
+            },
+            {
+              "glob": "**/api/app/session"
+            },
+            {
+              "glob": "https://static.line-scdn.net/**"
+            }
+          ]
+        },
+        "error": null
+      },
+      {
+        "durationMs": 0.1,
+        "method": "setNetworkInterceptionPatterns",
+        "params": {
+          "patterns": [
+            {
+              "glob": "**/api/app/v2/ledgers/*/transactions*"
+            },
+            {
+              "glob": "**/api/app/v2/proposals/*"
+            },
+            {
+              "glob": "**/api/app/v2/transactions/*/attachments"
+            },
+            {
+              "glob": "**/api/app/v2/ledgers/*/statistics"
+            },
+            {
+              "glob": "**/api/app/v2/ledgers/*/recurring"
+            },
+            {
+              "glob": "**/api/app/v2/ledgers/*/categories"
+            },
+            {
+              "glob": "**/api/app/v2/ledgers/*/activate"
+            },
+            {
+              "glob": "**/api/app/v2/ledgers/*/bootstrap"
+            },
+            {
+              "glob": "**/api/app/v2/ledgers"
+            },
+            {
+              "glob": "**/api/app/v2/context"
+            },
+            {
+              "glob": "**/api/app/session"
+            },
+            {
+              "glob": "https://static.line-scdn.net/**"
+            }
+          ]
+        },
+        "error": null
+      },
+      {
+        "durationMs": 0.1,
+        "method": "setNetworkInterceptionPatterns",
+        "params": {
+          "patterns": [
+            {
+              "glob": "**/api/app/v2/ledgers/*/transactions*"
+            },
+            {
+              "glob": "**/api/app/v2/ledgers/*/transactions*"
+            },
+            {
+              "glob": "**/api/app/v2/proposals/*"
+            },
+            {
+              "glob": "**/api/app/v2/transactions/*/attachments"
+            },
+            {
+              "glob": "**/api/app/v2/ledgers/*/statistics"
+            },
+            {
+              "glob": "**/api/app/v2/ledgers/*/recurring"
+            },
+            {
+              "glob": "**/api/app/v2/ledgers/*/categories"
+            },
+            {
+              "glob": "**/api/app/v2/ledgers/*/activate"
+            },
+            {
+              "glob": "**/api/app/v2/ledgers/*/bootstrap"
+            },
+            {
+              "glob": "**/api/app/v2/ledgers"
+            },
+            {
+              "glob": "**/api/app/v2/context"
+            },
+            {
+              "glob": "**/api/app/session"
+            },
+            {
+              "glob": "https://static.line-scdn.net/**"
+            }
+          ]
+        },
+        "error": null
+      },
+      {
+        "durationMs": 0.1,
+        "method": "setNetworkInterceptionPatterns",
+        "params": {
+          "patterns": [
+            {
+              "glob": "**/api/app/v2/transactions/*/mutate"
+            },
+            {
+              "glob": "**/api/app/v2/ledgers/*/transactions*"
+            },
+            {
+              "glob": "**/api/app/v2/ledgers/*/transactions*"
+            },
+            {
+              "glob": "**/api/app/v2/proposals/*"
+            },
+            {
+              "glob": "**/api/app/v2/transactions/*/attachments"
+            },
+            {
+              "glob": "**/api/app/v2/ledgers/*/statistics"
+            },
+            {
+              "glob": "**/api/app/v2/ledgers/*/recurring"
+            },
+            {
+              "glob": "**/api/app/v2/ledgers/*/categories"
+            },
+            {
+              "glob": "**/api/app/v2/ledgers/*/activate"
+            },
+            {
+              "glob": "**/api/app/v2/ledgers/*/bootstrap"
+            },
+            {
+              "glob": "**/api/app/v2/ledgers"
+            },
+            {
+              "glob": "**/api/app/v2/context"
+            },
+            {
+              "glob": "**/api/app/session"
+            },
+            {
+              "glob": "https://static.line-scdn.net/**"
+            }
+          ]
+        },
+        "error": null
+      },
+      {
+        "durationMs": 0.2,
+        "method": "setNetworkInterceptionPatterns",
+        "params": {
+          "patterns": [
+            {
+              "glob": "**/api/app/v2/transactions/*/attachments"
+            },
+            {
+              "glob": "**/api/app/v2/transactions/*/mutate"
+            },
+            {
+              "glob": "**/api/app/v2/ledgers/*/transactions*"
+            },
+            {
+              "glob": "**/api/app/v2/ledgers/*/transactions*"
+            },
+            {
+              "glob": "**/api/app/v2/proposals/*"
+            },
+            {
+              "glob": "**/api/app/v2/transactions/*/attachments"
+            },
+            {
+              "glob": "**/api/app/v2/ledgers/*/statistics"
+            },
+            {
+              "glob": "**/api/app/v2/ledgers/*/recurring"
+            },
+            {
+              "glob": "**/api/app/v2/ledgers/*/categories"
+            },
+            {
+              "glob": "**/api/app/v2/ledgers/*/activate"
+            },
+            {
+              "glob": "**/api/app/v2/ledgers/*/bootstrap"
+            },
+            {
+              "glob": "**/api/app/v2/ledgers"
+            },
+            {
+              "glob": "**/api/app/v2/context"
+            },
+            {
+              "glob": "**/api/app/session"
+            },
+            {
+              "glob": "https://static.line-scdn.net/**"
+            }
+          ]
+        },
+        "error": null
+      },
+      {
+        "durationMs": 0.1,
+        "method": "setNetworkInterceptionPatterns",
+        "params": {
+          "patterns": [
+            {
+              "glob": "**/api/app/v2/attachments"
+            },
+            {
+              "glob": "**/api/app/v2/transactions/*/attachments"
+            },
+            {
+              "glob": "**/api/app/v2/transactions/*/mutate"
+            },
+            {
+              "glob": "**/api/app/v2/ledgers/*/transactions*"
+            },
+            {
+              "glob": "**/api/app/v2/ledgers/*/transactions*"
+            },
+            {
+              "glob": "**/api/app/v2/proposals/*"
+            },
+            {
+              "glob": "**/api/app/v2/transactions/*/attachments"
+            },
+            {
+              "glob": "**/api/app/v2/ledgers/*/statistics"
+            },
+            {
+              "glob": "**/api/app/v2/ledgers/*/recurring"
+            },
+            {
+              "glob": "**/api/app/v2/ledgers/*/categories"
+            },
+            {
+              "glob": "**/api/app/v2/ledgers/*/activate"
+            },
+            {
+              "glob": "**/api/app/v2/ledgers/*/bootstrap"
+            },
+            {
+              "glob": "**/api/app/v2/ledgers"
+            },
+            {
+              "glob": "**/api/app/v2/context"
+            },
+            {
+              "glob": "**/api/app/session"
+            },
+            {
+              "glob": "https://static.line-scdn.net/**"
+            }
+          ]
+        },
+        "error": null
+      },
+      {
+        "durationMs": 0.1,
+        "method": "setNetworkInterceptionPatterns",
+        "params": {
+          "patterns": [
+            {
+              "glob": "https://fixture.supabase.co/upload"
+            },
+            {
+              "glob": "**/api/app/v2/attachments"
+            },
+            {
+              "glob": "**/api/app/v2/transactions/*/attachments"
+            },
+            {
+              "glob": "**/api/app/v2/transactions/*/mutate"
+            },
+            {
+              "glob": "**/api/app/v2/ledgers/*/transactions*"
+            },
+            {
+              "glob": "**/api/app/v2/ledgers/*/transactions*"
+            },
+            {
+              "glob": "**/api/app/v2/proposals/*"
+            },
+            {
+              "glob": "**/api/app/v2/transactions/*/attachments"
+            },
+            {
+              "glob": "**/api/app/v2/ledgers/*/statistics"
+            },
+            {
+              "glob": "**/api/app/v2/ledgers/*/recurring"
+            },
+            {
+              "glob": "**/api/app/v2/ledgers/*/categories"
+            },
+            {
+              "glob": "**/api/app/v2/ledgers/*/activate"
+            },
+            {
+              "glob": "**/api/app/v2/ledgers/*/bootstrap"
+            },
+            {
+              "glob": "**/api/app/v2/ledgers"
+            },
+            {
+              "glob": "**/api/app/v2/context"
+            },
+            {
+              "glob": "**/api/app/session"
+            },
+            {
+              "glob": "https://static.line-scdn.net/**"
+            }
+          ]
+        },
+        "error": null
+      },
+      {
+        "durationMs": 0.1,
+        "method": "setNetworkInterceptionPatterns",
+        "params": {
+          "patterns": [
+            {
+              "glob": "**/api/app/v2/attachments/*/complete"
+            },
+            {
+              "glob": "https://fixture.supabase.co/upload"
+            },
+            {
+              "glob": "**/api/app/v2/attachments"
+            },
+            {
+              "glob": "**/api/app/v2/transactions/*/attachments"
+            },
+            {
+              "glob": "**/api/app/v2/transactions/*/mutate"
+            },
+            {
+              "glob": "**/api/app/v2/ledgers/*/transactions*"
+            },
+            {
+              "glob": "**/api/app/v2/ledgers/*/transactions*"
+            },
+            {
+              "glob": "**/api/app/v2/proposals/*"
+            },
+            {
+              "glob": "**/api/app/v2/transactions/*/attachments"
+            },
+            {
+              "glob": "**/api/app/v2/ledgers/*/statistics"
+            },
+            {
+              "glob": "**/api/app/v2/ledgers/*/recurring"
+            },
+            {
+              "glob": "**/api/app/v2/ledgers/*/categories"
+            },
+            {
+              "glob": "**/api/app/v2/ledgers/*/activate"
+            },
+            {
+              "glob": "**/api/app/v2/ledgers/*/bootstrap"
+            },
+            {
+              "glob": "**/api/app/v2/ledgers"
+            },
+            {
+              "glob": "**/api/app/v2/context"
+            },
+            {
+              "glob": "**/api/app/session"
+            },
+            {
+              "glob": "https://static.line-scdn.net/**"
+            }
+          ]
+        },
+        "error": null
+      },
+      {
+        "durationMs": 0.0,
+        "method": "setNetworkInterceptionPatterns",
+        "params": {
+          "patterns": [
+            {
+              "glob": "**/api/app/v2/attachments/*"
+            },
+            {
+              "glob": "**/api/app/v2/attachments/*/complete"
+            },
+            {
+              "glob": "https://fixture.supabase.co/upload"
+            },
+            {
+              "glob": "**/api/app/v2/attachments"
+            },
+            {
+              "glob": "**/api/app/v2/transactions/*/attachments"
+            },
+            {
+              "glob": "**/api/app/v2/transactions/*/mutate"
+            },
+            {
+              "glob": "**/api/app/v2/ledgers/*/transactions*"
+            },
+            {
+              "glob": "**/api/app/v2/ledgers/*/transactions*"
+            },
+            {
+              "glob": "**/api/app/v2/proposals/*"
+            },
+            {
+              "glob": "**/api/app/v2/transactions/*/attachments"
+            },
+            {
+              "glob": "**/api/app/v2/ledgers/*/statistics"
+            },
+            {
+              "glob": "**/api/app/v2/ledgers/*/recurring"
+            },
+            {
+              "glob": "**/api/app/v2/ledgers/*/categories"
+            },
+            {
+              "glob": "**/api/app/v2/ledgers/*/activate"
+            },
+            {
+              "glob": "**/api/app/v2/ledgers/*/bootstrap"
+            },
+            {
+              "glob": "**/api/app/v2/ledgers"
+            },
+            {
+              "glob": "**/api/app/v2/context"
+            },
+            {
+              "glob": "**/api/app/session"
+            },
+            {
+              "glob": "https://static.line-scdn.net/**"
+            }
+          ]
+        },
+        "error": null
+      },
+      {
+        "durationMs": 38.5,
+        "method": "fulfill",
+        "params": {
+          "status": 200,
+          "headers": [
+            {
+              "name": "content-type",
+              "value": "application/javascript"
+            }
+          ],
+          "body": "",
+          "isBase64": false
+        },
+        "error": null
+      },
+      {
+        "durationMs": 1520.7,
+        "method": "goto",
+        "params": {
+          "url": "/",
+          "timeout": 0,
+          "waitUntil": "load"
+        },
+        "error": null
+      },
+      {
+        "durationMs": 25.5,
+        "method": "fulfill",
+        "params": {
+          "status": 200,
+          "headers": [
+            {
+              "name": "content-type",
+              "value": "application/json"
+            },
+            {
+              "name": "content-length",
+              "value": "11"
+            }
+          ],
+          "body": "{\"ok\":true}",
+          "isBase64": false
+        },
+        "error": null
+      },
+      {
+        "durationMs": 13.2,
+        "method": "fulfill",
+        "params": {
+          "status": 200,
+          "headers": [
+            {
+              "name": "content-type",
+              "value": "application/json"
+            },
+            {
+              "name": "content-length",
+              "value": "272"
+            }
+          ],
+          "body": "{\"today\":\"2026-09-25\",\"user\":{\"id\":\"00000000-0000-4000-8000-000000000001\",\"label\":\"你\",\"role\":\"owner\"},\"users\":[{\"id\":\"00000000-0000-4000-8000-000000000001\",\"label\":\"你\",\"role\":\"owner\"},{\"id\":\"00000000-0000-4000-8000-000000000002\",\"label\":\"另一半\",\"role\":\"partner\"}]}",
+          "isBase64": false
+        },
+        "error": null
+      },
+      {
+        "durationMs": 13.3,
+        "method": "fulfill",
+        "params": {
+          "status": 200,
+          "headers": [
+            {
+              "name": "content-type",
+              "value": "application/json"
+            },
+            {
+              "name": "content-length",
+              "value": "1407"
+            }
+          ],
+          "body": "{\"ledgers\":[{\"id\":\"00000000-0000-4000-8000-000000000010\",\"name\":\"共同生活\",\"color\":\"#173B63\",\"status\":\"active\",\"activeForUser\":true,\"version\":1,\"createdAt\":\"2026-09-25T00:00:00Z\",\"updatedAt\":\"2026-09-25T00:00:00Z\",\"coupleId\":1,\"members\":[{\"userId\":\"00000000-0000-4000-8000-000000000001\",\"role\":\"owner\"},{\"userId\":\"00000000-0000-4000-8000-000000000002\",\"role\":\"partner\"}],\"defaultShares\":{\"00000000-0000-4000-8000-000000000001\":\"1\",\"00000000-0000-4000-8000-000000000002\":\"1\"}},{\"id\":\"00000000-0000-4000-8000-000000000020\",\"name\":\"旅行\",\"color\":\"#173B63\",\"status\":\"active\",\"activeForUser\":false,\"version\":1,\"createdAt\":\"2026-09-25T00:00:00Z\",\"updatedAt\":\"2026-09-25T00:00:00Z\",\"coupleId\":1,\"members\":[{\"userId\":\"00000000-0000-4000-8000-000000000001\",\"role\":\"owner\"},{\"userId\":\"00000000-0000-4000-8000-000000000002\",\"role\":\"partner\"}],\"defaultShares\":{\"00000000-0000-4000-8000-000000000001\":\"1\",\"00000000-0000-4000-8000-000000000002\":\"1\"}},{\"id\":\"00000000-0000-4000-8000-000000000030\",\"name\":\"家庭\",\"color\":\"#173B63\",\"status\":\"active\",\"activeForUser\":false,\"version\":1,\"createdAt\":\"2026-09-25T00:00:00Z\",\"updatedAt\":\"2026-09-25T00:00:00Z\",\"coupleId\":1,\"members\":[{\"userId\":\"00000000-0000-4000-8000-000000000001\",\"role\":\"owner\"},{\"userId\":\"00000000-0000-4000-8000-000000000002\",\"role\":\"partner\"}],\"defaultShares\":{\"00000000-0000-4000-8000-000000000001\":\"1\",\"00000000-0000-4000-8000-000000000002\":\"1\"}}]}",
+          "isBase64": false
+        },
+        "error": null
+      },
+      {
+        "durationMs": 15.9,
+        "method": "fulfill",
+        "params": {
+          "status": 200,
+          "headers": [
+            {
+              "name": "content-type",
+              "value": "application/json"
+            },
+            {
+              "name": "content-length",
+              "value": "38170"
+            }
+          ],
+          "body": "{\"ledger\":{\"id\":\"00000000-0000-4000-8000-000000000010\",\"name\":\"共同生活\",\"color\":\"#173B63\",\"status\":\"active\",\"activeForUser\":true,\"version\":1,\"createdAt\":\"2026-09-25T00:00:00Z\",\"updatedAt\":\"2026-09-25T00:00:00Z\",\"coupleId\":1,\"members\":[{\"userId\":\"00000000-0000-4000-8000-000000000001\",\"role\":\"owner\"},{\"userId\":\"00000000-0000-4000-8000-000000000002\",\"role\":\"partner\"}],\"defaultShares\":{\"00000000-0000-4000-8000-000000000001\":\"1\",\"00000000-0000-4000-8000-000000000002\":\"1\"}},\"transactions\":[{\"id\":\"00000000-0000-4000-8000-000000001001\",\"ledgerId\":\"00000000-0000-4000-8000-000000000010\",\"description\":\"日常紀錄 01\",\"type\":\"expense\",\"amountTwd\":\"200\",\"payments\":[{\"userId\":\"00000000-0000-4000-8000-000000000001\",\"amountTwd\":\"200\"}],\"shares\":[{\"userId\":\"00000000-0000-4000-8000-000000000001\",\"amountTwd\":\"100\"},{\"userId\":\"00000000-0000-4000-8000-000000000002\",\"amountTwd\":\"100\"}],\"status\":\"posted\",\"occurredOn\":\"2026-09-28\",\"createdAt\":\"2026-09-25T23:59:00Z\",\"version\":1,\"splitMethod\":\"equal\",\"category\":null,\"categoryId\":null,\"note\":null},{\"id\":\"00000000-0000-4000-8000-000000001002\",\"ledgerId\":\"00000000-0000-4000-8000-000000000010\",\"description\":\"兩人一起到臺東旅行第三天，和家人朋友共進晚餐，包含臨時加點餐點、飲料以及打包帶回家的點心與早餐\",\"type\":\"expense\",\"amountTwd\":\"200\",\"payments\":[{\"userId\":\"00000000-0000-4000-8000-000000000001\",\"amountTwd\":\"200\"}],\"shares\":[{\"userId\":\"00000000-0000-4000-8000-000000000001\",\"amountTwd\":\"100\"},{\"userId\":\"00000000-0000-4000-8000-000000000002\",\"amountTwd\":\"100\"}],\"status\":\"posted\",\"occurredOn\":\"2026-09-25\",\"createdAt\":\"2026-09-25T23:58:00Z\",\"version\":1,\"splitMethod\":\"equal\",\"category\":\"餐飲\",\"categoryId\":null,\"note\":\"這是完整備註，應該在詳情清楚換行。這是完整備註，應該在詳情清楚換行。這是完整備註，應該在詳情清楚換行。這是完整備註，應該在詳情清楚換行。這是完整備註，應該在詳情清楚換行。這是完整備註，應該在詳情清楚換行。這是完整備註，應該在詳情清楚換行。這是完整備註，應該在詳情清楚換行。這是完整備註，應該在詳情清楚換行。這是完整備註，應該在詳情清楚換行。這是完整備註，應該在詳情清楚換行。這是完整備註，應該在詳情清楚換行。https://example.invalid/receipt-context-receipt-context-receipt-context-receipt-context-receipt-context-receipt-context-receipt-context-receipt-context-receipt-context-receipt-context-receipt-context-receipt-context-receipt-context-receipt-context-receipt-context-receipt-context-receipt-context-receipt-context-receipt-context-receipt-context-\"},{\"id\":\"00000000-0000-4000-8000-000000001003\",\"ledgerId\":\"00000000-0000-4000-8000-000000000010\",\"description\":\"大額紀錄\",\"type\":\"expense\",\"amountTwd\":\"100000000000\",\"payments\":[{\"userId\":\"00000000-0000-4000-8000-000000000001\",\"amountTwd\":\"100000000000\"}],\"shares\":[{\"userId\":\"00000000-0000-4000-8000-000000000001\",\"amountTwd\":\"50000000000\"},{\"userId\":\"00000000-0000-4000-8000-000000000002\",\"amountTwd\":\"50000000000\"}],\"status\":\"posted\",\"occurredOn\":\"2026-09-25\",\"createdAt\":\"2026-09-25T23:57:00Z\",\"version\":1,\"splitMethod\":\"equal\",\"category\":null,\"categoryId\":null,\"note\":null},{\"id\":\"00000000-0000-4000-8000-000000001004\",\"ledgerId\":\"00000000-0000-4000-8000-000000000010\",\"description\":\"單人付款晚餐\",\"type\":\"expense\",\"amountTwd\":\"200\",\"payments\":[{\"userId\":\"00000000-0000-4000-8000-000000000001\",\"amountTwd\":\"200\"}],\"shares\":[{\"userId\":\"00000000-0000-4000-8000-000000000001\",\"amountTwd\":\"100\"},{\"userId\":\"00000000-0000-4000-8000-000000000002\",\"amountTwd\":\"100\"}],\"status\":\"posted\",\"occurredOn\":\"2026-09-25\",\"createdAt\":\"2026-09-25T23:56:00Z\",\"version\":1,\"splitMethod\":\"equal\",\"category\":\"餐飲\",\"categoryId\":\"stored-archived-category\",\"note\":\"這是完整備註，應該在詳情清楚換行。這是完整備註，應該在詳情清楚換行。這是完整備註，應該在詳情清楚換行。這是完整備註，應該在詳情清楚換行。這是完整備註，應該在詳情清楚換行。這是完整備註，應該在詳情清楚換行。這是完整備註，應該在詳情清楚換行。這是完整備註，應該在詳情清楚換行。這是完整備註，應該在詳情清楚換行。這是完整備註，應該在詳情清楚換行。這是完整備註，應該在詳情清楚換行。這是完整備註，應該在詳情清楚換行。https://example.invalid/receipt-context-receipt-context-receipt-context-receipt-context-receipt-context-receipt-context-receipt-context-receipt-context-receipt-context-receipt-context-receipt-context-receipt-context-receipt-context-receipt-context-receipt-context-receipt-context-receipt-context-receipt-context-receipt-context-receipt-context-\"},{\"id\":\"00000000-0000-4000-8000-000000001005\",\"ledgerId\":\"00000000-0000-4000-8000-000000000010\",\"description\":\"旅館退款\",\"type\":\"income\",\"amountTwd\":\"100\",\"payments\":[{\"userId\":\"00000000-0000-4000-8000-000000000002\",\"amountTwd\":\"100\"}],\"shares\":[{\"userId\":\"00000000-0000-4000-8000-000000000001\",\"amountTwd\":\"50\"},{\"userId\":\"00000000-0000-4000-8000-000000000002\",\"amountTwd\":\"50\"}],\"status\":\"posted\",\"occurredOn\":\"2026-09-25\",\"createdAt\":\"2026-09-25T23:55:00Z\",\"version\":1,\"splitMethod\":\"equal\",\"category\":null,\"categoryId\":null,\"note\":null},{\"id\":\"00000000-0000-4000-8000-000000001006\",\"ledgerId\":\"00000000-0000-4000-8000-000000000010\",\"description\":\"兩人轉帳\",\"type\":\"transfer\",\"amountTwd\":\"200\",\"payments\":[{\"userId\":\"00000000-0000-4000-8000-000000000001\",\"amountTwd\":\"200\"}],\"shares\":[{\"userId\":\"00000000-0000-4000-8000-000000000002\",\"amountTwd\":\"200\"}],\"status\":\"posted\",\"occurredOn\":\"2026-09-25\",\"createdAt\":\"2026-09-25T23:54:00Z\",\"version\":1,\"splitMethod\":\"none\",\"category\":null,\"categoryId\":null,\"note\":null},{\"id\":\"00000000-0000-4000-8000-000000001007\",\"ledgerId\":\"00000000-0000-4000-8000-000000000010\",\"description\":\"兩人合付晚餐\",\"type\":\"expense\",\"amountTwd\":\"200\",\"payments\":[{\"userId\":\"00000000-0000-4000-8000-000000000001\",\"amountTwd\":\"120\"},{\"userId\":\"00000000-0000-4000-8000-000000000002\",\"amountTwd\":\"80\"}],\"shares\":[{\"userId\":\"00000000-0000-4000-8000-000000000001\",\"amountTwd\":\"100\"},{\"userId\":\"00000000-0000-4000-8000-000000000002\",\"amountTwd\":\"100\"}],\"status\":\"posted\",\"occurredOn\":\"2026-09-25\",\"createdAt\":\"2026-09-25T23:53:00Z\",\"version\":1,\"splitMethod\":\"equal\",\"category\":null,\"categoryId\":null,\"note\":null},{\"id\":\"00000000-0000-4000-8000-000000001008\",\"ledgerId\":\"00000000-0000-4000-8000-000000000010\",\"description\":\"日常紀錄 08\",\"type\":\"expense\",\"amountTwd\":\"200\",\"payments\":[{\"userId\":\"00000000-0000-4000-8000-000000000001\",\"amountTwd\":\"200\"}],\"shares\":[{\"userId\":\"00000000-0000-4000-8000-000000000001\",\"amountTwd\":\"100\"},{\"userId\":\"00000000-0000-4000-8000-000000000002\",\"amountTwd\":\"100\"}],\"status\":\"posted\",\"occurredOn\":\"2026-09-25\",\"createdAt\":\"2026-09-25T23:52:00Z\",\"version\":1,\"splitMethod\":\"equal\",\"category\":null,\"categoryId\":null,\"note\":null},{\"id\":\"00000000-0000-4000-8000-000000001009\",\"ledgerId\":\"00000000-0000-4000-8000-000000000010\",\"description\":\"日常紀錄 09\",\"type\":\"expense\",\"amountTwd\":\"200\",\"payments\":[{\"userId\":\"00000000-0000-4000-8000-000000000001\",\"amountTwd\":\"200\"}],\"shares\":[{\"userId\":\"00000000-0000-4000-8000-000000000001\",\"amountTwd\":\"100\"},{\"userId\":\"00000000-0000-4000-8000-000000000002\",\"amountTwd\":\"100\"}],\"status\":\"posted\",\"occurredOn\":\"2026-09-25\",\"createdAt\":\"2026-09-25T23:51:00Z\",\"version\":1,\"splitMethod\":\"equal\",\"category\":null,\"categoryId\":null,\"note\":null},{\"id\":\"00000000-0000-4000-8000-000000001010\",\"ledgerId\":\"00000000-0000-4000-8000-000000000010\",\"description\":\"日常紀錄 10\",\"type\":\"expense\",\"amountTwd\":\"200\",\"payments\":[{\"userId\":\"00000000-0000-4000-8000-000000000001\",\"amountTwd\":\"200\"}],\"shares\":[{\"userId\":\"00000000-0000-4000-8000-000000000001\",\"amountTwd\":\"100\"},{\"userId\":\"00000000-0000-4000-8000-000000000002\",\"amountTwd\":\"100\"}],\"status\":\"posted\",\"occurredOn\":\"2026-09-25\",\"createdAt\":\"2026-09-25T23:50:00Z\",\"version\":1,\"splitMethod\":\"equal\",\"category\":null,\"categoryId\":null,\"note\":null},{\"id\":\"00000000-0000-4000-8000-000000001011\",\"ledgerId\":\"00000000-0000-4000-8000-000000000010\",\"description\":\"日常紀錄 11\",\"type\":\"expense\",\"amountTwd\":\"200\",\"payments\":[{\"userId\":\"00000000-0000-4000-8000-000000000001\",\"amountTwd\":\"200\"}],\"shares\":[{\"userId\":\"00000000-0000-4000-8000-000000000001\",\"amountTwd\":\"100\"},{\"userId\":\"00000000-0000-4000-8000-000000000002\",\"amountTwd\":\"100\"}],\"status\":\"posted\",\"occurredOn\":\"2026-09-25\",\"createdAt\":\"2026-09-25T23:49:00Z\",\"version\":1,\"splitMethod\":\"equal\",\"category\":null,\"categoryId\":null,\"note\":null},{\"id\":\"00000000-0000-4000-8000-000000001012\",\"ledgerId\":\"00000000-0000-4000-8000-000000000010\",\"description\":\"日常紀錄 12\",\"type\":\"expense\",\"amountTwd\":\"200\",\"payments\":[{\"userId\":\"00000000-0000-4000-8000-000000000001\",\"amountTwd\":\"200\"}],\"shares\":[{\"userId\":\"00000000-0000-4000-8000-000000000001\",\"amountTwd\":\"100\"},{\"userId\":\"00000000-0000-4000-8000-000000000002\",\"amountTwd\":\"100\"}],\"status\":\"posted\",\"occurredOn\":\"2026-09-25\",\"createdAt\":\"2026-09-25T23:48:00Z\",\"version\":1,\"splitMethod\":\"equal\",\"category\":null,\"categoryId\":null,\"note\":null},{\"id\":\"00000000-0000-4000-8000-000000001013\",\"ledgerId\":\"00000000-0000-4000-8000-000000000010\",\"description\":\"日常紀錄 13\",\"type\":\"expense\",\"amountTwd\":\"200\",\"payments\":[{\"userId\":\"00000000-0000-4000-8000-000000000001\",\"amountTwd\":\"200\"}],\"shares\":[{\"userId\":\"00000000-0000-4000-8000-000000000001\",\"amountTwd\":\"100\"},{\"userId\":\"00000000-0000-4000-8000-000000000002\",\"amountTwd\":\"100\"}],\"status\":\"posted\",\"occurredOn\":\"2026-09-25\",\"createdAt\":\"2026-09-25T23:47:00Z\",\"version\":1,\"splitMethod\":\"equal\",\"category\":null,\"categoryId\":null,\"note\":null},{\"id\":\"00000000-0000-4000-8000-000000001014\",\"ledgerId\":\"00000000-0000-4000-8000-000000000010\",\"description\":\"日常紀錄 14\",\"type\":\"expense\",\"amountTwd\":\"200\",\"payments\":[{\"userId\":\"00000000-0000-4000-8000-000000000001\",\"amountTwd\":\"200\"}],\"shares\":[{\"userId\":\"00000000-0000-4000-8000-000000000001\",\"amountTwd\":\"100\"},{\"userId\":\"00000000-0000-4000-8000-000000000002\",\"amountTwd\":\"100\"}],\"status\":\"posted\",\"occurredOn\":\"2026-09-25\",\"createdAt\":\"2026-09-25T23:46:00Z\",\"version\":1,\"splitMethod\":\"equal\",\"category\":null,\"categoryId\":null,\"note\":null},{\"id\":\"00000000-0000-4000-8000-000000001015\",\"ledgerId\":\"00000000-0000-4000-8000-000000000010\",\"description\":\"日常紀錄 15\",\"type\":\"expense\",\"amountTwd\":\"200\",\"payments\":[{\"userId\":\"00000000-0000-4000-8000-000000000001\",\"amountTwd\":\"200\"}],\"shares\":[{\"userId\":\"00000000-0000-4000-8000-000000000001\",\"amountTwd\":\"100\"},{\"userId\":\"00000000-0000-4000-8000-000000000002\",\"amountTwd\":\"100\"}],\"status\":\"posted\",\"occurredOn\":\"2026-09-25\",\"createdAt\":\"2026-09-25T23:45:00Z\",\"version\":1,\"splitMethod\":\"equal\",\"category\":null,\"categoryId\":null,\"note\":null},{\"id\":\"00000000-0000-4000-8000-000000001016\",\"ledgerId\":\"00000000-0000-4000-8000-000000000010\",\"description\":\"日常紀錄 16\",\"type\":\"expense\",\"amountTwd\":\"200\",\"payments\":[{\"userId\":\"00000000-0000-4000-8000-000000000001\",\"amountTwd\":\"200\"}],\"shares\":[{\"userId\":\"00000000-0000-4000-8000-000000000001\",\"amountTwd\":\"100\"},{\"userId\":\"00000000-0000-4000-8000-000000000002\",\"amountTwd\":\"100\"}],\"status\":\"posted\",\"occurredOn\":\"2026-09-25\",\"createdAt\":\"2026-09-25T23:44:00Z\",\"version\":1,\"splitMethod\":\"equal\",\"category\":null,\"categoryId\":null,\"note\":null},{\"id\":\"00000000-0000-4000-8000-000000001017\",\"ledgerId\":\"00000000-0000-4000-8000-000000000010\",\"description\":\"日常紀錄 17\",\"type\":\"expense\",\"amountTwd\":\"200\",\"payments\":[{\"userId\":\"00000000-0000-4000-8000-000000000001\",\"amountTwd\":\"200\"}],\"shares\":[{\"userId\":\"00000000-0000-4000-8000-000000000001\",\"amountTwd\":\"100\"},{\"userId\":\"00000000-0000-4000-8000-000000000002\",\"amountTwd\":\"100\"}],\"status\":\"posted\",\"occurredOn\":\"2026-09-25\",\"createdAt\":\"2026-09-25T23:43:00Z\",\"version\":1,\"splitMethod\":\"equal\",\"category\":null,\"categoryId\":null,\"note\":null},{\"id\":\"00000000-0000-4000-8000-000000001018\",\"ledgerId\":\"00000000-0000-4000-8000-000000000010\",\"description\":\"日常紀錄 18\",\"type\":\"expense\",\"amountTwd\":\"200\",\"payments\":[{\"userId\":\"00000000-0000-4000-8000-000000000001\",\"amountTwd\":\"200\"}],\"shares\":[{\"userId\":\"00000000-0000-4000-8000-000000000001\",\"amountTwd\":\"100\"},{\"userId\":\"00000000-0000-4000-8000-000000000002\",\"amountTwd\":\"100\"}],\"status\":\"posted\",\"occurredOn\":\"2026-09-25\",\"createdAt\":\"2026-09-25T23:42:00Z\",\"version\":1,\"splitMethod\":\"equal\",\"category\":null,\"categoryId\":null,\"note\":null},{\"id\":\"00000000-0000-4000-8000-000000001019\",\"ledgerId\":\"00000000-0000-4000-8000-000000000010\",\"description\":\"日常紀錄 19\",\"type\":\"expense\",\"amountTwd\":\"200\",\"payments\":[{\"userId\":\"00000000-0000-4000-8000-000000000001\",\"amountTwd\":\"200\"}],\"shares\":[{\"userId\":\"00000000-0000-4000-8000-000000000001\",\"amountTwd\":\"100\"},{\"userId\":\"00000000-0000-4000-8000-000000000002\",\"amountTwd\":\"100\"}],\"status\":\"posted\",\"occurredOn\":\"2026-09-25\",\"createdAt\":\"2026-09-25T23:41:00Z\",\"version\":1,\"splitMethod\":\"equal\",\"category\":null,\"categoryId\":null,\"note\":null},{\"id\":\"00000000-0000-4000-8000-000000001020\",\"ledgerId\":\"00000000-0000-4000-8000-000000000010\",\"description\":\"日常紀錄 20\",\"type\":\"expense\",\"amountTwd\":\"200\",\"payments\":[{\"userId\":\"00000000-0000-4000-8000-000000000001\",\"amountTwd\":\"200\"}],\"shares\":[{\"userId\":\"00000000-0000-4000-8000-000000000001\",\"amountTwd\":\"100\"},{\"userId\":\"00000000-0000-4000-8000-000000000002\",\"amountTwd\":\"100\"}],\"status\":\"posted\",\"occurredOn\":\"2026-09-25\",\"createdAt\":\"2026-09-25T23:40:00Z\",\"version\":1,\"splitMethod\":\"equal\",\"category\":null,\"categoryId\":null,\"note\":null},{\"id\":\"00000000-0000-4000-8000-000000001021\",\"ledgerId\":\"00000000-0000-4000-8000-000000000010\",\"description\":\"日常紀錄 21\",\"type\":\"expense\",\"amountTwd\":\"200\",\"payments\":[{\"userId\":\"00000000-0000-4000-8000-000000000001\",\"amountTwd\":\"200\"}],\"shares\":[{\"userId\":\"00000000-0000-4000-8000-000000000001\",\"amountTwd\":\"100\"},{\"userId\":\"00000000-0000-4000-8000-000000000002\",\"amountTwd\":\"100\"}],\"status\":\"posted\",\"occurredOn\":\"2026-09-25\",\"createdAt\":\"2026-09-25T23:39:00Z\",\"version\":1,\"splitMethod\":\"equal\",\"category\":null,\"categoryId\":null,\"note\":null},{\"id\":\"00000000-0000-4000-8000-000000001022\",\"ledgerId\":\"00000000-0000-4000-8000-000000000010\",\"description\":\"日常紀錄 22\",\"type\":\"expense\",\"amountTwd\":\"200\",\"payments\":[{\"userId\":\"00000000-0000-4000-8000-000000000001\",\"amountTwd\":\"200\"}],\"shares\":[{\"userId\":\"00000000-0000-4000-8000-000000000001\",\"amountTwd\":\"100\"},{\"userId\":\"00000000-0000-4000-8000-000000000002\",\"amountTwd\":\"100\"}],\"status\":\"posted\",\"occurredOn\":\"2026-09-25\",\"createdAt\":\"2026-09-25T23:38:00Z\",\"version\":1,\"splitMethod\":\"equal\",\"category\":null,\"categoryId\":null,\"note\":null},{\"id\":\"00000000-0000-4000-8000-000000001023\",\"ledgerId\":\"00000000-0000-4000-8000-000000000010\",\"description\":\"日常紀錄 23\",\"type\":\"expense\",\"amountTwd\":\"200\",\"payments\":[{\"userId\":\"00000000-0000-4000-8000-000000000001\",\"amountTwd\":\"200\"}],\"shares\":[{\"userId\":\"00000000-0000-4000-8000-000000000001\",\"amountTwd\":\"100\"},{\"userId\":\"00000000-0000-4000-8000-000000000002\",\"amountTwd\":\"100\"}],\"status\":\"posted\",\"occurredOn\":\"2026-09-25\",\"createdAt\":\"2026-09-25T23:37:00Z\",\"version\":1,\"splitMethod\":\"equal\",\"category\":null,\"categoryId\":null,\"note\":null},{\"id\":\"00000000-0000-4000-8000-000000001024\",\"ledgerId\":\"00000000-0000-4000-8000-000000000010\",\"description\":\"日常紀錄 24\",\"type\":\"expense\",\"amountTwd\":\"200\",\"payments\":[{\"userId\":\"00000000-0000-4000-8000-000000000001\",\"amountTwd\":\"200\"}],\"shares\":[{\"userId\":\"00000000-0000-4000-8000-000000000001\",\"amountTwd\":\"100\"},{\"userId\":\"00000000-0000-4000-8000-000000000002\",\"amountTwd\":\"100\"}],\"status\":\"posted\",\"occurredOn\":\"2026-09-25\",\"createdAt\":\"2026-09-25T23:36:00Z\",\"version\":1,\"splitMethod\":\"equal\",\"category\":null,\"categoryId\":null,\"note\":null},{\"id\":\"00000000-0000-4000-8000-000000001025\",\"ledgerId\":\"00000000-0000-4000-8000-000000000010\",\"description\":\"日常紀錄 25\",\"type\":\"expense\",\"amountTwd\":\"200\",\"payments\":[{\"userId\":\"00000000-0000-4000-8000-000000000001\",\"amountTwd\":\"200\"}],\"shares\":[{\"userId\":\"00000000-0000-4000-8000-000000000001\",\"amountTwd\":\"100\"},{\"userId\":\"00000000-0000-4000-8000-000000000002\",\"amountTwd\":\"100\"}],\"status\":\"posted\",\"occurredOn\":\"2026-09-25\",\"createdAt\":\"2026-09-25T23:35:00Z\",\"version\":1,\"splitMethod\":\"equal\",\"category\":null,\"categoryId\":null,\"note\":null},{\"id\":\"00000000-0000-4000-8000-000000001026\",\"ledgerId\":\"00000000-0000-4000-8000-000000000010\",\"description\":\"日常紀錄 26\",\"type\":\"expense\",\"amountTwd\":\"200\",\"payments\":[{\"userId\":\"00000000-0000-4000-8000-000000000001\",\"amountTwd\":\"200\"}],\"shares\":[{\"userId\":\"00000000-0000-4000-8000-000000000001\",\"amountTwd\":\"100\"},{\"userId\":\"00000000-0000-4000-8000-000000000002\",\"amountTwd\":\"100\"}],\"status\":\"posted\",\"occurredOn\":\"2026-09-25\",\"createdAt\":\"2026-09-25T23:34:00Z\",\"version\":1,\"splitMethod\":\"equal\",\"category\":null,\"categoryId\":null,\"note\":null},{\"id\":\"00000000-0000-4000-8000-000000001027\",\"ledgerId\":\"00000000-0000-4000-8000-000000000010\",\"description\":\"日常紀錄 27\",\"type\":\"expense\",\"amountTwd\":\"200\",\"payments\":[{\"userId\":\"00000000-0000-4000-8000-000000000001\",\"amountTwd\":\"200\"}],\"shares\":[{\"userId\":\"00000000-0000-4000-8000-000000000001\",\"amountTwd\":\"100\"},{\"userId\":\"00000000-0000-4000-8000-000000000002\",\"amountTwd\":\"100\"}],\"status\":\"posted\",\"occurredOn\":\"2026-09-25\",\"createdAt\":\"2026-09-25T23:33:00Z\",\"version\":1,\"splitMethod\":\"equal\",\"category\":null,\"categoryId\":null,\"note\":null},{\"id\":\"00000000-0000-4000-8000-000000001028\",\"ledgerId\":\"00000000-0000-4000-8000-000000000010\",\"description\":\"日常紀錄 28\",\"type\":\"expense\",\"amountTwd\":\"200\",\"payments\":[{\"userId\":\"00000000-0000-4000-8000-000000000001\",\"amountTwd\":\"200\"}],\"shares\":[{\"userId\":\"00000000-0000-4000-8000-000000000001\",\"amountTwd\":\"100\"},{\"userId\":\"00000000-0000-4000-8000-000000000002\",\"amountTwd\":\"100\"}],\"status\":\"posted\",\"occurredOn\":\"2026-09-25\",\"createdAt\":\"2026-09-25T23:32:00Z\",\"version\":1,\"splitMethod\":\"equal\",\"category\":null,\"categoryId\":null,\"note\":null},{\"id\":\"00000000-0000-4000-8000-000000001029\",\"ledgerId\":\"00000000-0000-4000-8000-000000000010\",\"description\":\"日常紀錄 29\",\"type\":\"expense\",\"amountTwd\":\"200\",\"payments\":[{\"userId\":\"00000000-0000-4000-8000-000000000001\",\"amountTwd\":\"200\"}],\"shares\":[{\"userId\":\"00000000-0000-4000-8000-000000000001\",\"amountTwd\":\"100\"},{\"userId\":\"00000000-0000-4000-8000-000000000002\",\"amountTwd\":\"100\"}],\"status\":\"posted\",\"occurredOn\":\"2026-09-25\",\"createdAt\":\"2026-09-25T23:31:00Z\",\"version\":1,\"splitMethod\":\"equal\",\"category\":null,\"categoryId\":null,\"note\":null},{\"id\":\"00000000-0000-4000-8000-000000001030\",\"ledgerId\":\"00000000-0000-4000-8000-000000000010\",\"description\":\"日常紀錄 30\",\"type\":\"expense\",\"amountTwd\":\"200\",\"payments\":[{\"userId\":\"00000000-0000-4000-8000-000000000001\",\"amountTwd\":\"200\"}],\"shares\":[{\"userId\":\"00000000-0000-4000-8000-000000000001\",\"amountTwd\":\"100\"},{\"userId\":\"00000000-0000-4000-8000-000000000002\",\"amountTwd\":\"100\"}],\"status\":\"posted\",\"occurredOn\":\"2026-09-25\",\"createdAt\":\"2026-09-25T23:30:00Z\",\"version\":1,\"splitMethod\":\"equal\",\"category\":null,\"categoryId\":null,\"note\":null},{\"id\":\"00000000-0000-4000-8000-000000001031\",\"ledgerId\":\"00000000-0000-4000-8000-000000000010\",\"description\":\"日常紀錄 31\",\"type\":\"expense\",\"amountTwd\":\"200\",\"payments\":[{\"userId\":\"00000000-0000-4000-8000-000000000001\",\"amountTwd\":\"200\"}],\"shares\":[{\"userId\":\"00000000-0000-4000-8000-000000000001\",\"amountTwd\":\"100\"},{\"userId\":\"00000000-0000-4000-8000-000000000002\",\"amountTwd\":\"100\"}],\"status\":\"posted\",\"occurredOn\":\"2026-09-25\",\"createdAt\":\"2026-09-25T23:29:00Z\",\"version\":1,\"splitMethod\":\"equal\",\"category\":null,\"categoryId\":null,\"note\":null},{\"id\":\"00000000-0000-4000-8000-000000001032\",\"ledgerId\":\"00000000-0000-4000-8000-000000000010\",\"description\":\"日常紀錄 32\",\"type\":\"expense\",\"amountTwd\":\"200\",\"payments\":[{\"userId\":\"00000000-0000-4000-8000-000000000001\",\"amountTwd\":\"200\"}],\"shares\":[{\"userId\":\"00000000-0000-4000-8000-000000000001\",\"amountTwd\":\"100\"},{\"userId\":\"00000000-0000-4000-8000-000000000002\",\"amountTwd\":\"100\"}],\"status\":\"posted\",\"occurredOn\":\"2026-09-25\",\"createdAt\":\"2026-09-25T23:28:00Z\",\"version\":1,\"splitMethod\":\"equal\",\"category\":null,\"categoryId\":null,\"note\":null},{\"id\":\"00000000-0000-4000-8000-000000001033\",\"ledgerId\":\"00000000-0000-4000-8000-000000000010\",\"description\":\"日常紀錄 33\",\"type\":\"expense\",\"amountTwd\":\"200\",\"payments\":[{\"userId\":\"00000000-0000-4000-8000-000000000001\",\"amountTwd\":\"200\"}],\"shares\":[{\"userId\":\"00000000-0000-4000-8000-000000000001\",\"amountTwd\":\"100\"},{\"userId\":\"00000000-0000-4000-8000-000000000002\",\"amountTwd\":\"100\"}],\"status\":\"posted\",\"occurredOn\":\"2026-09-25\",\"createdAt\":\"2026-09-25T23:27:00Z\",\"version\":1,\"splitMethod\":\"equal\",\"category\":null,\"categoryId\":null,\"note\":null},{\"id\":\"00000000-0000-4000-8000-000000001034\",\"ledgerId\":\"00000000-0000-4000-8000-000000000010\",\"description\":\"日常紀錄 34\",\"type\":\"expense\",\"amountTwd\":\"200\",\"payments\":[{\"userId\":\"00000000-0000-4000-8000-000000000001\",\"amountTwd\":\"200\"}],\"shares\":[{\"userId\":\"00000000-0000-4000-8000-000000000001\",\"amountTwd\":\"100\"},{\"userId\":\"00000000-0000-4000-8000-000000000002\",\"amountTwd\":\"100\"}],\"status\":\"posted\",\"occurredOn\":\"2026-09-25\",\"createdAt\":\"2026-09-25T23:26:00Z\",\"version\":1,\"splitMethod\":\"equal\",\"category\":null,\"categoryId\":null,\"note\":null},{\"id\":\"00000000-0000-4000-8000-000000001035\",\"ledgerId\":\"00000000-0000-4000-8000-000000000010\",\"description\":\"日常紀錄 35\",\"type\":\"expense\",\"amountTwd\":\"200\",\"payments\":[{\"userId\":\"00000000-0000-4000-8000-000000000001\",\"amountTwd\":\"200\"}],\"shares\":[{\"userId\":\"00000000-0000-4000-8000-000000000001\",\"amountTwd\":\"100\"},{\"userId\":\"00000000-0000-4000-8000-000000000002\",\"amountTwd\":\"100\"}],\"status\":\"posted\",\"occurredOn\":\"2026-09-25\",\"createdAt\":\"2026-09-25T23:25:00Z\",\"version\":1,\"splitMethod\":\"equal\",\"category\":null,\"categoryId\":null,\"note\":null},{\"id\":\"00000000-0000-4000-8000-000000001036\",\"ledgerId\":\"00000000-0000-4000-8000-000000000010\",\"description\":\"日常紀錄 36\",\"type\":\"expense\",\"amountTwd\":\"200\",\"payments\":[{\"userId\":\"00000000-0000-4000-8000-000000000001\",\"amountTwd\":\"200\"}],\"shares\":[{\"userId\":\"00000000-0000-4000-8000-000000000001\",\"amountTwd\":\"100\"},{\"userId\":\"00000000-0000-4000-8000-000000000002\",\"amountTwd\":\"100\"}],\"status\":\"posted\",\"occurredOn\":\"2026-09-25\",\"createdAt\":\"2026-09-25T23:24:00Z\",\"version\":1,\"splitMethod\":\"equal\",\"category\":null,\"categoryId\":null,\"note\":null},{\"id\":\"00000000-0000-4000-8000-000000001037\",\"ledgerId\":\"00000000-0000-4000-8000-000000000010\",\"description\":\"日常紀錄 37\",\"type\":\"expense\",\"amountTwd\":\"200\",\"payments\":[{\"userId\":\"00000000-0000-4000-8000-000000000001\",\"amountTwd\":\"200\"}],\"shares\":[{\"userId\":\"00000000-0000-4000-8000-000000000001\",\"amountTwd\":\"100\"},{\"userId\":\"00000000-0000-4000-8000-000000000002\",\"amountTwd\":\"100\"}],\"status\":\"posted\",\"occurredOn\":\"2026-09-25\",\"createdAt\":\"2026-09-25T23:23:00Z\",\"version\":1,\"splitMethod\":\"equal\",\"category\":null,\"categoryId\":null,\"note\":null},{\"id\":\"00000000-0000-4000-8000-000000001038\",\"ledgerId\":\"00000000-0000-4000-8000-000000000010\",\"description\":\"日常紀錄 38\",\"type\":\"expense\",\"amountTwd\":\"200\",\"payments\":[{\"userId\":\"00000000-0000-4000-8000-000000000001\",\"amountTwd\":\"200\"}],\"shares\":[{\"userId\":\"00000000-0000-4000-8000-000000000001\",\"amountTwd\":\"100\"},{\"userId\":\"00000000-0000-4000-8000-000000000002\",\"amountTwd\":\"100\"}],\"status\":\"posted\",\"occurredOn\":\"2026-09-25\",\"createdAt\":\"2026-09-25T23:22:00Z\",\"version\":1,\"splitMethod\":\"equal\",\"category\":null,\"categoryId\":null,\"note\":null},{\"id\":\"00000000-0000-4000-8000-000000001039\",\"ledgerId\":\"00000000-0000-4000-8000-000000000010\",\"description\":\"日常紀錄 39\",\"type\":\"expense\",\"amountTwd\":\"200\",\"payments\":[{\"userId\":\"00000000-0000-4000-8000-000000000001\",\"amountTwd\":\"200\"}],\"shares\":[{\"userId\":\"00000000-0000-4000-8000-000000000001\",\"amountTwd\":\"100\"},{\"userId\":\"00000000-0000-4000-8000-000000000002\",\"amountTwd\":\"100\"}],\"status\":\"posted\",\"occurredOn\":\"2026-09-25\",\"createdAt\":\"2026-09-25T23:21:00Z\",\"version\":1,\"splitMethod\":\"equal\",\"category\":null,\"categoryId\":null,\"note\":null},{\"id\":\"00000000-0000-4000-8000-000000001040\",\"ledgerId\":\"00000000-0000-4000-8000-000000000010\",\"description\":\"日常紀錄 40\",\"type\":\"expense\",\"amountTwd\":\"200\",\"payments\":[{\"userId\":\"00000000-0000-4000-8000-000000000001\",\"amountTwd\":\"200\"}],\"shares\":[{\"userId\":\"00000000-0000-4000-8000-000000000001\",\"amountTwd\":\"100\"},{\"userId\":\"00000000-0000-4000-8000-000000000002\",\"amountTwd\":\"100\"}],\"status\":\"posted\",\"occurredOn\":\"2026-09-25\",\"createdAt\":\"2026-09-25T23:20:00Z\",\"version\":1,\"splitMethod\":\"equal\",\"category\":null,\"categoryId\":null,\"note\":null},{\"id\":\"00000000-0000-4000-8000-000000001041\",\"ledgerId\":\"00000000-0000-4000-8000-000000000010\",\"description\":\"日常紀錄 41\",\"type\":\"expense\",\"amountTwd\":\"200\",\"payments\":[{\"userId\":\"00000000-0000-4000-8000-000000000001\",\"amountTwd\":\"200\"}],\"shares\":[{\"userId\":\"00000000-0000-4000-8000-000000000001\",\"amountTwd\":\"100\"},{\"userId\":\"00000000-0000-4000-8000-000000000002\",\"amountTwd\":\"100\"}],\"status\":\"posted\",\"occurredOn\":\"2026-09-25\",\"createdAt\":\"2026-09-25T23:19:00Z\",\"version\":1,\"splitMethod\":\"equal\",\"category\":null,\"categoryId\":null,\"note\":null},{\"id\":\"00000000-0000-4000-8000-000000001042\",\"ledgerId\":\"00000000-0000-4000-8000-000000000010\",\"description\":\"日常紀錄 42\",\"type\":\"expense\",\"amountTwd\":\"200\",\"payments\":[{\"userId\":\"00000000-0000-4000-8000-000000000001\",\"amountTwd\":\"200\"}],\"shares\":[{\"userId\":\"00000000-0000-4000-8000-000000000001\",\"amountTwd\":\"100\"},{\"userId\":\"00000000-0000-4000-8000-000000000002\",\"amountTwd\":\"100\"}],\"status\":\"posted\",\"occurredOn\":\"2026-09-25\",\"createdAt\":\"2026-09-25T23:18:00Z\",\"version\":1,\"splitMethod\":\"equal\",\"category\":null,\"categoryId\":null,\"note\":null},{\"id\":\"00000000-0000-4000-8000-000000001043\",\"ledgerId\":\"00000000-0000-4000-8000-000000000010\",\"description\":\"日常紀錄 43\",\"type\":\"expense\",\"amountTwd\":\"200\",\"payments\":[{\"userId\":\"00000000-0000-4000-8000-000000000001\",\"amountTwd\":\"200\"}],\"shares\":[{\"userId\":\"00000000-0000-4000-8000-000000000001\",\"amountTwd\":\"100\"},{\"userId\":\"00000000-0000-4000-8000-000000000002\",\"amountTwd\":\"100\"}],\"status\":\"posted\",\"occurredOn\":\"2026-09-25\",\"createdAt\":\"2026-09-25T23:17:00Z\",\"version\":1,\"splitMethod\":\"equal\",\"category\":null,\"categoryId\":null,\"note\":null},{\"id\":\"00000000-0000-4000-8000-000000001044\",\"ledgerId\":\"00000000-0000-4000-8000-000000000010\",\"description\":\"日常紀錄 44\",\"type\":\"expense\",\"amountTwd\":\"200\",\"payments\":[{\"userId\":\"00000000-0000-4000-8000-000000000001\",\"amountTwd\":\"200\"}],\"shares\":[{\"userId\":\"00000000-0000-4000-8000-000000000001\",\"amountTwd\":\"100\"},{\"userId\":\"00000000-0000-4000-8000-000000000002\",\"amountTwd\":\"100\"}],\"status\":\"posted\",\"occurredOn\":\"2026-09-25\",\"createdAt\":\"2026-09-25T23:16:00Z\",\"version\":1,\"splitMethod\":\"equal\",\"category\":null,\"categoryId\":null,\"note\":null},{\"id\":\"00000000-0000-4000-8000-000000001045\",\"ledgerId\":\"00000000-0000-4000-8000-000000000010\",\"description\":\"日常紀錄 45\",\"type\":\"expense\",\"amountTwd\":\"200\",\"payments\":[{\"userId\":\"00000000-0000-4000-8000-000000000001\",\"amountTwd\":\"200\"}],\"shares\":[{\"userId\":\"00000000-0000-4000-8000-000000000001\",\"amountTwd\":\"100\"},{\"userId\":\"00000000-0000-4000-8000-000000000002\",\"amountTwd\":\"100\"}],\"status\":\"posted\",\"occurredOn\":\"2026-09-25\",\"createdAt\":\"2026-09-25T23:15:00Z\",\"version\":1,\"splitMethod\":\"equal\",\"category\":null,\"categoryId\":null,\"note\":null},{\"id\":\"00000000-0000-4000-8000-000000001046\",\"ledgerId\":\"00000000-0000-4000-8000-000000000010\",\"description\":\"日常紀錄 46\",\"type\":\"expense\",\"amountTwd\":\"200\",\"payments\":[{\"userId\":\"00000000-0000-4000-8000-000000000001\",\"amountTwd\":\"200\"}],\"shares\":[{\"userId\":\"00000000-0000-4000-8000-000000000001\",\"amountTwd\":\"100\"},{\"userId\":\"00000000-0000-4000-8000-000000000002\",\"amountTwd\":\"100\"}],\"status\":\"posted\",\"occurredOn\":\"2026-09-25\",\"createdAt\":\"2026-09-25T23:14:00Z\",\"version\":1,\"splitMethod\":\"equal\",\"category\":null,\"categoryId\":null,\"note\":null},{\"id\":\"00000000-0000-4000-8000-000000001047\",\"ledgerId\":\"00000000-0000-4000-8000-000000000010\",\"description\":\"日常紀錄 47\",\"type\":\"expense\",\"amountTwd\":\"200\",\"payments\":[{\"userId\":\"00000000-0000-4000-8000-000000000001\",\"amountTwd\":\"200\"}],\"shares\":[{\"userId\":\"00000000-0000-4000-8000-000000000001\",\"amountTwd\":\"100\"},{\"userId\":\"00000000-0000-4000-8000-000000000002\",\"amountTwd\":\"100\"}],\"status\":\"posted\",\"occurredOn\":\"2026-09-25\",\"createdAt\":\"2026-09-25T23:13:00Z\",\"version\":1,\"splitMethod\":\"equal\",\"category\":null,\"categoryId\":null,\"note\":null},{\"id\":\"00000000-0000-4000-8000-000000001048\",\"ledgerId\":\"00000000-0000-4000-8000-000000000010\",\"description\":\"日常紀錄 48\",\"type\":\"expense\",\"amountTwd\":\"200\",\"payments\":[{\"userId\":\"00000000-0000-4000-8000-000000000001\",\"amountTwd\":\"200\"}],\"shares\":[{\"userId\":\"00000000-0000-4000-8000-000000000001\",\"amountTwd\":\"100\"},{\"userId\":\"00000000-0000-4000-8000-000000000002\",\"amountTwd\":\"100\"}],\"status\":\"posted\",\"occurredOn\":\"2026-09-25\",\"createdAt\":\"2026-09-25T23:12:00Z\",\"version\":1,\"splitMethod\":\"equal\",\"category\":null,\"categoryId\":null,\"note\":null},{\"id\":\"00000000-0000-4000-8000-000000001049\",\"ledgerId\":\"00000000-0000-4000-8000-000000000010\",\"description\":\"日常紀錄 49\",\"type\":\"expense\",\"amountTwd\":\"200\",\"payments\":[{\"userId\":\"00000000-0000-4000-8000-000000000001\",\"amountTwd\":\"200\"}],\"shares\":[{\"userId\":\"00000000-0000-4000-8000-000000000001\",\"amountTwd\":\"100\"},{\"userId\":\"00000000-0000-4000-8000-000000000002\",\"amountTwd\":\"100\"}],\"status\":\"posted\",\"occurredOn\":\"2026-09-25\",\"createdAt\":\"2026-09-25T23:11:00Z\",\"version\":1,\"splitMethod\":\"equal\",\"category\":null,\"categoryId\":null,\"note\":null},{\"id\":\"00000000-0000-4000-8000-000000001050\",\"ledgerId\":\"00000000-0000-4000-8000-000000000010\",\"description\":\"日常紀錄 50\",\"type\":\"expense\",\"amountTwd\":\"200\",\"payments\":[{\"userId\":\"00000000-0000-4000-8000-000000000001\",\"amountTwd\":\"200\"}],\"shares\":[{\"userId\":\"00000000-0000-4000-8000-000000000001\",\"amountTwd\":\"100\"},{\"userId\":\"00000000-0000-4000-8000-000000000002\",\"amountTwd\":\"100\"}],\"status\":\"posted\",\"occurredOn\":\"2026-09-25\",\"createdAt\":\"2026-09-25T23:10:00Z\",\"version\":1,\"splitMethod\":\"equal\",\"category\":null,\"categoryId\":null,\"note\":null},{\"id\":\"00000000-0000-4000-8000-000000001051\",\"ledgerId\":\"00000000-0000-4000-8000-000000000010\",\"description\":\"日常紀錄 51\",\"type\":\"expense\",\"amountTwd\":\"200\",\"payments\":[{\"userId\":\"00000000-0000-4000-8000-000000000001\",\"amountTwd\":\"200\"}],\"shares\":[{\"userId\":\"00000000-0000-4000-8000-000000000001\",\"amountTwd\":\"100\"},{\"userId\":\"00000000-0000-4000-8000-000000000002\",\"amountTwd\":\"100\"}],\"status\":\"posted\",\"occurredOn\":\"2026-09-25\",\"createdAt\":\"2026-09-25T23:09:00Z\",\"version\":1,\"splitMethod\":\"equal\",\"category\":null,\"categoryId\":null,\"note\":null},{\"id\":\"00000000-0000-4000-8000-000000001052\",\"ledgerId\":\"00000000-0000-4000-8000-000000000010\",\"description\":\"日常紀錄 52\",\"type\":\"expense\",\"amountTwd\":\"200\",\"payments\":[{\"userId\":\"00000000-0000-4000-8000-000000000001\",\"amountTwd\":\"200\"}],\"shares\":[{\"userId\":\"00000000-0000-4000-8000-000000000001\",\"amountTwd\":\"100\"},{\"userId\":\"00000000-0000-4000-8000-000000000002\",\"amountTwd\":\"100\"}],\"status\":\"posted\",\"occurredOn\":\"2026-09-25\",\"createdAt\":\"2026-09-25T23:08:00Z\",\"version\":1,\"splitMethod\":\"equal\",\"category\":null,\"categoryId\":null,\"note\":null},{\"id\":\"00000000-0000-4000-8000-000000001053\",\"ledgerId\":\"00000000-0000-4000-8000-000000000010\",\"description\":\"日常紀錄 53\",\"type\":\"expense\",\"amountTwd\":\"200\",\"payments\":[{\"userId\":\"00000000-0000-4000-8000-000000000001\",\"amountTwd\":\"200\"}],\"shares\":[{\"userId\":\"00000000-0000-4000-8000-000000000001\",\"amountTwd\":\"100\"},{\"userId\":\"00000000-0000-4000-8000-000000000002\",\"amountTwd\":\"100\"}],\"status\":\"posted\",\"occurredOn\":\"2026-09-25\",\"createdAt\":\"2026-09-25T23:07:00Z\",\"version\":1,\"splitMethod\":\"equal\",\"category\":null,\"categoryId\":null,\"note\":null},{\"id\":\"00000000-0000-4000-8000-000000001054\",\"ledgerId\":\"00000000-0000-4000-8000-000000000010\",\"description\":\"日常紀錄 54\",\"type\":\"expense\",\"amountTwd\":\"200\",\"payments\":[{\"userId\":\"00000000-0000-4000-8000-000000000001\",\"amountTwd\":\"200\"}],\"shares\":[{\"userId\":\"00000000-0000-4000-8000-000000000001\",\"amountTwd\":\"100\"},{\"userId\":\"00000000-0000-4000-8000-000000000002\",\"amountTwd\":\"100\"}],\"status\":\"posted\",\"occurredOn\":\"2026-09-25\",\"createdAt\":\"2026-09-25T23:06:00Z\",\"version\":1,\"splitMethod\":\"equal\",\"category\":null,\"categoryId\":null,\"note\":null},{\"id\":\"00000000-0000-4000-8000-000000001055\",\"ledgerId\":\"00000000-0000-4000-8000-000000000010\",\"description\":\"日常紀錄 55\",\"type\":\"expense\",\"amountTwd\":\"200\",\"payments\":[{\"userId\":\"00000000-0000-4000-8000-000000000001\",\"amountTwd\":\"200\"}],\"shares\":[{\"userId\":\"00000000-0000-4000-8000-000000000001\",\"amountTwd\":\"100\"},{\"userId\":\"00000000-0000-4000-8000-000000000002\",\"amountTwd\":\"100\"}],\"status\":\"posted\",\"occurredOn\":\"2026-09-25\",\"createdAt\":\"2026-09-25T23:05:00Z\",\"version\":1,\"splitMethod\":\"equal\",\"category\":null,\"categoryId\":null,\"note\":null},{\"id\":\"00000000-0000-4000-8000-000000001056\",\"ledgerId\":\"00000000-0000-4000-8000-000000000010\",\"description\":\"日常紀錄 56\",\"type\":\"expense\",\"amountTwd\":\"200\",\"payments\":[{\"userId\":\"00000000-0000-4000-8000-000000000001\",\"amountTwd\":\"200\"}],\"shares\":[{\"userId\":\"00000000-0000-4000-8000-000000000001\",\"amountTwd\":\"100\"},{\"userId\":\"00000000-0000-4000-8000-000000000002\",\"amountTwd\":\"100\"}],\"status\":\"posted\",\"occurredOn\":\"2026-09-25\",\"createdAt\":\"2026-09-25T23:04:00Z\",\"version\":1,\"splitMethod\":\"equal\",\"category\":null,\"categoryId\":null,\"note\":null},{\"id\":\"00000000-0000-4000-8000-000000001057\",\"ledgerId\":\"00000000-0000-4000-8000-000000000010\",\"description\":\"日常紀錄 57\",\"type\":\"expense\",\"amountTwd\":\"200\",\"payments\":[{\"userId\":\"00000000-0000-4000-8000-000000000001\",\"amountTwd\":\"200\"}],\"shares\":[{\"userId\":\"00000000-0000-4000-8000-000000000001\",\"amountTwd\":\"100\"},{\"userId\":\"00000000-0000-4000-8000-000000000002\",\"amountTwd\":\"100\"}],\"status\":\"posted\",\"occurredOn\":\"2026-09-25\",\"createdAt\":\"2026-09-25T23:03:00Z\",\"version\":1,\"splitMethod\":\"equal\",\"category\":null,\"categoryId\":null,\"note\":null},{\"id\":\"00000000-0000-4000-8000-000000001058\",\"ledgerId\":\"00000000-0000-4000-8000-000000000010\",\"description\":\"日常紀錄 58\",\"type\":\"expense\",\"amountTwd\":\"200\",\"payments\":[{\"userId\":\"00000000-0000-4000-8000-000000000001\",\"amountTwd\":\"200\"}],\"shares\":[{\"userId\":\"00000000-0000-4000-8000-000000000001\",\"amountTwd\":\"100\"},{\"userId\":\"00000000-0000-4000-8000-000000000002\",\"amountTwd\":\"100\"}],\"status\":\"posted\",\"occurredOn\":\"2026-09-25\",\"createdAt\":\"2026-09-25T23:02:00Z\",\"version\":1,\"splitMethod\":\"equal\",\"category\":null,\"categoryId\":null,\"note\":null},{\"id\":\"00000000-0000-4000-8000-000000001059\",\"ledgerId\":\"00000000-0000-4000-8000-000000000010\",\"description\":\"日常紀錄 59\",\"type\":\"expense\",\"amountTwd\":\"200\",\"payments\":[{\"userId\":\"00000000-0000-4000-8000-000000000001\",\"amountTwd\":\"200\"}],\"shares\":[{\"userId\":\"00000000-0000-4000-8000-000000000001\",\"amountTwd\":\"100\"},{\"userId\":\"00000000-0000-4000-8000-000000000002\",\"amountTwd\":\"100\"}],\"status\":\"posted\",\"occurredOn\":\"2026-09-25\",\"createdAt\":\"2026-09-25T23:01:00Z\",\"version\":1,\"splitMethod\":\"equal\",\"category\":null,\"categoryId\":null,\"note\":null},{\"id\":\"00000000-0000-4000-8000-000000001060\",\"ledgerId\":\"00000000-0000-4000-8000-000000000010\",\"description\":\"昨日買菜\",\"type\":\"expense\",\"amountTwd\":\"200\",\"payments\":[{\"userId\":\"00000000-0000-4000-8000-000000000001\",\"amountTwd\":\"200\"}],\"shares\":[{\"userId\":\"00000000-0000-4000-8000-000000000001\",\"amountTwd\":\"100\"},{\"userId\":\"00000000-0000-4000-8000-000000000002\",\"amountTwd\":\"100\"}],\"status\":\"posted\",\"occurredOn\":\"2026-09-24\",\"createdAt\":\"2026-09-25T00:00:00Z\",\"version\":1,\"splitMethod\":\"equal\",\"category\":null,\"categoryId\":null,\"note\":null},{\"id\":\"00000000-0000-4000-8000-000000001061\",\"ledgerId\":\"00000000-0000-4000-8000-000000000010\",\"description\":\"去年家用\",\"type\":\"expense\",\"amountTwd\":\"200\",\"payments\":[{\"userId\":\"00000000-0000-4000-8000-000000000001\",\"amountTwd\":\"200\"}],\"shares\":[{\"userId\":\"00000000-0000-4000-8000-000000000001\",\"amountTwd\":\"100\"},{\"userId\":\"00000000-0000-4000-8000-000000000002\",\"amountTwd\":\"100\"}],\"status\":\"posted\",\"occurredOn\":\"2025-12-31\",\"createdAt\":\"2026-09-25T00:00:00Z\",\"version\":1,\"splitMethod\":\"equal\",\"category\":null,\"categoryId\":null,\"note\":null},{\"id\":\"00000000-0000-4000-8000-000000001070\",\"ledgerId\":\"00000000-0000-4000-8000-000000000010\",\"description\":\"原始晚餐\",\"type\":\"expense\",\"amountTwd\":\"200\",\"payments\":[{\"userId\":\"00000000-0000-4000-8000-000000000001\",\"amountTwd\":\"200\"}],\"shares\":[{\"userId\":\"00000000-0000-4000-8000-000000000001\",\"amountTwd\":\"100\"},{\"userId\":\"00000000-0000-4000-8000-000000000002\",\"amountTwd\":\"100\"}],\"status\":\"voided\",\"occurredOn\":\"2026-09-25\",\"createdAt\":\"2026-09-25T00:00:00Z\",\"version\":2,\"splitMethod\":\"equal\",\"category\":null,\"categoryId\":null,\"note\":null,\"replacedByTransactionId\":\"00000000-0000-4000-8000-000000001071\"},{\"id\":\"00000000-0000-4000-8000-000000001071\",\"ledgerId\":\"00000000-0000-4000-8000-000000000010\",\"description\":\"修正後晚餐\",\"type\":\"expense\",\"amountTwd\":\"200\",\"payments\":[{\"userId\":\"00000000-0000-4000-8000-000000000001\",\"amountTwd\":\"200\"}],\"shares\":[{\"userId\":\"00000000-0000-4000-8000-000000000001\",\"amountTwd\":\"100\"},{\"userId\":\"00000000-0000-4000-8000-000000000002\",\"amountTwd\":\"100\"}],\"status\":\"posted\",\"occurredOn\":\"2026-09-23\",\"createdAt\":\"2026-09-25T00:00:00Z\",\"version\":1,\"splitMethod\":\"equal\",\"category\":null,\"categoryId\":null,\"note\":null,\"replacesTransactionId\":\"00000000-0000-4000-8000-000000001070\"},{\"id\":\"00000000-0000-4000-8000-000000001072\",\"ledgerId\":\"00000000-0000-4000-8000-000000000010\",\"description\":\"已作廢早餐\",\"type\":\"expense\",\"amountTwd\":\"200\",\"payments\":[{\"userId\":\"00000000-0000-4000-8000-000000000001\",\"amountTwd\":\"200\"}],\"shares\":[{\"userId\":\"00000000-0000-4000-8000-000000000001\",\"amountTwd\":\"100\"},{\"userId\":\"00000000-0000-4000-8000-000000000002\",\"amountTwd\":\"100\"}],\"status\":\"voided\",\"occurredOn\":\"2026-09-22\",\"createdAt\":\"2026-09-25T00:00:00Z\",\"version\":2,\"splitMethod\":\"equal\",\"category\":null,\"categoryId\":null,\"note\":null}],\"balance\":{\"00000000-0000-4000-8000-000000000001\":\"50000006070\",\"00000000-0000-4000-8000-000000000002\":\"-50000006070\"},\"nextPayer\":{\"payerUserId\":\"00000000-0000-4000-8000-000000000002\",\"payeeUserId\":\"00000000-0000-4000-8000-000000000001\",\"amountTwd\":\"50000006070\"}}",
+          "isBase64": false
+        },
+        "error": null
+      },
+      {
+        "durationMs": 1285.8,
+        "method": "expect",
+        "params": {
+          "selector": "internal:label=\"金額，新臺幣\"i",
+          "expression": "to.be.visible",
+          "expectedValue": {
+            "value": {
+              "v": "undefined"
+            },
+            "handles": []
+          },
+          "isNot": false,
+          "timeout": 5000
+        },
+        "error": null
+      },
+      {
+        "durationMs": 100.2,
+        "method": "fulfill",
+        "params": {
+          "status": 200,
+          "headers": [
+            {
+              "name": "content-type",
+              "value": "application/json"
+            },
+            {
+              "name": "content-length",
+              "value": "17"
+            }
+          ],
+          "body": "{\"categories\":[]}",
+          "isBase64": false
+        },
+        "error": null
+      },
+      {
+        "durationMs": 72.7,
+        "method": "expect",
+        "params": {
+          "selector": "internal:testid=[data-testid=\"ledger-timeline\"s]",
+          "expression": "to.be.visible",
+          "expectedValue": {
+            "value": {
+              "v": "undefined"
+            },
+            "handles": []
+          },
+          "isNot": false,
+          "timeout": 5000
+        },
+        "error": null
+      },
+      {
+        "durationMs": 13.7,
+        "method": "expect",
+        "params": {
+          "selector": "internal:testid=[data-testid=\"ledger-timeline\"s] >> button[data-transaction-id]",
+          "expression": "to.have.count",
+          "expectedNumber": 20,
+          "expectedValue": {
+            "value": {
+              "v": "undefined"
+            },
+            "handles": []
+          },
+          "isNot": false,
+          "timeout": 5000
+        },
+        "error": null
+      },
+      {
+        "durationMs": 85.0,
+        "method": "evalOnSelectorAll",
+        "params": {
+          "selector": "internal:testid=[data-testid=\"ledger-timeline\"s] >> button[data-transaction-id]",
+          "expression": "nodes => nodes.map(node => node.getAttribute(\"data-transaction-id\"))",
+          "isFunction": true,
+          "arg": {
+            "value": {
+              "v": "undefined"
+            },
+            "handles": []
+          }
+        },
+        "error": null
+      },
+      {
+        "durationMs": 20.0,
+        "method": "evalOnSelectorAll",
+        "params": {
+          "selector": "internal:testid=[data-testid=\"ledger-timeline\"s] >> button[data-transaction-id]",
+          "expression": "nodes => nodes.map(node => node.getBoundingClientRect().top + scrollY)",
+          "isFunction": true,
+          "arg": {
+            "value": {
+              "v": "undefined"
+            },
+            "handles": []
+          }
+        },
+        "error": null
+      },
+      {
+        "durationMs": 11.1,
+        "method": "evaluateExpression",
+        "params": {
+          "expression": "() => {\n    var _ref, _document$activeEleme, _document$activeEleme2, _document$activeEleme3, _document$activeEleme4;\n    return {\n      viewport: {\n        width: innerWidth,\n        height: innerHeight\n      },\n      scrollY,\n      documentWidth: document.documentElement.scrollWidth,\n      bodyWidth: document.body.scrollWidth,\n      timelineRows: document.querySelectorAll('[data-testid=\"ledger-timeline\"] button[data-transaction-id]').length,\n      rowIds: Array.from(document.querySelectorAll('[data-testid=\"ledger-timeline\"] button[data-transaction-id]')).map(node => node.getAttribute(\"data-transaction-id\")),\n      rowRects: Array.from(document.querySelectorAll('[data-testid=\"ledger-timeline\"] button[data-transaction-id]')).map(node => ({\n        id: node.getAttribute(\"data-transaction-id\"),\n        height: node.getBoundingClientRect().height,\n        width: node.getBoundingClientRect().width\n      })),\n      amountRects: Array.from(document.querySelectorAll(\"[data-timeline-amount]\")).map(node => ({\n        text: node.textContent,\n        width: node.clientWidth,\n        scrollWidth: node.scrollWidth,\n        fontSize: getComputedStyle(node).fontSize,\n        fontVariantNumeric: getComputedStyle(node).fontVariantNumeric\n      })),\n      dateHeadings: Array.from(document.querySelectorAll(\"[data-timeline-date]\")).map(node => ({\n        date: node.getAttribute(\"data-timeline-date\"),\n        text: node.textContent,\n        tag: node.tagName\n      })),\n      focus: (_ref = (_document$activeEleme = (_document$activeEleme2 = document.activeElement) === null || _document$activeEleme2 === void 0 ? void 0 : _document$activeEleme2.getAttribute(\"data-transaction-id\")) !== null && _document$activeEleme !== void 0 ? _document$activeEleme : (_document$activeEleme3 = document.activeElement) === null || _document$activeEleme3 === void 0 ? void 0 : _document$activeEleme3.getAttribute(\"data-testid\")) !== null && _ref !== void 0 ? _ref : (_document$activeEleme4 = document.activeElement) === null || _document$activeEleme4 === void 0 ? void 0 : _document$activeEleme4.tagName\n    };\n  }",
+          "isFunction": true,
+          "arg": {
+            "value": {
+              "v": "undefined"
+            },
+            "handles": []
+          }
+        },
+        "error": null
+      },
+      {
+        "durationMs": 2993.9,
+        "method": "screenshot",
+        "params": {
+          "timeout": 0,
+          "type": "png",
+          "fullPage": true,
+          "animations": "disabled"
+        },
+        "error": null
+      },
+      {
+        "durationMs": 2205.5,
+        "method": "click",
+        "params": {
+          "selector": "internal:role=button[name=\"更早紀錄\"s]",
+          "strict": true,
+          "timeout": 0
+        },
+        "error": null
+      },
+      {
+        "durationMs": 21.0,
+        "method": "expect",
+        "params": {
+          "selector": "internal:testid=[data-testid=\"ledger-timeline\"s] >> button[data-transaction-id]",
+          "expression": "to.have.count",
+          "expectedNumber": 40,
+          "expectedValue": {
+            "value": {
+              "v": "undefined"
+            },
+            "handles": []
+          },
+          "isNot": false,
+          "timeout": 5000
+        },
+        "error": null
+      },
+      {
+        "durationMs": 34.3,
+        "method": "evalOnSelectorAll",
+        "params": {
+          "selector": "internal:testid=[data-testid=\"ledger-timeline\"s] >> button[data-transaction-id]",
+          "expression": "nodes => nodes.slice(0, 20).map(node => node.getAttribute(\"data-transaction-id\"))",
+          "isFunction": true,
+          "arg": {
+            "value": {
+              "v": "undefined"
+            },
+            "handles": []
+          }
+        },
+        "error": null
+      },
+      {
+        "durationMs": 34.9,
+        "method": "evalOnSelectorAll",
+        "params": {
+          "selector": "internal:testid=[data-testid=\"ledger-timeline\"s] >> button[data-transaction-id]",
+          "expression": "nodes => nodes.slice(0, 20).map(node => node.getBoundingClientRect().top + scrollY)",
+          "isFunction": true,
+          "arg": {
+            "value": {
+              "v": "undefined"
+            },
+            "handles": []
+          }
+        },
+        "error": null
+      },
+      {
+        "durationMs": 88.2,
+        "method": "expect",
+        "params": {
+          "selector": "internal:testid=[data-testid=\"ledger-timeline\"s] >> [data-timeline-date=\"2026-09-25\"]",
+          "expression": "to.have.count",
+          "expectedNumber": 1,
+          "expectedValue": {
+            "value": {
+              "v": "undefined"
+            },
+            "handles": []
+          },
+          "isNot": false,
+          "timeout": 5000
+        },
+        "error": null
+      },
+      {
+        "durationMs": 28.5,
+        "method": "evaluateExpression",
+        "params": {
+          "expression": "() => {\n    var _ref, _document$activeEleme, _document$activeEleme2, _document$activeEleme3, _document$activeEleme4;\n    return {\n      viewport: {\n        width: innerWidth,\n        height: innerHeight\n      },\n      scrollY,\n      documentWidth: document.documentElement.scrollWidth,\n      bodyWidth: document.body.scrollWidth,\n      timelineRows: document.querySelectorAll('[data-testid=\"ledger-timeline\"] button[data-transaction-id]').length,\n      rowIds: Array.from(document.querySelectorAll('[data-testid=\"ledger-timeline\"] button[data-transaction-id]')).map(node => node.getAttribute(\"data-transaction-id\")),\n      rowRects: Array.from(document.querySelectorAll('[data-testid=\"ledger-timeline\"] button[data-transaction-id]')).map(node => ({\n        id: node.getAttribute(\"data-transaction-id\"),\n        height: node.getBoundingClientRect().height,\n        width: node.getBoundingClientRect().width\n      })),\n      amountRects: Array.from(document.querySelectorAll(\"[data-timeline-amount]\")).map(node => ({\n        text: node.textContent,\n        width: node.clientWidth,\n        scrollWidth: node.scrollWidth,\n        fontSize: getComputedStyle(node).fontSize,\n        fontVariantNumeric: getComputedStyle(node).fontVariantNumeric\n      })),\n      dateHeadings: Array.from(document.querySelectorAll(\"[data-timeline-date]\")).map(node => ({\n        date: node.getAttribute(\"data-timeline-date\"),\n        text: node.textContent,\n        tag: node.tagName\n      })),\n      focus: (_ref = (_document$activeEleme = (_document$activeEleme2 = document.activeElement) === null || _document$activeEleme2 === void 0 ? void 0 : _document$activeEleme2.getAttribute(\"data-transaction-id\")) !== null && _document$activeEleme !== void 0 ? _document$activeEleme : (_document$activeEleme3 = document.activeElement) === null || _document$activeEleme3 === void 0 ? void 0 : _document$activeEleme3.getAttribute(\"data-testid\")) !== null && _ref !== void 0 ? _ref : (_document$activeEleme4 = document.activeElement) === null || _document$activeEleme4 === void 0 ? void 0 : _document$activeEleme4.tagName\n    };\n  }",
+          "isFunction": true,
+          "arg": {
+            "value": {
+              "v": "undefined"
+            },
+            "handles": []
+          }
+        },
+        "error": null
+      },
+      {
+        "durationMs": 4137.2,
+        "method": "screenshot",
+        "params": {
+          "timeout": 0,
+          "type": "png",
+          "fullPage": true,
+          "animations": "disabled"
+        },
+        "error": null
+      },
+      {
+        "durationMs": 4242.0,
+        "method": "click",
+        "params": {
+          "selector": "internal:role=button[name=\"更早紀錄\"s]",
+          "strict": true,
+          "timeout": 0
+        },
+        "error": null
+      },
+      {
+        "durationMs": 28.7,
+        "method": "expect",
+        "params": {
+          "selector": "internal:testid=[data-testid=\"ledger-timeline\"s] >> button[data-transaction-id]",
+          "expression": "to.have.count",
+          "expectedNumber": 60,
+          "expectedValue": {
+            "value": {
+              "v": "undefined"
+            },
+            "handles": []
+          },
+          "isNot": false,
+          "timeout": 5000
+        },
+        "error": null
+      },
+      {
+        "durationMs": 38.3,
+        "method": "expect",
+        "params": {
+          "selector": "internal:testid=[data-testid=\"ledger-timeline\"s] >> [data-timeline-date=\"2026-09-25\"]",
+          "expression": "to.have.count",
+          "expectedNumber": 1,
+          "expectedValue": {
+            "value": {
+              "v": "undefined"
+            },
+            "handles": []
+          },
+          "isNot": false,
+          "timeout": 5000
+        },
+        "error": null
+      },
+      {
+        "durationMs": 65.3,
+        "method": "expect",
+        "params": {
+          "selector": "internal:testid=[data-testid=\"ledger-timeline\"s]",
+          "expression": "to.be.visible",
+          "expectedValue": {
+            "value": {
+              "v": "undefined"
+            },
+            "handles": []
+          },
+          "isNot": false,
+          "timeout": 5000
+        },
+        "error": null
+      },
+      {
+        "durationMs": 29.2,
+        "method": "queryCount",
+        "params": {
+          "selector": "internal:role=button[name=\"更早紀錄\"s]"
+        },
+        "error": null
+      },
+      {
+        "durationMs": 36.0,
+        "method": "isEnabled",
+        "params": {
+          "selector": "internal:role=button[name=\"更早紀錄\"s]",
+          "strict": true,
+          "timeout": 0
+        },
+        "error": null
+      },
+      {
+        "durationMs": 3795.8,
+        "method": "click",
+        "params": {
+          "selector": "internal:role=button[name=\"更早紀錄\"s]",
+          "strict": true,
+          "timeout": 0
+        },
+        "error": null
+      },
+      {
+        "durationMs": 45.0,
+        "method": "queryCount",
+        "params": {
+          "selector": "internal:role=button[name=\"更早紀錄\"s]"
+        },
+        "error": null
+      },
+      {
+        "durationMs": 23.5,
+        "method": "expect",
+        "params": {
+          "selector": "internal:testid=[data-testid=\"ledger-timeline\"s] >> button[data-transaction-id]",
+          "expression": "to.have.count",
+          "expectedNumber": 62,
+          "expectedValue": {
+            "value": {
+              "v": "undefined"
+            },
+            "handles": []
+          },
+          "isNot": false,
+          "timeout": 5000
+        },
+        "error": null
+      },
+      {
+        "durationMs": 46.6,
+        "method": "expect",
+        "params": {
+          "selector": "internal:role=button[name=\"更早紀錄\"s]",
+          "expression": "to.have.count",
+          "expectedNumber": 0,
+          "expectedValue": {
+            "value": {
+              "v": "undefined"
+            },
+            "handles": []
+          },
+          "isNot": false,
+          "timeout": 5000
+        },
+        "error": null
+      },
+      {
+        "durationMs": 20.0,
+        "method": "expect",
+        "params": {
+          "selector": "button[data-transaction-id=\"00000000-0000-4000-8000-000000001070\"]",
+          "expression": "to.have.count",
+          "expectedNumber": 0,
+          "expectedValue": {
+            "value": {
+              "v": "undefined"
+            },
+            "handles": []
+          },
+          "isNot": false,
+          "timeout": 5000
+        },
+        "error": null
+      },
+      {
+        "durationMs": 17.6,
+        "method": "expect",
+        "params": {
+          "selector": "button[data-transaction-id=\"00000000-0000-4000-8000-000000001072\"]",
+          "expression": "to.have.count",
+          "expectedNumber": 0,
+          "expectedValue": {
+            "value": {
+              "v": "undefined"
+            },
+            "handles": []
+          },
+          "isNot": false,
+          "timeout": 5000
+        },
+        "error": null
+      },
+      {
+        "durationMs": 48.9,
+        "method": "evaluateExpression",
+        "params": {
+          "expression": "() => {\n    var _ref, _document$activeEleme, _document$activeEleme2, _document$activeEleme3, _document$activeEleme4;\n    return {\n      viewport: {\n        width: innerWidth,\n        height: innerHeight\n      },\n      scrollY,\n      documentWidth: document.documentElement.scrollWidth,\n      bodyWidth: document.body.scrollWidth,\n      timelineRows: document.querySelectorAll('[data-testid=\"ledger-timeline\"] button[data-transaction-id]').length,\n      rowIds: Array.from(document.querySelectorAll('[data-testid=\"ledger-timeline\"] button[data-transaction-id]')).map(node => node.getAttribute(\"data-transaction-id\")),\n      rowRects: Array.from(document.querySelectorAll('[data-testid=\"ledger-timeline\"] button[data-transaction-id]')).map(node => ({\n        id: node.getAttribute(\"data-transaction-id\"),\n        height: node.getBoundingClientRect().height,\n        width: node.getBoundingClientRect().width\n      })),\n      amountRects: Array.from(document.querySelectorAll(\"[data-timeline-amount]\")).map(node => ({\n        text: node.textContent,\n        width: node.clientWidth,\n        scrollWidth: node.scrollWidth,\n        fontSize: getComputedStyle(node).fontSize,\n        fontVariantNumeric: getComputedStyle(node).fontVariantNumeric\n      })),\n      dateHeadings: Array.from(document.querySelectorAll(\"[data-timeline-date]\")).map(node => ({\n        date: node.getAttribute(\"data-timeline-date\"),\n        text: node.textContent,\n        tag: node.tagName\n      })),\n      focus: (_ref = (_document$activeEleme = (_document$activeEleme2 = document.activeElement) === null || _document$activeEleme2 === void 0 ? void 0 : _document$activeEleme2.getAttribute(\"data-transaction-id\")) !== null && _document$activeEleme !== void 0 ? _document$activeEleme : (_document$activeEleme3 = document.activeElement) === null || _document$activeEleme3 === void 0 ? void 0 : _document$activeEleme3.getAttribute(\"data-testid\")) !== null && _ref !== void 0 ? _ref : (_document$activeEleme4 = document.activeElement) === null || _document$activeEleme4 === void 0 ? void 0 : _document$activeEleme4.tagName\n    };\n  }",
+          "isFunction": true,
+          "arg": {
+            "value": {
+              "v": "undefined"
+            },
+            "handles": []
+          }
+        },
+        "error": null
+      },
+      {
+        "durationMs": 6461.3,
+        "method": "screenshot",
+        "params": {
+          "timeout": 0,
+          "type": "png",
+          "fullPage": true,
+          "animations": "disabled"
+        },
+        "error": null
+      }
+    ]
+  }
+]

@@ -1,0 +1,74 @@
+{
+  "baseline": "aa9799cdb78fab7bc91d0648113e77a76b58f70d",
+  "files": [
+    {
+      "path": "src/hooks/use-v2-entry-session.ts",
+      "unchanged": true,
+      "baselineSHA256": "8dc1aa5b0525a77740aae0d119689ae29636a9126c51594bd0c78b036a89b4af",
+      "candidateSHA256": "8dc1aa5b0525a77740aae0d119689ae29636a9126c51594bd0c78b036a89b4af"
+    },
+    {
+      "path": "src/lib/v2-transaction-draft.ts",
+      "unchanged": true,
+      "baselineSHA256": "71d176b76c3e92a3740b57831d7eacd867445d7e2c85f0dbc48a0223ab7c1394",
+      "candidateSHA256": "71d176b76c3e92a3740b57831d7eacd867445d7e2c85f0dbc48a0223ab7c1394"
+    },
+    {
+      "path": "src/lib/v2-entry-operation.ts",
+      "unchanged": true,
+      "baselineSHA256": "9b39ec4a5bdf0e4f7bc0da3026774959a0b75c9474c3b7f363e9339f14cce373",
+      "candidateSHA256": "9b39ec4a5bdf0e4f7bc0da3026774959a0b75c9474c3b7f363e9339f14cce373"
+    },
+    {
+      "path": "src/lib/v2-ledger.ts",
+      "unchanged": true,
+      "baselineSHA256": "93e8b7c870a4f4fc88b7cb483ab76d8a2a69c125133edad22d8ecfcce98cdc78",
+      "candidateSHA256": "93e8b7c870a4f4fc88b7cb483ab76d8a2a69c125133edad22d8ecfcce98cdc78"
+    },
+    {
+      "path": "src/lib/v2-direct-command.ts",
+      "unchanged": true,
+      "baselineSHA256": "5081620516151c2d50379de333c8d8fb3bdd658435fd3092006169ea66929ba1",
+      "candidateSHA256": "5081620516151c2d50379de333c8d8fb3bdd658435fd3092006169ea66929ba1"
+    },
+    {
+      "path": "src/lib/v2-ledger-service.ts",
+      "unchanged": true,
+      "baselineSHA256": "1b9c518a6bbb962d795daf55108e67c7954cd4c9147019298dd30a9a4fb1c618",
+      "candidateSHA256": "1b9c518a6bbb962d795daf55108e67c7954cd4c9147019298dd30a9a4fb1c618"
+    },
+    {
+      "path": "src/lib/v2-attachment-service.ts",
+      "unchanged": true,
+      "baselineSHA256": "f4a5cd586b59b63039d56b8d8a54bb2c2c03ff1c7f2df2e5a40abfcb007b7df5",
+      "candidateSHA256": "f4a5cd586b59b63039d56b8d8a54bb2c2c03ff1c7f2df2e5a40abfcb007b7df5"
+    },
+    {
+      "path": "src/components/ledger/v2-transaction-editor.tsx",
+      "unchanged": true,
+      "baselineSHA256": "9000a72431a69a8a517adcca309cdc6a3239695512be81f8546d7fa69df7396d",
+      "candidateSHA256": "9000a72431a69a8a517adcca309cdc6a3239695512be81f8546d7fa69df7396d"
+    },
+    {
+      "path": "src/components/ledger/v2-entry-controls.tsx",
+      "unchanged": true,
+      "baselineSHA256": "ba9131692494fd7befa769350f2a31b16eb1c75ccc94a460507a84833eab2037",
+      "candidateSHA256": "ba9131692494fd7befa769350f2a31b16eb1c75ccc94a460507a84833eab2037"
+    },
+    {
+      "path": "src/lib/v2-entry-presentation.ts",
+      "unchanged": true,
+      "baselineSHA256": "ee8c17bbb77e1b3ede80d9008c8877c8edd583da48e25535be28a21f1f50161d",
+      "candidateSHA256": "ee8c17bbb77e1b3ede80d9008c8877c8edd583da48e25535be28a21f1f50161d"
+    },
+    {
+      "path": "pnpm-lock.yaml",
+      "unchanged": true,
+      "baselineSHA256": "3dca2b21f1ed5628e726af46e68446a3dfb1e711c8aa4ac122ed04ce23163ac6",
+      "candidateSHA256": "3dca2b21f1ed5628e726af46e68446a3dfb1e711c8aa4ac122ed04ce23163ac6"
+    }
+  ],
+  "runtimeDependenciesUnchanged": true,
+  "devDependenciesUnchanged": true,
+  "testScriptAddsFocusedTestsOnly": true
+}

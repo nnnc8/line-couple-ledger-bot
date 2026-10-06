@@ -1,0 +1,122 @@
+{
+  "test": {
+    "title": "27 correction known commit remains success when read succeeds",
+    "project": "chromium-iphone",
+    "resultDir": "/Users/nc8/.codex/worktrees/p2-c-timeline-detail/New project/output/playwright/results/p2-c-timeline-27-correctio-96559--success-when-read-succeeds-chromium-iphone"
+  },
+  "metrics": {
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "scrollY": 0,
+    "documentWidth": 390,
+    "bodyWidth": 390,
+    "timelineRows": 0,
+    "rowIds": [],
+    "rowRects": [],
+    "amountRects": [],
+    "dateHeadings": [],
+    "focus": "H2"
+  },
+  "extra": {
+    "mutations": [
+      {
+        "transactionId": "00000000-0000-4000-8000-000000001004",
+        "body": {
+          "action": "replace",
+          "expectedVersion": 1,
+          "replacement": {
+            "type": "expense",
+            "amountTwd": "200",
+            "occurredOn": "2026-09-25",
+            "description": "已修正的晚餐",
+            "category": "餐飲",
+            "categoryId": "stored-archived-category",
+            "note": "這是完整備註，應該在詳情清楚換行。這是完整備註，應該在詳情清楚換行。這是完整備註，應該在詳情清楚換行。這是完整備註，應該在詳情清楚換行。這是完整備註，應該在詳情清楚換行。這是完整備註，應該在詳情清楚換行。這是完整備註，應該在詳情清楚換行。這是完整備註，應該在詳情清楚換行。這是完整備註，應該在詳情清楚換行。這是完整備註，應該在詳情清楚換行。這是完整備註，應該在詳情清楚換行。這是完整備註，應該在詳情清楚換行。https://example.invalid/receipt-context-receipt-context-receipt-context-receipt-context-receipt-context-receipt-context-receipt-context-receipt-context-receipt-context-receipt-context-receipt-context-receipt-context-receipt-context-receipt-context-receipt-context-receipt-context-receipt-context-receipt-context-receipt-context-receipt-context-",
+            "splitMethod": "exact",
+            "payments": [
+              {
+                "userId": "00000000-0000-4000-8000-000000000001",
+                "amountTwd": "200"
+              }
+            ],
+            "shares": [
+              {
+                "userId": "00000000-0000-4000-8000-000000000001",
+                "amountTwd": "100"
+              },
+              {
+                "userId": "00000000-0000-4000-8000-000000000002",
+                "amountTwd": "100"
+              }
+            ]
+          },
+          "idempotencyKey": "c17f5417-76c7-4884-981c-7d4e38c94772"
+        }
+      }
+    ],
+    "requests": [
+      {
+        "method": "POST",
+        "path": "/api/app/session",
+        "at": 60528.047875,
+        "finishedAt": 60533.281708
+      },
+      {
+        "method": "GET",
+        "path": "/api/app/v2/context",
+        "at": 60535.876542,
+        "finishedAt": 60542.886708
+      },
+      {
+        "method": "GET",
+        "path": "/api/app/v2/ledgers",
+        "at": 60542.971667,
+        "finishedAt": 60553.18075
+      },
+      {
+        "method": "GET",
+        "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/bootstrap",
+        "at": 60582.4965,
+        "finishedAt": 60593.249292
+      },
+      {
+        "method": "GET",
+        "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories",
+        "at": 60635.586333,
+        "finishedAt": 60655.06725
+      },
+      {
+        "method": "GET",
+        "path": "/api/app/v2/transactions/00000000-0000-4000-8000-000000001004/attachments",
+        "at": 60912.702333,
+        "finishedAt": 60925.125208
+      },
+      {
+        "method": "POST",
+        "path": "/api/app/v2/transactions/00000000-0000-4000-8000-000000001004/mutate",
+        "at": 61190.537292,
+        "finishedAt": 61198.279583
+      },
+      {
+        "method": "GET",
+        "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/bootstrap",
+        "at": 61198.860208,
+        "finishedAt": 61222.867333
+      },
+      {
+        "method": "GET",
+        "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories",
+        "at": 61218.05,
+        "finishedAt": 61232.446042
+      },
+      {
+        "method": "GET",
+        "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories",
+        "at": 61237.056792,
+        "finishedAt": 61240.985708
+      }
+    ]
+  }
+}

@@ -1,7 +1,7 @@
 export type V2SecondaryTab = "history" | "stats" | "settings";
 
 export type V2Surface = "HOME" | "TRANSACTION_DETAIL" | "STATS" | "SETTINGS" | "RECURRING" | "SEARCH" | "PROPOSAL_COMPAT_ENTRY";
-export const searchKeys = ["q", "type", "payerUserId", "categoryId", "from", "to"] as const;
+export const searchKeys = ["q", "type", "payerUserId", "categoryId", "from", "to", "includeVoided"] as const;
 export type SearchFilters = Partial<Record<typeof searchKeys[number], string>>;
 export type V2Navigation = {
   surface: V2Surface;
@@ -11,7 +11,7 @@ export type V2Navigation = {
   proposalId: string | null;
   filters: SearchFilters;
 };
-export type AppOrigin = { version: 1; documentId: string; ledgerId: string; rowId?: string };
+export type AppOrigin = { version: 1; documentId: string; ledgerId: string; rowId?: string; surface?: "SEARCH"; filters?: SearchFilters };
 export const originKey = "v2LedgerOrigin";
 
 /** Read LIFF's initial redirect envelope without changing it before liff.init. */
@@ -73,7 +73,8 @@ export function navigationHistoryMode(reason: "open" | "initialize" | "switch" |
 export function navigationHistoryState(previous: unknown, origin: AppOrigin | null): Record<string, unknown> {
   const state = previous && typeof previous === "object" ? { ...previous } : {};
   // Explicit allowlist: never serialize a draft, API result or recovery operation.
-  return { ...state, [originKey]: origin ? { version: 1, documentId: origin.documentId, ledgerId: origin.ledgerId, ...(origin.rowId ? { rowId: origin.rowId } : {}) } : null };
+  return { ...state, [originKey]: origin ? { version: 1, documentId: origin.documentId, ledgerId: origin.ledgerId, ...(origin.rowId ? { rowId: origin.rowId } : {}),
+    ...(origin.surface === "SEARCH" ? { surface: "SEARCH", filters: Object.fromEntries(searchKeys.flatMap(key => typeof origin.filters?.[key] === "string" ? [[key, origin.filters[key]]] : [])) } : {}) } : null };
 }
 
 export function appOrigin(state: unknown, documentId: string, ledgerId: string | null): AppOrigin | null {

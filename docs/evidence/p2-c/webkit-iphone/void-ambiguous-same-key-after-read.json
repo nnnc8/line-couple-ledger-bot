@@ -1,0 +1,122 @@
+{
+  "test": {
+    "title": "ambiguous void response retains original mutation key and expectedVersion across a successful background read",
+    "project": "webkit-iphone",
+    "resultDir": "/Users/nc8/.codex/worktrees/p2-c-timeline-detail/New project/output/playwright/results/p2-c-timeline-ambiguous-vo-25ec7--successful-background-read-webkit-iphone"
+  },
+  "metrics": {
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "scrollY": 769,
+    "documentWidth": 390,
+    "bodyWidth": 390,
+    "timelineRows": 0,
+    "rowIds": [],
+    "rowRects": [],
+    "amountRects": [],
+    "dateHeadings": [],
+    "focus": "BODY"
+  },
+  "extra": {
+    "mutations": [
+      {
+        "transactionId": "00000000-0000-4000-8000-000000001004",
+        "body": {
+          "action": "void",
+          "expectedVersion": 1,
+          "idempotencyKey": "v2:transaction:00000000-0000-4000-8000-000000001004:void:1"
+        }
+      },
+      {
+        "transactionId": "00000000-0000-4000-8000-000000001004",
+        "body": {
+          "action": "void",
+          "expectedVersion": 1,
+          "idempotencyKey": "v2:transaction:00000000-0000-4000-8000-000000001004:void:1"
+        }
+      }
+    ],
+    "requests": [
+      {
+        "method": "POST",
+        "path": "/api/app/session",
+        "at": 179253.143375,
+        "finishedAt": 179257.516458
+      },
+      {
+        "method": "GET",
+        "path": "/api/app/v2/context",
+        "at": 179259.832875,
+        "finishedAt": 179266.739042
+      },
+      {
+        "method": "GET",
+        "path": "/api/app/v2/ledgers",
+        "at": 179267.978292,
+        "finishedAt": 179281.531083
+      },
+      {
+        "method": "GET",
+        "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/bootstrap",
+        "at": 179315.432,
+        "finishedAt": 179415.424292
+      },
+      {
+        "method": "GET",
+        "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories",
+        "at": 179515.409667,
+        "finishedAt": 179545.704333
+      },
+      {
+        "method": "GET",
+        "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/bootstrap",
+        "at": 179727.648958,
+        "finishedAt": 180469.238167
+      },
+      {
+        "method": "GET",
+        "path": "/api/app/v2/transactions/00000000-0000-4000-8000-000000001004/attachments",
+        "at": 179930.300417,
+        "finishedAt": 179941.973333
+      },
+      {
+        "method": "POST",
+        "path": "/api/app/v2/transactions/00000000-0000-4000-8000-000000001004/mutate",
+        "at": 180393.388417,
+        "finishedAt": 180413.170625
+      },
+      {
+        "method": "GET",
+        "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories",
+        "at": 180501.684042,
+        "finishedAt": 180530.573875
+      },
+      {
+        "method": "POST",
+        "path": "/api/app/v2/transactions/00000000-0000-4000-8000-000000001004/mutate",
+        "at": 180574.554875,
+        "finishedAt": 180580.072917
+      },
+      {
+        "method": "GET",
+        "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/bootstrap",
+        "at": 180585.074042,
+        "finishedAt": 180683.739792
+      },
+      {
+        "method": "GET",
+        "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories",
+        "at": 180680.856667,
+        "finishedAt": 180708.354833
+      },
+      {
+        "method": "GET",
+        "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories",
+        "at": 180683.909125,
+        "finishedAt": 180709.384917
+      }
+    ]
+  }
+}

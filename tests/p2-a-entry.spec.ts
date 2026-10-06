@@ -155,13 +155,13 @@ for (const type of ["expense", "income", "transfer"] as const) test(`correction 
   const row: V2LedgerTransaction = { id: "00000000-0000-4000-8000-000000000077", ledgerId: LEDGER, status: "posted", version: 3, createdAt: "2026-08-17T00:00:00Z", occurredOn: "2026-08-17", type, amountTwd: "681", description: "歷史餐費", category: "餐飲", categoryId: null, note: "保留原備註", splitMethod: type === "transfer" ? "none" : "percentage", payments: type === "transfer" ? [{ userId: PARTNER, amountTwd: "681" }] : [{ userId: OWNER, amountTwd: "400" }, { userId: PARTNER, amountTwd: "281" }], shares: type === "transfer" ? [{ userId: OWNER, amountTwd: "681" }] : [{ userId: OWNER, amountTwd: "600" }, { userId: PARTNER, amountTwd: "81" }] };
   const original = structuredClone(row);
   const fixture = await entryBrowser(page, { rows: [row], weights: { [OWNER]: "0", [PARTNER]: "1" } }); const bootstrap = fixture.snapshot();
-  await page.locator("[data-transaction-id]").filter({ hasText: "歷史餐費" }).first().click(); await page.getByRole("button", { name: "編輯", exact: true }).click();
+  await page.locator("[data-transaction-id]").filter({ hasText: "歷史餐費" }).first().click(); await page.getByRole("button", { name: "更多操作", exact: true }).click(); await page.getByRole("button", { name: "修改", exact: true }).click();
   await expect(page.getByLabel("用途", { exact: true })).toHaveValue("歷史餐費"); await expect(page.getByLabel("金額，新臺幣")).toHaveValue("681");
   if (type === "transfer") { await expect(payer(page)).toContainText("另一半 → 你"); await expect(split(page)).toHaveCount(0); }
   else { await expect(payer(page)).toContainText("你 NT$400／另一半 NT$281"); await expect(split(page)).toContainText(`沿用這筆${type === "income" ? "分配" : "分攤"} · 你 NT$600／另一半 NT$81`); }
   await expect(page.getByTestId("entry-more-summary")).toContainText("2026-08-17 · 餐飲 · 備註：保留原備註");
   await evidence(page, info, `correction-${type}`);
-  await page.getByText("更多", { exact: true }).click(); await expect(page.getByLabel("交易類型")).toHaveValue(type); await expect(page.getByLabel("交易日期")).toHaveValue("2026-08-17"); await expect(page.getByLabel("分類", { exact: true })).toHaveValue("餐飲"); await expect(page.getByLabel("備註")).toHaveValue("保留原備註");
+  await page.getByText("更多", { exact: true }).click(); await expect(page.getByLabel("交易類型")).toHaveValue(type); await expect(page.getByLabel("交易日期")).toHaveValue("2026-08-17"); await expect(page.locator("[data-entry]").getByLabel("分類", { exact: true })).toHaveValue("餐飲"); await expect(page.locator("[data-entry]").getByLabel("備註")).toHaveValue("保留原備註");
   await page.getByLabel("用途", { exact: true }).fill("修改歷史餐費"); await page.getByRole("button", { name: "儲存修改", exact: true }).click();
   await expect.poll(() => fixture.state.posts.length).toBe(1);
   const expected = normalizeTransactionDraft({ ...correctionDraft(bootstrap, OWNER, "2026-09-25", "oracle", original), description: "修改歷史餐費" });

@@ -1,0 +1,23 @@
+{
+  "test": {
+    "title": "200% long notes and reduced motion keep Back and More actions reachable without overflow",
+    "project": "webkit-iphone",
+    "resultDir": "/Users/nc8/.codex/worktrees/p2-c-timeline-detail/New project/output/playwright/results/p2-c-timeline-200-long-not-92956--reachable-without-overflow-webkit-iphone"
+  },
+  "metrics": {
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "scrollY": 3634,
+    "documentWidth": 390,
+    "bodyWidth": 390,
+    "timelineRows": 0,
+    "rowIds": [],
+    "rowRects": [],
+    "amountRects": [],
+    "dateHeadings": [],
+    "focus": "BODY"
+  },
+  "extra": {}
+}

@@ -1,0 +1,689 @@
+{
+  "stage": "after",
+  "baseURL": "http://localhost:3119",
+  "fixture": {
+    "totalTransactions": 68,
+    "effectivePosted": 65,
+    "historicalReplaced": 1,
+    "historicalVoided": 1,
+    "historicalDeleted": 1
+  },
+  "method": "Node 22 / production next start; identical complete 68-row bootstrap fixture with 65 effective posted rows; 3 fresh Chromium 390x844 contexts; no throttling or concurrent builds/tests; gzip level 6 on actual loaded initial-route JS response bodies; actual bootstrap body byte length; browser fetch-resolution/DOM-mutation/input-to-two-rAF paint proxies; request traces settle 200ms after actions. Read-only API mocks except LIFF session initialization. No physical LINE latency/picker/HEIC claim.",
+  "samples": [
+    {
+      "run": 0,
+      "initialGzipJsBytes": 200048,
+      "initialScripts": {
+        "/_next/static/chunks/3_2gnfsz1jqfz.js": 7678,
+        "/_next/static/chunks/0jds67wmtbffo.js": 904,
+        "/_next/static/chunks/turbopack-2285bbhngeq-u.js": 4140,
+        "/_next/static/chunks/3nn_ivyly2ig6.js": 13815,
+        "/_next/static/chunks/1wvrx_hlsfauw.js": 11775,
+        "/_next/static/chunks/12dp50a39vrlh.js": 49245,
+        "/_next/static/chunks/26ify5lbn9a_q.js": 41789,
+        "/_next/static/chunks/17gauw-xhye62.js": 70702
+      },
+      "bootstrapResponses": [
+        {
+          "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/bootstrap",
+          "bytes": 47312,
+          "transactionCount": 68
+        }
+      ],
+      "bootstrapTransactionCount": 68,
+      "initialHomeDomRows": 20,
+      "initialDates": [
+        "2026-10-04",
+        "2026-10-03"
+      ],
+      "startupRequestCount": 5,
+      "startupRequests": [
+        {
+          "method": "POST",
+          "path": "/api/app/session"
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/context"
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/ledgers"
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/bootstrap"
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories"
+        }
+      ],
+      "initialTimeline": {
+        "rowsAtCommit": 20,
+        "committedAt": 299.90000000596046,
+        "paintAt": 329.90000000596046,
+        "bootstrapFetchResolvedAt": 272,
+        "responseToTwoFramePaintMs": 57.900000005960464
+      },
+      "append": {
+        "kind": "append",
+        "startAt": 1124.2999999970198,
+        "paintAt": 1163.4000000059605,
+        "durationMs": 39.1000000089407,
+        "rowCount": 40,
+        "scrollY": 1566,
+        "focusedRowId": null,
+        "focusedTestId": null,
+        "focusedDetailHeading": false,
+        "requestCount": 0,
+        "requests": [],
+        "url": "http://localhost:3119/?v2Ledger=00000000-0000-4000-8000-000000000010",
+        "rowIds": [
+          "00000000-0000-4000-8000-000000001000",
+          "00000000-0000-4000-8000-000000001001",
+          "00000000-0000-4000-8000-000000001002",
+          "00000000-0000-4000-8000-000000001003",
+          "00000000-0000-4000-8000-000000001004",
+          "00000000-0000-4000-8000-000000001005",
+          "00000000-0000-4000-8000-000000001006",
+          "00000000-0000-4000-8000-000000001007",
+          "00000000-0000-4000-8000-000000001008",
+          "00000000-0000-4000-8000-000000001009",
+          "00000000-0000-4000-8000-000000001010",
+          "00000000-0000-4000-8000-000000001011",
+          "00000000-0000-4000-8000-000000001012",
+          "00000000-0000-4000-8000-000000001013",
+          "00000000-0000-4000-8000-000000001014",
+          "00000000-0000-4000-8000-000000001015",
+          "00000000-0000-4000-8000-000000001016",
+          "00000000-0000-4000-8000-000000001017",
+          "00000000-0000-4000-8000-000000001018",
+          "00000000-0000-4000-8000-000000001019",
+          "00000000-0000-4000-8000-000000001020",
+          "00000000-0000-4000-8000-000000001021",
+          "00000000-0000-4000-8000-000000001022",
+          "00000000-0000-4000-8000-000000001023",
+          "00000000-0000-4000-8000-000000001024",
+          "00000000-0000-4000-8000-000000001025",
+          "00000000-0000-4000-8000-000000001026",
+          "00000000-0000-4000-8000-000000001027",
+          "00000000-0000-4000-8000-000000001028",
+          "00000000-0000-4000-8000-000000001029",
+          "00000000-0000-4000-8000-000000001030",
+          "00000000-0000-4000-8000-000000001031",
+          "00000000-0000-4000-8000-000000001032",
+          "00000000-0000-4000-8000-000000001033",
+          "00000000-0000-4000-8000-000000001034",
+          "00000000-0000-4000-8000-000000001035",
+          "00000000-0000-4000-8000-000000001036",
+          "00000000-0000-4000-8000-000000001037",
+          "00000000-0000-4000-8000-000000001038",
+          "00000000-0000-4000-8000-000000001039"
+        ],
+        "dates": [
+          "2026-10-04",
+          "2026-10-03"
+        ]
+      },
+      "detail": {
+        "kind": "detail-open",
+        "startAt": 1473.2000000029802,
+        "paintAt": 1500.6000000089407,
+        "durationMs": 27.400000005960464,
+        "rowCount": 0,
+        "scrollY": 0,
+        "focusedRowId": null,
+        "focusedTestId": null,
+        "focusedDetailHeading": true,
+        "requestCount": 0,
+        "requests": [],
+        "url": "http://localhost:3119/?v2Ledger=00000000-0000-4000-8000-000000000010&v2Transaction=00000000-0000-4000-8000-000000001025"
+      },
+      "back": {
+        "kind": "detail-back",
+        "startAt": 1873.1000000089407,
+        "paintAt": 1919.2000000029802,
+        "durationMs": 46.099999994039536,
+        "rowCount": 40,
+        "scrollY": 2245,
+        "focusedRowId": "00000000-0000-4000-8000-000000001025",
+        "focusedTestId": null,
+        "focusedDetailHeading": false,
+        "requestCount": 0,
+        "requests": [],
+        "url": "http://localhost:3119/?v2Ledger=00000000-0000-4000-8000-000000000010"
+      },
+      "restoration": {
+        "origin": {
+          "id": "00000000-0000-4000-8000-000000001025",
+          "top": 390,
+          "scrollY": 2245
+        },
+        "restored": {
+          "id": "00000000-0000-4000-8000-000000001025",
+          "top": 390,
+          "scrollY": 2245,
+          "focused": true
+        },
+        "rowOffsetDeltaPx": 0,
+        "scrollDeltaPx": 0
+      },
+      "browserClock": {
+        "responses": [
+          {
+            "path": "/api/app/session",
+            "at": 213.5
+          },
+          {
+            "path": "/api/app/v2/context",
+            "at": 215.6000000089407
+          },
+          {
+            "path": "/api/app/v2/ledgers",
+            "at": 223.79999999701977
+          },
+          {
+            "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/bootstrap",
+            "at": 272
+          },
+          {
+            "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories",
+            "at": 331
+          }
+        ],
+        "initial": {
+          "rowsAtCommit": 20,
+          "committedAt": 299.90000000596046,
+          "paintAt": 329.90000000596046
+        },
+        "phase": null,
+        "actions": [
+          {
+            "kind": "append",
+            "startAt": 1124.2999999970198,
+            "paintAt": 1163.4000000059605,
+            "durationMs": 39.1000000089407,
+            "rowCount": 40,
+            "scrollY": 1566,
+            "focusedRowId": null,
+            "focusedTestId": null,
+            "focusedDetailHeading": false
+          },
+          {
+            "kind": "detail-open",
+            "startAt": 1473.2000000029802,
+            "paintAt": 1500.6000000089407,
+            "durationMs": 27.400000005960464,
+            "rowCount": 0,
+            "scrollY": 0,
+            "focusedRowId": null,
+            "focusedTestId": null,
+            "focusedDetailHeading": true
+          },
+          {
+            "kind": "detail-back",
+            "startAt": 1873.1000000089407,
+            "paintAt": 1919.2000000029802,
+            "durationMs": 46.099999994039536,
+            "rowCount": 40,
+            "scrollY": 2245,
+            "focusedRowId": "00000000-0000-4000-8000-000000001025",
+            "focusedTestId": null,
+            "focusedDetailHeading": false
+          }
+        ]
+      }
+    },
+    {
+      "run": 1,
+      "initialGzipJsBytes": 200048,
+      "initialScripts": {
+        "/_next/static/chunks/3_2gnfsz1jqfz.js": 7678,
+        "/_next/static/chunks/turbopack-2285bbhngeq-u.js": 4140,
+        "/_next/static/chunks/0jds67wmtbffo.js": 904,
+        "/_next/static/chunks/1wvrx_hlsfauw.js": 11775,
+        "/_next/static/chunks/3nn_ivyly2ig6.js": 13815,
+        "/_next/static/chunks/12dp50a39vrlh.js": 49245,
+        "/_next/static/chunks/26ify5lbn9a_q.js": 41789,
+        "/_next/static/chunks/17gauw-xhye62.js": 70702
+      },
+      "bootstrapResponses": [
+        {
+          "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/bootstrap",
+          "bytes": 47312,
+          "transactionCount": 68
+        }
+      ],
+      "bootstrapTransactionCount": 68,
+      "initialHomeDomRows": 20,
+      "initialDates": [
+        "2026-10-04",
+        "2026-10-03"
+      ],
+      "startupRequestCount": 5,
+      "startupRequests": [
+        {
+          "method": "POST",
+          "path": "/api/app/session"
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/context"
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/ledgers"
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/bootstrap"
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories"
+        }
+      ],
+      "initialTimeline": {
+        "rowsAtCommit": 20,
+        "committedAt": 112.69999998807907,
+        "paintAt": 124.09999999403954,
+        "bootstrapFetchResolvedAt": 97.29999999701977,
+        "responseToTwoFramePaintMs": 26.799999997019768
+      },
+      "append": {
+        "kind": "append",
+        "startAt": 663.3999999910593,
+        "paintAt": 718.2999999970198,
+        "durationMs": 54.900000005960464,
+        "rowCount": 40,
+        "scrollY": 1566,
+        "focusedRowId": null,
+        "focusedTestId": null,
+        "focusedDetailHeading": false,
+        "requestCount": 0,
+        "requests": [],
+        "url": "http://localhost:3119/?v2Ledger=00000000-0000-4000-8000-000000000010",
+        "rowIds": [
+          "00000000-0000-4000-8000-000000001000",
+          "00000000-0000-4000-8000-000000001001",
+          "00000000-0000-4000-8000-000000001002",
+          "00000000-0000-4000-8000-000000001003",
+          "00000000-0000-4000-8000-000000001004",
+          "00000000-0000-4000-8000-000000001005",
+          "00000000-0000-4000-8000-000000001006",
+          "00000000-0000-4000-8000-000000001007",
+          "00000000-0000-4000-8000-000000001008",
+          "00000000-0000-4000-8000-000000001009",
+          "00000000-0000-4000-8000-000000001010",
+          "00000000-0000-4000-8000-000000001011",
+          "00000000-0000-4000-8000-000000001012",
+          "00000000-0000-4000-8000-000000001013",
+          "00000000-0000-4000-8000-000000001014",
+          "00000000-0000-4000-8000-000000001015",
+          "00000000-0000-4000-8000-000000001016",
+          "00000000-0000-4000-8000-000000001017",
+          "00000000-0000-4000-8000-000000001018",
+          "00000000-0000-4000-8000-000000001019",
+          "00000000-0000-4000-8000-000000001020",
+          "00000000-0000-4000-8000-000000001021",
+          "00000000-0000-4000-8000-000000001022",
+          "00000000-0000-4000-8000-000000001023",
+          "00000000-0000-4000-8000-000000001024",
+          "00000000-0000-4000-8000-000000001025",
+          "00000000-0000-4000-8000-000000001026",
+          "00000000-0000-4000-8000-000000001027",
+          "00000000-0000-4000-8000-000000001028",
+          "00000000-0000-4000-8000-000000001029",
+          "00000000-0000-4000-8000-000000001030",
+          "00000000-0000-4000-8000-000000001031",
+          "00000000-0000-4000-8000-000000001032",
+          "00000000-0000-4000-8000-000000001033",
+          "00000000-0000-4000-8000-000000001034",
+          "00000000-0000-4000-8000-000000001035",
+          "00000000-0000-4000-8000-000000001036",
+          "00000000-0000-4000-8000-000000001037",
+          "00000000-0000-4000-8000-000000001038",
+          "00000000-0000-4000-8000-000000001039"
+        ],
+        "dates": [
+          "2026-10-04",
+          "2026-10-03"
+        ]
+      },
+      "detail": {
+        "kind": "detail-open",
+        "startAt": 1045.3999999910593,
+        "paintAt": 1074.8999999910593,
+        "durationMs": 29.5,
+        "rowCount": 0,
+        "scrollY": 0,
+        "focusedRowId": null,
+        "focusedTestId": null,
+        "focusedDetailHeading": true,
+        "requestCount": 0,
+        "requests": [],
+        "url": "http://localhost:3119/?v2Ledger=00000000-0000-4000-8000-000000000010&v2Transaction=00000000-0000-4000-8000-000000001025"
+      },
+      "back": {
+        "kind": "detail-back",
+        "startAt": 1329.2999999970198,
+        "paintAt": 1374.8999999910593,
+        "durationMs": 45.599999994039536,
+        "rowCount": 40,
+        "scrollY": 2245,
+        "focusedRowId": "00000000-0000-4000-8000-000000001025",
+        "focusedTestId": null,
+        "focusedDetailHeading": false,
+        "requestCount": 0,
+        "requests": [],
+        "url": "http://localhost:3119/?v2Ledger=00000000-0000-4000-8000-000000000010"
+      },
+      "restoration": {
+        "origin": {
+          "id": "00000000-0000-4000-8000-000000001025",
+          "top": 390,
+          "scrollY": 2245
+        },
+        "restored": {
+          "id": "00000000-0000-4000-8000-000000001025",
+          "top": 390,
+          "scrollY": 2245,
+          "focused": true
+        },
+        "rowOffsetDeltaPx": 0,
+        "scrollDeltaPx": 0
+      },
+      "browserClock": {
+        "responses": [
+          {
+            "path": "/api/app/session",
+            "at": 78.69999998807907
+          },
+          {
+            "path": "/api/app/v2/context",
+            "at": 83.69999998807907
+          },
+          {
+            "path": "/api/app/v2/ledgers",
+            "at": 85.29999999701977
+          },
+          {
+            "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/bootstrap",
+            "at": 97.29999999701977
+          },
+          {
+            "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories",
+            "at": 128.79999999701977
+          }
+        ],
+        "initial": {
+          "rowsAtCommit": 20,
+          "committedAt": 112.69999998807907,
+          "paintAt": 124.09999999403954
+        },
+        "phase": null,
+        "actions": [
+          {
+            "kind": "append",
+            "startAt": 663.3999999910593,
+            "paintAt": 718.2999999970198,
+            "durationMs": 54.900000005960464,
+            "rowCount": 40,
+            "scrollY": 1566,
+            "focusedRowId": null,
+            "focusedTestId": null,
+            "focusedDetailHeading": false
+          },
+          {
+            "kind": "detail-open",
+            "startAt": 1045.3999999910593,
+            "paintAt": 1074.8999999910593,
+            "durationMs": 29.5,
+            "rowCount": 0,
+            "scrollY": 0,
+            "focusedRowId": null,
+            "focusedTestId": null,
+            "focusedDetailHeading": true
+          },
+          {
+            "kind": "detail-back",
+            "startAt": 1329.2999999970198,
+            "paintAt": 1374.8999999910593,
+            "durationMs": 45.599999994039536,
+            "rowCount": 40,
+            "scrollY": 2245,
+            "focusedRowId": "00000000-0000-4000-8000-000000001025",
+            "focusedTestId": null,
+            "focusedDetailHeading": false
+          }
+        ]
+      }
+    },
+    {
+      "run": 2,
+      "initialGzipJsBytes": 200048,
+      "initialScripts": {
+        "/_next/static/chunks/3_2gnfsz1jqfz.js": 7678,
+        "/_next/static/chunks/0jds67wmtbffo.js": 904,
+        "/_next/static/chunks/turbopack-2285bbhngeq-u.js": 4140,
+        "/_next/static/chunks/1wvrx_hlsfauw.js": 11775,
+        "/_next/static/chunks/3nn_ivyly2ig6.js": 13815,
+        "/_next/static/chunks/12dp50a39vrlh.js": 49245,
+        "/_next/static/chunks/26ify5lbn9a_q.js": 41789,
+        "/_next/static/chunks/17gauw-xhye62.js": 70702
+      },
+      "bootstrapResponses": [
+        {
+          "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/bootstrap",
+          "bytes": 47312,
+          "transactionCount": 68
+        }
+      ],
+      "bootstrapTransactionCount": 68,
+      "initialHomeDomRows": 20,
+      "initialDates": [
+        "2026-10-04",
+        "2026-10-03"
+      ],
+      "startupRequestCount": 5,
+      "startupRequests": [
+        {
+          "method": "POST",
+          "path": "/api/app/session"
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/context"
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/ledgers"
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/bootstrap"
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories"
+        }
+      ],
+      "initialTimeline": {
+        "rowsAtCommit": 20,
+        "committedAt": 110.09999999403954,
+        "paintAt": 123.09999999403954,
+        "bootstrapFetchResolvedAt": 94.79999999701977,
+        "responseToTwoFramePaintMs": 28.299999997019768
+      },
+      "append": {
+        "kind": "append",
+        "startAt": 661.4000000059605,
+        "paintAt": 711.2000000029802,
+        "durationMs": 49.79999999701977,
+        "rowCount": 40,
+        "scrollY": 1566,
+        "focusedRowId": null,
+        "focusedTestId": null,
+        "focusedDetailHeading": false,
+        "requestCount": 0,
+        "requests": [],
+        "url": "http://localhost:3119/?v2Ledger=00000000-0000-4000-8000-000000000010",
+        "rowIds": [
+          "00000000-0000-4000-8000-000000001000",
+          "00000000-0000-4000-8000-000000001001",
+          "00000000-0000-4000-8000-000000001002",
+          "00000000-0000-4000-8000-000000001003",
+          "00000000-0000-4000-8000-000000001004",
+          "00000000-0000-4000-8000-000000001005",
+          "00000000-0000-4000-8000-000000001006",
+          "00000000-0000-4000-8000-000000001007",
+          "00000000-0000-4000-8000-000000001008",
+          "00000000-0000-4000-8000-000000001009",
+          "00000000-0000-4000-8000-000000001010",
+          "00000000-0000-4000-8000-000000001011",
+          "00000000-0000-4000-8000-000000001012",
+          "00000000-0000-4000-8000-000000001013",
+          "00000000-0000-4000-8000-000000001014",
+          "00000000-0000-4000-8000-000000001015",
+          "00000000-0000-4000-8000-000000001016",
+          "00000000-0000-4000-8000-000000001017",
+          "00000000-0000-4000-8000-000000001018",
+          "00000000-0000-4000-8000-000000001019",
+          "00000000-0000-4000-8000-000000001020",
+          "00000000-0000-4000-8000-000000001021",
+          "00000000-0000-4000-8000-000000001022",
+          "00000000-0000-4000-8000-000000001023",
+          "00000000-0000-4000-8000-000000001024",
+          "00000000-0000-4000-8000-000000001025",
+          "00000000-0000-4000-8000-000000001026",
+          "00000000-0000-4000-8000-000000001027",
+          "00000000-0000-4000-8000-000000001028",
+          "00000000-0000-4000-8000-000000001029",
+          "00000000-0000-4000-8000-000000001030",
+          "00000000-0000-4000-8000-000000001031",
+          "00000000-0000-4000-8000-000000001032",
+          "00000000-0000-4000-8000-000000001033",
+          "00000000-0000-4000-8000-000000001034",
+          "00000000-0000-4000-8000-000000001035",
+          "00000000-0000-4000-8000-000000001036",
+          "00000000-0000-4000-8000-000000001037",
+          "00000000-0000-4000-8000-000000001038",
+          "00000000-0000-4000-8000-000000001039"
+        ],
+        "dates": [
+          "2026-10-04",
+          "2026-10-03"
+        ]
+      },
+      "detail": {
+        "kind": "detail-open",
+        "startAt": 1041.7999999970198,
+        "paintAt": 1073.2000000029802,
+        "durationMs": 31.400000005960464,
+        "rowCount": 0,
+        "scrollY": 0,
+        "focusedRowId": null,
+        "focusedTestId": null,
+        "focusedDetailHeading": true,
+        "requestCount": 0,
+        "requests": [],
+        "url": "http://localhost:3119/?v2Ledger=00000000-0000-4000-8000-000000000010&v2Transaction=00000000-0000-4000-8000-000000001025"
+      },
+      "back": {
+        "kind": "detail-back",
+        "startAt": 1327.7000000029802,
+        "paintAt": 1373.2000000029802,
+        "durationMs": 45.5,
+        "rowCount": 40,
+        "scrollY": 2245,
+        "focusedRowId": "00000000-0000-4000-8000-000000001025",
+        "focusedTestId": null,
+        "focusedDetailHeading": false,
+        "requestCount": 0,
+        "requests": [],
+        "url": "http://localhost:3119/?v2Ledger=00000000-0000-4000-8000-000000000010"
+      },
+      "restoration": {
+        "origin": {
+          "id": "00000000-0000-4000-8000-000000001025",
+          "top": 390,
+          "scrollY": 2245
+        },
+        "restored": {
+          "id": "00000000-0000-4000-8000-000000001025",
+          "top": 390,
+          "scrollY": 2245,
+          "focused": true
+        },
+        "rowOffsetDeltaPx": 0,
+        "scrollDeltaPx": 0
+      },
+      "browserClock": {
+        "responses": [
+          {
+            "path": "/api/app/session",
+            "at": 76.5
+          },
+          {
+            "path": "/api/app/v2/context",
+            "at": 81.29999999701977
+          },
+          {
+            "path": "/api/app/v2/ledgers",
+            "at": 82.90000000596046
+          },
+          {
+            "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/bootstrap",
+            "at": 94.79999999701977
+          },
+          {
+            "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories",
+            "at": 119.59999999403954
+          }
+        ],
+        "initial": {
+          "rowsAtCommit": 20,
+          "committedAt": 110.09999999403954,
+          "paintAt": 123.09999999403954
+        },
+        "phase": null,
+        "actions": [
+          {
+            "kind": "append",
+            "startAt": 661.4000000059605,
+            "paintAt": 711.2000000029802,
+            "durationMs": 49.79999999701977,
+            "rowCount": 40,
+            "scrollY": 1566,
+            "focusedRowId": null,
+            "focusedTestId": null,
+            "focusedDetailHeading": false
+          },
+          {
+            "kind": "detail-open",
+            "startAt": 1041.7999999970198,
+            "paintAt": 1073.2000000029802,
+            "durationMs": 31.400000005960464,
+            "rowCount": 0,
+            "scrollY": 0,
+            "focusedRowId": null,
+            "focusedTestId": null,
+            "focusedDetailHeading": true
+          },
+          {
+            "kind": "detail-back",
+            "startAt": 1327.7000000029802,
+            "paintAt": 1373.2000000029802,
+            "durationMs": 45.5,
+            "rowCount": 40,
+            "scrollY": 2245,
+            "focusedRowId": "00000000-0000-4000-8000-000000001025",
+            "focusedTestId": null,
+            "focusedDetailHeading": false
+          }
+        ]
+      }
+    }
+  ]
+}

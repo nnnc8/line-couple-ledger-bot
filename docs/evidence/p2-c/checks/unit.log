@@ -1,0 +1,1910 @@
+$ tsx --test src/lib/ledger.test.ts src/lib/v2-ledger.test.ts src/lib/v2-history.test.ts src/lib/v2-timeline.test.ts src/lib/v2-transaction-status.test.ts src/lib/v2-migration.test.ts src/lib/v2-migration-apply.test.ts src/lib/v2-workflow.test.ts src/lib/v2-outbox-dispatch.test.ts src/lib/onboarding-route.test.ts src/lib/v2-navigation.test.ts src/lib/v2-entry.test.ts src/lib/v2-entry-presentation.test.ts src/lib/v2-direct-command.test.ts src/lib/db/connection-config.test.ts scripts/v3-0-test-db.test.ts .github/scripts/check-lint-baseline.test.mjs
+TAP version 13
+# Subtest: lint baseline permits unchanged findings moved to other lines
+ok 1 - lint baseline permits unchanged findings moved to other lines
+  ---
+  duration_ms: 346.076916
+  type: 'test'
+  ...
+# Subtest: lint baseline still rejects a different offending expression
+ok 2 - lint baseline still rejects a different offending expression
+  ---
+  duration_ms: 268.642958
+  type: 'test'
+  ...
+# Subtest: lint baseline still rejects additional occurrences
+ok 3 - lint baseline still rejects additional occurrences
+  ---
+  duration_ms: 544.008875
+  type: 'test'
+  ...
+# Subtest: lint baseline still rejects a new rule
+ok 4 - lint baseline still rejects a new rule
+  ---
+  duration_ms: 984.506125
+  type: 'test'
+  ...
+# Subtest: lint baseline permits removed findings
+ok 5 - lint baseline permits removed findings
+  ---
+  duration_ms: 888.186375
+  type: 'test'
+  ...
+# Subtest: PG test guards reject missing, remote and overridden targets before connection
+ok 6 - PG test guards reject missing, remote and overridden targets before connection
+  ---
+  duration_ms: 3.058042
+  type: 'test'
+  ...
+# Subtest: remote TLS remains verified after pg parses require/libpq URL options
+ok 7 - remote TLS remains verified after pg parses require/libpq URL options
+  ---
+  duration_ms: 182.501875
+  type: 'test'
+  ...
+# Subtest: only explicitly local non-production databases may use plaintext
+ok 8 - only explicitly local non-production databases may use plaintext
+  ---
+  duration_ms: 0.357292
+  type: 'test'
+  ...
+# Subtest: routes fixed commands without calling the LLM
+ok 9 - routes fixed commands without calling the LLM
+  ---
+  duration_ms: 9.334417
+  type: 'test'
+  ...
+# Subtest: routes accountant commands before the expense parser
+ok 10 - routes accountant commands before the expense parser
+  ---
+  duration_ms: 2.912667
+  type: 'test'
+  ...
+# Subtest: parses multiple inline LINE expenses before falling back to Gemini
+ok 11 - parses multiple inline LINE expenses before falling back to Gemini
+  ---
+  duration_ms: 0.463208
+  type: 'test'
+  ...
+# Subtest: routes pending receipt retarget commands before expense parsing
+ok 12 - routes pending receipt retarget commands before expense parsing
+  ---
+  duration_ms: 0.212292
+  type: 'test'
+  ...
+# Subtest: retargets pending shared receipt payloads into private transport expenses
+ok 13 - retargets pending shared receipt payloads into private transport expenses
+  ---
+  duration_ms: 2.656125
+  type: 'test'
+  ...
+# Subtest: selects a mentioned LINE group instead of the active group
+ok 14 - selects a mentioned LINE group instead of the active group
+  ---
+  duration_ms: 13.647375
+  type: 'test'
+  ...
+# Subtest: resolves a mentioned LINE group into target group and cleaned text
+ok 15 - resolves a mentioned LINE group into target group and cleaned text
+  ---
+  duration_ms: 0.269292
+  type: 'test'
+  ...
+# Subtest: LINE payer hints cover natural self and partner wording
+ok 16 - LINE payer hints cover natural self and partner wording
+  ---
+  duration_ms: 372.034125
+  type: 'test'
+  ...
+# Subtest: LINE transfer parser preserves invalid amounts for rejection
+ok 17 - LINE transfer parser preserves invalid amounts for rejection
+  ---
+  duration_ms: 55.167167
+  type: 'test'
+  ...
+# Subtest: LINE money movement parser keeps transfer direction deterministic
+ok 18 - LINE money movement parser keeps transfer direction deterministic
+  ---
+  duration_ms: 1.937125
+  type: 'test'
+  ...
+# Subtest: ledger agent treats historical maximum questions as all-history queries
+ok 19 - ledger agent treats historical maximum questions as all-history queries
+  ---
+  duration_ms: 0.264959
+  type: 'test'
+  ...
+# Subtest: compares setup codes without accepting different lengths
+ok 20 - compares setup codes without accepting different lengths
+  ---
+  duration_ms: 0.101834
+  type: 'test'
+  ...
+# Subtest: rejects tampered and expired application sessions
+ok 21 - rejects tampered and expired application sessions
+  ---
+  duration_ms: 0.83625
+  type: 'test'
+  ...
+# Subtest: neutralizes spreadsheet formulas in CSV exports
+ok 22 - neutralizes spreadsheet formulas in CSV exports
+  ---
+  duration_ms: 0.623542
+  type: 'test'
+  ...
+# Subtest: splits even and odd TWD amounts with the payer taking the remainder
+ok 23 - splits even and odd TWD amounts with the payer taking the remainder
+  ---
+  duration_ms: 0.098667
+  type: 'test'
+  ...
+# Subtest: validates exact shares and percentage rounding
+ok 24 - validates exact shares and percentage rounding
+  ---
+  duration_ms: 1.903708
+  type: 'test'
+  ...
+# Subtest: ledger core normalizes private expense drafts
+ok 25 - ledger core normalizes private expense drafts
+  ---
+  duration_ms: 2.650791
+  type: 'test'
+  ...
+# Subtest: ledger core rejects private expenses paid by partner
+ok 26 - ledger core rejects private expenses paid by partner
+  ---
+  duration_ms: 0.612334
+  type: 'test'
+  ...
+# Subtest: ledger core builds settlement drafts from balances
+ok 27 - ledger core builds settlement drafts from balances
+  ---
+  duration_ms: 0.365291
+  type: 'test'
+  ...
+# Subtest: ledger core creates versioned pending-action envelopes
+ok 28 - ledger core creates versioned pending-action envelopes
+  ---
+  duration_ms: 12.381083
+  type: 'test'
+  ...
+# Subtest: accountant snapshot does not leak the partner private ledger
+ok 29 - accountant snapshot does not leak the partner private ledger
+  ---
+  duration_ms: 0.273166
+  type: 'test'
+  ...
+# Subtest: ledger agent filters time ranges without leaking partner private expenses
+ok 30 - ledger agent filters time ranges without leaking partner private expenses
+  ---
+  duration_ms: 1.522
+  type: 'test'
+  ...
+# Subtest: category analytics use free category labels instead of enum categories
+ok 31 - category analytics use free category labels instead of enum categories
+  ---
+  duration_ms: 3.144
+  type: 'test'
+  ...
+# Subtest: category analytics uses tags directly
+ok 32 - category analytics uses tags directly
+  ---
+  duration_ms: 0.104792
+  type: 'test'
+  ...
+# Subtest: group-aware category fallback keeps food groups coarse and parking specific
+ok 33 - group-aware category fallback keeps food groups coarse and parking specific
+  ---
+  duration_ms: 2.489875
+  type: 'test'
+  ...
+# Subtest: category classifier keeps rules and history off the LLM path
+ok 34 - category classifier keeps rules and history off the LLM path
+  ---
+  duration_ms: 9.127
+  type: 'test'
+  ...
+# Subtest: category classifier uses injected generator and always falls back safely
+ok 35 - category classifier uses injected generator and always falls back safely
+  ---
+  duration_ms: 4022.772
+  type: 'test'
+  ...
+# Subtest: tag frequency for prompts excludes both generic other labels
+ok 36 - tag frequency for prompts excludes both generic other labels
+  ---
+  duration_ms: 18.715875
+  type: 'test'
+  ...
+# Subtest: shared expense private mirror records only the requester split
+ok 37 - shared expense private mirror records only the requester split
+  ---
+  duration_ms: 0.598375
+  type: 'test'
+  ...
+# Subtest: bootstrap expense split keeps shared groups and private ledger separate
+ok 38 - bootstrap expense split keeps shared groups and private ledger separate
+  ---
+  duration_ms: 0.378292
+  type: 'test'
+  ...
+# Subtest: batch category cleanup only updates accessible current expenses
+ok 39 - batch category cleanup only updates accessible current expenses
+  ---
+  duration_ms: 1.1895
+  type: 'test'
+  ...
+# Subtest: rejects accountant reports whose facts do not match the ledger snapshot
+ok 40 - rejects accountant reports whose facts do not match the ledger snapshot
+  ---
+  duration_ms: 0.169917
+  type: 'test'
+  ...
+# Subtest: only safe accountant suggestions can become pending actions
+ok 41 - only safe accountant suggestions can become pending actions
+  ---
+  duration_ms: 1.546084
+  type: 'test'
+  ...
+# Subtest: learns an other category from matching historical merchants and descriptions
+ok 42 - learns an other category from matching historical merchants and descriptions
+  ---
+  duration_ms: 1.227375
+  type: 'test'
+  ...
+# Subtest: advances recurring dates without drifting month end
+ok 43 - advances recurring dates without drifting month end
+  ---
+  duration_ms: 0.908292
+  type: 'test'
+  ...
+# Subtest: retargets batch pending payloads into private transport expenses
+ok 44 - retargets batch pending payloads into private transport expenses
+  ---
+  duration_ms: 2.619917
+  type: 'test'
+  ...
+# Subtest: retarget updates envelope command alongside legacy payload
+ok 45 - retarget updates envelope command alongside legacy payload
+  ---
+  duration_ms: 1.41775
+  type: 'test'
+  ...
+# Subtest: receipt service purges expired deleted receipts from storage and db
+ok 46 - receipt service purges expired deleted receipts from storage and db
+  ---
+  duration_ms: 1.229
+  type: 'test'
+  ...
+# Subtest: daily jobs expire only pending actions past their deadline
+ok 47 - daily jobs expire only pending actions past their deadline
+  ---
+  duration_ms: 0.211083
+  type: 'test'
+  ...
+# Subtest: calculates who owes whom and applies settlements
+ok 48 - calculates who owes whom and applies settlements
+  ---
+  duration_ms: 0.173958
+  type: 'test'
+  ...
+# Subtest: monthly totals exclude private, deleted, other users, and other months
+ok 49 - monthly totals exclude private, deleted, other users, and other months
+  ---
+  duration_ms: 0.178417
+  type: 'test'
+  ...
+# Subtest: rejects malformed Gemini structured output
+ok 50 - rejects malformed Gemini structured output
+  ---
+  duration_ms: 2.741708
+  type: 'test'
+  ...
+# Subtest: Gemini JSON schema only contains supported top-level keys
+ok 51 - Gemini JSON schema only contains supported top-level keys
+  ---
+  duration_ms: 0.161458
+  type: 'test'
+  ...
+# Subtest: accepts natural language parser output with multiple expenses and group hint
+ok 52 - accepts natural language parser output with multiple expenses and group hint
+  ---
+  duration_ms: 0.793083
+  type: 'test'
+  ...
+# Subtest: notification delivery attempts LINE push without quota preflight
+ok 53 - notification delivery attempts LINE push without quota preflight
+  ---
+  duration_ms: 211.370417
+  type: 'test'
+  ...
+# Subtest: notification delivery skips rows already claimed by another worker
+ok 54 - notification delivery skips rows already claimed by another worker
+  ---
+  duration_ms: 0.624833
+  type: 'test'
+  ...
+# Subtest: notification flush for cron does not need a user lookup
+ok 55 - notification flush for cron does not need a user lookup
+  ---
+  duration_ms: 10.997208
+  type: 'test'
+  ...
+# Subtest: LINE postback confirms only the signed-in user's pending action
+ok 56 - LINE postback confirms only the signed-in user's pending action
+  ---
+  duration_ms: 5.914
+  type: 'test'
+  ...
+# Subtest: LINE invalid and stale actions return one safe restart card
+ok 57 - LINE invalid and stale actions return one safe restart card
+  ---
+  duration_ms: 4.569167
+  type: 'test'
+  ...
+# Subtest: LINE menu postback shares a strict stage contract with its encoder
+ok 58 - LINE menu postback shares a strict stage contract with its encoder
+  ---
+  duration_ms: 3.816083
+  type: 'test'
+  ...
+# Subtest: LINE menu amount parser accepts common TWD formats and rejects commands
+ok 59 - LINE menu amount parser accepts common TWD formats and rejects commands
+  ---
+  duration_ms: 2.20775
+  type: 'test'
+  ...
+# Subtest: LINE expense and transfer choices open the keyboard and start amount drafts
+ok 60 - LINE expense and transfer choices open the keyboard and start amount drafts
+  ---
+  duration_ms: 53.01425
+  type: 'test'
+  ...
+# Subtest: LINE text amount consumes the draft before the agent and creates one pending expense
+ok 61 - LINE text amount consumes the draft before the agent and creates one pending expense
+  ---
+  duration_ms: 24.862959
+  type: 'test'
+  ...
+# Subtest: LINE rich-menu switches are strict and silent
+ok 62 - LINE rich-menu switches are strict and silent
+  ---
+  duration_ms: 0.203834
+  type: 'test'
+  ...
+# Subtest: LINE category actions round-trip and custom actions stay inside LIFF
+ok 63 - LINE category actions round-trip and custom actions stay inside LIFF
+  ---
+  duration_ms: 1.661958
+  type: 'test'
+  ...
+# Subtest: LIFF URL helper preserves deep-link state and rejects missing IDs
+ok 64 - LIFF URL helper preserves deep-link state and rejects missing IDs
+  ---
+  duration_ms: 0.174375
+  type: 'test'
+  ...
+# Subtest: Rich Menu actions round-trip and plan/apply require a LIFF ID
+ok 65 - Rich Menu actions round-trip and plan/apply require a LIFF ID
+  ---
+  duration_ms: 1589.250167
+  type: 'test'
+  ...
+# Subtest: LINE quick expense creates a pending action and never confirms directly
+ok 66 - LINE quick expense creates a pending action and never confirms directly
+  ---
+  duration_ms: 71.609458
+  type: 'test'
+  ...
+# Subtest: LINE quick transfer preserves direction and uses pending confirmation
+ok 67 - LINE quick transfer preserves direction and uses pending confirmation
+  ---
+  duration_ms: 3.005792
+  type: 'test'
+  ...
+# Subtest: LINE menu rejects a forged group outside the requester's couple
+ok 68 - LINE menu rejects a forged group outside the requester's couple
+  ---
+  duration_ms: 0.561917
+  type: 'test'
+  ...
+# Subtest: bank csv parser and matcher
+ok 69 - bank csv parser and matcher
+  ---
+  duration_ms: 0.54875
+  type: 'test'
+  ...
+# Subtest: phase 4 search filters chinese expense text and ranges
+ok 70 - phase 4 search filters chinese expense text and ranges
+  ---
+  duration_ms: 0.183708
+  type: 'test'
+  ...
+# Subtest: notification service skips proactive insight scan when disabled
+ok 71 - notification service skips proactive insight scan when disabled
+  ---
+  duration_ms: 21.877291
+  type: 'test'
+  ...
+# Subtest: write tools: record_expense returns pending_action with expense
+ok 72 - write tools: record_expense returns pending_action with expense
+  ---
+  duration_ms: 15.816375
+  type: 'test'
+  ...
+# Subtest: write tools: record_expense fills a missing tag before building the action
+ok 73 - write tools: record_expense fills a missing tag before building the action
+  ---
+  duration_ms: 2.112958
+  type: 'test'
+  ...
+# Subtest: write tools: record_expense keeps private expenses out of shared group payload
+ok 74 - write tools: record_expense keeps private expenses out of shared group payload
+  ---
+  duration_ms: 0.806625
+  type: 'test'
+  ...
+# Subtest: write tools: record_expense rejects exact split method
+ok 75 - write tools: record_expense rejects exact split method
+  ---
+  duration_ms: 0.607708
+  type: 'test'
+  ...
+# Subtest: pending action service proposes batch-created expenses at couple scope when groups differ
+ok 76 - pending action service proposes batch-created expenses at couple scope when groups differ
+  ---
+  duration_ms: 1.36725
+  type: 'test'
+  ...
+# Subtest: pending action service proposes settlement from current group balances
+ok 77 - pending action service proposes settlement from current group balances
+  ---
+  duration_ms: 0.842625
+  type: 'test'
+  ...
+# Subtest: actionResultMessage never treats stale auto-confirm as success
+ok 78 - actionResultMessage never treats stale auto-confirm as success
+  ---
+  duration_ms: 0.0665
+  type: 'test'
+  ...
+# Subtest: write tools: settle_debt returns pending_action when user owes
+ok 79 - write tools: settle_debt returns pending_action when user owes
+  ---
+  duration_ms: 1.579583
+  type: 'test'
+  ...
+# Subtest: write tools: settle_debt returns message when user does not owe
+ok 80 - write tools: settle_debt returns message when user does not owe
+  ---
+  duration_ms: 1.249416
+  type: 'test'
+  ...
+# Subtest: write tools: record_expense validates required params
+ok 81 - write tools: record_expense validates required params
+  ---
+  duration_ms: 0.813083
+  type: 'test'
+  ...
+# Subtest: accountant service lists shared and own reports newest first
+ok 82 - accountant service lists shared and own reports newest first
+  ---
+  duration_ms: 102.961458
+  type: 'test'
+  ...
+# Subtest: accountant service generates monthly reports and targets notifications correctly
+ok 83 - accountant service generates monthly reports and targets notifications correctly
+  ---
+  duration_ms: 2.774917
+  type: 'test'
+  ...
+# Subtest: agent chat service transcribes audio with injected generator
+ok 84 - agent chat service transcribes audio with injected generator
+  ---
+  duration_ms: 4.848917
+  type: 'test'
+  ...
+# Subtest: secretary: createTask returns uuid
+ok 85 - secretary: createTask returns uuid
+  ---
+  duration_ms: 4.473083
+  type: 'test'
+  ...
+# Subtest: secretary: createMemory stores merchant_rule
+ok 86 - secretary: createMemory stores merchant_rule
+  ---
+  duration_ms: 3.026125
+  type: 'test'
+  ...
+# Subtest: secretary: RuleService creates approved group merchant rule
+ok 87 - secretary: RuleService creates approved group merchant rule
+  ---
+  duration_ms: 4.087584
+  type: 'test'
+  ...
+# Subtest: secretary: TaskService creates owner-scoped secretary task
+ok 88 - secretary: TaskService creates owner-scoped secretary task
+  ---
+  duration_ms: 6.217291
+  type: 'test'
+  ...
+# Subtest: secretary workflow service aggregates tool side effects
+ok 89 - secretary workflow service aggregates tool side effects
+  ---
+  duration_ms: 9.6485
+  type: 'test'
+  ...
+# Subtest: secretary workflow service keeps partner notifications for shared changes
+ok 90 - secretary workflow service keeps partner notifications for shared changes
+  ---
+  duration_ms: 2.311417
+  type: 'test'
+  ...
+# Subtest: secretary workflow service strips explicit notify tags
+ok 91 - secretary workflow service strips explicit notify tags
+  ---
+  duration_ms: 3.026917
+  type: 'test'
+  ...
+# Subtest: secretary session service loads session and augments approved merchant rules
+ok 92 - secretary session service loads session and augments approved merchant rules
+  ---
+  duration_ms: 15.980333
+  type: 'test'
+  ...
+# Subtest: secretary session service trims history before saving
+ok 93 - secretary session service trims history before saving
+  ---
+  duration_ms: 4.52
+  type: 'test'
+  ...
+# Subtest: secretary prompt service includes balance, task count, and approved merchant rules
+ok 94 - secretary prompt service includes balance, task count, and approved merchant rules
+  ---
+  duration_ms: 7.844125
+  type: 'test'
+  ...
+# Subtest: secretary prompt service omits optional sections when nothing is pending
+ok 95 - secretary prompt service omits optional sections when nothing is pending
+  ---
+  duration_ms: 0.828167
+  type: 'test'
+  ...
+# Subtest: recurring service: toggle updates active flag and notifies partner
+ok 96 - recurring service: toggle updates active flag and notifies partner
+  ---
+  duration_ms: 16.849125
+  type: 'test'
+  ...
+# Subtest: recurring service: shared save requires group and preserves shared group_id
+ok 97 - recurring service: shared save requires group and preserves shared group_id
+  ---
+  duration_ms: 41.052333
+  type: 'test'
+  ...
+# Subtest: recurring runner: failed executePendingAction logs error and does not advance next_run_date
+ok 98 - recurring runner: failed executePendingAction logs error and does not advance next_run_date
+  ---
+  duration_ms: 18.720917
+  type: 'test'
+  ...
+# Subtest: recurring facade: save/runDue delegate to the split modules
+ok 99 - recurring facade: save/runDue delegate to the split modules
+  ---
+  duration_ms: 134.422333
+  type: 'test'
+  ...
+# Subtest: recurring service saves private recurring expenses without shared group scope
+ok 100 - recurring service saves private recurring expenses without shared group scope
+  ---
+  duration_ms: 1.529416
+  type: 'test'
+  ...
+# Subtest: recurring service deletes recurring expenses and notifies partner
+ok 101 - recurring service deletes recurring expenses and notifies partner
+  ---
+  duration_ms: 2.42625
+  type: 'test'
+  ...
+# Subtest: recurring service auto-posts due recurring expenses
+ok 102 - recurring service auto-posts due recurring expenses
+  ---
+  duration_ms: 2.670542
+  type: 'test'
+  ...
+# Subtest: group service creates a group and activates it for the caller
+ok 103 - group service creates a group and activates it for the caller
+  ---
+  duration_ms: 8.250917
+  type: 'test'
+  ...
+# Subtest: group service archives a group and moves active users to another group
+ok 104 - group service archives a group and moves active users to another group
+  ---
+  duration_ms: 5.119083
+  type: 'test'
+  ...
+# Subtest: bank import service uses active group and returns match summary
+ok 105 - bank import service uses active group and returns match summary
+  ---
+  duration_ms: 20.513208
+  type: 'test'
+  ...
+# Subtest: bank import service rejects CSV files with no parsed rows
+ok 106 - bank import service rejects CSV files with no parsed rows
+  ---
+  duration_ms: 0.844958
+  type: 'test'
+  ...
+# Subtest: secretary: getRecentExpenses filters by ledger through ledgerQueryService
+ok 107 - secretary: getRecentExpenses filters by ledger through ledgerQueryService
+  ---
+  duration_ms: 8.712792
+  type: 'test'
+  ...
+# Subtest: read tools: get_recent_expenses merges shared+private, sorts by created_at desc, dedupes and skips deleted
+ok 108 - read tools: get_recent_expenses merges shared+private, sorts by created_at desc, dedupes and skips deleted
+  ---
+  duration_ms: 1.345042
+  type: 'test'
+  ...
+# Subtest: read tools: get_recent_expenses marks partner-paid rows
+ok 109 - read tools: get_recent_expenses marks partner-paid rows
+  ---
+  duration_ms: 0.897875
+  type: 'test'
+  ...
+# Subtest: read tools: query_expenses returns only summary when no limit
+ok 110 - read tools: query_expenses returns only summary when no limit
+  ---
+  duration_ms: 2.627084
+  type: 'test'
+  ...
+# Subtest: read tools: query_expenses with limit+amount_desc returns sorted items
+ok 111 - read tools: query_expenses with limit+amount_desc returns sorted items
+  ---
+  duration_ms: 3.374584
+  type: 'test'
+  ...
+# Subtest: read tools: get_balance_summary maps positive balance to partner owes me
+ok 112 - read tools: get_balance_summary maps positive balance to partner owes me
+  ---
+  duration_ms: 10.62225
+  type: 'test'
+  ...
+# Subtest: read tools: get_balance_summary maps negative balance to I owe partner
+ok 113 - read tools: get_balance_summary maps negative balance to I owe partner
+  ---
+  duration_ms: 1.273709
+  type: 'test'
+  ...
+# Subtest: read tools: get_balance_summary returns settled message when both are zero
+ok 114 - read tools: get_balance_summary returns settled message when both are zero
+  ---
+  duration_ms: 1.388375
+  type: 'test'
+  ...
+# Subtest: read tools: get_recurring_list maps couple-scoped rows to tool contract
+ok 115 - read tools: get_recurring_list maps couple-scoped rows to tool contract
+  ---
+  duration_ms: 1.8685
+  type: 'test'
+  ...
+# Subtest: secretary service retries hallucinated writes and applies corrected pending actions
+ok 116 - secretary service retries hallucinated writes and applies corrected pending actions
+  ---
+  duration_ms: 1.029708
+  type: 'test'
+  ...
+# Subtest: secretary service replays an immutable action plan without rerunning the model
+ok 117 - secretary service replays an immutable action plan without rerunning the model
+  ---
+  duration_ms: 18.289375
+  type: 'test'
+  ...
+# Subtest: LINE action plan keeps the first mixed-action result across redelivery
+ok 118 - LINE action plan keeps the first mixed-action result across redelivery
+  ---
+  duration_ms: 7.994584
+  type: 'test'
+  ...
+# Subtest: write tools: update_expense returns pending_action updates
+ok 119 - write tools: update_expense returns pending_action updates
+  ---
+  duration_ms: 21.099542
+  type: 'test'
+  ...
+# Subtest: write tools: update_expense no-op throws error
+ok 120 - write tools: update_expense no-op throws error
+  ---
+  duration_ms: 2.797792
+  type: 'test'
+  ...
+# Subtest: tool integration regression: tool -> executeAgentAction -> TS transaction
+ok 121 - tool integration regression: tool -> executeAgentAction -> TS transaction
+  ---
+  duration_ms: 259.513792
+  type: 'test'
+  ...
+# Subtest: secretary integration regression: tool -> SecretaryService.run -> TS transaction
+ok 122 - secretary integration regression: tool -> SecretaryService.run -> TS transaction
+  ---
+  duration_ms: 14.822125
+  type: 'test'
+  ...
+# Subtest: tool: get_category_breakdown regression
+ok 123 - tool: get_category_breakdown regression
+  ---
+  duration_ms: 5.894542
+  type: 'test'
+  ...
+# Subtest: tool: compare_period regression
+ok 124 - tool: compare_period regression
+  ---
+  duration_ms: 4.155542
+  type: 'test'
+  ...
+# Subtest: tool: get_anomalies regression
+ok 125 - tool: get_anomalies regression
+  ---
+  duration_ms: 7.267167
+  type: 'test'
+  ...
+# Subtest: tool: get_category_trend regression
+ok 126 - tool: get_category_trend regression
+  ---
+  duration_ms: 5.098834
+  type: 'test'
+  ...
+# Subtest: tool: predict_month_end regression - insufficient data guard
+ok 127 - tool: predict_month_end regression - insufficient data guard
+  ---
+  duration_ms: 11.217041
+  type: 'test'
+  ...
+# Subtest: tool: predict_month_end regression - normal prediction
+ok 128 - tool: predict_month_end regression - normal prediction
+  ---
+  duration_ms: 11.641541
+  type: 'test'
+  ...
+# Subtest: tool: analyze_spending regression
+ok 129 - tool: analyze_spending regression
+  ---
+  duration_ms: 13.981834
+  type: 'test'
+  ...
+# agent_event write failed (non-blocking) {
+#   kind: 'action_failed',
+#   error: 'db.from(...).insert is not a function'
+# }
+# Subtest: runLineSecretaryTurn replies actionResultMessage on action failure
+ok 130 - runLineSecretaryTurn replies actionResultMessage on action failure
+  ---
+  duration_ms: 31.574958
+  type: 'test'
+  ...
+# agent_event write failed (non-blocking) { kind: 'text_other', error: 'db.from(...).insert is not a function' }
+# Subtest: runLineSecretaryTurn replies success and notifies partner when requested
+ok 131 - runLineSecretaryTurn replies success and notifies partner when requested
+  ---
+  duration_ms: 16.290459
+  type: 'test'
+  ...
+# agent_event write failed (non-blocking) { kind: 'text_other', error: 'db.from(...).insert is not a function' }
+# Subtest: runLineSecretaryTurn routes explicit group mention to that group and strips it from text
+ok 132 - runLineSecretaryTurn routes explicit group mention to that group and strips it from text
+  ---
+  duration_ms: 18.325375
+  type: 'test'
+  ...
+# agent_event write failed (non-blocking) { kind: 'needs_group', error: 'db.from(...).insert is not a function' }
+# Subtest: runLineSecretaryTurn: shared account + accounting intent + no group name -> needs_group, no LLM call
+ok 133 - runLineSecretaryTurn: shared account + accounting intent + no group name -> needs_group, no LLM call
+  ---
+  duration_ms: 14.108625
+  type: 'test'
+  ...
+# agent_event write failed (non-blocking) { kind: 'text_other', error: 'db.from(...).insert is not a function' }
+# Subtest: runLineSecretaryTurn: shared account + chitchat + no group name -> reaches LLM, no gate
+ok 134 - runLineSecretaryTurn: shared account + chitchat + no group name -> reaches LLM, no gate
+  ---
+  duration_ms: 8.893875
+  type: 'test'
+  ...
+# agent_event write failed (non-blocking) { kind: 'text_other', error: 'db.from(...).insert is not a function' }
+# Subtest: handleLineAudioTurn uses the only available group without a redundant question
+ok 135 - handleLineAudioTurn uses the only available group without a redundant question
+  ---
+  duration_ms: 9.307083
+  type: 'test'
+  ...
+# agent_event write failed (non-blocking) { kind: 'text_other', error: 'db.from(...).insert is not a function' }
+# Subtest: runLineSecretaryTurn: dependencies.context is not mutated by resolvedGroupId
+ok 136 - runLineSecretaryTurn: dependencies.context is not mutated by resolvedGroupId
+  ---
+  duration_ms: 4.045167
+  type: 'test'
+  ...
+# agent_event write failed (non-blocking) { kind: 'text_other', error: 'db.from(...).insert is not a function' }
+# Subtest: runLineSecretaryTurn passes a stable line idempotency key into executeAgentAction
+ok 137 - runLineSecretaryTurn passes a stable line idempotency key into executeAgentAction
+  ---
+  duration_ms: 6.274834
+  type: 'test'
+  ...
+# Subtest: LINE transfer command creates one pending transfer without a direct partner push
+ok 138 - LINE transfer command creates one pending transfer without a direct partner push
+  ---
+  duration_ms: 3.704542
+  type: 'test'
+  ...
+# Subtest: LINE negation and questions never reach a money-write path
+ok 139 - LINE negation and questions never reach a money-write path
+  ---
+  duration_ms: 34.473667
+  type: 'test'
+  ...
+# agent_event write failed (non-blocking) { kind: 'text_other', error: 'db.from(...).insert is not a function' }
+# Subtest: handleLineAudioTurn prefixes transcript into assistant reply
+ok 140 - handleLineAudioTurn prefixes transcript into assistant reply
+  ---
+  duration_ms: 2.745584
+  type: 'test'
+  ...
+# agent_event write failed (non-blocking) {
+#   kind: 'image_rejected',
+#   error: 'db.from(...).insert is not a function'
+# }
+# Subtest: handleLineImageTurn rejects image without downloading or calling LLM
+ok 141 - handleLineImageTurn rejects image without downloading or calling LLM
+  ---
+  duration_ms: 1.309834
+  type: 'test'
+  ...
+# Subtest: route regression: /api/app/receipts/* endpoints are not found
+ok 142 - route regression: /api/app/receipts/* endpoints are not found
+  ---
+  duration_ms: 79.119917
+  type: 'test'
+  ...
+# Subtest: static regression: check forbidden strings and imports in production files
+ok 143 - static regression: check forbidden strings and imports in production files
+  ---
+  duration_ms: 59.850417
+  type: 'test'
+  ...
+# agent_event write failed (non-blocking) {
+#   kind: 'image_rejected',
+#   error: 'db.from(...).insert is not a function'
+# }
+# Subtest: LINE regression: image message routes to handleLineImageTurn and short-circuits
+ok 144 - LINE regression: image message routes to handleLineImageTurn and short-circuits
+  ---
+  duration_ms: 3.410917
+  type: 'test'
+  ...
+# Subtest: line webhook: join path uses claimUser result and bypasses joined-user lookup
+ok 145 - line webhook: join path uses claimUser result and bypasses joined-user lookup
+  ---
+  duration_ms: 1.922292
+  type: 'test'
+  ...
+# Subtest: line text service: search command calls ledgerQueryService.searchExpenses and returns LIFF link
+ok 146 - line text service: search command calls ledgerQueryService.searchExpenses and returns LIFF link
+  ---
+  duration_ms: 2.014875
+  type: 'test'
+  ...
+# Subtest: line text service: pending retarget confirms every returned actionId
+ok 147 - line text service: pending retarget confirms every returned actionId
+  ---
+  duration_ms: 3.010416
+  type: 'test'
+  ...
+# Subtest: line webhook facade: exported parser helpers and handleLineEvent still route through split modules
+ok 148 - line webhook facade: exported parser helpers and handleLineEvent still route through split modules
+  ---
+  duration_ms: 1.301
+  type: 'test'
+  ...
+# Subtest: TS Confirm Paths: create_expense confirm success
+ok 149 - TS Confirm Paths: create_expense confirm success
+  ---
+  duration_ms: 4.088667
+  type: 'test'
+  ...
+# Subtest: TS Confirm Paths: update_expense version mismatch -> stale
+ok 150 - TS Confirm Paths: update_expense version mismatch -> stale
+  ---
+  duration_ms: 2.121333
+  type: 'test'
+  ...
+# Subtest: TS Confirm Paths: delete_expense / restore_expense success
+ok 151 - TS Confirm Paths: delete_expense / restore_expense success
+  ---
+  duration_ms: 1.384542
+  type: 'test'
+  ...
+# Subtest: TS Confirm Paths: settle success
+ok 152 - TS Confirm Paths: settle success
+  ---
+  duration_ms: 6.29475
+  type: 'test'
+  ...
+# Subtest: TS Confirm Paths: batch_create_expenses success
+ok 153 - TS Confirm Paths: batch_create_expenses success
+  ---
+  duration_ms: 0.926625
+  type: 'test'
+  ...
+# Subtest: TS Confirm Paths: batch_update_expenses success
+ok 154 - TS Confirm Paths: batch_update_expenses success
+  ---
+  duration_ms: 2.269875
+  type: 'test'
+  ...
+# Subtest: TS Confirm Paths: already_done / expired / not_found
+ok 155 - TS Confirm Paths: already_done / expired / not_found
+  ---
+  duration_ms: 4.837417
+  type: 'test'
+  ...
+# Subtest: confirmed action replay repairs idempotent post-commit tag normalization
+ok 156 - confirmed action replay repairs idempotent post-commit tag normalization
+  ---
+  duration_ms: 10.873333
+  type: 'test'
+  ...
+# Subtest: TS Confirm Paths: constraint violation -> stale
+ok 157 - TS Confirm Paths: constraint violation -> stale
+  ---
+  duration_ms: 2.108833
+  type: 'test'
+  ...
+# Subtest: env regression: shared server env schema fails when DATABASE_URL is missing
+ok 158 - env regression: shared server env schema fails when DATABASE_URL is missing
+  ---
+  duration_ms: 38.759208
+  type: 'test'
+  ...
+# Subtest: env regression: webhook route env schema fails when DATABASE_URL is missing
+ok 159 - env regression: webhook route env schema fails when DATABASE_URL is missing
+  ---
+  duration_ms: 103.484792
+  type: 'test'
+  ...
+# Subtest: withTx regression: withTx does not fail when DATABASE_URL is present
+ok 160 - withTx regression: withTx does not fail when DATABASE_URL is present
+  ---
+  duration_ms: 2.704667
+  type: 'test'
+  ...
+# Subtest: withTx env boundary: only DATABASE_URL is required; LINE/GEMINI/APP_URL are irrelevant
+ok 161 - withTx env boundary: only DATABASE_URL is required; LINE/GEMINI/APP_URL are irrelevant
+  ---
+  duration_ms: 17.06425
+  type: 'test'
+  ...
+# Subtest: withTx env boundary: missing DATABASE_URL still produces a DATABASE_URL error (not a LINE/GEMINI error)
+ok 162 - withTx env boundary: missing DATABASE_URL still produces a DATABASE_URL error (not a LINE/GEMINI error)
+  ---
+  duration_ms: 3.232583
+  type: 'test'
+  ...
+# Subtest: claimUser: returns joined + owner when the couple is empty
+ok 163 - claimUser: returns joined + owner when the couple is empty
+  ---
+  duration_ms: 4.383708
+  type: 'test'
+  ...
+# Subtest: claimUser: returns joined + partner when one user already exists
+ok 164 - claimUser: returns joined + partner when one user already exists
+  ---
+  duration_ms: 1.310833
+  type: 'test'
+  ...
+# Subtest: claimUser: returns full when the couple already has 2 users
+ok 165 - claimUser: returns full when the couple already has 2 users
+  ---
+  duration_ms: 0.695417
+  type: 'test'
+  ...
+# Subtest: claimUser: returns already_joined when the same line_user_id exists
+ok 166 - claimUser: returns already_joined when the same line_user_id exists
+  ---
+  duration_ms: 0.74
+  type: 'test'
+  ...
+# Subtest: claimUser: reclassifies race-loss unique violation on line_user_id as already_joined
+ok 167 - claimUser: reclassifies race-loss unique violation on line_user_id as already_joined
+  ---
+  duration_ms: 0.646917
+  type: 'test'
+  ...
+# Subtest: claimUser: reclassifies race-loss unique violation on (couple_id, role) as full
+ok 168 - claimUser: reclassifies race-loss unique violation on (couple_id, role) as full
+  ---
+  duration_ms: 1.658417
+  type: 'test'
+  ...
+# Subtest: claimUser: rejects empty / oversized line_user_id
+ok 169 - claimUser: rejects empty / oversized line_user_id
+  ---
+  duration_ms: 1.565541
+  type: 'test'
+  ...
+# Subtest: loadGroupBalances: parses rpc rows into camelCase GroupBalanceRow[]
+ok 170 - loadGroupBalances: parses rpc rows into camelCase GroupBalanceRow[]
+  ---
+  duration_ms: 1.456917
+  type: 'test'
+  ...
+# Subtest: loadGroupBalances: throws on rpc error (callers catch and degrade)
+ok 171 - loadGroupBalances: throws on rpc error (callers catch and degrade)
+  ---
+  duration_ms: 0.397375
+  type: 'test'
+  ...
+# Subtest: loadGroupBalances: rejects missing groupId up front
+ok 172 - loadGroupBalances: rejects missing groupId up front
+  ---
+  duration_ms: 0.746583
+  type: 'test'
+  ...
+# Subtest: server-env: getAppUrl returns process.env.APP_URL or empty string
+ok 173 - server-env: getAppUrl returns process.env.APP_URL or empty string
+  ---
+  duration_ms: 0.106542
+  type: 'test'
+  ...
+# Subtest: server-env: getModelConfig is Gemini-only
+ok 174 - server-env: getModelConfig is Gemini-only
+  ---
+  duration_ms: 0.089416
+  type: 'test'
+  ...
+# Subtest: server-env: getModelConfig reads Gemini API keys
+ok 175 - server-env: getModelConfig reads Gemini API keys
+  ---
+  duration_ms: 0.060292
+  type: 'test'
+  ...
+# Subtest: env boundary: secretary-briefing no longer reads process.env.APP_URL at module load
+ok 176 - env boundary: secretary-briefing no longer reads process.env.APP_URL at module load
+  ---
+  duration_ms: 1.081042
+  type: 'test'
+  ...
+# Subtest: env boundary: model-provider no longer reads process.env at module load
+ok 177 - env boundary: model-provider no longer reads process.env at module load
+  ---
+  duration_ms: 0.083667
+  type: 'test'
+  ...
+# Subtest: proposal guard: delete_expense rejects when mirror_kind is 'shared_share'
+ok 178 - proposal guard: delete_expense rejects when mirror_kind is 'shared_share'
+  ---
+  duration_ms: 1.433833
+  type: 'test'
+  ...
+# Subtest: proposal guard: restore_expense rejects when mirror_kind is 'shared_share'
+ok 179 - proposal guard: restore_expense rejects when mirror_kind is 'shared_share'
+  ---
+  duration_ms: 1.0245
+  type: 'test'
+  ...
+# Subtest: proposal guard: update_expense shared→private is refused when its group has an active settlement
+ok 180 - proposal guard: update_expense shared→private is refused when its group has an active settlement
+  ---
+  duration_ms: 1.235917
+  type: 'test'
+  ...
+# Subtest: agent action: legacy splits + paid_by_user_id are converted to standard create_expense input
+ok 181 - agent action: legacy splits + paid_by_user_id are converted to standard create_expense input
+  ---
+  duration_ms: 1.307292
+  type: 'test'
+  ...
+# Subtest: builder: buildUpdateExpenseAction on a no-op update still throws '沒有可修改的欄位'
+ok 182 - builder: buildUpdateExpenseAction on a no-op update still throws '沒有可修改的欄位'
+  ---
+  duration_ms: 1.84425
+  type: 'test'
+  ...
+# Subtest: accountant: ask() still routes through runAgent() (shared report contract)
+ok 183 - accountant: ask() still routes through runAgent() (shared report contract)
+  ---
+  duration_ms: 478.07575
+  type: 'test'
+  ...
+# Subtest: accountant: createCategoryCleanup() emits snake_case batch_update_expenses payload
+ok 184 - accountant: createCategoryCleanup() emits snake_case batch_update_expenses payload
+  ---
+  duration_ms: 73.484125
+  type: 'test'
+  ...
+# Subtest: accountant: generateMonthlyReports() notification titles + dedupe keys per scope
+ok 185 - accountant: generateMonthlyReports() notification titles + dedupe keys per scope
+  ---
+  duration_ms: 6.725417
+  type: 'test'
+  ...
+# Subtest: accountant: loadAccountantSnapshot() separates previous-month total by scope
+ok 186 - accountant: loadAccountantSnapshot() separates previous-month total by scope
+  ---
+  duration_ms: 17.41825
+  type: 'test'
+  ...
+# Subtest: secretary registry: declared names match what executeSecretaryTool actually accepts
+ok 187 - secretary registry: declared names match what executeSecretaryTool actually accepts
+  ---
+  duration_ms: 18.858125
+  type: 'test'
+  ...
+# Subtest: secretary registry: vercel-agent's tools object is the registry's tools object (no second source)
+ok 188 - secretary registry: vercel-agent's tools object is the registry's tools object (no second source)
+  ---
+  duration_ms: 11.238083
+  type: 'test'
+  ...
+# Subtest: secretary registry: record_expense / update_expense / propose_settlement still go through pending action builder path
+ok 189 - secretary registry: record_expense / update_expense / propose_settlement still go through pending action builder path
+  ---
+  duration_ms: 6.74825
+  type: 'test'
+  ...
+# Subtest: secretary registry: get_open_tasks / get_user_memories return the same shape as the legacy executors
+ok 190 - secretary registry: get_open_tasks / get_user_memories return the same shape as the legacy executors
+  ---
+  duration_ms: 31.986458
+  type: 'test'
+  ...
+# Subtest: accountant registry: declared names match executeTool dispatch names
+ok 191 - accountant registry: declared names match executeTool dispatch names
+  ---
+  duration_ms: 110.92625
+  type: 'test'
+  ...
+# Subtest: accountant registry: query_expenses parameters are canonical date/tag/member/type contract
+ok 192 - accountant registry: query_expenses parameters are canonical date/tag/member/type contract
+  ---
+  duration_ms: 2.531959
+  type: 'test'
+  ...
+# Subtest: accountant registry: compare_period and get_anomalies use canonical schemas, not stale Vercel-only args
+ok 193 - accountant registry: compare_period and get_anomalies use canonical schemas, not stale Vercel-only args
+  ---
+  duration_ms: 2.043667
+  type: 'test'
+  ...
+# Subtest: ledger-query split: loadBootstrap() still separates shared/private/balances/dashboard
+ok 194 - ledger-query split: loadBootstrap() still separates shared/private/balances/dashboard
+  ---
+  duration_ms: 73.494458
+  type: 'test'
+  ...
+# Subtest: ledger-query split: searchExpenses() resolves active group first, then filters
+ok 195 - ledger-query split: searchExpenses() resolves active group first, then filters
+  ---
+  duration_ms: 86.32775
+  type: 'test'
+  ...
+# Subtest: ledger-query split: categoryExpenses() returns the documented shape for six_months/combined
+ok 196 - ledger-query split: categoryExpenses() returns the documented shape for six_months/combined
+  ---
+  duration_ms: 18.936416
+  type: 'test'
+  ...
+# Subtest: ledger-query split: facade return shapes match the public types
+ok 197 - ledger-query split: facade return shapes match the public types
+  ---
+  duration_ms: 95.7715
+  type: 'test'
+  ...
+# Subtest: accountant agent runner: LLM fact mismatch falls back but still persists report/run rows
+ok 198 - accountant agent runner: LLM fact mismatch falls back but still persists report/run rows
+  ---
+  duration_ms: 114.486791
+  type: 'test'
+  ...
+# Subtest: accountant category cleanup: suggestCategoryUpdates only returns visible other-tag candidates
+ok 199 - accountant category cleanup: suggestCategoryUpdates only returns visible other-tag candidates
+  ---
+  duration_ms: 13.131
+  type: 'test'
+  ...
+# Subtest: accountant category analytics: six_months still filters to the last six months window
+ok 200 - accountant category analytics: six_months still filters to the last six months window
+  ---
+  duration_ms: 6.480959
+  type: 'test'
+  ...
+# Subtest: accountant agent barrel: exported functions/schemas still match the old public surface
+ok 201 - accountant agent barrel: exported functions/schemas still match the old public surface
+  ---
+  duration_ms: 8.664208
+  type: 'test'
+  ...
+# Subtest: flex-message-builder: flexExpenseConfirm produces valid Flex bubble
+ok 202 - flex-message-builder: flexExpenseConfirm produces valid Flex bubble
+  ---
+  duration_ms: 136.559917
+  type: 'test'
+  ...
+# Subtest: flex-message-builder: flexQueryResult produces valid Flex bubble with tags
+ok 203 - flex-message-builder: flexQueryResult produces valid Flex bubble with tags
+  ---
+  duration_ms: 5.102875
+  type: 'test'
+  ...
+# Subtest: flex-message-builder: flexNeedsGroup produces buttons for each group
+ok 204 - flex-message-builder: flexNeedsGroup produces buttons for each group
+  ---
+  duration_ms: 0.184833
+  type: 'test'
+  ...
+# Subtest: flex-message-builder: flexError produces a warning card
+ok 205 - flex-message-builder: flexError produces a warning card
+  ---
+  duration_ms: 0.401166
+  type: 'test'
+  ...
+# Subtest: secretary-direct-actions: executeDirectUpdate on private expense succeeds without pending_action
+ok 206 - secretary-direct-actions: executeDirectUpdate on private expense succeeds without pending_action
+  ---
+  duration_ms: 13.91
+  type: 'test'
+  ...
+# Subtest: secretary-direct-actions: executeDirectUpdate rejects shared expense
+ok 207 - secretary-direct-actions: executeDirectUpdate rejects shared expense
+  ---
+  duration_ms: 59.875917
+  type: 'test'
+  ...
+# Subtest: secretary-direct-actions: executeDirectDelete on private expense soft-deletes
+ok 208 - secretary-direct-actions: executeDirectDelete on private expense soft-deletes
+  ---
+  duration_ms: 141.115666
+  type: 'test'
+  ...
+# Subtest: secretary-direct-actions: executeDirectDelete rejects shared expense
+ok 209 - secretary-direct-actions: executeDirectDelete rejects shared expense
+  ---
+  duration_ms: 6.513
+  type: 'test'
+  ...
+# App API failed { error: 'Error' }
+# Subtest: onboarding resumes the same first expense and existing groups never short-circuit
+ok 210 - onboarding resumes the same first expense and existing groups never short-circuit
+  ---
+  duration_ms: 2219.826125
+  type: 'test'
+  ...
+# Subtest: concurrent onboarding submissions converge on one group and one expense
+ok 211 - concurrent onboarding submissions converge on one group and one expense
+  ---
+  duration_ms: 20.941875
+  type: 'test'
+  ...
+# Subtest: complete deterministic grammar preserves amount, payer, receiver and explicit Ledger
+ok 212 - complete deterministic grammar preserves amount, payer, receiver and explicit Ledger
+  ---
+  duration_ms: 10.669042
+  type: 'test'
+  ...
+# Subtest: the complete input must match: no partial amounts or inferred semantics
+ok 213 - the complete input must match: no partial amounts or inferred semantics
+  ---
+  duration_ms: 1.515833
+  type: 'test'
+  ...
+# Subtest: truthful summaries use Ledger order for second-member actor and frozen ratio
+ok 214 - truthful summaries use Ledger order for second-member actor and frozen ratio
+  ---
+  duration_ms: 158.900708
+  type: 'test'
+  ...
+# Subtest: invalid exact shares and payer totals remain explicit and never claim equal
+ok 215 - invalid exact shares and payer totals remain explicit and never claim equal
+  ---
+  duration_ms: 16.28725
+  type: 'test'
+  ...
+# Subtest: percentage supports kernel precision while blank inputs remain incomplete
+ok 216 - percentage supports kernel precision while blank inputs remain incomplete
+  ---
+  duration_ms: 2.373458
+  type: 'test'
+  ...
+# Subtest: income receiver and transfer direction come from actual payer identity
+ok 217 - income receiver and transfer direction come from actual payer identity
+  ---
+  duration_ms: 0.760792
+  type: 'test'
+  ...
+# Subtest: purpose normalization is separate from the untrimmed input and invalid dates stay invalid
+ok 218 - purpose normalization is separate from the untrimmed input and invalid dates stay invalid
+  ---
+  duration_ms: 1.384583
+  type: 'test'
+  ...
+# Subtest: historical exact copy disappears when the user changes the stored allocation
+ok 219 - historical exact copy disappears when the user changes the stored allocation
+  ---
+  duration_ms: 0.896417
+  type: 'test'
+  ...
+# Subtest: normalization validates input and freezes explicit kernel shares
+ok 220 - normalization validates input and freezes explicit kernel shares
+  ---
+  duration_ms: 95.756625
+  type: 'test'
+  ...
+# Subtest: 681 kernel member ordering: signed-in second member, 1:1, self
+ok 221 - 681 kernel member ordering: signed-in second member, 1:1, self
+  ---
+  duration_ms: 1.045916
+  type: 'test'
+  ...
+# Subtest: 681 kernel member ordering: signed-in second member, 1:1, partner
+ok 222 - 681 kernel member ordering: signed-in second member, 1:1, partner
+  ---
+  duration_ms: 1.008375
+  type: 'test'
+  ...
+# Subtest: 681 kernel member ordering: signed-in second member, 1:1, both
+ok 223 - 681 kernel member ordering: signed-in second member, 1:1, both
+  ---
+  duration_ms: 0.560083
+  type: 'test'
+  ...
+# Subtest: 681 kernel member ordering: signed-in second member, 2:1, self
+ok 224 - 681 kernel member ordering: signed-in second member, 2:1, self
+  ---
+  duration_ms: 0.661833
+  type: 'test'
+  ...
+# Subtest: 681 kernel member ordering: signed-in second member, 2:1, partner
+ok 225 - 681 kernel member ordering: signed-in second member, 2:1, partner
+  ---
+  duration_ms: 0.105334
+  type: 'test'
+  ...
+# Subtest: 681 kernel member ordering: signed-in second member, 2:1, both
+ok 226 - 681 kernel member ordering: signed-in second member, 2:1, both
+  ---
+  duration_ms: 0.154375
+  type: 'test'
+  ...
+# Subtest: 681 kernel member ordering: signed-in second member, 0:1, self
+ok 227 - 681 kernel member ordering: signed-in second member, 0:1, self
+  ---
+  duration_ms: 0.094
+  type: 'test'
+  ...
+# Subtest: 681 kernel member ordering: signed-in second member, 0:1, partner
+ok 228 - 681 kernel member ordering: signed-in second member, 0:1, partner
+  ---
+  duration_ms: 0.330083
+  type: 'test'
+  ...
+# Subtest: 681 kernel member ordering: signed-in second member, 0:1, both
+ok 229 - 681 kernel member ordering: signed-in second member, 0:1, both
+  ---
+  duration_ms: 2.578625
+  type: 'test'
+  ...
+# Subtest: percentage choices are mapped by member ID, exact shares and transfers use the same kernel validation
+ok 230 - percentage choices are mapped by member ID, exact shares and transfers use the same kernel validation
+  ---
+  duration_ms: 1.301833
+  type: 'test'
+  ...
+# Subtest: opening defaults are a copy; later defaults cannot alter frozen shares or replay bytes
+ok 231 - opening defaults are a copy; later defaults cannot alter frozen shares or replay bytes
+  ---
+  duration_ms: 4.066791
+  type: 'test'
+  ...
+# Subtest: correction hydrates actual payments/shares/version, never an invented historical percentage
+ok 232 - correction hydrates actual payments/shares/version, never an invented historical percentage
+  ---
+  duration_ms: 1.443083
+  type: 'test'
+  ...
+# Subtest: only recognized first-attempt endpoint rejections prove no write; any previous unknown stays unknown
+ok 233 - only recognized first-attempt endpoint rejections prove no write; any previous unknown stays unknown
+  ---
+  duration_ms: 474.319667
+  type: 'test'
+  ...
+# Subtest: recovery storage requires exact read-back; no editing draft or credentials are serialized
+ok 234 - recovery storage requires exact read-back; no editing draft or credentials are serialized
+  ---
+  duration_ms: 0.680625
+  type: 'test'
+  ...
+# Subtest: identity/couple/Ledger validation rejects cross-scope replay without changing the operation
+ok 235 - identity/couple/Ledger validation rejects cross-scope replay without changing the operation
+  ---
+  duration_ms: 0.14425
+  type: 'test'
+  ...
+# Subtest: complete and compatible partial responses prove commit; malformed, mismatched content or scope do not
+ok 236 - complete and compatible partial responses prove commit; malformed, mismatched content or scope do not
+  ---
+  duration_ms: 25.057
+  type: 'test'
+  ...
+# Subtest: replace commit proof binds original ID, expected version and actual replacement
+ok 237 - replace commit proof binds original ID, expected version and actual replacement
+  ---
+  duration_ms: 2.872
+  type: 'test'
+  ...
+# Subtest: canonical result atomically changes row, balance and next payer; old receipts and reads cannot downgrade
+ok 238 - canonical result atomically changes row, balance and next payer; old receipts and reads cannot downgrade
+  ---
+  duration_ms: 1.047583
+  type: 'test'
+  ...
+# Subtest: dirty compares every editable field to its opening seed and clears on reversion
+ok 239 - dirty compares every editable field to its opening seed and clears on reversion
+  ---
+  duration_ms: 302.021166
+  type: 'test'
+  ...
+# Subtest: transaction cursor round-trips the complete deterministic sort key
+ok 240 - transaction cursor round-trips the complete deterministic sort key
+  ---
+  duration_ms: 117.398958
+  type: 'test'
+  ...
+# Subtest: CSV export is unbounded, semantically complete, and formula-safe
+ok 241 - CSV export is unbounded, semantically complete, and formula-safe
+  ---
+  duration_ms: 125.63
+  type: 'test'
+  ...
+# Subtest: Taipei local date does not roll back during Taiwan morning
+ok 242 - Taipei local date does not roll back during Taiwan morning
+  ---
+  duration_ms: 121.119291
+  type: 'test'
+  ...
+# Subtest: TWD allocation is integer, deterministic, and sums exactly
+ok 243 - TWD allocation is integer, deterministic, and sums exactly
+  ---
+  duration_ms: 58.828459
+  type: 'test'
+  ...
+# Subtest: expense delta supports multiple payers independently from shares
+ok 244 - expense delta supports multiple payers independently from shares
+  ---
+  duration_ms: 13.466833
+  type: 'test'
+  ...
+# Subtest: income delta uses received payment minus entitled share in reverse
+ok 245 - income delta uses received payment minus entitled share in reverse
+  ---
+  duration_ms: 1.462417
+  type: 'test'
+  ...
+# Subtest: transfer is a first-class zero-sum transaction
+ok 246 - transfer is a first-class zero-sum transaction
+  ---
+  duration_ms: 0.118958
+  type: 'test'
+  ...
+# Subtest: ledger balance excludes voided/deleted rows and never crosses ledgers
+ok 247 - ledger balance excludes voided/deleted rows and never crosses ledgers
+  ---
+  duration_ms: 0.136959
+  type: 'test'
+  ...
+# Subtest: settle-all recommends only the debtor's outstanding amount
+ok 248 - settle-all recommends only the debtor's outstanding amount
+  ---
+  duration_ms: 0.561208
+  type: 'test'
+  ...
+# Subtest: invalid participant and conservation inputs are rejected
+ok 249 - invalid participant and conservation inputs are rejected
+  ---
+  duration_ms: 1.150042
+  type: 'test'
+  ...
+# Subtest: wire values stay integer strings
+ok 250 - wire values stay integer strings
+  ---
+  duration_ms: 0.204292
+  type: 'test'
+  ...
+# Subtest: migration cutover gate rejects a non-reconciled plan before any write
+ok 251 - migration cutover gate rejects a non-reconciled plan before any write
+  ---
+  duration_ms: 207.101917
+  type: 'test'
+  ...
+# Subtest: each legacy group becomes its own ledger without netting
+ok 252 - each legacy group becomes its own ledger without netting
+  ---
+  duration_ms: 63.65475
+  type: 'test'
+  ...
+# Subtest: mirrors and private rows are excluded exactly once
+ok 253 - mirrors and private rows are excluded exactly once
+  ---
+  duration_ms: 34.903042
+  type: 'test'
+  ...
+# Subtest: settlement is a first-class transfer in the same legacy ledger
+ok 254 - settlement is a first-class transfer in the same legacy ledger
+  ---
+  duration_ms: 30.114042
+  type: 'test'
+  ...
+# Subtest: invalid or cross-couple source rows are quarantined, never repaired silently
+ok 255 - invalid or cross-couple source rows are quarantined, never repaired silently
+  ---
+  duration_ms: 6.710542
+  type: 'test'
+  ...
+# Subtest: migration plan digest is stable for the same snapshot
+ok 256 - migration plan digest is stable for the same snapshot
+  ---
+  duration_ms: 14.222
+  type: 'test'
+  ...
+# Subtest: V2 Rich Menu tab values open the matching Ledger sub-navigation
+ok 257 - V2 Rich Menu tab values open the matching Ledger sub-navigation
+  ---
+  duration_ms: 1.748625
+  type: 'test'
+  ...
+# Subtest: explicit Home accepts only active authorized scope; fallback requires absent target
+ok 258 - explicit Home accepts only active authorized scope; fallback requires absent target
+  ---
+  duration_ms: 1.760459
+  type: 'test'
+  ...
+# Subtest: transaction scope is mandatory, never guessed from active Ledger
+ok 259 - transaction scope is mandatory, never guessed from active Ledger
+  ---
+  duration_ms: 0.414
+  type: 'test'
+  ...
+# Subtest: bounded surface mapping: STATS tab=stats
+ok 260 - bounded surface mapping: STATS tab=stats
+  ---
+  duration_ms: 0.253625
+  type: 'test'
+  ...
+# Subtest: bounded surface mapping: STATS tab=analysis
+ok 261 - bounded surface mapping: STATS tab=analysis
+  ---
+  duration_ms: 0.070167
+  type: 'test'
+  ...
+# Subtest: bounded surface mapping: SETTINGS tab=settings
+ok 262 - bounded surface mapping: SETTINGS tab=settings
+  ---
+  duration_ms: 0.147042
+  type: 'test'
+  ...
+# Subtest: bounded surface mapping: RECURRING tab=recurring
+ok 263 - bounded surface mapping: RECURRING tab=recurring
+  ---
+  duration_ms: 1.878583
+  type: 'test'
+  ...
+# Subtest: bounded surface mapping: SEARCH view=search&q=food&type=expense&from=2026-09-01
+ok 264 - bounded surface mapping: SEARCH view=search&q=food&type=expense&from=2026-09-01
+  ---
+  duration_ms: 5.434291
+  type: 'test'
+  ...
+# Subtest: bounded surface mapping: PROPOSAL_COMPAT_ENTRY v2Proposal=P&v2Transaction=T
+ok 265 - bounded surface mapping: PROPOSAL_COMPAT_ENTRY v2Proposal=P&v2Transaction=T
+  ---
+  duration_ms: 0.373125
+  type: 'test'
+  ...
+# Subtest: LIFF envelope is read without mutation and direct params take priority
+ok 266 - LIFF envelope is read without mutation and direct params take priority
+  ---
+  duration_ms: 1.994667
+  type: 'test'
+  ...
+# Subtest: canonical Home removes old surface/search but preserves unrelated query/hash
+ok 267 - canonical Home removes old surface/search but preserves unrelated query/hash
+  ---
+  duration_ms: 0.401458
+  type: 'test'
+  ...
+# Subtest: only read-surface entry pushes; initialization/switch/filter/direct Back replace
+ok 268 - only read-surface entry pushes; initialization/switch/filter/direct Back replace
+  ---
+  duration_ms: 0.23175
+  type: 'test'
+  ...
+# Subtest: origin is bounded, preserves Next/unrelated state, and expires on reload
+ok 269 - origin is bounded, preserves Next/unrelated state, and expires on reload
+  ---
+  duration_ms: 1.892
+  type: 'test'
+  ...
+# Subtest: Search origin keeps only read filters, and include-void survives the URL
+ok 270 - Search origin keeps only read filters, and include-void survives the URL
+  ---
+  duration_ms: 0.410167
+  type: 'test'
+  ...
+# Subtest: V2 outbox payloads remain bounded LINE text fields
+ok 271 - V2 outbox payloads remain bounded LINE text fields
+  ---
+  duration_ms: 0.777125
+  type: 'test'
+  ...
+# Subtest: LINE delivery classification dead-letters permanent client errors and retries temporary failures
+ok 272 - LINE delivery classification dead-letters permanent client errors and retries temporary failures
+  ---
+  duration_ms: 1.590417
+  type: 'test'
+  ...
+# Subtest: opportunistic drain is registered after the response path and does not wait for LINE
+ok 273 - opportunistic drain is registered after the response path and does not wait for LINE
+  ---
+  duration_ms: 0.16575
+  type: 'test'
+  ...
+# Subtest: chronology sorts occurrence date before creation time
+ok 274 - chronology sorts occurrence date before creation time
+  ---
+  duration_ms: 188.425334
+  type: 'test'
+  ...
+# Subtest: equal chronology uses the existing descending stable ID tie-break
+ok 275 - equal chronology uses the existing descending stable ID tie-break
+  ---
+  duration_ms: 0.419083
+  type: 'test'
+  ...
+# Subtest: filtering and sorting do not mutate canonical bootstrap data
+ok 276 - filtering and sorting do not mutate canonical bootstrap data
+  ---
+  duration_ms: 1.128791
+  type: 'test'
+  ...
+# Subtest: today is grouped by the Taipei context calendar date
+ok 277 - today is grouped by the Taipei context calendar date
+  ---
+  duration_ms: 0.472958
+  type: 'test'
+  ...
+# Subtest: yesterday label uses calendar arithmetic independent of runtime timezone
+ok 278 - yesterday label uses calendar arithmetic independent of runtime timezone
+  ---
+  duration_ms: 1.701333
+  type: 'test'
+  ...
+# Subtest: yesterday crosses month and year boundaries
+ok 279 - yesterday crosses month and year boundaries
+  ---
+  duration_ms: 0.093166
+  type: 'test'
+  ...
+# Subtest: same-year dates have month and day labels
+ok 280 - same-year dates have month and day labels
+  ---
+  duration_ms: 0.140833
+  type: 'test'
+  ...
+# Subtest: cross-year dates retain their year
+ok 281 - cross-year dates retain their year
+  ---
+  duration_ms: 0.050834
+  type: 'test'
+  ...
+# Subtest: future dates show their actual date and remain ahead of today
+ok 282 - future dates show their actual date and remain ahead of today
+  ---
+  duration_ms: 0.252959
+  type: 'test'
+  ...
+# Subtest: missing occurrence date remains explicit instead of using createdAt
+ok 283 - missing occurrence date remains explicit instead of using createdAt
+  ---
+  duration_ms: 0.62275
+  type: 'test'
+  ...
+# Subtest: initial client render window contains only the first 20
+ok 284 - initial client render window contains only the first 20
+  ---
+  duration_ms: 0.701417
+  type: 'test'
+  ...
+# Subtest: 20 to 40 append preserves visible IDs and adds the next 20 once
+ok 285 - 20 to 40 append preserves visible IDs and adds the next 20 once
+  ---
+  duration_ms: 0.185792
+  type: 'test'
+  ...
+# Subtest: append boundaries 20/21 and 40/41 share one date heading
+ok 286 - append boundaries 20/21 and 40/41 share one date heading
+  ---
+  duration_ms: 0.175792
+  type: 'test'
+  ...
+# Subtest: a partially visible date group grows in place without another heading
+ok 287 - a partially visible date group grows in place without another heading
+  ---
+  duration_ms: 0.448834
+  type: 'test'
+  ...
+# Subtest: final window stops at loaded record count
+ok 288 - final window stops at loaded record count
+  ---
+  duration_ms: 0.088459
+  type: 'test'
+  ...
+# Subtest: effective Home history contains current posted transactions only
+ok 289 - effective Home history contains current posted transactions only
+  ---
+  duration_ms: 0.140792
+  type: 'test'
+  ...
+# Subtest: voided rows remain excluded even without a replacement
+ok 290 - voided rows remain excluded even without a replacement
+  ---
+  duration_ms: 0.044334
+  type: 'test'
+  ...
+# Subtest: replaced old posted rows are excluded and the new replacement remains
+ok 291 - replaced old posted rows are excluded and the new replacement remains
+  ---
+  duration_ms: 0.053708
+  type: 'test'
+  ...
+# Subtest: Detail lookup resolves exact old and void IDs from available history
+ok 292 - Detail lookup resolves exact old and void IDs from available history
+  ---
+  duration_ms: 0.063792
+  type: 'test'
+  ...
+# Subtest: Detail lookup never substitutes a similar transaction or another Ledger
+ok 293 - Detail lookup never substitutes a similar transaction or another Ledger
+  ---
+  duration_ms: 0.281083
+  type: 'test'
+  ...
+# Subtest: expense payer summary distinguishes you and partner
+ok 294 - expense payer summary distinguishes you and partner
+  ---
+  duration_ms: 0.152125
+  type: 'test'
+  ...
+# Subtest: both-payer expense summary hides individual amounts
+ok 295 - both-payer expense summary hides individual amounts
+  ---
+  duration_ms: 0.052042
+  type: 'test'
+  ...
+# Subtest: zero allocations are not described as another active payer
+ok 296 - zero allocations are not described as another active payer
+  ---
+  duration_ms: 0.039708
+  type: 'test'
+  ...
+# Subtest: income identifies the receiver and has an explicit type label
+ok 297 - income identifies the receiver and has an explicit type label
+  ---
+  duration_ms: 0.0555
+  type: 'test'
+  ...
+# Subtest: income received by both uses receiver language
+ok 298 - income received by both uses receiver language
+  ---
+  duration_ms: 0.038167
+  type: 'test'
+  ...
+# Subtest: transfer directions describe sender to receiver without split language
+ok 299 - transfer directions describe sender to receiver without split language
+  ---
+  duration_ms: 0.413083
+  type: 'test'
+  ...
+# Subtest: huge canonical amount strings retain every digit
+ok 300 - huge canonical amount strings retain every digit
+  ---
+  duration_ms: 12.697
+  type: 'test'
+  ...
+# Subtest: invalid amounts are not silently rounded into a different financial value
+ok 301 - invalid amounts are not silently rounded into a different financial value
+  ---
+  duration_ms: 0.071292
+  type: 'test'
+  ...
+# Subtest: long purpose text stays complete for Detail and accessible row names
+ok 302 - long purpose text stays complete for Detail and accessible row names
+  ---
+  duration_ms: 0.066458
+  type: 'test'
+  ...
+# Subtest: missing purpose uses the truthful transaction type
+ok 303 - missing purpose uses the truthful transaction type
+  ---
+  duration_ms: 0.089792
+  type: 'test'
+  ...
+# Subtest: stored and archived category data remain truthful without a fabricated replacement
+ok 304 - stored and archived category data remain truthful without a fabricated replacement
+  ---
+  duration_ms: 0.119333
+  type: 'test'
+  ...
+# Subtest: void proof matches resource, action and expected version
+ok 305 - void proof matches resource, action and expected version
+  ---
+  duration_ms: 1.369
+  type: 'test'
+  ...
+# Subtest: restore uses existing posted response proof
+ok 306 - restore uses existing posted response proof
+  ---
+  duration_ms: 0.145042
+  type: 'test'
+  ...
+# Subtest: ok alone, wrong object, wrong action and stale versions do not prove mutation
+ok 307 - ok alone, wrong object, wrong action and stale versions do not prove mutation
+  ---
+  duration_ms: 0.073542
+  type: 'test'
+  ...
+# Subtest: V2 proposal input is TWD-only and bounded to a small atomic batch
+ok 308 - V2 proposal input is TWD-only and bounded to a small atomic batch
+  ---
+  duration_ms: 19.821625
+  type: 'test'
+  ...
+# Subtest: V2 transaction and recurring contracts reject non-TWD or malformed scope fields
+ok 309 - V2 transaction and recurring contracts reject non-TWD or malformed scope fields
+  ---
+  duration_ms: 14.827209
+  type: 'test'
+  ...
+# Subtest: LINE AI adapter accepts only a bounded proposal shape and never an accounting command
+ok 310 - LINE AI adapter accepts only a bounded proposal shape and never an accounting command
+  ---
+  duration_ms: 8.485084
+  type: 'test'
+  ...
+# Subtest: LINE AI adapter validates versioned multi-command and income/refund proposals
+ok 311 - LINE AI adapter validates versioned multi-command and income/refund proposals
+  ---
+  duration_ms: 1.328667
+  type: 'test'
+  ...
+# Subtest: LINE deterministic parser distinguishes refunds from partner transfers
+ok 312 - LINE deterministic parser distinguishes refunds from partner transfers
+  ---
+  duration_ms: 5.788
+  type: 'test'
+  ...
+# Subtest: LINE direct-post acknowledgement includes a safe V2 undo deep link
+ok 313 - LINE direct-post acknowledgement includes a safe V2 undo deep link
+  ---
+  duration_ms: 179.076584
+  type: 'test'
+  ...
+1..313
+# tests 313
+# suites 0
+# pass 313
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 16217.531833

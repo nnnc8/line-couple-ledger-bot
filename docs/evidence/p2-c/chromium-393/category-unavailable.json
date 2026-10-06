@@ -1,0 +1,88 @@
+{
+  "test": {
+    "title": "09 expense row and Detail use truthful type/payment semantics",
+    "project": "chromium-393",
+    "resultDir": "/Users/nc8/.codex/worktrees/p2-c-timeline-detail/New project/output/playwright/results/p2-c-timeline-09-expense-r-1abf2-hful-type-payment-semantics-chromium-393"
+  },
+  "metrics": {
+    "viewport": {
+      "width": 393,
+      "height": 852
+    },
+    "scrollY": 0,
+    "documentWidth": 393,
+    "bodyWidth": 393,
+    "timelineRows": 0,
+    "rowIds": [],
+    "rowRects": [],
+    "amountRects": [],
+    "dateHeadings": [],
+    "focus": "H2"
+  },
+  "extra": {
+    "categoryId": "00000000-0000-4000-8000-000000003000",
+    "categoryReadStatus": 500,
+    "requests": [
+      {
+        "method": "POST",
+        "path": "/api/app/session",
+        "at": 84422.554625,
+        "finishedAt": 84434.1295
+      },
+      {
+        "method": "GET",
+        "path": "/api/app/v2/context",
+        "at": 84434.176833,
+        "finishedAt": 84449.699833
+      },
+      {
+        "method": "GET",
+        "path": "/api/app/v2/ledgers",
+        "at": 84451.950458,
+        "finishedAt": 84461.745208
+      },
+      {
+        "method": "GET",
+        "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/bootstrap",
+        "at": 84493.836166,
+        "finishedAt": 84507.130041
+      },
+      {
+        "method": "GET",
+        "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories",
+        "at": 84568.769583,
+        "finishedAt": 84580.138791
+      },
+      {
+        "method": "POST",
+        "path": "/api/app/session",
+        "at": 86166.974166,
+        "finishedAt": 86173.701541
+      },
+      {
+        "method": "GET",
+        "path": "/api/app/v2/context",
+        "at": 86173.737416,
+        "finishedAt": 86180.509291
+      },
+      {
+        "method": "GET",
+        "path": "/api/app/v2/ledgers",
+        "at": 86180.541583,
+        "finishedAt": 86185.1325
+      },
+      {
+        "method": "GET",
+        "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/bootstrap",
+        "at": 86205.671833,
+        "finishedAt": 86216.220083
+      },
+      {
+        "method": "GET",
+        "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories",
+        "at": 86238.124333,
+        "finishedAt": 86249.922291
+      }
+    ]
+  }
+}

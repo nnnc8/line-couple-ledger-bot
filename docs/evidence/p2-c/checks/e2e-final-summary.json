@@ -1,0 +1,30 @@
+{
+  "command": "CI=1 pnpm test:e2e",
+  "workers": 4,
+  "exitCode": 0,
+  "passed": 793,
+  "failed": 0,
+  "skipped": 0,
+  "cancelled": 0,
+  "retries": 0,
+  "duration": "8.7m",
+  "byProject": {
+    "chromium-iphone": 204,
+    "webkit-iphone": 204,
+    "chromium-393": 181,
+    "webkit-393": 181,
+    "chromium-wide": 23
+  },
+  "lastRun": {
+    "status": "passed",
+    "failedTests": []
+  },
+  "logSha256": "52a8ce573d48d3126827384490f339e23cdafe67e69ed46bc8ce2b5a1a962e26",
+  "sourceSnapshotSha256": "06c685e6a9f9444381a86176d9f04af4414929f5f24eac0aa5dfad237b09f291",
+  "sourceAggregateSha256": "14388027d50c7780b96b98f7c142329ee25c1ae660d9a4045af869980f043c65",
+  "sourceFiles": 208,
+  "sourceDrift": [],
+  "startedAt": "2026-10-06T03:22:02.129684+00:00",
+  "completedAt": "2026-10-06T03:30:47.006041+00:00",
+  "generatedNextEnvExcluded": "Next dev regenerates routes import only; restored to exact baseline before commit."
+}

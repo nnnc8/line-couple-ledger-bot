@@ -1,0 +1,46 @@
+{
+  "reviewedAt": "2026-10-06T03:32:21.867914+00:00",
+  "scope": "Fresh permanent artifacts from final isolated 793/793 run; representative visual inspection across all four mobile projects. This is browser fixture evidence.",
+  "sourceAggregateSha256": "14388027d50c7780b96b98f7c142329ee25c1ae660d9a4045af869980f043c65",
+  "logSha256": "52a8ce573d48d3126827384490f339e23cdafe67e69ed46bc8ce2b5a1a962e26",
+  "startedAt": "2026-10-06T03:22:02.129684+00:00",
+  "artifacts": [
+    {
+      "path": "chromium-393/archived-category-detail.png",
+      "sha256": "e6217d35a3a0b15627f2f058f1ea7bc3b2abcf0fa39b8aaba7427a9140552fb2",
+      "finding": "Archived scoped category name 封存餐飲 is readable; full note and long URL wrap; scoped Back and More are present."
+    },
+    {
+      "path": "webkit-iphone/category-unavailable.png",
+      "sha256": "5d1c12a5385d6f9df8a0797c6f081fd0fb090a05203d923ab2846c897d8ea330",
+      "finding": "Known category UUID with categories500 shows 分類暫時無法顯示, readable beside complete payment/share/note details."
+    },
+    {
+      "path": "chromium-iphone/200-percent-large-amount-detail.png",
+      "sha256": "5686f7e2e67c2656d8d828dec1a231e80fe5b56495d599d38e3713b7fd52073b",
+      "finding": "Full NT$100,000,000,000 and share/payment amounts remain visible at 200% text; wrapping stays inside the cards; Back and More remain present."
+    },
+    {
+      "path": "webkit-393/transfer-detail.png",
+      "sha256": "aedd91c9c1ac14ecc6b6766906f68373d6a54047765e8c4ea3fe378b8ace0b9a",
+      "finding": "Text states transfer direction 你 → 另一半 and separates sent/received amounts; no unrelated share block; Back and More are readable."
+    },
+    {
+      "path": "chromium-393/normal-timeline-20.png",
+      "sha256": "db15006b676c1833158e9df3820c5ef3ab5da84180dae37988c23c47eb46a49d",
+      "finding": "Twenty distinct timeline rows and semantic date groups; long purpose is clamped; complete large amount wraps within row; load-older control is visible."
+    },
+    {
+      "path": "webkit-iphone/receipt-section.png",
+      "sha256": "23b736d4aa98f367acd57a52a74345d6d7ba139a3432bb99fb38429a3b2b42af",
+      "finding": "The sole Detail More area shows correction/void actions and receipt controls; long note/URL and receipt link wrap without clipping."
+    }
+  ],
+  "measuredMatrix": {
+    "projects": 4,
+    "capturesPerProject": 57,
+    "allCaptureChecksPass": true
+  },
+  "findings": "No clipping, horizontal overflow, missing control, or unreadable category label observed in the inspected screenshots. The visible Next development indicator belongs to the test server.",
+  "limits": "No physical LINE lifecycle, native file-picker/HEIC behavior, or VoiceOver speech claim. G5 is NOT COMPLETE / NOT PASS."
+}
