@@ -34,7 +34,7 @@ Each engine/size folder retains 19 selected screenshots and all 57 measured JSON
 | `chromium-393/` | Chromium | 393×852 |
 | `webkit-393/` | WebKit | 393×852 |
 
-`recordings/` preserves 16 representative videos in total, four for each required project. The hosted CI also uploads the complete P2-C screenshots/JSON/test-results as an artifact with 14-day retention. Repository evidence remains available after that retention expires. `SHA256SUMS` verifies the permanent package's files; its own hash is not included.
+`recordings/` preserves 16 representative videos in total, four for each required project. The hosted CI also uploads the complete P2-C screenshots/JSON/test-results as two shard artifacts with 14-day retention. Repository evidence remains available after that retention expires. `SHA256SUMS` verifies the permanent package's files; its own hash is not included.
 
 ## Measurement and limits
 
@@ -66,3 +66,9 @@ No DB migration, accounting change, server pagination, transaction GET, P2-D/P2-
 Final `CI=1 pnpm test:e2e`: **793/793 passed**, zero failed/skipped/cancelled/retried, with 208 source files unchanged throughout. Typecheck and 313 unit cases pass; build and production request measurements pass. Raw lint remains the exact baseline debt (280 errors / 37 warnings); delta and changed-file lint pass with zero new findings.
 
 The resumed concurrent-checks run recorded 791 passes and two 30-second startup timeouts; its HTML/HMR trace timings and concurrent lint command timings are retained in `diagnostics/concurrent-checks/`. The identical source then passed 21 targeted repeats and the final isolated full suite. No product change, increased timeout, removed test or automatic retry resolved those two timeouts. Earlier development failures and the pre-category 793-pass run are explicitly superseded diagnostic evidence. The exact final PR-head hosted CI/PG/lint results remain linked from Issue #19 and the PR.
+
+## Hosted execution budget
+
+The initial hosted run `37409783030` was **CANCELLED**, with Build **SKIPPED**: the complete job reached its 20-minute cap after 521 of 796 browser cases had started. Two WebKit cases also exhausted their aggregate 30-second test budgets; the P2-C window assertions and all three captures had completed. Raw log, timeout annotation, both traces and action timings remain in `diagnostics/hosted-initial/`. Slow WebKit interactions/rendering are observed; CPU or memory contention is an inference, not measured proof.
+
+The CI-only follow-up runs two parallel shards with two workers each and a 30-minute job cap. Individual test timeouts, retries, assertions and captures are unchanged. `checks/hosted-shard-partition.json` proves a disjoint complete 410+386 partition of all 796 cases: local default793 plus three existing CI-only P1-B performance samples. Each shard retains typecheck,313 unit cases, all three PostgreSQL suites and Build; the original named aggregate fails for any failed/cancelled/skipped shard. Required artifact missing-file checks remain errors and names are unique per shard. The local final run's207 other source files remain byte-identical; only its CI workflow differs, recorded in `checks/final-source-difference.json`. Exact final-head hosted results are linked from the Issue/PR and are required before readiness.

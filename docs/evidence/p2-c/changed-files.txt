@@ -21,7 +21,9 @@ docs/evidence/p2-c/checks/e2e-case-provenance.json
 docs/evidence/p2-c/checks/e2e-final-source-snapshot.json
 docs/evidence/p2-c/checks/e2e-final-summary.json
 docs/evidence/p2-c/checks/e2e-mobile-matrix-proof.json
+docs/evidence/p2-c/checks/final-source-difference.json
 docs/evidence/p2-c/checks/full-e2e.log
+docs/evidence/p2-c/checks/hosted-shard-partition.json
 docs/evidence/p2-c/checks/lint-baseline.json
 docs/evidence/p2-c/checks/lint-delta.log
 docs/evidence/p2-c/checks/lint-summary.json
@@ -204,6 +206,12 @@ docs/evidence/p2-c/diagnostics/concurrent-checks/legacy-recurring/trace.zip
 docs/evidence/p2-c/diagnostics/concurrent-checks/runtime-delay.md
 docs/evidence/p2-c/diagnostics/development-first-attempt.log
 docs/evidence/p2-c/diagnostics/development-regressions-51.log
+docs/evidence/p2-c/diagnostics/hosted-initial/annotations.json
+docs/evidence/p2-c/diagnostics/hosted-initial/cancelled.log
+docs/evidence/p2-c/diagnostics/hosted-initial/p2-a-trace.zip
+docs/evidence/p2-c/diagnostics/hosted-initial/p2-c-trace.zip
+docs/evidence/p2-c/diagnostics/hosted-initial/summary.json
+docs/evidence/p2-c/diagnostics/hosted-initial/trace-timing.json
 docs/evidence/p2-c/metrics/after/back-390.png
 docs/evidence/p2-c/metrics/after/detail-390.png
 docs/evidence/p2-c/metrics/after/home-390.png

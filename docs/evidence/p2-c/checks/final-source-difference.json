@@ -1,0 +1,14 @@
+{
+  "localRunSourceCount": 208,
+  "unchangedProductTestAndOtherSourceFiles": 207,
+  "difference": [
+    {
+      "path": ".github/workflows/ci.yml",
+      "localRunSHA256": "064686f6c87c39cb8dfd681d172d0dd82c15e4d132051f76aca33115515b9ac8",
+      "finalSHA256": "2ddc7bb7ca2a6cab6624160b09f84a7e3a4abea14c1d39c97e419ea44e902464"
+    }
+  ],
+  "reason": "CI execution only: full796-case shard partition,2workers/job,30min jobcap, retained required aggregate/artifact gates",
+  "local793PassResultRemainsProductEvidence": true,
+  "finalHostedResultRequired": true
+}

@@ -11,9 +11,13 @@ permissions:
 
 jobs:
   verify:
-    name: typecheck, test, PostgreSQL, e2e, build
+    name: Verify shard ${{ matrix.shard }}
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2]
     services:
       postgres:
         image: postgres:17
@@ -65,7 +69,7 @@ jobs:
         run: pnpm exec playwright install --with-deps chromium webkit
 
       - name: E2E tests
-        run: pnpm test:e2e
+        run: pnpm test:e2e --workers=2 --shard=${{ matrix.shard }}/2
         env:
           P1B_MEASURE_STAGE: after
 
@@ -73,7 +77,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: p1-b-browser-evidence
+          name: p1-b-browser-evidence-shard-${{ matrix.shard }}
           path: |
             output/playwright/p1-b/
             output/playwright/results/
@@ -84,7 +88,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: p1-c-browser-evidence
+          name: p1-c-browser-evidence-shard-${{ matrix.shard }}
           path: |
             output/playwright/p1-c/
             output/playwright/results/
@@ -95,7 +99,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: p2-a-editor-evidence
+          name: p2-a-editor-evidence-shard-${{ matrix.shard }}
           path: |
             output/playwright/p2-a/
             output/playwright/results/p2-a-entry-*/
@@ -106,7 +110,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: p2-b-browser-evidence
+          name: p2-b-browser-evidence-shard-${{ matrix.shard }}
           path: |
             output/playwright/p2-b/
             output/playwright/results/p2-b-identity-*/
@@ -117,7 +121,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: p2-c-browser-evidence
+          name: p2-c-browser-evidence-shard-${{ matrix.shard }}
           path: |
             output/playwright/p2-c/
             output/playwright/results/p2-c-timeline-*/
@@ -140,3 +144,14 @@ jobs:
           LIFF_SESSION_SECRET: ci_stub_liff_session_secret_32_chars
           APP_URL: https://ci.stub
           CRON_SECRET: ci_stub_cron_secret
+
+  completion:
+    name: typecheck, test, PostgreSQL, e2e, build
+    needs: verify
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require every shard to succeed
+        run: test "$SHARD_RESULT" = success
+        env:
+          SHARD_RESULT: ${{ needs.verify.result }}

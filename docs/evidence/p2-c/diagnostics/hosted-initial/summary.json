@@ -1,0 +1,16 @@
+{
+  "ciRun": 37409783030,
+  "candidateSha": "6e61262c400c5fcdb440a4bae5ac0a4cccc140af",
+  "conclusion": "cancelled",
+  "reason": "The job has exceeded the maximum execution time of 20m0s",
+  "e2eTotalCases": 796,
+  "lastCaseStarted": 521,
+  "e2eElapsedSecondsBeforeCancellation": 1074,
+  "individualTestTimeouts": 2,
+  "buildConclusion": "skipped",
+  "allArtifactPreservationSteps": "success",
+  "notFinalGate": true,
+  "resourceContention": "plausible inference, no CPU/RSS/OOM proof",
+  "remedy": "two parallel shards, two workers per shard, 30-minute job cap; no change to 30-second test timeout, retries, assertions or captures",
+  "finalHostedResult": "See exact final PR-head run linked from Issue19/PR20"
+}
