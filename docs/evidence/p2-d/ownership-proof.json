@@ -1,0 +1,14 @@
+{
+  "baselineSHA": "bc4d966ded4650d79667b19d12902ac49e4eff78",
+  "method": "Byte comparison to git show baseline:path; owner dispatch body compared from async function dispatch through the return boundary",
+  "unchangedFiles": {
+    "pnpm-lock.yaml": "3dca2b21f1ed5628e726af46e68446a3dfb1e711c8aa4ac122ed04ce23163ac6",
+    "src/lib/v2-ledger.ts": "93e8b7c870a4f4fc88b7cb483ab76d8a2a69c125133edad22d8ecfcce98cdc78",
+    "src/lib/v2-transaction-draft.ts": "71d176b76c3e92a3740b57831d7eacd867445d7e2c85f0dbc48a0223ab7c1394",
+    "src/lib/v2-entry-operation.ts": "9b39ec4a5bdf0e4f7bc0da3026774959a0b75c9474c3b7f363e9339f14cce373",
+    "src/lib/v2-direct-command.ts": "5081620516151c2d50379de333c8d8fb3bdd658435fd3092006169ea66929ba1",
+    "src/lib/v2-ledger-service.ts": "1b9c518a6bbb962d795daf55108e67c7954cd4c9147019298dd30a9a4fb1c618",
+    "src/hooks/use-v2-ledgers.ts": "ac4bbdc89a72f45fca03759d51b79cb203b15c9fd8e1fccc2202e569b8089c83"
+  },
+  "unchangedDispatchSHA256": "ace2257c459baeaf40abd69979a0951d0173f545058cd05234c0529861522b31"
+}

@@ -1,3 +1,4 @@
+import { outerIntentClick } from "./fixtures/p1-b-browser";
 import { expect, test, type Page, type TestInfo } from "@playwright/test";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { A, B, C, names, navigationBrowser, activationRequests, deferred } from "./fixtures/p1-c-browser";
@@ -27,7 +28,7 @@ test("name is the single Home identity; switch A B A reuses canonical scope", as
   await expect(page.getByRole("button", { name: "建立帳本", exact: true })).toHaveCount(0);
   const length = await page.evaluate(() => history.length);
   const reads = fixture.state.requests.filter(item => item.path.endsWith("/bootstrap")).length;
-  await trigger(page).click();
+  await outerIntentClick(page, trigger(page));
   await expect(dialog(page)).toHaveAccessibleName("切換帳本");
   await expect(option(page, A)).toHaveAttribute("aria-selected", "true");
   await expect(option(page, A)).toHaveAccessibleDescription("目前查看");
@@ -42,7 +43,7 @@ test("name is the single Home identity; switch A B A reuses canonical scope", as
   await expect(page.getByText("正在載入帳本…", { exact: true })).toBeVisible();
   hold.release(); await fixture.ready();
   await expect(page.getByText("B 專屬車票", { exact: true })).toBeVisible();
-  await trigger(page).click(); await option(page, A).click(); await fixture.ready();
+  await outerIntentClick(page, trigger(page)); await option(page, A).click(); await fixture.ready();
   await expect(page).toHaveURL(`/?v2Ledger=${A}`);
   expect(await page.evaluate(() => history.length)).toBe(length);
   expect(fixture.state.posts).toHaveLength(0);
@@ -51,7 +52,7 @@ test("name is the single Home identity; switch A B A reuses canonical scope", as
 
 test("deep-link viewed B and LINE default A remain distinct and selected is announced", async ({ page }, info) => {
   const fixture = await start(page, `/?v2Ledger=${B}`);
-  await trigger(page).click();
+  await outerIntentClick(page, trigger(page));
   await expect(option(page, B)).toHaveAccessibleName("旅行");
   await expect(option(page, B)).toHaveAccessibleDescription("目前查看");
   await expect(option(page, B)).toHaveAttribute("aria-selected", "true");
@@ -65,10 +66,10 @@ test("deep-link viewed B and LINE default A remain distinct and selected is anno
 test("activation syncing and failure stay bounded while B remains readable", async ({ page }, info) => {
   const fixture = await start(page), hold = deferred();
   fixture.state.holdActivations.set(B, hold); fixture.state.failActivations.add(B);
-  await trigger(page).click(); await option(page, B).click(); await fixture.ready();
+  await outerIntentClick(page, trigger(page)); await option(page, B).click(); await fixture.ready();
   await expect(page.getByText("正在更新 LINE 記帳預設…")).toBeVisible();
   await expect(trigger(page)).toHaveText("旅行");
-  await trigger(page).click();
+  await outerIntentClick(page, trigger(page));
   await expect(option(page, A)).toHaveAccessibleDescription("LINE 記帳預設");
   await expect(option(page, B)).toHaveAttribute("aria-selected", "true");
   await page.keyboard.press("Escape"); hold.release();
@@ -92,7 +93,7 @@ for (const percent of [100, 200]) test(`40 character identities stay complete an
   await fixture.goto(); await fixture.ready();
   await page.evaluate(percent => { document.documentElement.style.fontSize = `${percent}%`; }, percent);
   await expect(trigger(page)).toHaveText(prefix + "甲");
-  await trigger(page).click();
+  await outerIntentClick(page, trigger(page));
   for (const id of [A, B]) {
     await expect(option(page, id)).toHaveAccessibleName(fixture.state.names[id]);
     const dimensions = await option(page, id).evaluate(element => {
@@ -115,7 +116,7 @@ for (const percent of [100, 200]) test(`40 character identities stay complete an
 test("40 unbroken Latin characters wrap without horizontal scroll at 200%", async ({ page }, info) => {
   const fixture = await navigationBrowser(page); fixture.state.names[A] = "W".repeat(39) + "A";
   await fixture.goto(); await fixture.ready(); await page.evaluate(() => { document.documentElement.style.fontSize = "200%"; });
-  await trigger(page).click();
+  await outerIntentClick(page, trigger(page));
   expect(await page.evaluate(() => Math.max(document.body.scrollWidth, document.documentElement.scrollWidth) <= innerWidth + 1)).toBe(true);
   expect(await dialog(page).evaluate(element => element.scrollWidth <= element.clientWidth + 1)).toBe(true);
   await expect(option(page, A)).toHaveAccessibleName(fixture.state.names[A]);
@@ -140,14 +141,14 @@ test("keyboard enters titled dialog, moves options without writes, selects and r
   await page.keyboard.press("Space"); await expect(dialog(page)).toBeVisible();
   await page.keyboard.press(tabKey); await page.keyboard.press(tabKey); await page.keyboard.press("ArrowDown"); await page.keyboard.press("Enter");
   await fixture.ready(); await expect(trigger(page)).toHaveText("旅行");
-  await trigger(page).click(); await expect(option(page, B)).toHaveAttribute("aria-selected", "true");
+  await outerIntentClick(page, trigger(page)); await expect(option(page, B)).toHaveAttribute("aria-selected", "true");
   await capture(page, info, "keyboard-selected", fixture);
   await dialog(page).getByRole("button", { name: "關閉視窗" }).click(); await expect(trigger(page)).toBeFocused();
 });
 
 test("create cancel returns to the same switcher and never changes scope or history", async ({ page }, info) => {
   const fixture = await start(page), length = await page.evaluate(() => history.length);
-  await trigger(page).click();
+  await outerIntentClick(page, trigger(page));
   await expect(page.getByRole("button", { name: "建立帳本", exact: true })).toHaveCount(1);
   await dialog(page).getByRole("button", { name: "建立帳本", exact: true }).click();
   await expect(dialog(page)).toHaveAccessibleName("建立帳本");
@@ -169,7 +170,7 @@ for (const empty of [false, true]) test(`create success accepts new name and sco
   const fixture = await navigationBrowser(page); if (empty) fixture.state.ledgerIds = [];
   await fixture.goto();
   if (empty) { await expect(page.getByRole("heading", { name: "還沒有帳本" })).toBeVisible(); await expect(trigger(page)).toHaveCount(0); }
-  else { await fixture.ready(); await trigger(page).click(); }
+  else { await fixture.ready(); await outerIntentClick(page, trigger(page)); }
   await page.getByRole("button", { name: "建立帳本", exact: true }).click();
   const name = "一起生活".repeat(10);
   await expect(page.getByLabel("新帳本名稱")).toHaveAttribute("maxlength", "40");
@@ -213,7 +214,7 @@ test("archived-only list has no broken identity trigger", async ({ page }) => {
 
 test("create rejection preserves name and scope; cancelled retry writes nothing", async ({ page }, info) => {
   const fixture = await start(page); fixture.state.createFailure = true;
-  await trigger(page).click(); await dialog(page).getByRole("button", { name: "建立帳本", exact: true }).click();
+  await outerIntentClick(page, trigger(page)); await dialog(page).getByRole("button", { name: "建立帳本", exact: true }).click();
   await page.getByLabel("新帳本名稱").fill("保留名稱"); await dialog(page).getByRole("button", { name: "建立", exact: true }).click();
   await expect(dialog(page).getByRole("alert")).toHaveText("帳本暫時無法建立");
   await expect(page.getByLabel("新帳本名稱")).toHaveValue("保留名稱");
@@ -226,7 +227,7 @@ test("create rejection preserves name and scope; cancelled retry writes nothing"
 
 test("create is single flight and keeps its only dialog until response", async ({ page }) => {
   const fixture = await start(page), hold = deferred(); fixture.state.createHold = hold;
-  await trigger(page).click(); await dialog(page).getByRole("button", { name: "建立帳本", exact: true }).click();
+  await outerIntentClick(page, trigger(page)); await dialog(page).getByRole("button", { name: "建立帳本", exact: true }).click();
   await page.getByLabel("新帳本名稱").fill("新的共同生活");
   await dialog(page).locator("form").evaluate(form => { (form as HTMLFormElement).requestSubmit(); (form as HTMLFormElement).requestSubmit(); });
   await expect(dialog(page).getByRole("button", { name: "正在建立…" })).toBeDisabled();

@@ -1,3 +1,4 @@
+import { openEntry, outerIntentClick } from "./fixtures/p1-b-browser";
 import { expect, test, type Page, type TestInfo } from "@playwright/test";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { ENTRY_RECOVERY_KEY } from "../src/lib/v2-entry-operation";
@@ -8,7 +9,7 @@ const unknown = "尚未確認是否已加入，請勿再記一次。";
 const status = (page: Page) => page.locator("[data-write-outcome]");
 const transactionRow = (page: Page, description: string) => page.locator("button[data-transaction-id]").filter({ hasText: description });
 async function chooseLedger(page: Page, ledgerId: string) {
-  await page.getByTestId("ledger-name-trigger").click();
+  await outerIntentClick(page, page.getByTestId("ledger-name-trigger"));
   await page.getByRole("dialog").locator(`[data-ledger-option="${ledgerId}"]`).click();
 }
 async function expectLedger(page: Page, ledgerId: string) {
@@ -32,7 +33,8 @@ test("normal create commits row, balance and next payer together without a boots
   await expect(transactionRow(page, "晚餐")).toBeVisible();
   expect(state.requests.filter(path => path.endsWith("/bootstrap"))).toHaveLength(reads);
   expect(state.posts).toHaveLength(1); expect(JSON.parse(state.posts[0]!.recovery!).phase).toBe("submitting");
-  await expect(page.getByLabel("金額，新臺幣")).toHaveValue("");
+  await expect(page.getByLabel("金額，新臺幣")).toHaveCount(0);
+  await expect(page.getByRole("dialog")).toHaveCount(0);
   await capture(page, info, "normal-committed");
 });
 
@@ -92,7 +94,7 @@ test("storage unavailable or incorrect read-back prevents POST and keeps editing
   await page.getByRole("button", { name: "加入" }).click();
   await expect(status(page)).toContainText("尚未送出，輸入內容仍保留");
   await expect(page.getByLabel("用途", { exact: true })).toBeEnabled();
-  await page.getByLabel("用途", { exact: true }).fill("保留輸入"); expect(state.posts).toHaveLength(0);
+  await openEntry(page); await page.getByLabel("用途", { exact: true }).fill("保留輸入"); expect(state.posts).toHaveLength(0);
 });
 
 test("recovery identity mismatch reveals no stored financial content and cannot replay", async ({ page }, info) => {
@@ -171,7 +173,10 @@ test("a new authorization failure hides cached financial content without discard
 test("timeout after dispatch becomes unknown and preserves the exact recovery operation", async ({ page }) => {
   const { state } = await entryBrowser(page); state.mode = "delay"; await fillEntry(page);
   await page.clock.install();
-  await page.getByRole("button", { name: "加入" }).click(); await expect.poll(() => state.posts.length).toBe(1);
+  // This test freezes timers to exercise the owner deadline. Activate the focused
+  // button with Enter so a frozen animation cannot move the pointer hit target.
+  await page.getByRole("button", { name: "加入" }).focus();
+  await page.getByRole("button", { name: "加入" }).press("Enter"); await expect.poll(() => state.posts.length).toBe(1);
   await page.clock.fastForward(30_001); await expect(status(page)).toContainText(unknown);
   const saved = JSON.parse((await page.evaluate(key => sessionStorage.getItem(key), ENTRY_RECOVERY_KEY))!);
   expect(saved.body).toEqual(state.posts[0]!.body); expect(saved.phase).toBe("unknown");
@@ -181,8 +186,8 @@ test("timeout after dispatch becomes unknown and preserves the exact recovery op
 test("correction drop-response reload replay retains original replacement and expected version", async ({ page }) => {
   const { state } = await entryBrowser(page); await fillEntry(page);
   await page.getByRole("button", { name: "加入" }).click(); await expect(status(page)).toContainText("已加入晚餐");
-  await transactionRow(page, "晚餐").click(); await page.getByRole("button", { name: "更多操作", exact: true }).click(); await page.getByRole("button", { name: "修改", exact: true }).click();
-  await page.getByLabel("用途", { exact: true }).fill("更正晚餐"); state.mode = "drop";
+  await outerIntentClick(page, transactionRow(page, "晚餐")); await page.getByRole("button", { name: "更多操作", exact: true }).click(); await page.getByRole("button", { name: "修改", exact: true }).click();
+  await openEntry(page); await page.getByLabel("用途", { exact: true }).fill("更正晚餐"); state.mode = "drop";
   await page.getByRole("button", { name: "儲存修改" }).click(); await expect(status(page)).toContainText("尚未確認是否已修改");
   await page.reload(); await expect(status(page)).toContainText("尚未確認是否已修改");
   await page.getByRole("button", { name: "確認並完成這筆" }).click(); await expect(status(page)).toContainText("已修改更正晚餐");
@@ -200,10 +205,10 @@ test("first rejection preserves editable draft and unchanged retry reuses the ke
 
 test("one create/correction draft requires explicit keep or discard", async ({ page }) => {
   await entryBrowser(page); await fillEntry(page); await page.getByRole("button", { name: "加入" }).click(); await expect(status(page)).toContainText("已加入晚餐");
-  await fillEntry(page, "還在編輯"); await transactionRow(page, "晚餐").click();
+  await fillEntry(page, "還在編輯"); await outerIntentClick(page, transactionRow(page, "晚餐"));
   await page.getByRole("dialog").getByRole("button", { name: "繼續編輯", exact: true }).click();
   await expect(page.getByLabel("用途", { exact: true })).toHaveValue("還在編輯");
-  await transactionRow(page, "晚餐").click();
+  await outerIntentClick(page, transactionRow(page, "晚餐"));
   await page.getByRole("dialog").getByRole("button", { name: "放棄這筆輸入", exact: true }).click();
   await page.getByRole("button", { name: "更多操作", exact: true }).click(); await page.getByRole("button", { name: "修改", exact: true }).click();
   await expect(page.getByLabel("用途", { exact: true })).toHaveValue("晚餐"); await expect(page.getByTestId("split-summary")).toContainText("沿用這筆分攤");
@@ -218,16 +223,16 @@ test("creating a Ledger after discarding A opens a usable draft in the new Ledge
     await new Promise<void>(resolve => { finish = resolve; });
     return route.fulfill({ json: { ledger: { id: OTHER } } });
   });
-  await page.getByTestId("ledger-name-trigger").click();
+  await outerIntentClick(page, page.getByTestId("ledger-name-trigger"));
   await page.getByRole("dialog").getByRole("button", { name: "建立帳本", exact: true }).click();
   await page.getByRole("dialog").getByRole("button", { name: "放棄這筆輸入", exact: true }).click();
   await page.getByLabel("新帳本名稱").fill("旅行帳本");
   await page.getByRole("dialog").getByRole("button", { name: "建立", exact: true }).click();
   await expect.poll(() => Boolean(finish)).toBe(true);
-  await expect(page.getByLabel("金額，新臺幣")).toBeDisabled();
+  await expect(page.getByLabel("金額，新臺幣")).toHaveCount(0);
   finish!();
   await expectLedger(page, OTHER);
-  await expect(page.getByLabel("金額，新臺幣")).toBeEnabled();
+  await openEntry(page); await expect(page.getByLabel("金額，新臺幣")).toBeEnabled();
   await expect(page.getByLabel("用途", { exact: true })).toHaveValue("");
   await fillEntry(page, "B 的第一筆");
   await page.getByRole("button", { name: "加入" }).click();
@@ -237,8 +242,8 @@ test("creating a Ledger after discarding A opens a usable draft in the new Ledge
 
 for (const failedRead of [false, true]) test(`correction success preserves commit when refresh ${failedRead ? "fails" : "succeeds"}`, async ({ page }, info) => {
   const { state } = await entryBrowser(page); await fillEntry(page); await page.getByRole("button", { name: "加入" }).click(); await expect(status(page)).toContainText("已加入晚餐");
-  await transactionRow(page, "晚餐").click(); await page.getByRole("button", { name: "更多操作", exact: true }).click(); await page.getByRole("button", { name: "修改", exact: true }).click();
-  await page.getByLabel("用途", { exact: true }).fill("修改晚餐"); state.failRead = failedRead;
+  await outerIntentClick(page, transactionRow(page, "晚餐")); await page.getByRole("button", { name: "更多操作", exact: true }).click(); await page.getByRole("button", { name: "修改", exact: true }).click();
+  await openEntry(page); await page.getByLabel("用途", { exact: true }).fill("修改晚餐"); state.failRead = failedRead;
   if (!failedRead) await capture(page, info, "correction-draft");
   await page.getByRole("button", { name: "儲存修改" }).click();
   await expect(status(page)).toContainText("已修改修改晚餐 NT$681");
@@ -248,7 +253,7 @@ for (const failedRead of [false, true]) test(`correction success preserves commi
   expect(state.effects).toBe(2); expect(state.posts[1]!.body.expectedVersion).toBe(1);
   await capture(page, info, failedRead ? "correction-read-failed" : "correction");
   const old = state.rows.find(item => item.description === "晚餐")!;
-  await page.getByRole("button", { name: "返回帳本", exact: true }).click();
+  await outerIntentClick(page, page.getByRole("button", { name: "返回帳本", exact: true }));
   await expect(page.locator(`button[data-transaction-id="${old.id}"]`)).toHaveCount(0);
   await expect(transactionRow(page, "修改晚餐")).toBeVisible();
   state.failRead = false;
@@ -288,7 +293,7 @@ test("partner login odd 681 uses kernel member order and opening defaults despit
   const { state } = await entryBrowser(page); state.actor = PARTNER; await page.reload(); await fillEntry(page);
   await expect(page.getByTestId("entry-preview")).toContainText("另一半 NT$341、你 NT$340");
   state.weights = { [OWNER]: "0", [PARTNER]: "1" }; state.version += 1;
-  await page.getByLabel("重新整理帳本").click(); await expect(page.getByTestId("entry-preview")).toContainText("另一半 NT$341、你 NT$340");
+  await outerIntentClick(page, page.getByLabel("重新整理帳本")); await expect(page.getByTestId("entry-preview")).toContainText("另一半 NT$341、你 NT$340");
   await page.getByRole("button", { name: "加入" }).click(); await expect(status(page)).toContainText("已加入晚餐");
   expect(state.posts[0]!.body.shares).toEqual([{ userId: OWNER, amountTwd: "341" }, { userId: PARTNER, amountTwd: "340" }]);
   await fillEntry(page, "下一筆"); await expect(page.getByTestId("entry-preview")).toContainText("另一半 NT$0、你 NT$681");
@@ -296,14 +301,15 @@ test("partner login odd 681 uses kernel member order and opening defaults despit
 
 test("midnight preserves the current draft date and opens the next draft with today's Taipei date", async ({ page }) => {
   await page.clock.setFixedTime(new Date("2026-09-25T15:59:59Z"));
-  const { state } = await entryBrowser(page); await fillEntry(page);
-  await page.getByText("更多", { exact: true }).click();
+  const { state } = await entryBrowser(page);
+  await page.clock.setFixedTime(new Date("2026-09-25T15:59:59Z")); await fillEntry(page);
+  await openEntry(page); await page.getByText("更多", { exact: true }).click();
   await expect(page.getByLabel("交易日期")).toHaveValue("2026-09-25");
   await page.clock.setFixedTime(new Date("2026-09-25T16:00:01Z"));
   await expect(page.getByLabel("交易日期")).toHaveValue("2026-09-25");
-  await page.getByRole("button", { name: "加入" }).click(); await expect(status(page)).toContainText("已加入晚餐");
+  await page.getByRole("button", { name: "加入" }).click(); await expect(status(page)).toContainText("已加入昨天的晚餐 NT$681");
   expect(state.posts[0]!.body.occurredOn).toBe("2026-09-25");
-  await page.getByText("更多", { exact: true }).click();
+  await openEntry(page); await page.getByText("更多", { exact: true }).click();
   await expect(page.getByLabel("交易日期")).toHaveValue("2026-09-26");
 });
 

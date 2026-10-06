@@ -246,12 +246,41 @@
 .animate-toast-in { animation: toastIn 0.32s var(--ease-out) both; }
 .detail-enter { view-transition-name: transaction-detail; animation: fadeIn 160ms ease-out both; }
 .timeline-new-row { animation: fadeIn 120ms ease-out both; }
+.ledger-quick-dialog {
+  position: fixed;
+  inset: var(--ledger-viewport-top, 0px) 0 auto;
+  margin: 0 auto;
+  width: min(100%, 640px);
+  max-width: min(100%, 640px);
+  height: min(var(--ledger-viewport-height, 100dvh), 100dvh);
+  max-height: min(var(--ledger-viewport-height, 100dvh), 100dvh);
+  border-radius: 0;
+  padding-top: max(16px, env(safe-area-inset-top));
+  opacity: 0;
+  transform: translateY(8px);
+  transition: opacity 160ms ease-in, transform 160ms ease-in, display 160ms allow-discrete, overlay 160ms allow-discrete;
+}
+.ledger-quick-dialog[open] {
+  opacity: 1;
+  transform: translateY(0);
+  transition-duration: 200ms;
+  transition-timing-function: ease-out;
+}
+@starting-style {
+  .ledger-quick-dialog[open] { opacity: 0; transform: translateY(8px); }
+}
+@keyframes createdRowHighlight {
+  0%, 75% { background-color: var(--accent-soft); }
+  100% { background-color: transparent; }
+}
+.timeline-created-row { animation: fadeIn 140ms ease-out, createdRowHighlight 1200ms ease-out; }
 @keyframes detailFadeOut { from { opacity: 1; } to { opacity: 0; } }
 ::view-transition-old(root), ::view-transition-new(root) { animation: none; }
 ::view-transition-old(transaction-detail) { animation: detailFadeOut 140ms ease-out both; }
 ::view-transition-new(transaction-detail) { animation: fadeIn 160ms ease-out both; }
 
 @media (prefers-reduced-motion: reduce) {
+  .timeline-created-row { background-color: var(--accent-soft); }
   ::view-transition-old(transaction-detail), ::view-transition-new(transaction-detail) { animation: none !important; }
   *,
   *::before,

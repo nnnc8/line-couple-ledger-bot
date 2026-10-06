@@ -1,7 +1,8 @@
+import { outerIntentClick } from "./p1-b-browser";
 import { expect, type Page, type Route } from "@playwright/test";
 import { calculateLedgerBalance, recommendNextPayer } from "../../src/lib/v2-ledger";
 import type { V2CreateTransactionResult, V2LedgerBootstrap, V2LedgerTransaction } from "../../src/lib/types";
-export { fillEntry } from "./p1-b-browser";
+export { fillEntry, openEntry, outerIntentClick } from "./p1-b-browser";
 export const OWNER = "00000000-0000-4000-8000-000000000001", PARTNER = "00000000-0000-4000-8000-000000000002";
 export const A = "00000000-0000-4000-8000-000000000010", B = "00000000-0000-4000-8000-000000000020", C = "00000000-0000-4000-8000-000000000030";
 export const TA = "00000000-0000-4000-8000-000000000011", TB = "00000000-0000-4000-8000-000000000021";
@@ -12,6 +13,7 @@ export function row(ledgerId: string, id: string, description: string): V2Ledger
 type Hold = { release: () => void; promise: Promise<void> };
 export function deferred(): Hold { let release!: () => void; const promise = new Promise<void>(resolve => { release = resolve; }); return { release, promise }; }
 export async function navigationBrowser(page: Page, { holdLiffInit = false } = {}) {
+  await page.clock.setFixedTime(new Date("2026-09-25T04:00:00Z"));
   const state = {
     names: { ...names }, createFailure: false, createHold: null as Hold | null,
     rows: [row(A, TA, "A 專屬晚餐"), row(B, TB, "B 專屬車票")], ledgerIds: [A, B, C], defaultId: A, version: 1,
@@ -87,7 +89,7 @@ export async function navigationBrowser(page: Page, { holdLiffInit = false } = {
     if (state.mode === "partial") { const partial: Partial<V2CreateTransactionResult> = { ...receipt }; delete partial.nextPayer; return route.fulfill({ status: 201, json: partial }); }
     return route.fulfill({ status: 201, json: receipt });
   });
-  return { state, snapshot, goto: async (path = "/") => { await page.goto(path); }, ready: async () => { await expect(page.getByLabel("金額，新臺幣")).toBeVisible(); } };
+  return { state, snapshot, goto: async (path = "/") => { await page.goto(path); }, ready: async () => { await expect(page.getByTestId("quick-entry-trigger")).toBeVisible({ timeout: 15_000 }); } };
 }
-export async function switchLedger(page: Page, id: string) { await page.getByTestId("ledger-name-trigger").click(); await page.getByRole("dialog").locator(`[data-ledger-option="${id}"]`).click(); }
+export async function switchLedger(page: Page, id: string) { await outerIntentClick(page, page.getByTestId("ledger-name-trigger")); await page.getByRole("dialog").locator(`[data-ledger-option="${id}"]`).click(); }
 export const activationRequests = (state: Awaited<ReturnType<typeof navigationBrowser>>["state"]) => state.requests.filter(item => item.method === "POST" && item.path.endsWith("/activate"));

@@ -128,6 +128,17 @@ export function useV2EntrySession({ context, bootstrap, read, accessDenied, acce
     return leaveStatus() === "ready" && discardDraft();
   }
 
+  // Opening the surface snapshots today's verified defaults in this same owner.
+  // An existing unsent input retains its identity and edits; dispatch is unchanged.
+  function openCreateDraft() {
+    if (!context || !bootstrap || accessDenied || ["submitting", "unknown", "blocked"].includes(leaveStatus())) return false;
+    if (session.draft?.dirty) return session.draft.operationType === "create";
+    operationRef.current = null;
+    setSession(current => ({ ...current, draft: newTransactionDraft(bootstrap, context.user.id, currentEntryDate(), crypto.randomUUID()),
+      write: current.write === "committed" ? "idle" : current.write, operation: current.write === "committed" ? null : current.operation, error: "", field: undefined }));
+    return true;
+  }
+
   function openCorrection(transaction: V2LedgerTransaction, discardAccepted = false) {
     if (!context || !bootstrap || ["unknown", "submitting", "blocked"].includes(leaveStatus()) || !discardAccepted && !mayLeaveDraft()) return false;
     try {
@@ -210,7 +221,7 @@ export function useV2EntrySession({ context, bootstrap, read, accessDenied, acce
     ...session, draftState: session.draft?.dirty ? "dirty" as const : "empty" as const, read,
     blocked: accessDenied ? "目前無法驗證這本帳本的存取權限。已保留操作結果；請重新登入後確認。" : session.blocked,
     locked: accessDenied || Boolean(session.blocked) || session.write === "submitting" || session.write === "unknown",
-    initialize, recoveryLedger: () => pendingRecovery.current?.ledgerId ?? null, updateDraft, leaveStatus, discardDraft, mayLeaveDraft, openCorrection,
+    initialize, recoveryLedger: () => pendingRecovery.current?.ledgerId ?? null, updateDraft, leaveStatus, discardDraft, mayLeaveDraft, openCreateDraft, openCorrection,
     submit: () => dispatch(false), replay: () => dispatch(true),
     retryRead: () => bootstrap ? refresh(bootstrap.ledger.id).catch(() => undefined) : Promise.resolve(),
   };

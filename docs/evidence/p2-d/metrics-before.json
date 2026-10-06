@@ -1,0 +1,811 @@
+{
+  "stage": "before",
+  "browser": "Chromium",
+  "viewport": "390×844",
+  "samples": 20,
+  "processNodeVersion": "v22.23.1",
+  "method": "Identical production builds; 20 fresh browser contexts per stage; no throttling, concurrent builds or test suites; canonical APIs/LIFF mocked with kernel-backed P1-B fixture; pending request held until pending paint proxy is recorded; MutationObserver followed by two requestAnimationFrame callbacks estimates painted frames; response timing starts after parsing complete canonical JSON and excludes network. Fixed fixture date. Close logical removal and CSS duration recorded separately. No physical LINE/keyboard or reliable population SLA claim.",
+  "baselineQuickEntry": "Unavailable: baseline has a persistent inline form. Pending/canonical measurements remain comparable.",
+  "summary": {
+    "quickFocusMs": {
+      "n": 0,
+      "median": null,
+      "p75": null,
+      "p95": null,
+      "maximum": null
+    },
+    "quickPaintMs": {
+      "n": 0,
+      "median": null,
+      "p75": null,
+      "p95": null,
+      "maximum": null
+    },
+    "pendingPaintMs": {
+      "n": 20,
+      "median": 65,
+      "p75": 69,
+      "p95": 80,
+      "maximum": 80
+    },
+    "canonicalPaintMs": {
+      "n": 20,
+      "median": 30,
+      "p75": 34,
+      "p95": 36,
+      "maximum": 36
+    },
+    "dialogLogicalCloseMs": {
+      "n": 0,
+      "median": null,
+      "p75": null,
+      "p95": null,
+      "maximum": null
+    },
+    "dialogCloseCssMs": {
+      "n": 0,
+      "median": null,
+      "p75": null,
+      "p95": null,
+      "maximum": null
+    }
+  },
+  "sessionStorageWriteMs": {
+    "n": 40,
+    "median": 0,
+    "p75": 0,
+    "p95": 0,
+    "maximum": 1
+  },
+  "requestBudget": {
+    "open": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "create": [
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2
+    ],
+    "blockingBootstrap": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ]
+  },
+  "raw": [
+    {
+      "run": 0,
+      "metrics": {
+        "storage": [
+          {
+            "phase": "submitting",
+            "durationMs": 0
+          },
+          {
+            "phase": "committed",
+            "durationMs": 0
+          }
+        ],
+        "addAt": 1243,
+        "pendingScheduled": true,
+        "pendingPaintMs": 54,
+        "canonicalAt": 1317,
+        "canonicalScheduled": true,
+        "canonicalPaintMs": 29
+      },
+      "startupRequests": [
+        "POST /api/app/session",
+        "GET /api/app/v2/context",
+        "GET /api/app/v2/ledgers",
+        "GET /api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/bootstrap",
+        "GET /api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories"
+      ],
+      "openRequests": [],
+      "createRequests": [
+        "POST /api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/transactions",
+        "GET /api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories"
+      ],
+      "blockingBootstrapCount": 0
+    },
+    {
+      "run": 1,
+      "metrics": {
+        "storage": [
+          {
+            "phase": "submitting",
+            "durationMs": 0
+          },
+          {
+            "phase": "committed",
+            "durationMs": 0
+          }
+        ],
+        "addAt": 690,
+        "pendingScheduled": true,
+        "pendingPaintMs": 63,
+        "canonicalAt": 773,
+        "canonicalScheduled": true,
+        "canonicalPaintMs": 28
+      },
+      "startupRequests": [
+        "POST /api/app/session",
+        "GET /api/app/v2/context",
+        "GET /api/app/v2/ledgers",
+        "GET /api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/bootstrap",
+        "GET /api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories"
+      ],
+      "openRequests": [],
+      "createRequests": [
+        "POST /api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/transactions",
+        "GET /api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories"
+      ],
+      "blockingBootstrapCount": 0
+    },
+    {
+      "run": 2,
+      "metrics": {
+        "storage": [
+          {
+            "phase": "submitting",
+            "durationMs": 0
+          },
+          {
+            "phase": "committed",
+            "durationMs": 0
+          }
+        ],
+        "addAt": 669,
+        "pendingScheduled": true,
+        "pendingPaintMs": 68,
+        "canonicalAt": 750,
+        "canonicalScheduled": true,
+        "canonicalPaintMs": 34
+      },
+      "startupRequests": [
+        "POST /api/app/session",
+        "GET /api/app/v2/context",
+        "GET /api/app/v2/ledgers",
+        "GET /api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/bootstrap",
+        "GET /api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories"
+      ],
+      "openRequests": [],
+      "createRequests": [
+        "POST /api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/transactions",
+        "GET /api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories"
+      ],
+      "blockingBootstrapCount": 0
+    },
+    {
+      "run": 3,
+      "metrics": {
+        "storage": [
+          {
+            "phase": "submitting",
+            "durationMs": 0
+          },
+          {
+            "phase": "committed",
+            "durationMs": 0
+          }
+        ],
+        "addAt": 671,
+        "pendingScheduled": true,
+        "pendingPaintMs": 66,
+        "canonicalAt": 751,
+        "canonicalScheduled": true,
+        "canonicalPaintMs": 34
+      },
+      "startupRequests": [
+        "POST /api/app/session",
+        "GET /api/app/v2/context",
+        "GET /api/app/v2/ledgers",
+        "GET /api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/bootstrap",
+        "GET /api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories"
+      ],
+      "openRequests": [],
+      "createRequests": [
+        "POST /api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/transactions",
+        "GET /api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories"
+      ],
+      "blockingBootstrapCount": 0
+    },
+    {
+      "run": 4,
+      "metrics": {
+        "storage": [
+          {
+            "phase": "submitting",
+            "durationMs": 0
+          },
+          {
+            "phase": "committed",
+            "durationMs": 0
+          }
+        ],
+        "addAt": 672,
+        "pendingScheduled": true,
+        "pendingPaintMs": 65,
+        "canonicalAt": 754,
+        "canonicalScheduled": true,
+        "canonicalPaintMs": 31
+      },
+      "startupRequests": [
+        "POST /api/app/session",
+        "GET /api/app/v2/context",
+        "GET /api/app/v2/ledgers",
+        "GET /api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/bootstrap",
+        "GET /api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories"
+      ],
+      "openRequests": [],
+      "createRequests": [
+        "POST /api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/transactions",
+        "GET /api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories"
+      ],
+      "blockingBootstrapCount": 0
+    },
+    {
+      "run": 5,
+      "metrics": {
+        "storage": [
+          {
+            "phase": "submitting",
+            "durationMs": 0
+          },
+          {
+            "phase": "committed",
+            "durationMs": 0
+          }
+        ],
+        "addAt": 645,
+        "pendingScheduled": true,
+        "pendingPaintMs": 60,
+        "canonicalAt": 710,
+        "canonicalScheduled": true,
+        "canonicalPaintMs": 27
+      },
+      "startupRequests": [
+        "POST /api/app/session",
+        "GET /api/app/v2/context",
+        "GET /api/app/v2/ledgers",
+        "GET /api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/bootstrap",
+        "GET /api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories"
+      ],
+      "openRequests": [],
+      "createRequests": [
+        "POST /api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/transactions",
+        "GET /api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories"
+      ],
+      "blockingBootstrapCount": 0
+    },
+    {
+      "run": 6,
+      "metrics": {
+        "storage": [
+          {
+            "phase": "submitting",
+            "durationMs": 0
+          },
+          {
+            "phase": "committed",
+            "durationMs": 0
+          }
+        ],
+        "addAt": 662,
+        "pendingScheduled": true,
+        "pendingPaintMs": 60,
+        "canonicalAt": 727,
+        "canonicalScheduled": true,
+        "canonicalPaintMs": 26
+      },
+      "startupRequests": [
+        "POST /api/app/session",
+        "GET /api/app/v2/context",
+        "GET /api/app/v2/ledgers",
+        "GET /api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/bootstrap",
+        "GET /api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories"
+      ],
+      "openRequests": [],
+      "createRequests": [
+        "POST /api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/transactions",
+        "GET /api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories"
+      ],
+      "blockingBootstrapCount": 0
+    },
+    {
+      "run": 7,
+      "metrics": {
+        "storage": [
+          {
+            "phase": "submitting",
+            "durationMs": 0
+          },
+          {
+            "phase": "committed",
+            "durationMs": 0
+          }
+        ],
+        "addAt": 673,
+        "pendingScheduled": true,
+        "pendingPaintMs": 64,
+        "canonicalAt": 754,
+        "canonicalScheduled": true,
+        "canonicalPaintMs": 30
+      },
+      "startupRequests": [
+        "POST /api/app/session",
+        "GET /api/app/v2/context",
+        "GET /api/app/v2/ledgers",
+        "GET /api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/bootstrap",
+        "GET /api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories"
+      ],
+      "openRequests": [],
+      "createRequests": [
+        "POST /api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/transactions",
+        "GET /api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories"
+      ],
+      "blockingBootstrapCount": 0
+    },
+    {
+      "run": 8,
+      "metrics": {
+        "storage": [
+          {
+            "phase": "submitting",
+            "durationMs": 0
+          },
+          {
+            "phase": "committed",
+            "durationMs": 0
+          }
+        ],
+        "addAt": 669,
+        "pendingScheduled": true,
+        "pendingPaintMs": 68,
+        "canonicalAt": 751,
+        "canonicalScheduled": true,
+        "canonicalPaintMs": 34
+      },
+      "startupRequests": [
+        "POST /api/app/session",
+        "GET /api/app/v2/context",
+        "GET /api/app/v2/ledgers",
+        "GET /api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/bootstrap",
+        "GET /api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories"
+      ],
+      "openRequests": [],
+      "createRequests": [
+        "POST /api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/transactions",
+        "GET /api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories"
+      ],
+      "blockingBootstrapCount": 0
+    },
+    {
+      "run": 9,
+      "metrics": {
+        "storage": [
+          {
+            "phase": "submitting",
+            "durationMs": 0
+          },
+          {
+            "phase": "committed",
+            "durationMs": 1
+          }
+        ],
+        "addAt": 674,
+        "pendingScheduled": true,
+        "pendingPaintMs": 79,
+        "canonicalAt": 756,
+        "canonicalScheduled": true,
+        "canonicalPaintMs": 29
+      },
+      "startupRequests": [
+        "POST /api/app/session",
+        "GET /api/app/v2/context",
+        "GET /api/app/v2/ledgers",
+        "GET /api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/bootstrap",
+        "GET /api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories"
+      ],
+      "openRequests": [],
+      "createRequests": [
+        "POST /api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/transactions",
+        "GET /api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories"
+      ],
+      "blockingBootstrapCount": 0
+    },
+    {
+      "run": 10,
+      "metrics": {
+        "storage": [
+          {
+            "phase": "submitting",
+            "durationMs": 0
+          },
+          {
+            "phase": "committed",
+            "durationMs": 0
+          }
+        ],
+        "addAt": 656,
+        "pendingScheduled": true,
+        "pendingPaintMs": 65,
+        "canonicalAt": 738,
+        "canonicalScheduled": true,
+        "canonicalPaintMs": 31
+      },
+      "startupRequests": [
+        "POST /api/app/session",
+        "GET /api/app/v2/context",
+        "GET /api/app/v2/ledgers",
+        "GET /api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/bootstrap",
+        "GET /api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories"
+      ],
+      "openRequests": [],
+      "createRequests": [
+        "POST /api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/transactions",
+        "GET /api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories"
+      ],
+      "blockingBootstrapCount": 0
+    },
+    {
+      "run": 11,
+      "metrics": {
+        "storage": [
+          {
+            "phase": "submitting",
+            "durationMs": 0
+          },
+          {
+            "phase": "committed",
+            "durationMs": 0
+          }
+        ],
+        "addAt": 655,
+        "pendingScheduled": true,
+        "pendingPaintMs": 49,
+        "canonicalAt": 720,
+        "canonicalScheduled": true,
+        "canonicalPaintMs": 33
+      },
+      "startupRequests": [
+        "POST /api/app/session",
+        "GET /api/app/v2/context",
+        "GET /api/app/v2/ledgers",
+        "GET /api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/bootstrap",
+        "GET /api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories"
+      ],
+      "openRequests": [],
+      "createRequests": [
+        "POST /api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/transactions",
+        "GET /api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories"
+      ],
+      "blockingBootstrapCount": 0
+    },
+    {
+      "run": 12,
+      "metrics": {
+        "storage": [
+          {
+            "phase": "submitting",
+            "durationMs": 0
+          },
+          {
+            "phase": "committed",
+            "durationMs": 0
+          }
+        ],
+        "addAt": 662,
+        "pendingScheduled": true,
+        "pendingPaintMs": 75,
+        "canonicalAt": 744,
+        "canonicalScheduled": true,
+        "canonicalPaintMs": 26
+      },
+      "startupRequests": [
+        "POST /api/app/session",
+        "GET /api/app/v2/context",
+        "GET /api/app/v2/ledgers",
+        "GET /api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/bootstrap",
+        "GET /api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories"
+      ],
+      "openRequests": [],
+      "createRequests": [
+        "POST /api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/transactions",
+        "GET /api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories"
+      ],
+      "blockingBootstrapCount": 0
+    },
+    {
+      "run": 13,
+      "metrics": {
+        "storage": [
+          {
+            "phase": "submitting",
+            "durationMs": 0
+          },
+          {
+            "phase": "committed",
+            "durationMs": 0
+          }
+        ],
+        "addAt": 687,
+        "pendingScheduled": true,
+        "pendingPaintMs": 66,
+        "canonicalAt": 772,
+        "canonicalScheduled": true,
+        "canonicalPaintMs": 28
+      },
+      "startupRequests": [
+        "POST /api/app/session",
+        "GET /api/app/v2/context",
+        "GET /api/app/v2/ledgers",
+        "GET /api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/bootstrap",
+        "GET /api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories"
+      ],
+      "openRequests": [],
+      "createRequests": [
+        "POST /api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/transactions",
+        "GET /api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories"
+      ],
+      "blockingBootstrapCount": 0
+    },
+    {
+      "run": 14,
+      "metrics": {
+        "storage": [
+          {
+            "phase": "submitting",
+            "durationMs": 0
+          },
+          {
+            "phase": "committed",
+            "durationMs": 0
+          }
+        ],
+        "addAt": 716,
+        "pendingScheduled": true,
+        "pendingPaintMs": 69,
+        "canonicalAt": 797,
+        "canonicalScheduled": true,
+        "canonicalPaintMs": 36
+      },
+      "startupRequests": [
+        "POST /api/app/session",
+        "GET /api/app/v2/context",
+        "GET /api/app/v2/ledgers",
+        "GET /api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/bootstrap",
+        "GET /api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories"
+      ],
+      "openRequests": [],
+      "createRequests": [
+        "POST /api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/transactions",
+        "GET /api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories"
+      ],
+      "blockingBootstrapCount": 0
+    },
+    {
+      "run": 15,
+      "metrics": {
+        "storage": [
+          {
+            "phase": "submitting",
+            "durationMs": 0
+          },
+          {
+            "phase": "committed",
+            "durationMs": 0
+          }
+        ],
+        "addAt": 670,
+        "pendingScheduled": true,
+        "pendingPaintMs": 50,
+        "canonicalAt": 734,
+        "canonicalScheduled": true,
+        "canonicalPaintMs": 36
+      },
+      "startupRequests": [
+        "POST /api/app/session",
+        "GET /api/app/v2/context",
+        "GET /api/app/v2/ledgers",
+        "GET /api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/bootstrap",
+        "GET /api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories"
+      ],
+      "openRequests": [],
+      "createRequests": [
+        "POST /api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/transactions",
+        "GET /api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories"
+      ],
+      "blockingBootstrapCount": 0
+    },
+    {
+      "run": 16,
+      "metrics": {
+        "storage": [
+          {
+            "phase": "submitting",
+            "durationMs": 0
+          },
+          {
+            "phase": "committed",
+            "durationMs": 0
+          }
+        ],
+        "addAt": 685,
+        "pendingScheduled": true,
+        "pendingPaintMs": 69,
+        "canonicalAt": 767,
+        "canonicalScheduled": true,
+        "canonicalPaintMs": 34
+      },
+      "startupRequests": [
+        "POST /api/app/session",
+        "GET /api/app/v2/context",
+        "GET /api/app/v2/ledgers",
+        "GET /api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/bootstrap",
+        "GET /api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories"
+      ],
+      "openRequests": [],
+      "createRequests": [
+        "POST /api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/transactions",
+        "GET /api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories"
+      ],
+      "blockingBootstrapCount": 0
+    },
+    {
+      "run": 17,
+      "metrics": {
+        "storage": [
+          {
+            "phase": "submitting",
+            "durationMs": 0
+          },
+          {
+            "phase": "committed",
+            "durationMs": 0
+          }
+        ],
+        "addAt": 656,
+        "pendingScheduled": true,
+        "pendingPaintMs": 49,
+        "canonicalAt": 721,
+        "canonicalScheduled": true,
+        "canonicalPaintMs": 32
+      },
+      "startupRequests": [
+        "POST /api/app/session",
+        "GET /api/app/v2/context",
+        "GET /api/app/v2/ledgers",
+        "GET /api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/bootstrap",
+        "GET /api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories"
+      ],
+      "openRequests": [],
+      "createRequests": [
+        "POST /api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/transactions",
+        "GET /api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories"
+      ],
+      "blockingBootstrapCount": 0
+    },
+    {
+      "run": 18,
+      "metrics": {
+        "storage": [
+          {
+            "phase": "submitting",
+            "durationMs": 0
+          },
+          {
+            "phase": "committed",
+            "durationMs": 0
+          }
+        ],
+        "addAt": 657,
+        "pendingScheduled": true,
+        "pendingPaintMs": 80,
+        "canonicalAt": 852,
+        "canonicalScheduled": true,
+        "canonicalPaintMs": 30
+      },
+      "startupRequests": [
+        "POST /api/app/session",
+        "GET /api/app/v2/context",
+        "GET /api/app/v2/ledgers",
+        "GET /api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/bootstrap",
+        "GET /api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories"
+      ],
+      "openRequests": [],
+      "createRequests": [
+        "POST /api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/transactions",
+        "GET /api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories"
+      ],
+      "blockingBootstrapCount": 0
+    },
+    {
+      "run": 19,
+      "metrics": {
+        "storage": [
+          {
+            "phase": "submitting",
+            "durationMs": 0
+          },
+          {
+            "phase": "committed",
+            "durationMs": 0
+          }
+        ],
+        "addAt": 896,
+        "pendingScheduled": true,
+        "pendingPaintMs": 80,
+        "canonicalAt": 995,
+        "canonicalScheduled": true,
+        "canonicalPaintMs": 30
+      },
+      "startupRequests": [
+        "POST /api/app/session",
+        "GET /api/app/v2/context",
+        "GET /api/app/v2/ledgers",
+        "GET /api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/bootstrap",
+        "GET /api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories"
+      ],
+      "openRequests": [],
+      "createRequests": [
+        "POST /api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/transactions",
+        "GET /api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories"
+      ],
+      "blockingBootstrapCount": 0
+    }
+  ],
+  "baselineSHA": "bc4d966ded4650d79667b19d12902ac49e4eff78"
+}

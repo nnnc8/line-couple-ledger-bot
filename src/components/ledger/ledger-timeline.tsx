@@ -25,15 +25,17 @@ export type LedgerTimelineProps = {
   onLoadOlder: () => void;
   onOpenTransaction: OpenTransaction;
   loading?: boolean;
+  highlightedId?: string;
 };
 
 export type TimelineTransactionRowProps = Pick<LedgerTimelineProps, "userId" | "categories" | "today" | "onOpenTransaction"> & {
   transaction: V2LedgerTransaction;
   animate?: boolean;
+  highlighted?: boolean;
 };
 
 /** Search reuses the same reading row, including historical/void transactions. */
-export function TimelineTransactionRow({ transaction, userId, categories, onOpenTransaction, animate = false }: TimelineTransactionRowProps) {
+export function TimelineTransactionRow({ transaction, userId, categories, onOpenTransaction, animate = false, highlighted = false }: TimelineTransactionRowProps) {
   const purpose = timelinePurpose(transaction);
   const typeLabel = timelineTypeLabel(transaction.type);
   const summary = timelinePaymentSummary(transaction, userId);
@@ -45,7 +47,8 @@ export function TimelineTransactionRow({ transaction, userId, categories, onOpen
   return <button
     type="button"
     data-transaction-id={transaction.id}
-    className={`${animate ? "timeline-new-row " : ""}flex min-h-11 w-full min-w-0 flex-wrap items-start gap-x-3 gap-y-1 rounded-xl px-2 py-3 text-left transition-colors hover:bg-accent-soft focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent`}
+    data-created-highlight={highlighted || undefined}
+    className={`${highlighted ? "timeline-created-row " : animate ? "timeline-new-row " : ""}flex min-h-11 w-full min-w-0 flex-wrap items-start gap-x-3 gap-y-1 rounded-xl px-2 py-3 text-left transition-colors hover:bg-accent-soft focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent`}
     aria-label={[purpose, typeLabel, amount, summary, transaction.occurredOn || "日期未提供", status].filter(Boolean).join("，")}
     onClick={event => onOpenTransaction(transaction.id, event.currentTarget)}
   >
@@ -57,7 +60,7 @@ export function TimelineTransactionRow({ transaction, userId, categories, onOpen
   </button>;
 }
 
-export function LedgerTimeline({ transactions, userId, categories, today, visibleCount, onLoadOlder, onOpenTransaction, loading = false }: LedgerTimelineProps) {
+export function LedgerTimeline({ transactions, userId, categories, today, visibleCount, onLoadOlder, onOpenTransaction, loading = false, highlightedId }: LedgerTimelineProps) {
   const effective = React.useMemo(() => effectiveTimelineTransactions(transactions), [transactions]);
   const visible = React.useMemo(() => visibleTimelineTransactions(effective, visibleCount), [effective, visibleCount]);
   const groups = React.useMemo(() => groupTimelineTransactions(visible, today), [visible, today]);
@@ -86,10 +89,10 @@ export function LedgerTimeline({ transactions, userId, categories, today, visibl
     {groups.map(group => <section key={group.occurredOn} className="min-w-0 py-2">
       <h3 tabIndex={-1} data-timeline-date={group.occurredOn} className="px-2 py-2 text-sm font-semibold text-[var(--muted-foreground)]">{group.label}</h3>
       <ul className="min-w-0 divide-y divide-border">
-        {group.transactions.map(transaction => <li key={transaction.id} className="min-w-0"><TimelineTransactionRow transaction={transaction} userId={userId} categories={categories} today={today} onOpenTransaction={onOpenTransaction} animate={!initialVisibleIds.has(transaction.id)} /></li>)}
+        {group.transactions.map(transaction => <li key={transaction.id} className="min-w-0"><TimelineTransactionRow transaction={transaction} userId={userId} categories={categories} today={today} onOpenTransaction={onOpenTransaction} animate={!highlightedId && !initialVisibleIds.has(transaction.id)} highlighted={transaction.id === highlightedId} /></li>)}
       </ul>
     </section>)}
-    <p role="status" aria-live="polite" className="sr-only">已顯示 {visible.length} 筆紀錄</p>
+    <p className="sr-only">已顯示 {visible.length} 筆紀錄</p>
     {hasOlder ? <Button variant="ghost" className="mt-2 w-full" onClick={() => { pendingOlderFocus.current = visible.length; onLoadOlder(); }}>更早紀錄</Button> : null}
   </div>;
 }
