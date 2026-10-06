@@ -1,0 +1,23 @@
+{
+  "test": {
+    "title": "36–37 timeline has one interactive row and no legacy details or duplicate financial/receipt actions",
+    "project": "chromium-iphone",
+    "resultDir": "/Users/nc8/.codex/worktrees/p2-c-timeline-detail/New project/output/playwright/results/p2-c-timeline-36–37-timeli-a6b93-e-financial-receipt-actions-chromium-iphone"
+  },
+  "metrics": {
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "scrollY": 486,
+    "documentWidth": 390,
+    "bodyWidth": 390,
+    "timelineRows": 0,
+    "rowIds": [],
+    "rowRects": [],
+    "amountRects": [],
+    "dateHeadings": [],
+    "focus": "BUTTON"
+  },
+  "extra": {}
+}

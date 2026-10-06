@@ -1,0 +1,26 @@
+{
+  "test": {
+    "title": "13–17 canonical Detail focuses heading, opens at top and returns scroll/focus to row beyond initial 20",
+    "project": "webkit-393",
+    "resultDir": "/Users/nc8/.codex/worktrees/p2-c-timeline-detail/New project/output/playwright/results/p2-c-timeline-13–17-canoni-5ca64-us-to-row-beyond-initial-20-webkit-393"
+  },
+  "metrics": {
+    "viewport": {
+      "width": 393,
+      "height": 852
+    },
+    "scrollY": 0,
+    "documentWidth": 393,
+    "bodyWidth": 393,
+    "timelineRows": 0,
+    "rowIds": [],
+    "rowRects": [],
+    "amountRects": [],
+    "dateHeadings": [],
+    "focus": "H2"
+  },
+  "extra": {
+    "detailOpenMs": 155.9401249999937,
+    "requestsAdded": []
+  }
+}

@@ -1,0 +1,62 @@
+{
+  "test": {
+    "title": "direct Detail retry focuses purpose heading after initial bootstrap read500",
+    "project": "webkit-iphone",
+    "resultDir": "/Users/nc8/.codex/worktrees/p2-c-timeline-detail/New project/output/playwright/results/p2-c-timeline-direct-Detai-fc613-r-initial-bootstrap-read500-webkit-iphone"
+  },
+  "metrics": {
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "scrollY": 0,
+    "documentWidth": 390,
+    "bodyWidth": 390,
+    "timelineRows": 0,
+    "rowIds": [],
+    "rowRects": [],
+    "amountRects": [],
+    "dateHeadings": [],
+    "focus": "H2"
+  },
+  "extra": {
+    "requests": [
+      {
+        "method": "POST",
+        "path": "/api/app/session",
+        "at": 175841.897917,
+        "finishedAt": 175883.068458
+      },
+      {
+        "method": "GET",
+        "path": "/api/app/v2/context",
+        "at": 175883.195292,
+        "finishedAt": 175940.243375
+      },
+      {
+        "method": "GET",
+        "path": "/api/app/v2/ledgers",
+        "at": 175940.322375,
+        "finishedAt": 175994.189333
+      },
+      {
+        "method": "GET",
+        "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/bootstrap",
+        "at": 175995.796708,
+        "finishedAt": 176008.112542
+      },
+      {
+        "method": "GET",
+        "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/bootstrap",
+        "at": 176115.366625,
+        "finishedAt": 176157.666333
+      },
+      {
+        "method": "GET",
+        "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories",
+        "at": 176207.225083,
+        "finishedAt": 176217.134917
+      }
+    ]
+  }
+}

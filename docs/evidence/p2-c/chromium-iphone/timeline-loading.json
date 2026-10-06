@@ -1,0 +1,23 @@
+{
+  "test": {
+    "title": "first read has three static timeline skeletons and refresh failure preserves known effective rows",
+    "project": "chromium-iphone",
+    "resultDir": "/Users/nc8/.codex/worktrees/p2-c-timeline-detail/New project/output/playwright/results/p2-c-timeline-first-read-h-8bf09-serves-known-effective-rows-chromium-iphone"
+  },
+  "metrics": {
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "scrollY": 0,
+    "documentWidth": 390,
+    "bodyWidth": 390,
+    "timelineRows": 0,
+    "rowIds": [],
+    "rowRects": [],
+    "amountRects": [],
+    "dateHeadings": [],
+    "focus": "surface-heading"
+  },
+  "extra": {}
+}

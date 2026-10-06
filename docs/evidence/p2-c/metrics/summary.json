@@ -1,0 +1,66 @@
+{
+  "baselineSha": "aa9799cdb78fab7bc91d0648113e77a76b58f70d",
+  "method": "Node 22 / production next start; identical complete 68-row bootstrap fixture with 65 effective posted rows; 3 fresh Chromium 390x844 contexts; no throttling or concurrent builds/tests; gzip level 6 on actual loaded initial-route JS response bodies; actual bootstrap body byte length; browser fetch-resolution/DOM-mutation/input-to-two-rAF paint proxies; request traces settle 200ms after actions. Read-only API mocks except LIFF session initialization. No physical LINE latency/picker/HEIC claim.",
+  "baseline": {
+    "initialGzipJsBytes": 195679,
+    "bootstrapTransactionCount": 68,
+    "bootstrapResponseBytes": 47312,
+    "initialHomeDomRows": 68,
+    "initialTimelineResponseToTwoFramePaintMs": 34.5,
+    "appendMs": null,
+    "detailOpenMs": 48.699999999953434,
+    "detailBackMs": 32,
+    "startupRequestCounts": [
+      5,
+      5,
+      5
+    ],
+    "appendRequestCounts": null,
+    "detailOpenRequestCounts": [
+      1,
+      1,
+      1
+    ],
+    "detailBackRequestCounts": [
+      0,
+      0,
+      0
+    ],
+    "allReturnsRestoreOriginFocus": true,
+    "maximumReturnOffsetDeltaPx": 0
+  },
+  "candidate": {
+    "initialGzipJsBytes": 200048,
+    "bootstrapTransactionCount": 68,
+    "bootstrapResponseBytes": 47312,
+    "initialHomeDomRows": 20,
+    "initialTimelineResponseToTwoFramePaintMs": 28.299999997019768,
+    "appendMs": 49.79999999701977,
+    "detailOpenMs": 29.5,
+    "detailBackMs": 45.599999994039536,
+    "startupRequestCounts": [
+      5,
+      5,
+      5
+    ],
+    "appendRequestCounts": [
+      0,
+      0,
+      0
+    ],
+    "detailOpenRequestCounts": [
+      0,
+      0,
+      0
+    ],
+    "detailBackRequestCounts": [
+      0,
+      0,
+      0
+    ],
+    "allReturnsRestoreOriginFocus": true,
+    "maximumReturnOffsetDeltaPx": 0
+  },
+  "incrementalGzipJsBytes": 4369,
+  "fixtureIsLiveAccountData": false
+}

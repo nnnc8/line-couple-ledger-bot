@@ -1,0 +1,73 @@
+{
+  "method": "UTC timestamps recorded immediately around subprocess.run for each actual command; commands were run concurrently with final Playwright suite after production metrics finished.",
+  "commands": [
+    {
+      "summary_file": "typecheck-summary.json",
+      "command": "pnpm typecheck",
+      "exit_code": 0,
+      "started_at_utc": "2026-10-06T03:09:02.221896+00:00",
+      "completed_at_utc": "2026-10-06T03:09:22.485768+00:00",
+      "duration_seconds": 20.263872
+    },
+    {
+      "summary_file": "unit-summary.json",
+      "command": "pnpm test",
+      "exit_code": 0,
+      "started_at_utc": "2026-10-06T03:09:02.222266+00:00",
+      "completed_at_utc": "2026-10-06T03:09:22.920956+00:00",
+      "duration_seconds": 20.69869
+    },
+    {
+      "summary_file": "raw-lint-summary.json",
+      "command": "pnpm lint",
+      "exit_code": 1,
+      "started_at_utc": "2026-10-06T03:09:02.221895+00:00",
+      "completed_at_utc": "2026-10-06T03:10:06.393730+00:00",
+      "duration_seconds": 64.171835
+    },
+    {
+      "summary_file": "candidate-lint-json-summary.json",
+      "command": [
+        "pnpm",
+        "exec",
+        "eslint",
+        ".",
+        "--format",
+        "json",
+        "--output-file",
+        "output/p2-c/checks/lint.json"
+      ],
+      "exit_code": 1,
+      "started_at_utc": "2026-10-06T03:10:46.448069+00:00",
+      "completed_at_utc": "2026-10-06T03:12:07.015365+00:00",
+      "duration_seconds": 80.567296
+    },
+    {
+      "summary_file": "baseline-lint-json-summary.json",
+      "command": [
+        "/var/folders/6n/030ymhmj6gz43ngpqgzp888r0000gp/T/p2-c-lint-baseline-final-pdwzsl3r/node_modules/.bin/eslint",
+        ".",
+        "--format",
+        "json",
+        "--output-file",
+        "/Users/nc8/.codex/worktrees/p2-c-timeline-detail/New project/output/p2-c/checks/lint-baseline.json"
+      ],
+      "exit_code": 1,
+      "started_at_utc": "2026-10-06T03:10:46.449578+00:00",
+      "completed_at_utc": "2026-10-06T03:11:55.384453+00:00",
+      "duration_seconds": 68.934875
+    },
+    {
+      "summary_file": "targeted-lint-summary.json",
+      "command": "pnpm exec eslint <20 changed source files>",
+      "exit_code": 0,
+      "started_at_utc": "2026-10-06T03:10:46.665010+00:00",
+      "completed_at_utc": "2026-10-06T03:11:40.605005+00:00",
+      "duration_seconds": 53.939995
+    }
+  ],
+  "contention_window_utc": {
+    "three_parallel_eslint_start": "2026-10-06T03:10:46.448069+00:00",
+    "last_parallel_eslint_complete": "2026-10-06T03:12:07.015365+00:00"
+  }
+}

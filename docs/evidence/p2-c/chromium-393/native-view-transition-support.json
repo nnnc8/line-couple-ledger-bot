@@ -1,0 +1,302 @@
+{
+  "test": {
+    "title": "browser records native view-transition support for bounded Detail-close motion",
+    "project": "chromium-393",
+    "resultDir": "/Users/nc8/.codex/worktrees/p2-c-timeline-detail/New project/output/playwright/results/p2-c-timeline-browser-reco-57a0a-bounded-Detail-close-motion-chromium-393"
+  },
+  "metrics": {
+    "viewport": {
+      "width": 393,
+      "height": 852
+    },
+    "scrollY": 1280,
+    "documentWidth": 393,
+    "bodyWidth": 393,
+    "timelineRows": 20,
+    "rowIds": [
+      "00000000-0000-4000-8000-000000001001",
+      "00000000-0000-4000-8000-000000001002",
+      "00000000-0000-4000-8000-000000001003",
+      "00000000-0000-4000-8000-000000001004",
+      "00000000-0000-4000-8000-000000001005",
+      "00000000-0000-4000-8000-000000001006",
+      "00000000-0000-4000-8000-000000001007",
+      "00000000-0000-4000-8000-000000001008",
+      "00000000-0000-4000-8000-000000001009",
+      "00000000-0000-4000-8000-000000001010",
+      "00000000-0000-4000-8000-000000001011",
+      "00000000-0000-4000-8000-000000001012",
+      "00000000-0000-4000-8000-000000001013",
+      "00000000-0000-4000-8000-000000001014",
+      "00000000-0000-4000-8000-000000001015",
+      "00000000-0000-4000-8000-000000001016",
+      "00000000-0000-4000-8000-000000001017",
+      "00000000-0000-4000-8000-000000001018",
+      "00000000-0000-4000-8000-000000001019",
+      "00000000-0000-4000-8000-000000001020"
+    ],
+    "rowRects": [
+      {
+        "id": "00000000-0000-4000-8000-000000001001",
+        "height": 64,
+        "width": 327
+      },
+      {
+        "id": "00000000-0000-4000-8000-000000001002",
+        "height": 84,
+        "width": 327
+      },
+      {
+        "id": "00000000-0000-4000-8000-000000001003",
+        "height": 88,
+        "width": 327
+      },
+      {
+        "id": "00000000-0000-4000-8000-000000001004",
+        "height": 64,
+        "width": 327
+      },
+      {
+        "id": "00000000-0000-4000-8000-000000001005",
+        "height": 64,
+        "width": 327
+      },
+      {
+        "id": "00000000-0000-4000-8000-000000001006",
+        "height": 64,
+        "width": 327
+      },
+      {
+        "id": "00000000-0000-4000-8000-000000001007",
+        "height": 64,
+        "width": 327
+      },
+      {
+        "id": "00000000-0000-4000-8000-000000001008",
+        "height": 64,
+        "width": 327
+      },
+      {
+        "id": "00000000-0000-4000-8000-000000001009",
+        "height": 64,
+        "width": 327
+      },
+      {
+        "id": "00000000-0000-4000-8000-000000001010",
+        "height": 64,
+        "width": 327
+      },
+      {
+        "id": "00000000-0000-4000-8000-000000001011",
+        "height": 64,
+        "width": 327
+      },
+      {
+        "id": "00000000-0000-4000-8000-000000001012",
+        "height": 64,
+        "width": 327
+      },
+      {
+        "id": "00000000-0000-4000-8000-000000001013",
+        "height": 64,
+        "width": 327
+      },
+      {
+        "id": "00000000-0000-4000-8000-000000001014",
+        "height": 64,
+        "width": 327
+      },
+      {
+        "id": "00000000-0000-4000-8000-000000001015",
+        "height": 64,
+        "width": 327
+      },
+      {
+        "id": "00000000-0000-4000-8000-000000001016",
+        "height": 64,
+        "width": 327
+      },
+      {
+        "id": "00000000-0000-4000-8000-000000001017",
+        "height": 64,
+        "width": 327
+      },
+      {
+        "id": "00000000-0000-4000-8000-000000001018",
+        "height": 64,
+        "width": 327
+      },
+      {
+        "id": "00000000-0000-4000-8000-000000001019",
+        "height": 64,
+        "width": 327
+      },
+      {
+        "id": "00000000-0000-4000-8000-000000001020",
+        "height": 64,
+        "width": 327
+      }
+    ],
+    "amountRects": [
+      {
+        "text": "NT$200",
+        "width": 56,
+        "scrollWidth": 56,
+        "fontSize": "14px",
+        "fontVariantNumeric": "tabular-nums"
+      },
+      {
+        "text": "NT$200",
+        "width": 56,
+        "scrollWidth": 56,
+        "fontSize": "14px",
+        "fontVariantNumeric": "tabular-nums"
+      },
+      {
+        "text": "NT$100,000,000,000",
+        "width": 151,
+        "scrollWidth": 151,
+        "fontSize": "14px",
+        "fontVariantNumeric": "tabular-nums"
+      },
+      {
+        "text": "NT$200",
+        "width": 56,
+        "scrollWidth": 56,
+        "fontSize": "14px",
+        "fontVariantNumeric": "tabular-nums"
+      },
+      {
+        "text": "＋NT$100",
+        "width": 70,
+        "scrollWidth": 70,
+        "fontSize": "14px",
+        "fontVariantNumeric": "tabular-nums"
+      },
+      {
+        "text": "NT$200",
+        "width": 56,
+        "scrollWidth": 56,
+        "fontSize": "14px",
+        "fontVariantNumeric": "tabular-nums"
+      },
+      {
+        "text": "NT$200",
+        "width": 56,
+        "scrollWidth": 56,
+        "fontSize": "14px",
+        "fontVariantNumeric": "tabular-nums"
+      },
+      {
+        "text": "NT$200",
+        "width": 56,
+        "scrollWidth": 56,
+        "fontSize": "14px",
+        "fontVariantNumeric": "tabular-nums"
+      },
+      {
+        "text": "NT$200",
+        "width": 56,
+        "scrollWidth": 56,
+        "fontSize": "14px",
+        "fontVariantNumeric": "tabular-nums"
+      },
+      {
+        "text": "NT$200",
+        "width": 56,
+        "scrollWidth": 56,
+        "fontSize": "14px",
+        "fontVariantNumeric": "tabular-nums"
+      },
+      {
+        "text": "NT$200",
+        "width": 56,
+        "scrollWidth": 56,
+        "fontSize": "14px",
+        "fontVariantNumeric": "tabular-nums"
+      },
+      {
+        "text": "NT$200",
+        "width": 56,
+        "scrollWidth": 56,
+        "fontSize": "14px",
+        "fontVariantNumeric": "tabular-nums"
+      },
+      {
+        "text": "NT$200",
+        "width": 56,
+        "scrollWidth": 56,
+        "fontSize": "14px",
+        "fontVariantNumeric": "tabular-nums"
+      },
+      {
+        "text": "NT$200",
+        "width": 56,
+        "scrollWidth": 56,
+        "fontSize": "14px",
+        "fontVariantNumeric": "tabular-nums"
+      },
+      {
+        "text": "NT$200",
+        "width": 56,
+        "scrollWidth": 56,
+        "fontSize": "14px",
+        "fontVariantNumeric": "tabular-nums"
+      },
+      {
+        "text": "NT$200",
+        "width": 56,
+        "scrollWidth": 56,
+        "fontSize": "14px",
+        "fontVariantNumeric": "tabular-nums"
+      },
+      {
+        "text": "NT$200",
+        "width": 56,
+        "scrollWidth": 56,
+        "fontSize": "14px",
+        "fontVariantNumeric": "tabular-nums"
+      },
+      {
+        "text": "NT$200",
+        "width": 56,
+        "scrollWidth": 56,
+        "fontSize": "14px",
+        "fontVariantNumeric": "tabular-nums"
+      },
+      {
+        "text": "NT$200",
+        "width": 56,
+        "scrollWidth": 56,
+        "fontSize": "14px",
+        "fontVariantNumeric": "tabular-nums"
+      },
+      {
+        "text": "NT$200",
+        "width": 56,
+        "scrollWidth": 56,
+        "fontSize": "14px",
+        "fontVariantNumeric": "tabular-nums"
+      }
+    ],
+    "dateHeadings": [
+      {
+        "date": "2026-09-28",
+        "text": "9月28日",
+        "tag": "H3"
+      },
+      {
+        "date": "2026-09-25",
+        "text": "今天",
+        "tag": "H3"
+      }
+    ],
+    "focus": "00000000-0000-4000-8000-000000001004"
+  },
+  "extra": {
+    "supported": true,
+    "motion": [
+      "0.14s"
+    ]
+  }
+}

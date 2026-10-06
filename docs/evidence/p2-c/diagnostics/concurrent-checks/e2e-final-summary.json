@@ -1,0 +1,34 @@
+{
+  "command": "CI=1 pnpm test:e2e",
+  "workers": 4,
+  "exitCode": 1,
+  "passed": 791,
+  "failed": 2,
+  "skipped": 0,
+  "cancelled": 0,
+  "retries": 0,
+  "duration": "11.6m",
+  "byProject": {
+    "chromium-iphone": 204,
+    "webkit-iphone": 204,
+    "chromium-393": 181,
+    "webkit-393": 181,
+    "chromium-wide": 23
+  },
+  "lastRun": {
+    "status": "failed",
+    "failedTests": [
+      "5c0b38dab7cde8f4af52-3faa30f653cad2b74988",
+      "8707fe7a43c0cff799da-f5e4d74a96947bcbe04a"
+    ]
+  },
+  "logSha256": "582c266759ff77a41d38bda624ace851919632492c20a03a1008d133b85ce361",
+  "sourceSnapshotSha256": "2254b97d08f2337fffd0a5ed84fa016909d5072d5582dee140d23cc3f29be89b",
+  "sourceAggregateSha256": "14388027d50c7780b96b98f7c142329ee25c1ae660d9a4045af869980f043c65",
+  "sourceFiles": 208,
+  "sourceDrift": [],
+  "startedAt": "2026-10-06T03:08:30.194500+00:00",
+  "completedAt": "2026-10-06T03:20:09.900663+00:00",
+  "generatedNextEnvExcluded": "Next dev regenerates routes import only; restored to exact baseline before commit.",
+  "countEvidence": "All793 case indices emitted;791 passed +2 failed =793; no skipped/cancelled summary."
+}

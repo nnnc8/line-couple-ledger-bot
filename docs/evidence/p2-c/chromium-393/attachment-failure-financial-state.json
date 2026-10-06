@@ -1,0 +1,37 @@
+{
+  "test": {
+    "title": "35 attachment failure preserves posted financial state and sends no financial mutation",
+    "project": "chromium-393",
+    "resultDir": "/Users/nc8/.codex/worktrees/p2-c-timeline-detail/New project/output/playwright/results/p2-c-timeline-35-attachmen-f7ad3-sends-no-financial-mutation-chromium-393"
+  },
+  "metrics": {
+    "viewport": {
+      "width": 393,
+      "height": 852
+    },
+    "scrollY": 478,
+    "documentWidth": 393,
+    "bodyWidth": 393,
+    "timelineRows": 0,
+    "rowIds": [],
+    "rowRects": [],
+    "amountRects": [],
+    "dateHeadings": [],
+    "focus": "BUTTON"
+  },
+  "extra": {
+    "attachmentRequests": [
+      {
+        "method": "POST",
+        "path": "/api/app/v2/attachments",
+        "body": {
+          "ledgerId": "00000000-0000-4000-8000-000000000010",
+          "transactionId": "00000000-0000-4000-8000-000000001004",
+          "fileName": "failed-receipt.pdf",
+          "mimeType": "application/pdf",
+          "sizeBytes": 9
+        }
+      }
+    ]
+  }
+}

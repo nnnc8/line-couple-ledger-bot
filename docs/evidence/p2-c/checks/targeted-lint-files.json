@@ -1,0 +1,22 @@
+[
+  "playwright.config.ts",
+  "src/components/ledger/ledger-timeline.tsx",
+  "src/components/ledger/transaction-detail.tsx",
+  "src/components/ledger/v2-ledger-home.tsx",
+  "src/components/ledger/v2-liff-home.tsx",
+  "src/hooks/use-v2-ledgers.ts",
+  "src/lib/v2-navigation.test.ts",
+  "src/lib/v2-navigation.ts",
+  "src/lib/v2-timeline.test.ts",
+  "src/lib/v2-timeline.ts",
+  "src/lib/v2-transaction-status.test.ts",
+  "src/lib/v2-transaction-status.ts",
+  "tests/fixtures/p2-c-browser.ts",
+  "tests/p1-b-entry.spec.ts",
+  "tests/p1-c-navigation.spec.ts",
+  "tests/p1-c-races.spec.ts",
+  "tests/p2-a-entry.spec.ts",
+  "tests/p2-c-metrics.mjs",
+  "tests/p2-c-timeline.spec.ts",
+  "tests/v2-liff.spec.ts"
+]

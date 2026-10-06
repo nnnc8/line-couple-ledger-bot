@@ -1,0 +1,24 @@
+{
+  "command": [
+    "pnpm",
+    "exec",
+    "playwright",
+    "test",
+    "tests/p2-c-timeline.spec.ts",
+    "tests/v2-liff.spec.ts",
+    "--grep",
+    "Detail pending read and read500|V3-0 ignores reversed recurring responses across Ledgers",
+    "--repeat-each=3",
+    "--workers=1",
+    "--output=output/playwright/timeout-regression-results"
+  ],
+  "exitCode": 0,
+  "passed": 21,
+  "startedAt": "2026-10-06T03:21:17.735546+00:00",
+  "completedAt": "2026-10-06T03:22:02.014225+00:00",
+  "workers": 1,
+  "repeatEach": 3,
+  "noConcurrentHeavyChecks": true,
+  "logSha256": "b9ffa47b22240bdefd8442c4d2dccaf1511acbb1c17d164d191a4b7ec82bdcd9",
+  "sourceAggregateSha256": "14388027d50c7780b96b98f7c142329ee25c1ae660d9a4045af869980f043c65"
+}

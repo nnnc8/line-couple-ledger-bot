@@ -1,0 +1,56 @@
+{
+  "test": {
+    "title": "20 wrong scoped or nonexistent transaction never falls back",
+    "project": "chromium-iphone",
+    "resultDir": "/Users/nc8/.codex/worktrees/p2-c-timeline-detail/New project/output/playwright/results/p2-c-timeline-20-wrong-sco-fc5fc-ransaction-never-falls-back-chromium-iphone"
+  },
+  "metrics": {
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "scrollY": 0,
+    "documentWidth": 390,
+    "bodyWidth": 390,
+    "timelineRows": 0,
+    "rowIds": [],
+    "rowRects": [],
+    "amountRects": [],
+    "dateHeadings": [],
+    "focus": "surface-heading"
+  },
+  "extra": {
+    "requests": [
+      {
+        "method": "POST",
+        "path": "/api/app/session",
+        "at": 54488.250917,
+        "finishedAt": 54503.070333
+      },
+      {
+        "method": "GET",
+        "path": "/api/app/v2/context",
+        "at": 54503.114125,
+        "finishedAt": 54508.555875
+      },
+      {
+        "method": "GET",
+        "path": "/api/app/v2/ledgers",
+        "at": 54509.620167,
+        "finishedAt": 54516.58575
+      },
+      {
+        "method": "GET",
+        "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000020/bootstrap",
+        "at": 54536.631,
+        "finishedAt": 54543.899333
+      },
+      {
+        "method": "GET",
+        "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000020/categories",
+        "at": 54554.560833,
+        "finishedAt": 54558.462917
+      }
+    ]
+  }
+}

@@ -1,0 +1,297 @@
+{
+  "test": {
+    "title": "09 expense row and Detail use truthful type/payment semantics",
+    "project": "webkit-iphone",
+    "resultDir": "/Users/nc8/.codex/worktrees/p2-c-timeline-detail/New project/output/playwright/results/p2-c-timeline-09-expense-r-1abf2-hful-type-payment-semantics-webkit-iphone"
+  },
+  "metrics": {
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "scrollY": 0,
+    "documentWidth": 390,
+    "bodyWidth": 390,
+    "timelineRows": 20,
+    "rowIds": [
+      "00000000-0000-4000-8000-000000001001",
+      "00000000-0000-4000-8000-000000001002",
+      "00000000-0000-4000-8000-000000001003",
+      "00000000-0000-4000-8000-000000001004",
+      "00000000-0000-4000-8000-000000001005",
+      "00000000-0000-4000-8000-000000001006",
+      "00000000-0000-4000-8000-000000001007",
+      "00000000-0000-4000-8000-000000001008",
+      "00000000-0000-4000-8000-000000001009",
+      "00000000-0000-4000-8000-000000001010",
+      "00000000-0000-4000-8000-000000001011",
+      "00000000-0000-4000-8000-000000001012",
+      "00000000-0000-4000-8000-000000001013",
+      "00000000-0000-4000-8000-000000001014",
+      "00000000-0000-4000-8000-000000001015",
+      "00000000-0000-4000-8000-000000001016",
+      "00000000-0000-4000-8000-000000001017",
+      "00000000-0000-4000-8000-000000001018",
+      "00000000-0000-4000-8000-000000001019",
+      "00000000-0000-4000-8000-000000001020"
+    ],
+    "rowRects": [
+      {
+        "id": "00000000-0000-4000-8000-000000001001",
+        "height": 63.984375,
+        "width": 324
+      },
+      {
+        "id": "00000000-0000-4000-8000-000000001002",
+        "height": 83.984375,
+        "width": 324
+      },
+      {
+        "id": "00000000-0000-4000-8000-000000001003",
+        "height": 87.984375,
+        "width": 324
+      },
+      {
+        "id": "00000000-0000-4000-8000-000000001004",
+        "height": 63.984375,
+        "width": 324
+      },
+      {
+        "id": "00000000-0000-4000-8000-000000001005",
+        "height": 63.984375,
+        "width": 324
+      },
+      {
+        "id": "00000000-0000-4000-8000-000000001006",
+        "height": 63.984375,
+        "width": 324
+      },
+      {
+        "id": "00000000-0000-4000-8000-000000001007",
+        "height": 63.984375,
+        "width": 324
+      },
+      {
+        "id": "00000000-0000-4000-8000-000000001008",
+        "height": 63.984375,
+        "width": 324
+      },
+      {
+        "id": "00000000-0000-4000-8000-000000001009",
+        "height": 63.984375,
+        "width": 324
+      },
+      {
+        "id": "00000000-0000-4000-8000-000000001010",
+        "height": 63.984375,
+        "width": 324
+      },
+      {
+        "id": "00000000-0000-4000-8000-000000001011",
+        "height": 63.984375,
+        "width": 324
+      },
+      {
+        "id": "00000000-0000-4000-8000-000000001012",
+        "height": 63.984375,
+        "width": 324
+      },
+      {
+        "id": "00000000-0000-4000-8000-000000001013",
+        "height": 63.984375,
+        "width": 324
+      },
+      {
+        "id": "00000000-0000-4000-8000-000000001014",
+        "height": 63.984375,
+        "width": 324
+      },
+      {
+        "id": "00000000-0000-4000-8000-000000001015",
+        "height": 63.984375,
+        "width": 324
+      },
+      {
+        "id": "00000000-0000-4000-8000-000000001016",
+        "height": 63.984375,
+        "width": 324
+      },
+      {
+        "id": "00000000-0000-4000-8000-000000001017",
+        "height": 63.984375,
+        "width": 324
+      },
+      {
+        "id": "00000000-0000-4000-8000-000000001018",
+        "height": 63.984375,
+        "width": 324
+      },
+      {
+        "id": "00000000-0000-4000-8000-000000001019",
+        "height": 63.984375,
+        "width": 324
+      },
+      {
+        "id": "00000000-0000-4000-8000-000000001020",
+        "height": 63.984375,
+        "width": 324
+      }
+    ],
+    "amountRects": [
+      {
+        "text": "NT$200",
+        "width": 56,
+        "scrollWidth": 56,
+        "fontSize": "14px",
+        "fontVariantNumeric": "tabular-nums"
+      },
+      {
+        "text": "NT$200",
+        "width": 56,
+        "scrollWidth": 56,
+        "fontSize": "14px",
+        "fontVariantNumeric": "tabular-nums"
+      },
+      {
+        "text": "NT$100,000,000,000",
+        "width": 151,
+        "scrollWidth": 151,
+        "fontSize": "14px",
+        "fontVariantNumeric": "tabular-nums"
+      },
+      {
+        "text": "NT$200",
+        "width": 56,
+        "scrollWidth": 56,
+        "fontSize": "14px",
+        "fontVariantNumeric": "tabular-nums"
+      },
+      {
+        "text": "＋NT$100",
+        "width": 70,
+        "scrollWidth": 70,
+        "fontSize": "14px",
+        "fontVariantNumeric": "tabular-nums"
+      },
+      {
+        "text": "NT$200",
+        "width": 56,
+        "scrollWidth": 56,
+        "fontSize": "14px",
+        "fontVariantNumeric": "tabular-nums"
+      },
+      {
+        "text": "NT$200",
+        "width": 56,
+        "scrollWidth": 56,
+        "fontSize": "14px",
+        "fontVariantNumeric": "tabular-nums"
+      },
+      {
+        "text": "NT$200",
+        "width": 56,
+        "scrollWidth": 56,
+        "fontSize": "14px",
+        "fontVariantNumeric": "tabular-nums"
+      },
+      {
+        "text": "NT$200",
+        "width": 56,
+        "scrollWidth": 56,
+        "fontSize": "14px",
+        "fontVariantNumeric": "tabular-nums"
+      },
+      {
+        "text": "NT$200",
+        "width": 56,
+        "scrollWidth": 56,
+        "fontSize": "14px",
+        "fontVariantNumeric": "tabular-nums"
+      },
+      {
+        "text": "NT$200",
+        "width": 56,
+        "scrollWidth": 56,
+        "fontSize": "14px",
+        "fontVariantNumeric": "tabular-nums"
+      },
+      {
+        "text": "NT$200",
+        "width": 56,
+        "scrollWidth": 56,
+        "fontSize": "14px",
+        "fontVariantNumeric": "tabular-nums"
+      },
+      {
+        "text": "NT$200",
+        "width": 56,
+        "scrollWidth": 56,
+        "fontSize": "14px",
+        "fontVariantNumeric": "tabular-nums"
+      },
+      {
+        "text": "NT$200",
+        "width": 56,
+        "scrollWidth": 56,
+        "fontSize": "14px",
+        "fontVariantNumeric": "tabular-nums"
+      },
+      {
+        "text": "NT$200",
+        "width": 56,
+        "scrollWidth": 56,
+        "fontSize": "14px",
+        "fontVariantNumeric": "tabular-nums"
+      },
+      {
+        "text": "NT$200",
+        "width": 56,
+        "scrollWidth": 56,
+        "fontSize": "14px",
+        "fontVariantNumeric": "tabular-nums"
+      },
+      {
+        "text": "NT$200",
+        "width": 56,
+        "scrollWidth": 56,
+        "fontSize": "14px",
+        "fontVariantNumeric": "tabular-nums"
+      },
+      {
+        "text": "NT$200",
+        "width": 56,
+        "scrollWidth": 56,
+        "fontSize": "14px",
+        "fontVariantNumeric": "tabular-nums"
+      },
+      {
+        "text": "NT$200",
+        "width": 56,
+        "scrollWidth": 56,
+        "fontSize": "14px",
+        "fontVariantNumeric": "tabular-nums"
+      },
+      {
+        "text": "NT$200",
+        "width": 56,
+        "scrollWidth": 56,
+        "fontSize": "14px",
+        "fontVariantNumeric": "tabular-nums"
+      }
+    ],
+    "dateHeadings": [
+      {
+        "date": "2026-09-28",
+        "text": "9月28日",
+        "tag": "H3"
+      },
+      {
+        "date": "2026-09-25",
+        "text": "今天",
+        "tag": "H3"
+      }
+    ],
+    "focus": "surface-heading"
+  },
+  "extra": {}
+}

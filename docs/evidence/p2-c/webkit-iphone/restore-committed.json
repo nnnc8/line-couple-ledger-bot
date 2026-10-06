@@ -1,0 +1,34 @@
+{
+  "test": {
+    "title": "31 historical void Detail retains service restore ability",
+    "project": "webkit-iphone",
+    "resultDir": "/Users/nc8/.codex/worktrees/p2-c-timeline-detail/New project/output/playwright/results/p2-c-timeline-31-historica-53606-ins-service-restore-ability-webkit-iphone"
+  },
+  "metrics": {
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "scrollY": 257,
+    "documentWidth": 390,
+    "bodyWidth": 390,
+    "timelineRows": 0,
+    "rowIds": [],
+    "rowRects": [],
+    "amountRects": [],
+    "dateHeadings": [],
+    "focus": "BODY"
+  },
+  "extra": {
+    "mutations": [
+      {
+        "transactionId": "00000000-0000-4000-8000-000000001072",
+        "body": {
+          "action": "restore",
+          "expectedVersion": 2,
+          "idempotencyKey": "v2:transaction:00000000-0000-4000-8000-000000001072:restore:2"
+        }
+      }
+    ]
+  }
+}

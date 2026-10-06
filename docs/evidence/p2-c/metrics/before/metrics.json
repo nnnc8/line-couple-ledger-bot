@@ -1,0 +1,506 @@
+{
+  "stage": "before",
+  "baseURL": "http://localhost:3119",
+  "fixture": {
+    "totalTransactions": 68,
+    "effectivePosted": 65,
+    "historicalReplaced": 1,
+    "historicalVoided": 1,
+    "historicalDeleted": 1
+  },
+  "method": "Node 22 / production next start; identical complete 68-row bootstrap fixture with 65 effective posted rows; 3 fresh Chromium 390x844 contexts; no throttling or concurrent builds/tests; gzip level 6 on actual loaded initial-route JS response bodies; actual bootstrap body byte length; browser fetch-resolution/DOM-mutation/input-to-two-rAF paint proxies; request traces settle 200ms after actions. Read-only API mocks except LIFF session initialization. No physical LINE latency/picker/HEIC claim.",
+  "samples": [
+    {
+      "run": 0,
+      "initialGzipJsBytes": 195679,
+      "initialScripts": {
+        "/_next/static/chunks/3_2gnfsz1jqfz.js": 7678,
+        "/_next/static/chunks/0jds67wmtbffo.js": 904,
+        "/_next/static/chunks/turbopack-2285bbhngeq-u.js": 4140,
+        "/_next/static/chunks/1wvrx_hlsfauw.js": 11775,
+        "/_next/static/chunks/3nn_ivyly2ig6.js": 13815,
+        "/_next/static/chunks/12dp50a39vrlh.js": 49245,
+        "/_next/static/chunks/1xgdkf7jwn22w.js": 37420,
+        "/_next/static/chunks/17gauw-xhye62.js": 70702
+      },
+      "bootstrapResponses": [
+        {
+          "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/bootstrap",
+          "bytes": 47312,
+          "transactionCount": 68
+        }
+      ],
+      "bootstrapTransactionCount": 68,
+      "initialHomeDomRows": 68,
+      "initialDates": [],
+      "startupRequestCount": 5,
+      "startupRequests": [
+        {
+          "method": "POST",
+          "path": "/api/app/session"
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/context"
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/ledgers"
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/bootstrap"
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories"
+        }
+      ],
+      "initialTimeline": {
+        "rowsAtCommit": 68,
+        "committedAt": 319.30000000004657,
+        "paintAt": 351,
+        "bootstrapFetchResolvedAt": 273.30000000004657,
+        "responseToTwoFramePaintMs": 77.69999999995343
+      },
+      "append": {
+        "available": false,
+        "reason": "Baseline renders all bootstrap rows; no client 20-to-40 render-window control."
+      },
+      "detail": {
+        "kind": "detail-open",
+        "startAt": 1530,
+        "paintAt": 1574.6000000000931,
+        "durationMs": 44.60000000009313,
+        "rowCount": 0,
+        "scrollY": 0,
+        "focusedRowId": null,
+        "focusedTestId": "surface-heading",
+        "focusedDetailHeading": false,
+        "requestCount": 1,
+        "requests": [
+          {
+            "method": "GET",
+            "path": "/api/app/v2/transactions/00000000-0000-4000-8000-000000001025/attachments"
+          }
+        ],
+        "url": "http://localhost:3119/?v2Ledger=00000000-0000-4000-8000-000000000010&v2Transaction=00000000-0000-4000-8000-000000001025"
+      },
+      "back": {
+        "kind": "detail-back",
+        "startAt": 1921.5,
+        "paintAt": 1952.1999999999534,
+        "durationMs": 30.699999999953434,
+        "rowCount": 68,
+        "scrollY": 2037,
+        "focusedRowId": "00000000-0000-4000-8000-000000001025",
+        "focusedTestId": null,
+        "focusedDetailHeading": false,
+        "requestCount": 0,
+        "requests": [],
+        "url": "http://localhost:3119/?v2Ledger=00000000-0000-4000-8000-000000000010"
+      },
+      "restoration": {
+        "origin": {
+          "id": "00000000-0000-4000-8000-000000001025",
+          "top": 391,
+          "scrollY": 2037
+        },
+        "restored": {
+          "id": "00000000-0000-4000-8000-000000001025",
+          "top": 391,
+          "scrollY": 2037,
+          "focused": true
+        },
+        "rowOffsetDeltaPx": 0,
+        "scrollDeltaPx": 0
+      },
+      "browserClock": {
+        "responses": [
+          {
+            "path": "/api/app/session",
+            "at": 211.19999999995343
+          },
+          {
+            "path": "/api/app/v2/context",
+            "at": 225.19999999995343
+          },
+          {
+            "path": "/api/app/v2/ledgers",
+            "at": 226.60000000009313
+          },
+          {
+            "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/bootstrap",
+            "at": 273.30000000004657
+          },
+          {
+            "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories",
+            "at": 349.80000000004657
+          },
+          {
+            "path": "/api/app/v2/transactions/00000000-0000-4000-8000-000000001025/attachments",
+            "at": 1576.1000000000931
+          }
+        ],
+        "initial": {
+          "rowsAtCommit": 68,
+          "committedAt": 319.30000000004657,
+          "paintAt": 351
+        },
+        "phase": null,
+        "actions": [
+          {
+            "kind": "detail-open",
+            "startAt": 1530,
+            "paintAt": 1574.6000000000931,
+            "durationMs": 44.60000000009313,
+            "rowCount": 0,
+            "scrollY": 0,
+            "focusedRowId": null,
+            "focusedTestId": "surface-heading",
+            "focusedDetailHeading": false
+          },
+          {
+            "kind": "detail-back",
+            "startAt": 1921.5,
+            "paintAt": 1952.1999999999534,
+            "durationMs": 30.699999999953434,
+            "rowCount": 68,
+            "scrollY": 2037,
+            "focusedRowId": "00000000-0000-4000-8000-000000001025",
+            "focusedTestId": null,
+            "focusedDetailHeading": false
+          }
+        ]
+      }
+    },
+    {
+      "run": 1,
+      "initialGzipJsBytes": 195679,
+      "initialScripts": {
+        "/_next/static/chunks/3_2gnfsz1jqfz.js": 7678,
+        "/_next/static/chunks/turbopack-2285bbhngeq-u.js": 4140,
+        "/_next/static/chunks/0jds67wmtbffo.js": 904,
+        "/_next/static/chunks/3nn_ivyly2ig6.js": 13815,
+        "/_next/static/chunks/1wvrx_hlsfauw.js": 11775,
+        "/_next/static/chunks/12dp50a39vrlh.js": 49245,
+        "/_next/static/chunks/1xgdkf7jwn22w.js": 37420,
+        "/_next/static/chunks/17gauw-xhye62.js": 70702
+      },
+      "bootstrapResponses": [
+        {
+          "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/bootstrap",
+          "bytes": 47312,
+          "transactionCount": 68
+        }
+      ],
+      "bootstrapTransactionCount": 68,
+      "initialHomeDomRows": 68,
+      "initialDates": [],
+      "startupRequestCount": 5,
+      "startupRequests": [
+        {
+          "method": "POST",
+          "path": "/api/app/session"
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/context"
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/ledgers"
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/bootstrap"
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories"
+        }
+      ],
+      "initialTimeline": {
+        "rowsAtCommit": 68,
+        "committedAt": 117.5999999998603,
+        "paintAt": 128.69999999995343,
+        "bootstrapFetchResolvedAt": 94.69999999995343,
+        "responseToTwoFramePaintMs": 34
+      },
+      "append": {
+        "available": false,
+        "reason": "Baseline renders all bootstrap rows; no client 20-to-40 render-window control."
+      },
+      "detail": {
+        "kind": "detail-open",
+        "startAt": 747.5,
+        "paintAt": 804.2999999998137,
+        "durationMs": 56.799999999813735,
+        "rowCount": 0,
+        "scrollY": 0,
+        "focusedRowId": null,
+        "focusedTestId": "surface-heading",
+        "focusedDetailHeading": false,
+        "requestCount": 1,
+        "requests": [
+          {
+            "method": "GET",
+            "path": "/api/app/v2/transactions/00000000-0000-4000-8000-000000001025/attachments"
+          }
+        ],
+        "url": "http://localhost:3119/?v2Ledger=00000000-0000-4000-8000-000000000010&v2Transaction=00000000-0000-4000-8000-000000001025"
+      },
+      "back": {
+        "kind": "detail-back",
+        "startAt": 1061.7999999998137,
+        "paintAt": 1093.7999999998137,
+        "durationMs": 32,
+        "rowCount": 68,
+        "scrollY": 2037,
+        "focusedRowId": "00000000-0000-4000-8000-000000001025",
+        "focusedTestId": null,
+        "focusedDetailHeading": false,
+        "requestCount": 0,
+        "requests": [],
+        "url": "http://localhost:3119/?v2Ledger=00000000-0000-4000-8000-000000000010"
+      },
+      "restoration": {
+        "origin": {
+          "id": "00000000-0000-4000-8000-000000001025",
+          "top": 391,
+          "scrollY": 2037
+        },
+        "restored": {
+          "id": "00000000-0000-4000-8000-000000001025",
+          "top": 391,
+          "scrollY": 2037,
+          "focused": true
+        },
+        "rowOffsetDeltaPx": 0,
+        "scrollDeltaPx": 0
+      },
+      "browserClock": {
+        "responses": [
+          {
+            "path": "/api/app/session",
+            "at": 77.0999999998603
+          },
+          {
+            "path": "/api/app/v2/context",
+            "at": 82
+          },
+          {
+            "path": "/api/app/v2/ledgers",
+            "at": 83.5
+          },
+          {
+            "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/bootstrap",
+            "at": 94.69999999995343
+          },
+          {
+            "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories",
+            "at": 135.29999999981374
+          },
+          {
+            "path": "/api/app/v2/transactions/00000000-0000-4000-8000-000000001025/attachments",
+            "at": 805.6999999999534
+          }
+        ],
+        "initial": {
+          "rowsAtCommit": 68,
+          "committedAt": 117.5999999998603,
+          "paintAt": 128.69999999995343
+        },
+        "phase": null,
+        "actions": [
+          {
+            "kind": "detail-open",
+            "startAt": 747.5,
+            "paintAt": 804.2999999998137,
+            "durationMs": 56.799999999813735,
+            "rowCount": 0,
+            "scrollY": 0,
+            "focusedRowId": null,
+            "focusedTestId": "surface-heading",
+            "focusedDetailHeading": false
+          },
+          {
+            "kind": "detail-back",
+            "startAt": 1061.7999999998137,
+            "paintAt": 1093.7999999998137,
+            "durationMs": 32,
+            "rowCount": 68,
+            "scrollY": 2037,
+            "focusedRowId": "00000000-0000-4000-8000-000000001025",
+            "focusedTestId": null,
+            "focusedDetailHeading": false
+          }
+        ]
+      }
+    },
+    {
+      "run": 2,
+      "initialGzipJsBytes": 195679,
+      "initialScripts": {
+        "/_next/static/chunks/3_2gnfsz1jqfz.js": 7678,
+        "/_next/static/chunks/0jds67wmtbffo.js": 904,
+        "/_next/static/chunks/turbopack-2285bbhngeq-u.js": 4140,
+        "/_next/static/chunks/1wvrx_hlsfauw.js": 11775,
+        "/_next/static/chunks/3nn_ivyly2ig6.js": 13815,
+        "/_next/static/chunks/12dp50a39vrlh.js": 49245,
+        "/_next/static/chunks/1xgdkf7jwn22w.js": 37420,
+        "/_next/static/chunks/17gauw-xhye62.js": 70702
+      },
+      "bootstrapResponses": [
+        {
+          "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/bootstrap",
+          "bytes": 47312,
+          "transactionCount": 68
+        }
+      ],
+      "bootstrapTransactionCount": 68,
+      "initialHomeDomRows": 68,
+      "initialDates": [],
+      "startupRequestCount": 5,
+      "startupRequests": [
+        {
+          "method": "POST",
+          "path": "/api/app/session"
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/context"
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/ledgers"
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/bootstrap"
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories"
+        }
+      ],
+      "initialTimeline": {
+        "rowsAtCommit": 68,
+        "committedAt": 114.5999999998603,
+        "paintAt": 125.5999999998603,
+        "bootstrapFetchResolvedAt": 91.0999999998603,
+        "responseToTwoFramePaintMs": 34.5
+      },
+      "append": {
+        "available": false,
+        "reason": "Baseline renders all bootstrap rows; no client 20-to-40 render-window control."
+      },
+      "detail": {
+        "kind": "detail-open",
+        "startAt": 737.6999999999534,
+        "paintAt": 786.3999999999069,
+        "durationMs": 48.699999999953434,
+        "rowCount": 0,
+        "scrollY": 0,
+        "focusedRowId": null,
+        "focusedTestId": "surface-heading",
+        "focusedDetailHeading": false,
+        "requestCount": 1,
+        "requests": [
+          {
+            "method": "GET",
+            "path": "/api/app/v2/transactions/00000000-0000-4000-8000-000000001025/attachments"
+          }
+        ],
+        "url": "http://localhost:3119/?v2Ledger=00000000-0000-4000-8000-000000000010&v2Transaction=00000000-0000-4000-8000-000000001025"
+      },
+      "back": {
+        "kind": "detail-back",
+        "startAt": 1055.5999999998603,
+        "paintAt": 1089.3999999999069,
+        "durationMs": 33.800000000046566,
+        "rowCount": 68,
+        "scrollY": 2037,
+        "focusedRowId": "00000000-0000-4000-8000-000000001025",
+        "focusedTestId": null,
+        "focusedDetailHeading": false,
+        "requestCount": 0,
+        "requests": [],
+        "url": "http://localhost:3119/?v2Ledger=00000000-0000-4000-8000-000000000010"
+      },
+      "restoration": {
+        "origin": {
+          "id": "00000000-0000-4000-8000-000000001025",
+          "top": 391,
+          "scrollY": 2037
+        },
+        "restored": {
+          "id": "00000000-0000-4000-8000-000000001025",
+          "top": 391,
+          "scrollY": 2037,
+          "focused": true
+        },
+        "rowOffsetDeltaPx": 0,
+        "scrollDeltaPx": 0
+      },
+      "browserClock": {
+        "responses": [
+          {
+            "path": "/api/app/session",
+            "at": 73.5999999998603
+          },
+          {
+            "path": "/api/app/v2/context",
+            "at": 78.0999999998603
+          },
+          {
+            "path": "/api/app/v2/ledgers",
+            "at": 79.5999999998603
+          },
+          {
+            "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/bootstrap",
+            "at": 91.0999999998603
+          },
+          {
+            "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories",
+            "at": 131
+          },
+          {
+            "path": "/api/app/v2/transactions/00000000-0000-4000-8000-000000001025/attachments",
+            "at": 788.2999999998137
+          }
+        ],
+        "initial": {
+          "rowsAtCommit": 68,
+          "committedAt": 114.5999999998603,
+          "paintAt": 125.5999999998603
+        },
+        "phase": null,
+        "actions": [
+          {
+            "kind": "detail-open",
+            "startAt": 737.6999999999534,
+            "paintAt": 786.3999999999069,
+            "durationMs": 48.699999999953434,
+            "rowCount": 0,
+            "scrollY": 0,
+            "focusedRowId": null,
+            "focusedTestId": "surface-heading",
+            "focusedDetailHeading": false
+          },
+          {
+            "kind": "detail-back",
+            "startAt": 1055.5999999998603,
+            "paintAt": 1089.3999999999069,
+            "durationMs": 33.800000000046566,
+            "rowCount": 68,
+            "scrollY": 2037,
+            "focusedRowId": "00000000-0000-4000-8000-000000001025",
+            "focusedTestId": null,
+            "focusedDetailHeading": false
+          }
+        ]
+      }
+    }
+  ]
+}

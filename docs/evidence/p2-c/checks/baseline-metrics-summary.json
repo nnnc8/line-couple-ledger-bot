@@ -1,0 +1,30 @@
+{
+  "initialGzipJsBytes": 195679,
+  "bootstrapTransactionCount": 68,
+  "bootstrapResponseBytes": 47312,
+  "initialHomeDomRows": [
+    68,
+    68,
+    68
+  ],
+  "initialRenderMs": 34.5,
+  "detailOpenMs": 48.699999999953434,
+  "detailBackMs": 32,
+  "homeRequests": [
+    5,
+    5,
+    5
+  ],
+  "detailRequests": [
+    1,
+    1,
+    1
+  ],
+  "backRequests": [
+    0,
+    0,
+    0
+  ],
+  "restoredFocusAll": true,
+  "maxReturnOffsetDeltaPx": 0
+}

@@ -1,0 +1,62 @@
+{
+  "typecheck_exit": 0,
+  "unit_exit": 0,
+  "pnpm_lint_exit": 1,
+  "current_json_exit": 1,
+  "baseline_json_exit": 1,
+  "lint_delta_exit": 0,
+  "targeted_lint_exit": 0,
+  "baseline": {
+    "errors": 280,
+    "warnings": 37
+  },
+  "current": {
+    "errors": 280,
+    "warnings": 37
+  },
+  "unit_counts": {
+    "tests": 313,
+    "pass": 313,
+    "fail": 0,
+    "cancelled": 0,
+    "skipped": 0,
+    "todo": 0
+  },
+  "verified_at_utc": "2026-10-06T03:13:37.075880+00:00",
+  "phase": "final source including category unavailable/archived regression",
+  "candidate_head_before_check": "c665705eaec18328d8359d55deda85bb64d1c426",
+  "source_sha256": {
+    "playwright.config.ts": "c7e6421d9486aa0255aecff2441d9ea05ca45247000a29a14399f0a27353fc6e",
+    "src/components/ledger/ledger-timeline.tsx": "a24586b101c5f908972cdf70d72e9a9e42e04304ee6b00e1220e2f7d7c1b569e",
+    "src/components/ledger/transaction-detail.tsx": "17163edea893755de91d68e7142c84f4be3bb1b3c260f77b42042b7824c9071d",
+    "src/components/ledger/v2-ledger-home.tsx": "d1403c94f654c2aad2efd3b48b5e2246e2198f36b75d3bad255ea97ce1c11a9b",
+    "src/components/ledger/v2-liff-home.tsx": "86a9440667e489217a2edc720f17005b40b906896284d90e09dbb15541e95856",
+    "src/hooks/use-v2-ledgers.ts": "ac4bbdc89a72f45fca03759d51b79cb203b15c9fd8e1fccc2202e569b8089c83",
+    "src/lib/v2-navigation.test.ts": "e485141cff4fd88d6f701ee29106c8df76615a257a1f19303ec5e7e0f82c6b26",
+    "src/lib/v2-navigation.ts": "d421239b46873cd8ba5a258e894c4a34591e86bfd1890e04f11435fe3aed26df",
+    "src/lib/v2-timeline.test.ts": "70c4fe8ed262e8e719ccc4f30a0889dad0c995ea9e11ebd957d0429df7c4c549",
+    "src/lib/v2-timeline.ts": "bf7e6ad62b51f5f22d8a4d54e736dc029f285d1171d2a45703699dc413e9a765",
+    "src/lib/v2-transaction-status.test.ts": "8c5d2333d0c1a959dfb429af1eab22465698fb7fc883ff687586e38eb968cb74",
+    "src/lib/v2-transaction-status.ts": "6d8b79e15b575330d0c3ef3b5a9e90fd30c9606abd9d6f203245e8721ce3d7b2",
+    "tests/fixtures/p2-c-browser.ts": "58b7926ba79006175a94b9ed17f8fd5b80d47e4618b929c8f6feb71c45203f47",
+    "tests/p1-b-entry.spec.ts": "f15f589c850cc4e548ed7bb14b852dbc96cd2b462b9414f78edef9b49014f173",
+    "tests/p1-c-navigation.spec.ts": "cc8e4194181b3acda453206c0ac6a5cb7e7e13446741aa46882b45aa9d379fa7",
+    "tests/p1-c-races.spec.ts": "a848a9976b0ad14d3cfba1e8d40394f64c58d3e6e43ce2664419d3e2660e7f86",
+    "tests/p2-a-entry.spec.ts": "8099f3c38e62b3a64f7d0b7e028ba64c3a23d8759a22649f5b3ec49a36709622",
+    "tests/p2-c-metrics.mjs": "c83c51d1e4cec504e6c05be284797c172e635f26b9da6e578f36df13d4c84833",
+    "tests/p2-c-timeline.spec.ts": "cbf3c5ee11c4be2498a8c3aa7443bf757e7ff5c6d6723f99935f9c7d19b012d2",
+    "tests/v2-liff.spec.ts": "7c99d5fb8b0e578ae81b0e594693e8fe07976e8e38ab94125c3fff1c55bbe81a"
+  },
+  "source_unchanged_during_verification": true,
+  "log_sha256": {
+    "typecheck.log": "8366207267355d3e3d5bf3bf6e8c94c5f93f6078c34f08973fa2b38cdda6cc92",
+    "unit.log": "75fa539adf964b4cdeea0473a3365c905f753ac481637499c3480262fc8f679c",
+    "lint.log": "f73ba338fa6d523fcdf4ecedd37a56233198e0b17a8a6c2037721b269bc9a38e",
+    "lint.json": "7a7c72dd3db9acb0f602a89e96fa92441f061712076dc12ba40f0f7943fd7467",
+    "lint-baseline.json": "f74ee90a0c2d0a00019899e6d7a4da95c87174ff95c87dd25fb4989c82bef2f6",
+    "lint-delta.log": "820ec7a1576dc8c1dcd487e388eb852b2280b16d132665845f54f19badd71442",
+    "targeted-lint.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "all_targeted_source_mtimes_before_check_start": true,
+  "latest_source_mtime_at_utc": "2026-10-06T03:05:54.419803+00:00"
+}

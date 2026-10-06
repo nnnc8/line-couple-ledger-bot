@@ -1,0 +1,40 @@
+{
+  "reviewedAt": "2026-10-06T03:33:48.796907+00:00",
+  "sourceAggregateSha256": "14388027d50c7780b96b98f7c142329ee25c1ae660d9a4045af869980f043c65",
+  "logSha256": "52a8ce573d48d3126827384490f339e23cdafe67e69ed46bc8ce2b5a1a962e26",
+  "views": [
+    {
+      "path": "chromium-393/normal-timeline-20.png",
+      "sha256": "db15006b676c1833158e9df3820c5ef3ab5da84180dae37988c23c47eb46a49d"
+    },
+    {
+      "path": "chromium-iphone/200-percent-large-amount-detail.png",
+      "sha256": "5686f7e2e67c2656d8d828dec1a231e80fe5b56495d599d38e3713b7fd52073b"
+    },
+    {
+      "path": "webkit-iphone/transfer-detail.png",
+      "sha256": "6fecfd50e205e3e80dce78138c0477751415f5bbf2f1da37839458c255b7f1e5"
+    },
+    {
+      "path": "webkit-393/income-detail.png",
+      "sha256": "6e061b610ed0c45f874d6f5c71d25e0ba5d830d67c1d522432d6c383f807921b"
+    },
+    {
+      "path": "chromium-iphone/expense-detail.png",
+      "sha256": "68dfa0af2513341a90364ea91142a103f1ceec0c0cf1a0803d86a8873e4a600f"
+    },
+    {
+      "path": "webkit-393/receipt-section.png",
+      "sha256": "ac57901d47d8325a9bea08f8986cf4b0c7c43caf534eda3776e9d8275ee4be77"
+    },
+    {
+      "path": "webkit-iphone/replaced-old-detail.png",
+      "sha256": "f49980201bafffbf54a74b3a3198e74506bfba32d5672b6de6fdfb10a7f1aa16"
+    },
+    {
+      "path": "chromium-393/200-percent-long-note-reduced-motion.png",
+      "sha256": "5dbd463f6c5f4f0c36b7c6ee611293169426cd92619c143fcdb42156f22467a2"
+    }
+  ],
+  "findings": "Full currency digits remain readable/wrapped; long notes wrap; truthful type/status/lineage; Back and More visible; receipts/actions only in Detail; no visual horizontal clipping observed. Screenshots synthetic; no native picker/VoiceOver proof."
+}

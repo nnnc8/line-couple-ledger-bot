@@ -1,0 +1,184 @@
+{
+  "run": "final793-post-category",
+  "startedAt": "2026-10-06T03:22:02.129684+00:00",
+  "logSha256": "52a8ce573d48d3126827384490f339e23cdafe67e69ed46bc8ce2b5a1a962e26",
+  "sourceAggregateSha256": "14388027d50c7780b96b98f7c142329ee25c1ae660d9a4045af869980f043c65",
+  "recordings": [
+    {
+      "project": "chromium-iphone",
+      "name": "normal-and-load-older",
+      "testTitle": "01–05 20+20 client window preserves identity and single date headings across 20/21 and 40/41",
+      "capture": "normal-timeline-20",
+      "source": "output/playwright/results/p2-c-timeline-01–05-20-20--ffbf2-ings-across-20-21-and-40-41-chromium-iphone/video.webm",
+      "path": "docs/evidence/p2-c/recordings/chromium-iphone/normal-and-load-older.webm",
+      "outputMirror": "output/playwright/p2-c/recordings/chromium-iphone/normal-and-load-older.webm",
+      "bytes": 242192,
+      "sha256": "486e45a61d9ae1caec5a978cda561f007e9c42a6484e1730feec6bed3d849948"
+    },
+    {
+      "project": "chromium-iphone",
+      "name": "shared-correction",
+      "testTitle": "25–26 edit uses shared P2-A controls and clean cancel returns to Detail",
+      "capture": "correction",
+      "source": "output/playwright/results/p2-c-timeline-25–26-edit-u-12617-an-cancel-returns-to-Detail-chromium-iphone/video.webm",
+      "path": "docs/evidence/p2-c/recordings/chromium-iphone/shared-correction.webm",
+      "outputMirror": "output/playwright/p2-c/recordings/chromium-iphone/shared-correction.webm",
+      "bytes": 233421,
+      "sha256": "efa8e1c038e642e8ad8c60e2055dec217d18583f9eed5aabb61c79661831d095"
+    },
+    {
+      "project": "chromium-iphone",
+      "name": "receipt-upload-delete",
+      "testTitle": "32–34 receipt existing open upload and delete stay within Detail attachment capability",
+      "capture": "receipt-upload-delete",
+      "source": "output/playwright/results/p2-c-timeline-32–34-receip-fecb4-etail-attachment-capability-chromium-iphone/video.webm",
+      "path": "docs/evidence/p2-c/recordings/chromium-iphone/receipt-upload-delete.webm",
+      "outputMirror": "output/playwright/p2-c/recordings/chromium-iphone/receipt-upload-delete.webm",
+      "bytes": 305918,
+      "sha256": "5c164a45e8ee5c42a9255b6f944eaf13dd74829490424c7441ad200a2dfefe47"
+    },
+    {
+      "project": "chromium-iphone",
+      "name": "200-percent-amount",
+      "testTitle": "08 huge canonical TWD remains exact and readable at 200% text",
+      "capture": "200-percent-large-amount-detail",
+      "source": "output/playwright/results/p2-c-timeline-08-huge-cano-07a05-ct-and-readable-at-200-text-chromium-iphone/video.webm",
+      "path": "docs/evidence/p2-c/recordings/chromium-iphone/200-percent-amount.webm",
+      "outputMirror": "output/playwright/p2-c/recordings/chromium-iphone/200-percent-amount.webm",
+      "bytes": 246544,
+      "sha256": "7a5f18fe8a48f1cabfd3fe7588bfe6bf7fed91ee866f285da171eec6dab29b16"
+    },
+    {
+      "project": "webkit-iphone",
+      "name": "normal-and-load-older",
+      "testTitle": "01–05 20+20 client window preserves identity and single date headings across 20/21 and 40/41",
+      "capture": "normal-timeline-20",
+      "source": "output/playwright/results/p2-c-timeline-01–05-20-20--ffbf2-ings-across-20-21-and-40-41-webkit-iphone/video.webm",
+      "path": "docs/evidence/p2-c/recordings/webkit-iphone/normal-and-load-older.webm",
+      "outputMirror": "output/playwright/p2-c/recordings/webkit-iphone/normal-and-load-older.webm",
+      "bytes": 127532,
+      "sha256": "2b381846403737ddb08dd4801e6d474f68014c1a17faa407757498c79f0a8b6f"
+    },
+    {
+      "project": "webkit-iphone",
+      "name": "shared-correction",
+      "testTitle": "25–26 edit uses shared P2-A controls and clean cancel returns to Detail",
+      "capture": "correction",
+      "source": "output/playwright/results/p2-c-timeline-25–26-edit-u-12617-an-cancel-returns-to-Detail-webkit-iphone/video.webm",
+      "path": "docs/evidence/p2-c/recordings/webkit-iphone/shared-correction.webm",
+      "outputMirror": "output/playwright/p2-c/recordings/webkit-iphone/shared-correction.webm",
+      "bytes": 245193,
+      "sha256": "e5cb6c8d668140c9b641106f00e3d536c8bf454a696434a54429be6a97fa6e34"
+    },
+    {
+      "project": "webkit-iphone",
+      "name": "receipt-upload-delete",
+      "testTitle": "32–34 receipt existing open upload and delete stay within Detail attachment capability",
+      "capture": "receipt-upload-delete",
+      "source": "output/playwright/results/p2-c-timeline-32–34-receip-fecb4-etail-attachment-capability-webkit-iphone/video.webm",
+      "path": "docs/evidence/p2-c/recordings/webkit-iphone/receipt-upload-delete.webm",
+      "outputMirror": "output/playwright/p2-c/recordings/webkit-iphone/receipt-upload-delete.webm",
+      "bytes": 334242,
+      "sha256": "e63fcf698d619379c8606f4707aa78f7628111bb0e3c24bd4f187cfae1c81670"
+    },
+    {
+      "project": "webkit-iphone",
+      "name": "200-percent-amount",
+      "testTitle": "08 huge canonical TWD remains exact and readable at 200% text",
+      "capture": "200-percent-large-amount-detail",
+      "source": "output/playwright/results/p2-c-timeline-08-huge-cano-07a05-ct-and-readable-at-200-text-webkit-iphone/video.webm",
+      "path": "docs/evidence/p2-c/recordings/webkit-iphone/200-percent-amount.webm",
+      "outputMirror": "output/playwright/p2-c/recordings/webkit-iphone/200-percent-amount.webm",
+      "bytes": 137562,
+      "sha256": "cabd8d475988ef34952e0b735006409a4261a4a4ce9169cbde3011848b42722f"
+    },
+    {
+      "project": "chromium-393",
+      "name": "normal-and-load-older",
+      "testTitle": "01–05 20+20 client window preserves identity and single date headings across 20/21 and 40/41",
+      "capture": "normal-timeline-20",
+      "source": "output/playwright/results/p2-c-timeline-01–05-20-20--ffbf2-ings-across-20-21-and-40-41-chromium-393/video.webm",
+      "path": "docs/evidence/p2-c/recordings/chromium-393/normal-and-load-older.webm",
+      "outputMirror": "output/playwright/p2-c/recordings/chromium-393/normal-and-load-older.webm",
+      "bytes": 258246,
+      "sha256": "539045a041ac5b6bd66fdc7d8463e653aff9898c94dabfd82c693e02a9e2c354"
+    },
+    {
+      "project": "chromium-393",
+      "name": "shared-correction",
+      "testTitle": "25–26 edit uses shared P2-A controls and clean cancel returns to Detail",
+      "capture": "correction",
+      "source": "output/playwright/results/p2-c-timeline-25–26-edit-u-12617-an-cancel-returns-to-Detail-chromium-393/video.webm",
+      "path": "docs/evidence/p2-c/recordings/chromium-393/shared-correction.webm",
+      "outputMirror": "output/playwright/p2-c/recordings/chromium-393/shared-correction.webm",
+      "bytes": 234013,
+      "sha256": "5c398192058206143067a3d6c0ebda9bb4b7034437c7d04441f32642051e0451"
+    },
+    {
+      "project": "chromium-393",
+      "name": "receipt-upload-delete",
+      "testTitle": "32–34 receipt existing open upload and delete stay within Detail attachment capability",
+      "capture": "receipt-upload-delete",
+      "source": "output/playwright/results/p2-c-timeline-32–34-receip-fecb4-etail-attachment-capability-chromium-393/video.webm",
+      "path": "docs/evidence/p2-c/recordings/chromium-393/receipt-upload-delete.webm",
+      "outputMirror": "output/playwright/p2-c/recordings/chromium-393/receipt-upload-delete.webm",
+      "bytes": 431219,
+      "sha256": "584f6c598d47eff231c999a63e50b01eb7cd18b604169389304bafdb1cf00939"
+    },
+    {
+      "project": "chromium-393",
+      "name": "200-percent-amount",
+      "testTitle": "08 huge canonical TWD remains exact and readable at 200% text",
+      "capture": "200-percent-large-amount-detail",
+      "source": "output/playwright/results/p2-c-timeline-08-huge-cano-07a05-ct-and-readable-at-200-text-chromium-393/video.webm",
+      "path": "docs/evidence/p2-c/recordings/chromium-393/200-percent-amount.webm",
+      "outputMirror": "output/playwright/p2-c/recordings/chromium-393/200-percent-amount.webm",
+      "bytes": 301238,
+      "sha256": "9b758547d5c6dd0c67d7155bbf4ac48f4ddf4ba107cddb6531fc0211a9552c0e"
+    },
+    {
+      "project": "webkit-393",
+      "name": "normal-and-load-older",
+      "testTitle": "01–05 20+20 client window preserves identity and single date headings across 20/21 and 40/41",
+      "capture": "normal-timeline-20",
+      "source": "output/playwright/results/p2-c-timeline-01–05-20-20--ffbf2-ings-across-20-21-and-40-41-webkit-393/video.webm",
+      "path": "docs/evidence/p2-c/recordings/webkit-393/normal-and-load-older.webm",
+      "outputMirror": "output/playwright/p2-c/recordings/webkit-393/normal-and-load-older.webm",
+      "bytes": 172985,
+      "sha256": "1ce2e00942db11ffb78e122d4d4e0f51e54a7d320de73c2081c5092c59322d96"
+    },
+    {
+      "project": "webkit-393",
+      "name": "shared-correction",
+      "testTitle": "25–26 edit uses shared P2-A controls and clean cancel returns to Detail",
+      "capture": "correction",
+      "source": "output/playwright/results/p2-c-timeline-25–26-edit-u-12617-an-cancel-returns-to-Detail-webkit-393/video.webm",
+      "path": "docs/evidence/p2-c/recordings/webkit-393/shared-correction.webm",
+      "outputMirror": "output/playwright/p2-c/recordings/webkit-393/shared-correction.webm",
+      "bytes": 216139,
+      "sha256": "01ec38efdff02adf4b3b1ffb593ad2de61715b207aafba0fee3288c79ec37c17"
+    },
+    {
+      "project": "webkit-393",
+      "name": "receipt-upload-delete",
+      "testTitle": "32–34 receipt existing open upload and delete stay within Detail attachment capability",
+      "capture": "receipt-upload-delete",
+      "source": "output/playwright/results/p2-c-timeline-32–34-receip-fecb4-etail-attachment-capability-webkit-393/video.webm",
+      "path": "docs/evidence/p2-c/recordings/webkit-393/receipt-upload-delete.webm",
+      "outputMirror": "output/playwright/p2-c/recordings/webkit-393/receipt-upload-delete.webm",
+      "bytes": 278971,
+      "sha256": "cf78a04e1124ac415c78455d7de8a38006ebaa842eedc5c10f4970562f9a6edc"
+    },
+    {
+      "project": "webkit-393",
+      "name": "200-percent-amount",
+      "testTitle": "08 huge canonical TWD remains exact and readable at 200% text",
+      "capture": "200-percent-large-amount-detail",
+      "source": "output/playwright/results/p2-c-timeline-08-huge-cano-07a05-ct-and-readable-at-200-text-webkit-393/video.webm",
+      "path": "docs/evidence/p2-c/recordings/webkit-393/200-percent-amount.webm",
+      "outputMirror": "output/playwright/p2-c/recordings/webkit-393/200-percent-amount.webm",
+      "bytes": 166941,
+      "sha256": "3020f907e930be177eddf582cd1b304b414e4a7a31a26fe431816a6824d05638"
+    }
+  ]
+}

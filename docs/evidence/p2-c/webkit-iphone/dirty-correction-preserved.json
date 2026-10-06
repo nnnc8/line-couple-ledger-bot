@@ -1,0 +1,23 @@
+{
+  "test": {
+    "title": "42 dirty correction leave guard keeps draft/focus or explicitly discards with one dialog host",
+    "project": "webkit-iphone",
+    "resultDir": "/Users/nc8/.codex/worktrees/p2-c-timeline-detail/New project/output/playwright/results/p2-c-timeline-42-dirty-cor-73181-scards-with-one-dialog-host-webkit-iphone"
+  },
+  "metrics": {
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "scrollY": 0,
+    "documentWidth": 390,
+    "bodyWidth": 390,
+    "timelineRows": 0,
+    "rowIds": [],
+    "rowRects": [],
+    "amountRects": [],
+    "dateHeadings": [],
+    "focus": "INPUT"
+  },
+  "extra": {}
+}

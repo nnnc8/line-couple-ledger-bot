@@ -1,0 +1,602 @@
+{
+  "test": {
+    "title": "Back expands root render window when a new canonical row moves the surviving origin beyond row twenty",
+    "project": "webkit-393",
+    "resultDir": "/Users/nc8/.codex/worktrees/p2-c-timeline-detail/New project/output/playwright/results/p2-c-timeline-Back-expands-77044-ng-origin-beyond-row-twenty-webkit-393"
+  },
+  "metrics": {
+    "viewport": {
+      "width": 393,
+      "height": 852
+    },
+    "scrollY": 1697,
+    "documentWidth": 393,
+    "bodyWidth": 393,
+    "timelineRows": 40,
+    "rowIds": [
+      "00000000-0000-4000-8000-000000001001",
+      "00000000-0000-4000-8000-000000001150",
+      "00000000-0000-4000-8000-000000001002",
+      "00000000-0000-4000-8000-000000001003",
+      "00000000-0000-4000-8000-000000001004",
+      "00000000-0000-4000-8000-000000001005",
+      "00000000-0000-4000-8000-000000001006",
+      "00000000-0000-4000-8000-000000001007",
+      "00000000-0000-4000-8000-000000001008",
+      "00000000-0000-4000-8000-000000001009",
+      "00000000-0000-4000-8000-000000001010",
+      "00000000-0000-4000-8000-000000001011",
+      "00000000-0000-4000-8000-000000001012",
+      "00000000-0000-4000-8000-000000001013",
+      "00000000-0000-4000-8000-000000001014",
+      "00000000-0000-4000-8000-000000001015",
+      "00000000-0000-4000-8000-000000001016",
+      "00000000-0000-4000-8000-000000001017",
+      "00000000-0000-4000-8000-000000001018",
+      "00000000-0000-4000-8000-000000001019",
+      "00000000-0000-4000-8000-000000001020",
+      "00000000-0000-4000-8000-000000001021",
+      "00000000-0000-4000-8000-000000001022",
+      "00000000-0000-4000-8000-000000001023",
+      "00000000-0000-4000-8000-000000001024",
+      "00000000-0000-4000-8000-000000001025",
+      "00000000-0000-4000-8000-000000001026",
+      "00000000-0000-4000-8000-000000001027",
+      "00000000-0000-4000-8000-000000001028",
+      "00000000-0000-4000-8000-000000001029",
+      "00000000-0000-4000-8000-000000001030",
+      "00000000-0000-4000-8000-000000001031",
+      "00000000-0000-4000-8000-000000001032",
+      "00000000-0000-4000-8000-000000001033",
+      "00000000-0000-4000-8000-000000001034",
+      "00000000-0000-4000-8000-000000001035",
+      "00000000-0000-4000-8000-000000001036",
+      "00000000-0000-4000-8000-000000001037",
+      "00000000-0000-4000-8000-000000001038",
+      "00000000-0000-4000-8000-000000001039"
+    ],
+    "rowRects": [
+      {
+        "id": "00000000-0000-4000-8000-000000001001",
+        "height": 63.984375,
+        "width": 327
+      },
+      {
+        "id": "00000000-0000-4000-8000-000000001150",
+        "height": 63.984375,
+        "width": 327
+      },
+      {
+        "id": "00000000-0000-4000-8000-000000001002",
+        "height": 83.984375,
+        "width": 327
+      },
+      {
+        "id": "00000000-0000-4000-8000-000000001003",
+        "height": 87.984375,
+        "width": 327
+      },
+      {
+        "id": "00000000-0000-4000-8000-000000001004",
+        "height": 63.984375,
+        "width": 327
+      },
+      {
+        "id": "00000000-0000-4000-8000-000000001005",
+        "height": 63.984375,
+        "width": 327
+      },
+      {
+        "id": "00000000-0000-4000-8000-000000001006",
+        "height": 63.984375,
+        "width": 327
+      },
+      {
+        "id": "00000000-0000-4000-8000-000000001007",
+        "height": 63.984375,
+        "width": 327
+      },
+      {
+        "id": "00000000-0000-4000-8000-000000001008",
+        "height": 63.984375,
+        "width": 327
+      },
+      {
+        "id": "00000000-0000-4000-8000-000000001009",
+        "height": 63.984375,
+        "width": 327
+      },
+      {
+        "id": "00000000-0000-4000-8000-000000001010",
+        "height": 63.984375,
+        "width": 327
+      },
+      {
+        "id": "00000000-0000-4000-8000-000000001011",
+        "height": 63.984375,
+        "width": 327
+      },
+      {
+        "id": "00000000-0000-4000-8000-000000001012",
+        "height": 63.984375,
+        "width": 327
+      },
+      {
+        "id": "00000000-0000-4000-8000-000000001013",
+        "height": 63.984375,
+        "width": 327
+      },
+      {
+        "id": "00000000-0000-4000-8000-000000001014",
+        "height": 63.984375,
+        "width": 327
+      },
+      {
+        "id": "00000000-0000-4000-8000-000000001015",
+        "height": 63.984375,
+        "width": 327
+      },
+      {
+        "id": "00000000-0000-4000-8000-000000001016",
+        "height": 63.984375,
+        "width": 327
+      },
+      {
+        "id": "00000000-0000-4000-8000-000000001017",
+        "height": 63.984375,
+        "width": 327
+      },
+      {
+        "id": "00000000-0000-4000-8000-000000001018",
+        "height": 63.984375,
+        "width": 327
+      },
+      {
+        "id": "00000000-0000-4000-8000-000000001019",
+        "height": 63.984375,
+        "width": 327
+      },
+      {
+        "id": "00000000-0000-4000-8000-000000001020",
+        "height": 63.984375,
+        "width": 327
+      },
+      {
+        "id": "00000000-0000-4000-8000-000000001021",
+        "height": 63.984375,
+        "width": 327
+      },
+      {
+        "id": "00000000-0000-4000-8000-000000001022",
+        "height": 63.984375,
+        "width": 327
+      },
+      {
+        "id": "00000000-0000-4000-8000-000000001023",
+        "height": 63.984375,
+        "width": 327
+      },
+      {
+        "id": "00000000-0000-4000-8000-000000001024",
+        "height": 63.984375,
+        "width": 327
+      },
+      {
+        "id": "00000000-0000-4000-8000-000000001025",
+        "height": 63.984375,
+        "width": 327
+      },
+      {
+        "id": "00000000-0000-4000-8000-000000001026",
+        "height": 63.984375,
+        "width": 327
+      },
+      {
+        "id": "00000000-0000-4000-8000-000000001027",
+        "height": 63.984375,
+        "width": 327
+      },
+      {
+        "id": "00000000-0000-4000-8000-000000001028",
+        "height": 63.984375,
+        "width": 327
+      },
+      {
+        "id": "00000000-0000-4000-8000-000000001029",
+        "height": 63.984375,
+        "width": 327
+      },
+      {
+        "id": "00000000-0000-4000-8000-000000001030",
+        "height": 63.984375,
+        "width": 327
+      },
+      {
+        "id": "00000000-0000-4000-8000-000000001031",
+        "height": 63.984375,
+        "width": 327
+      },
+      {
+        "id": "00000000-0000-4000-8000-000000001032",
+        "height": 63.984375,
+        "width": 327
+      },
+      {
+        "id": "00000000-0000-4000-8000-000000001033",
+        "height": 63.984375,
+        "width": 327
+      },
+      {
+        "id": "00000000-0000-4000-8000-000000001034",
+        "height": 63.984375,
+        "width": 327
+      },
+      {
+        "id": "00000000-0000-4000-8000-000000001035",
+        "height": 63.984375,
+        "width": 327
+      },
+      {
+        "id": "00000000-0000-4000-8000-000000001036",
+        "height": 63.984375,
+        "width": 327
+      },
+      {
+        "id": "00000000-0000-4000-8000-000000001037",
+        "height": 63.984375,
+        "width": 327
+      },
+      {
+        "id": "00000000-0000-4000-8000-000000001038",
+        "height": 63.984375,
+        "width": 327
+      },
+      {
+        "id": "00000000-0000-4000-8000-000000001039",
+        "height": 63.984375,
+        "width": 327
+      }
+    ],
+    "amountRects": [
+      {
+        "text": "NT$200",
+        "width": 56,
+        "scrollWidth": 56,
+        "fontSize": "14px",
+        "fontVariantNumeric": "tabular-nums"
+      },
+      {
+        "text": "NT$200",
+        "width": 56,
+        "scrollWidth": 56,
+        "fontSize": "14px",
+        "fontVariantNumeric": "tabular-nums"
+      },
+      {
+        "text": "NT$200",
+        "width": 56,
+        "scrollWidth": 56,
+        "fontSize": "14px",
+        "fontVariantNumeric": "tabular-nums"
+      },
+      {
+        "text": "NT$100,000,000,000",
+        "width": 151,
+        "scrollWidth": 151,
+        "fontSize": "14px",
+        "fontVariantNumeric": "tabular-nums"
+      },
+      {
+        "text": "NT$200",
+        "width": 56,
+        "scrollWidth": 56,
+        "fontSize": "14px",
+        "fontVariantNumeric": "tabular-nums"
+      },
+      {
+        "text": "＋NT$100",
+        "width": 70,
+        "scrollWidth": 70,
+        "fontSize": "14px",
+        "fontVariantNumeric": "tabular-nums"
+      },
+      {
+        "text": "NT$200",
+        "width": 56,
+        "scrollWidth": 56,
+        "fontSize": "14px",
+        "fontVariantNumeric": "tabular-nums"
+      },
+      {
+        "text": "NT$200",
+        "width": 56,
+        "scrollWidth": 56,
+        "fontSize": "14px",
+        "fontVariantNumeric": "tabular-nums"
+      },
+      {
+        "text": "NT$200",
+        "width": 56,
+        "scrollWidth": 56,
+        "fontSize": "14px",
+        "fontVariantNumeric": "tabular-nums"
+      },
+      {
+        "text": "NT$200",
+        "width": 56,
+        "scrollWidth": 56,
+        "fontSize": "14px",
+        "fontVariantNumeric": "tabular-nums"
+      },
+      {
+        "text": "NT$200",
+        "width": 56,
+        "scrollWidth": 56,
+        "fontSize": "14px",
+        "fontVariantNumeric": "tabular-nums"
+      },
+      {
+        "text": "NT$200",
+        "width": 56,
+        "scrollWidth": 56,
+        "fontSize": "14px",
+        "fontVariantNumeric": "tabular-nums"
+      },
+      {
+        "text": "NT$200",
+        "width": 56,
+        "scrollWidth": 56,
+        "fontSize": "14px",
+        "fontVariantNumeric": "tabular-nums"
+      },
+      {
+        "text": "NT$200",
+        "width": 56,
+        "scrollWidth": 56,
+        "fontSize": "14px",
+        "fontVariantNumeric": "tabular-nums"
+      },
+      {
+        "text": "NT$200",
+        "width": 56,
+        "scrollWidth": 56,
+        "fontSize": "14px",
+        "fontVariantNumeric": "tabular-nums"
+      },
+      {
+        "text": "NT$200",
+        "width": 56,
+        "scrollWidth": 56,
+        "fontSize": "14px",
+        "fontVariantNumeric": "tabular-nums"
+      },
+      {
+        "text": "NT$200",
+        "width": 56,
+        "scrollWidth": 56,
+        "fontSize": "14px",
+        "fontVariantNumeric": "tabular-nums"
+      },
+      {
+        "text": "NT$200",
+        "width": 56,
+        "scrollWidth": 56,
+        "fontSize": "14px",
+        "fontVariantNumeric": "tabular-nums"
+      },
+      {
+        "text": "NT$200",
+        "width": 56,
+        "scrollWidth": 56,
+        "fontSize": "14px",
+        "fontVariantNumeric": "tabular-nums"
+      },
+      {
+        "text": "NT$200",
+        "width": 56,
+        "scrollWidth": 56,
+        "fontSize": "14px",
+        "fontVariantNumeric": "tabular-nums"
+      },
+      {
+        "text": "NT$200",
+        "width": 56,
+        "scrollWidth": 56,
+        "fontSize": "14px",
+        "fontVariantNumeric": "tabular-nums"
+      },
+      {
+        "text": "NT$200",
+        "width": 56,
+        "scrollWidth": 56,
+        "fontSize": "14px",
+        "fontVariantNumeric": "tabular-nums"
+      },
+      {
+        "text": "NT$200",
+        "width": 56,
+        "scrollWidth": 56,
+        "fontSize": "14px",
+        "fontVariantNumeric": "tabular-nums"
+      },
+      {
+        "text": "NT$200",
+        "width": 56,
+        "scrollWidth": 56,
+        "fontSize": "14px",
+        "fontVariantNumeric": "tabular-nums"
+      },
+      {
+        "text": "NT$200",
+        "width": 56,
+        "scrollWidth": 56,
+        "fontSize": "14px",
+        "fontVariantNumeric": "tabular-nums"
+      },
+      {
+        "text": "NT$200",
+        "width": 56,
+        "scrollWidth": 56,
+        "fontSize": "14px",
+        "fontVariantNumeric": "tabular-nums"
+      },
+      {
+        "text": "NT$200",
+        "width": 56,
+        "scrollWidth": 56,
+        "fontSize": "14px",
+        "fontVariantNumeric": "tabular-nums"
+      },
+      {
+        "text": "NT$200",
+        "width": 56,
+        "scrollWidth": 56,
+        "fontSize": "14px",
+        "fontVariantNumeric": "tabular-nums"
+      },
+      {
+        "text": "NT$200",
+        "width": 56,
+        "scrollWidth": 56,
+        "fontSize": "14px",
+        "fontVariantNumeric": "tabular-nums"
+      },
+      {
+        "text": "NT$200",
+        "width": 56,
+        "scrollWidth": 56,
+        "fontSize": "14px",
+        "fontVariantNumeric": "tabular-nums"
+      },
+      {
+        "text": "NT$200",
+        "width": 56,
+        "scrollWidth": 56,
+        "fontSize": "14px",
+        "fontVariantNumeric": "tabular-nums"
+      },
+      {
+        "text": "NT$200",
+        "width": 56,
+        "scrollWidth": 56,
+        "fontSize": "14px",
+        "fontVariantNumeric": "tabular-nums"
+      },
+      {
+        "text": "NT$200",
+        "width": 56,
+        "scrollWidth": 56,
+        "fontSize": "14px",
+        "fontVariantNumeric": "tabular-nums"
+      },
+      {
+        "text": "NT$200",
+        "width": 56,
+        "scrollWidth": 56,
+        "fontSize": "14px",
+        "fontVariantNumeric": "tabular-nums"
+      },
+      {
+        "text": "NT$200",
+        "width": 56,
+        "scrollWidth": 56,
+        "fontSize": "14px",
+        "fontVariantNumeric": "tabular-nums"
+      },
+      {
+        "text": "NT$200",
+        "width": 56,
+        "scrollWidth": 56,
+        "fontSize": "14px",
+        "fontVariantNumeric": "tabular-nums"
+      },
+      {
+        "text": "NT$200",
+        "width": 56,
+        "scrollWidth": 56,
+        "fontSize": "14px",
+        "fontVariantNumeric": "tabular-nums"
+      },
+      {
+        "text": "NT$200",
+        "width": 56,
+        "scrollWidth": 56,
+        "fontSize": "14px",
+        "fontVariantNumeric": "tabular-nums"
+      },
+      {
+        "text": "NT$200",
+        "width": 56,
+        "scrollWidth": 56,
+        "fontSize": "14px",
+        "fontVariantNumeric": "tabular-nums"
+      },
+      {
+        "text": "NT$200",
+        "width": 56,
+        "scrollWidth": 56,
+        "fontSize": "14px",
+        "fontVariantNumeric": "tabular-nums"
+      }
+    ],
+    "dateHeadings": [
+      {
+        "date": "2026-09-28",
+        "text": "9月28日",
+        "tag": "H3"
+      },
+      {
+        "date": "2026-09-25",
+        "text": "今天",
+        "tag": "H3"
+      }
+    ],
+    "focus": "00000000-0000-4000-8000-000000001020"
+  },
+  "extra": {
+    "requests": [
+      {
+        "method": "POST",
+        "path": "/api/app/session",
+        "at": 170498.840458,
+        "finishedAt": 170510.297708
+      },
+      {
+        "method": "GET",
+        "path": "/api/app/v2/context",
+        "at": 170510.386166,
+        "finishedAt": 170528.789625
+      },
+      {
+        "method": "GET",
+        "path": "/api/app/v2/ledgers",
+        "at": 170528.928833,
+        "finishedAt": 170534.199458
+      },
+      {
+        "method": "GET",
+        "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/bootstrap",
+        "at": 170552.593416,
+        "finishedAt": 170557.864791
+      },
+      {
+        "method": "GET",
+        "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories",
+        "at": 170601.380333,
+        "finishedAt": 170608.545166
+      },
+      {
+        "method": "GET",
+        "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/bootstrap",
+        "at": 170653.223,
+        "finishedAt": 170791.224458
+      },
+      {
+        "method": "GET",
+        "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories",
+        "at": 170795.186916,
+        "finishedAt": 170796.520291
+      }
+    ]
+  }
+}

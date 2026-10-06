@@ -1,0 +1,28 @@
+{
+  "command": "CI=1 pnpm test:e2e",
+  "workers": 4,
+  "exitCode": 0,
+  "passed": 793,
+  "failed": 0,
+  "skipped": 0,
+  "cancelled": 0,
+  "retries": 0,
+  "duration": "7.4m",
+  "byProject": {
+    "chromium-iphone": 204,
+    "webkit-iphone": 204,
+    "chromium-393": 181,
+    "webkit-393": 181,
+    "chromium-wide": 23
+  },
+  "lastRun": {
+    "status": "passed",
+    "failedTests": []
+  },
+  "logSha256": "04667ca99031f8fc26a121995f20f7871b82590d5b2f6880219a2fc19e8dd4eb",
+  "sourceSnapshotSha256": "3af6c74823ab412be997c61b164ca03e0b022746c317d03b06a11ded3a949df8",
+  "sourceAggregateSha256": "7229cfbd00b48fdfa8f46759cacd9d21831c3abb82a6ffac164fd611dcc255c3",
+  "sourceFiles": 208,
+  "sourceDrift": [],
+  "generatedNextEnvExcluded": "next-env.d.ts changes only generated routes import between Next dev and production build; root restores exact baseline before commit."
+}
