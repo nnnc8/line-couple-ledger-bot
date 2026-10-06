@@ -237,12 +237,17 @@ test("partial commit plus read500 closes as success, and retry remains GET-only"
   const { state } = await entryBrowser(page); state.mode = "partial"; state.failRead = true; await fillEntry(page);
   await add(page).click(); await expect(dialog(page)).toHaveCount(0);
   await expect(outcome(page)).toContainText("已加入晚餐 NT$681。其他紀錄暫時無法更新。");
+  // A partial receipt proves commit, but P2-C still needs its canonical collection
+  // before offering Detail. Do not link to a misleading "record not found" surface.
+  await expect(view(page)).toHaveCount(0);
   await expect(page.getByTestId("entry-success-copy")).toHaveText("已加入晚餐 NT$681");
   await expect(page.getByTestId("entry-success-copy").locator("+ span")).toHaveAttribute("aria-live", "off");
   await capture(page, info, "committed-read500", state.requests);
   const posts = state.posts.length; state.failRead = false; await page.getByRole("button", { name: "重新整理", exact: true }).click();
   await expect(outcome(page)).toHaveAttribute("data-read-freshness", "ready"); expect(state.posts).toHaveLength(posts);
   await expect(page.getByTestId("entry-success-copy")).toHaveText("已加入晚餐 NT$681");
+  await expect(view(page)).toBeVisible(); await view(page).click();
+  await expect(page.locator("[data-detail-heading]")).toHaveText("晚餐"); expect(state.posts).toHaveLength(posts);
 });
 
 test("the next explicit open snapshots fresh defaults and has no prior amount, payer, shares or key", async ({ page }) => {

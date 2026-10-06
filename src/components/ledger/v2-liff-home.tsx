@@ -339,9 +339,9 @@ export function V2LiffHome() {
   React.useLayoutEffect(() => {
     const target = completionFocus.current;
     if (!target || dialog || nav?.ledgerId !== target.ledgerId || document.hidden) return;
+    completionFocus.current = null;
     const node = target.kind === "row" ? document.querySelector<HTMLElement>(`button[data-transaction-id="${target.id}"]`) : document.querySelector<HTMLElement>('[data-testid="entry-view-created"]');
     if (!node) return;
-    completionFocus.current = null;
     node.focus({ preventScroll: true });
     if (target.kind === "row") {
       const rect = node.getBoundingClientRect();
@@ -464,6 +464,7 @@ export function V2LiffHome() {
     className="inline-flex min-h-11 max-w-full min-w-0 items-center gap-2 rounded-lg py-2 text-left font-bold">
     <span className="min-w-0 [overflow-wrap:anywhere]">{ledgerName}</span><ChevronDown aria-hidden="true" className="size-4 shrink-0" />
   </button> : null;
+  const createdTransaction = entry.write === "committed" && entry.operation?.operationType === "create" ? entry.operation.proof?.transaction : null;
   const leave = leaveStatus();
   const destinationName = pending?.kind === "navigate" && pending.manual ? v2.ledgers.find(ledger => ledger.id === pending.nav.ledgerId)?.name : null;
   const leaveTitle = leave === "submitting" ? `這筆正在加入『${ledgerName}』，完成後才能切換。`
@@ -497,8 +498,9 @@ export function V2LiffHome() {
         onEdit={transaction => request({ kind: "correction", transaction })} onCreateLedger={openCreate} onSettingsLeaveChange={setSettingsGuard}
         onQuickEntry={openQuickEntry} quickEntryActive={quickEntryActive} onCategoriesChange={setEntryCategories}
         highlightedId={completion?.ledgerId === nav.ledgerId && completion.kind === "row" ? completion.id : undefined}
-        onViewCreated={entry.write === "committed" && entry.operation?.operationType === "create" && entry.operation.proof?.transaction.ledgerId === nav.ledgerId && (nav.surface !== "HOME" || completion?.kind !== "row")
-          ? () => openSurface("TRANSACTION_DETAIL", entry.operation!.proof!.transaction.id) : undefined}
+        onViewCreated={createdTransaction?.ledgerId === nav.ledgerId && (nav.surface !== "HOME" || completion?.kind !== "row")
+          && v2.bootstrap?.transactions.some(row => row.ledgerId === nav.ledgerId && row.id === createdTransaction?.id)
+          ? () => openSurface("TRANSACTION_DETAIL", createdTransaction!.id) : undefined}
         onConfirmedMutation={v2.acceptTransactionStatusProof}
         timelineVisibleCount={timelineWindows[nav.ledgerId ?? ""] ?? TIMELINE_PAGE_SIZE}
         onLoadOlder={() => { const ledgerId = nav.ledgerId; if (ledgerId) setTimelineWindows(current => ({ ...current, [ledgerId]: (current[ledgerId] ?? TIMELINE_PAGE_SIZE) + TIMELINE_PAGE_SIZE })); }}

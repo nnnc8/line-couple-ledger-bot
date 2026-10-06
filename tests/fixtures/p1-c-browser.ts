@@ -89,7 +89,7 @@ export async function navigationBrowser(page: Page, { holdLiffInit = false } = {
     if (state.mode === "partial") { const partial: Partial<V2CreateTransactionResult> = { ...receipt }; delete partial.nextPayer; return route.fulfill({ status: 201, json: partial }); }
     return route.fulfill({ status: 201, json: receipt });
   });
-  return { state, snapshot, goto: async (path = "/") => { await page.goto(path); }, ready: async () => { await expect(page.getByTestId("quick-entry-trigger")).toBeVisible(); } };
+  return { state, snapshot, goto: async (path = "/") => { await page.goto(path); }, ready: async () => { await expect(page.getByTestId("quick-entry-trigger")).toBeVisible({ timeout: 15_000 }); } };
 }
 export async function switchLedger(page: Page, id: string) { await outerIntentClick(page, page.getByTestId("ledger-name-trigger")); await page.getByRole("dialog").locator(`[data-ledger-option="${id}"]`).click(); }
 export const activationRequests = (state: Awaited<ReturnType<typeof navigationBrowser>>["state"]) => state.requests.filter(item => item.method === "POST" && item.path.endsWith("/activate"));

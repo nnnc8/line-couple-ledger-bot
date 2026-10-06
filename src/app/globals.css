@@ -252,8 +252,8 @@
   margin: 0 auto;
   width: min(100%, 640px);
   max-width: min(100%, 640px);
-  height: var(--ledger-viewport-height, 100dvh);
-  max-height: var(--ledger-viewport-height, 100dvh);
+  height: min(var(--ledger-viewport-height, 100dvh), 100dvh);
+  max-height: min(var(--ledger-viewport-height, 100dvh), 100dvh);
   border-radius: 0;
   padding-top: max(16px, env(safe-area-inset-top));
   opacity: 0;

@@ -1,5 +1,6 @@
 {
   "stage": "after",
+  "baseURL": "http://localhost:3120",
   "browser": "Chromium",
   "viewport": "390×844",
   "samples": 20,
@@ -8,38 +9,38 @@
   "summary": {
     "quickFocusMs": {
       "n": 20,
-      "median": 21,
+      "median": 20,
       "p75": 21,
-      "p95": 24,
-      "maximum": 33
+      "p95": 22,
+      "maximum": 30
     },
     "quickPaintMs": {
       "n": 20,
-      "median": 70,
-      "p75": 81,
-      "p95": 89,
-      "maximum": 90
+      "median": 69,
+      "p75": 78,
+      "p95": 82,
+      "maximum": 84
     },
     "pendingPaintMs": {
       "n": 20,
-      "median": 26,
-      "p75": 28,
-      "p95": 35,
-      "maximum": 38
+      "median": 25,
+      "p75": 27,
+      "p95": 33,
+      "maximum": 36
     },
     "canonicalPaintMs": {
       "n": 20,
-      "median": 38,
-      "p75": 41,
-      "p95": 42,
-      "maximum": 43
+      "median": 34,
+      "p75": 40,
+      "p95": 41,
+      "maximum": 42
     },
     "dialogLogicalCloseMs": {
       "n": 20,
       "median": 8,
       "p75": 9,
-      "p95": 13,
-      "maximum": 14
+      "p95": 9,
+      "maximum": 11
     },
     "dialogCloseCssMs": {
       "n": 20,
@@ -138,18 +139,18 @@
             "durationMs": 0
           }
         ],
-        "quickAt": 920,
+        "quickAt": 898,
         "quickScheduled": true,
-        "quickFocusMs": 33,
-        "quickPaintMs": 90,
-        "addAt": 1286,
+        "quickFocusMs": 30,
+        "quickPaintMs": 84,
+        "addAt": 1232,
         "pendingScheduled": true,
-        "pendingPaintMs": 27,
-        "canonicalAt": 1318,
+        "pendingPaintMs": 33,
+        "canonicalAt": 1279,
         "canonicalScheduled": true,
-        "dialogLogicalCloseMs": 9,
+        "dialogLogicalCloseMs": 11,
         "dialogCloseCssMs": 160,
-        "canonicalPaintMs": 28
+        "canonicalPaintMs": 34
       },
       "startupRequests": [
         "POST /api/app/session",
@@ -178,14 +179,14 @@
             "durationMs": 0
           }
         ],
-        "quickAt": 652,
+        "quickAt": 634,
         "quickScheduled": true,
-        "quickFocusMs": 24,
-        "quickPaintMs": 89,
-        "addAt": 997,
+        "quickFocusMs": 15,
+        "quickPaintMs": 54,
+        "addAt": 951,
         "pendingScheduled": true,
         "pendingPaintMs": 28,
-        "canonicalAt": 1030,
+        "canonicalAt": 982,
         "canonicalScheduled": true,
         "dialogLogicalCloseMs": 9,
         "dialogCloseCssMs": 160,
@@ -218,18 +219,18 @@
             "durationMs": 0
           }
         ],
-        "quickAt": 637,
+        "quickAt": 636,
         "quickScheduled": true,
         "quickFocusMs": 20,
-        "quickPaintMs": 67,
-        "addAt": 966,
+        "quickPaintMs": 74,
+        "addAt": 969,
         "pendingScheduled": true,
-        "pendingPaintMs": 28,
+        "pendingPaintMs": 25,
         "canonicalAt": 998,
         "canonicalScheduled": true,
-        "dialogLogicalCloseMs": 8,
+        "dialogLogicalCloseMs": 9,
         "dialogCloseCssMs": 160,
-        "canonicalPaintMs": 28
+        "canonicalPaintMs": 27
       },
       "startupRequests": [
         "POST /api/app/session",
@@ -258,18 +259,18 @@
             "durationMs": 0
           }
         ],
-        "quickAt": 635,
+        "quickAt": 636,
         "quickScheduled": true,
-        "quickFocusMs": 21,
-        "quickPaintMs": 70,
-        "addAt": 970,
+        "quickFocusMs": 20,
+        "quickPaintMs": 73,
+        "addAt": 967,
         "pendingScheduled": true,
-        "pendingPaintMs": 23,
-        "canonicalAt": 999,
+        "pendingPaintMs": 26,
+        "canonicalAt": 998,
         "canonicalScheduled": true,
-        "dialogLogicalCloseMs": 10,
+        "dialogLogicalCloseMs": 9,
         "dialogCloseCssMs": 160,
-        "canonicalPaintMs": 42
+        "canonicalPaintMs": 28
       },
       "startupRequests": [
         "POST /api/app/session",
@@ -298,16 +299,16 @@
             "durationMs": 0
           }
         ],
-        "quickAt": 654,
+        "quickAt": 638,
         "quickScheduled": true,
-        "quickFocusMs": 20,
-        "quickPaintMs": 83,
-        "addAt": 1000,
+        "quickFocusMs": 19,
+        "quickPaintMs": 67,
+        "addAt": 954,
         "pendingScheduled": true,
-        "pendingPaintMs": 26,
-        "canonicalAt": 1031,
+        "pendingPaintMs": 25,
+        "canonicalAt": 984,
         "canonicalScheduled": true,
-        "dialogLogicalCloseMs": 9,
+        "dialogLogicalCloseMs": 8,
         "dialogCloseCssMs": 160,
         "canonicalPaintMs": 42
       },
@@ -338,18 +339,18 @@
             "durationMs": 0
           }
         ],
-        "quickAt": 651,
+        "quickAt": 637,
         "quickScheduled": true,
-        "quickFocusMs": 22,
-        "quickPaintMs": 69,
-        "addAt": 1000,
+        "quickFocusMs": 20,
+        "quickPaintMs": 67,
+        "addAt": 952,
         "pendingScheduled": true,
-        "pendingPaintMs": 26,
-        "canonicalAt": 1031,
+        "pendingPaintMs": 27,
+        "canonicalAt": 982,
         "canonicalScheduled": true,
-        "dialogLogicalCloseMs": 8,
+        "dialogLogicalCloseMs": 7,
         "dialogCloseCssMs": 160,
-        "canonicalPaintMs": 26
+        "canonicalPaintMs": 27
       },
       "startupRequests": [
         "POST /api/app/session",
@@ -378,14 +379,14 @@
             "durationMs": 0
           }
         ],
-        "quickAt": 652,
+        "quickAt": 640,
         "quickScheduled": true,
-        "quickFocusMs": 14,
-        "quickPaintMs": 68,
-        "addAt": 986,
+        "quickFocusMs": 18,
+        "quickPaintMs": 69,
+        "addAt": 955,
         "pendingScheduled": true,
-        "pendingPaintMs": 23,
-        "canonicalAt": 1016,
+        "pendingPaintMs": 24,
+        "canonicalAt": 986,
         "canonicalScheduled": true,
         "dialogLogicalCloseMs": 8,
         "dialogCloseCssMs": 160,
@@ -418,18 +419,18 @@
             "durationMs": 0
           }
         ],
-        "quickAt": 639,
+        "quickAt": 645,
         "quickScheduled": true,
         "quickFocusMs": 22,
-        "quickPaintMs": 82,
-        "addAt": 1002,
+        "quickPaintMs": 77,
+        "addAt": 990,
         "pendingScheduled": true,
-        "pendingPaintMs": 24,
-        "canonicalAt": 1035,
+        "pendingPaintMs": 36,
+        "canonicalAt": 1038,
         "canonicalScheduled": true,
-        "dialogLogicalCloseMs": 14,
+        "dialogLogicalCloseMs": 8,
         "dialogCloseCssMs": 160,
-        "canonicalPaintMs": 38
+        "canonicalPaintMs": 35
       },
       "startupRequests": [
         "POST /api/app/session",
@@ -458,18 +459,18 @@
             "durationMs": 0
           }
         ],
-        "quickAt": 676,
+        "quickAt": 634,
         "quickScheduled": true,
-        "quickFocusMs": 21,
-        "quickPaintMs": 80,
-        "addAt": 1022,
+        "quickFocusMs": 11,
+        "quickPaintMs": 55,
+        "addAt": 952,
         "pendingScheduled": true,
-        "pendingPaintMs": 35,
-        "canonicalAt": 1072,
+        "pendingPaintMs": 26,
+        "canonicalAt": 983,
         "canonicalScheduled": true,
-        "dialogLogicalCloseMs": 6,
+        "dialogLogicalCloseMs": 9,
         "dialogCloseCssMs": 160,
-        "canonicalPaintMs": 32
+        "canonicalPaintMs": 41
       },
       "startupRequests": [
         "POST /api/app/session",
@@ -498,18 +499,18 @@
             "durationMs": 0
           }
         ],
-        "quickAt": 649,
+        "quickAt": 635,
         "quickScheduled": true,
-        "quickFocusMs": 13,
-        "quickPaintMs": 56,
-        "addAt": 955,
+        "quickFocusMs": 21,
+        "quickPaintMs": 69,
+        "addAt": 967,
         "pendingScheduled": true,
-        "pendingPaintMs": 38,
-        "canonicalAt": 999,
+        "pendingPaintMs": 27,
+        "canonicalAt": 998,
         "canonicalScheduled": true,
-        "dialogLogicalCloseMs": 13,
+        "dialogLogicalCloseMs": 8,
         "dialogCloseCssMs": 160,
-        "canonicalPaintMs": 43
+        "canonicalPaintMs": 28
       },
       "startupRequests": [
         "POST /api/app/session",
@@ -531,25 +532,25 @@
         "storage": [
           {
             "phase": "submitting",
-            "durationMs": 1
+            "durationMs": 0
           },
           {
             "phase": "committed",
             "durationMs": 0
           }
         ],
-        "quickAt": 748,
+        "quickAt": 641,
         "quickScheduled": true,
-        "quickFocusMs": 13,
-        "quickPaintMs": 73,
-        "addAt": 1080,
+        "quickFocusMs": 20,
+        "quickPaintMs": 82,
+        "addAt": 970,
         "pendingScheduled": true,
-        "pendingPaintMs": 26,
-        "canonicalAt": 1113,
+        "pendingPaintMs": 25,
+        "canonicalAt": 1002,
         "canonicalScheduled": true,
-        "dialogLogicalCloseMs": 8,
+        "dialogLogicalCloseMs": 6,
         "dialogCloseCssMs": 160,
-        "canonicalPaintMs": 41
+        "canonicalPaintMs": 40
       },
       "startupRequests": [
         "POST /api/app/session",
@@ -578,18 +579,18 @@
             "durationMs": 0
           }
         ],
-        "quickAt": 651,
+        "quickAt": 641,
         "quickScheduled": true,
-        "quickFocusMs": 21,
-        "quickPaintMs": 69,
-        "addAt": 999,
+        "quickFocusMs": 20,
+        "quickPaintMs": 81,
+        "addAt": 1004,
         "pendingScheduled": true,
-        "pendingPaintMs": 27,
-        "canonicalAt": 1030,
+        "pendingPaintMs": 21,
+        "canonicalAt": 1037,
         "canonicalScheduled": true,
         "dialogLogicalCloseMs": 9,
         "dialogCloseCssMs": 160,
-        "canonicalPaintMs": 28
+        "canonicalPaintMs": 37
       },
       "startupRequests": [
         "POST /api/app/session",
@@ -618,18 +619,18 @@
             "durationMs": 0
           }
         ],
-        "quickAt": 646,
+        "quickAt": 624,
         "quickScheduled": true,
-        "quickFocusMs": 10,
-        "quickPaintMs": 60,
-        "addAt": 947,
+        "quickFocusMs": 19,
+        "quickPaintMs": 66,
+        "addAt": 939,
         "pendingScheduled": true,
-        "pendingPaintMs": 30,
-        "canonicalAt": 996,
+        "pendingPaintMs": 24,
+        "canonicalAt": 968,
         "canonicalScheduled": true,
-        "dialogLogicalCloseMs": 8,
+        "dialogLogicalCloseMs": 7,
         "dialogCloseCssMs": 160,
-        "canonicalPaintMs": 29
+        "canonicalPaintMs": 25
       },
       "startupRequests": [
         "POST /api/app/session",
@@ -658,18 +659,18 @@
             "durationMs": 0
           }
         ],
-        "quickAt": 639,
+        "quickAt": 660,
         "quickScheduled": true,
-        "quickFocusMs": 21,
-        "quickPaintMs": 82,
-        "addAt": 985,
+        "quickFocusMs": 22,
+        "quickPaintMs": 78,
+        "addAt": 1005,
         "pendingScheduled": true,
-        "pendingPaintMs": 24,
-        "canonicalAt": 1019,
+        "pendingPaintMs": 20,
+        "canonicalAt": 1038,
         "canonicalScheduled": true,
-        "dialogLogicalCloseMs": 8,
+        "dialogLogicalCloseMs": 9,
         "dialogCloseCssMs": 160,
-        "canonicalPaintMs": 38
+        "canonicalPaintMs": 36
       },
       "startupRequests": [
         "POST /api/app/session",
@@ -698,18 +699,18 @@
             "durationMs": 0
           }
         ],
-        "quickAt": 635,
+        "quickAt": 638,
         "quickScheduled": true,
-        "quickFocusMs": 20,
-        "quickPaintMs": 74,
-        "addAt": 949,
+        "quickFocusMs": 21,
+        "quickPaintMs": 67,
+        "addAt": 970,
         "pendingScheduled": true,
-        "pendingPaintMs": 29,
-        "canonicalAt": 997,
+        "pendingPaintMs": 24,
+        "canonicalAt": 1000,
         "canonicalScheduled": true,
-        "dialogLogicalCloseMs": 8,
+        "dialogLogicalCloseMs": 7,
         "dialogCloseCssMs": 160,
-        "canonicalPaintMs": 28
+        "canonicalPaintMs": 26
       },
       "startupRequests": [
         "POST /api/app/session",
@@ -738,18 +739,18 @@
             "durationMs": 0
           }
         ],
-        "quickAt": 638,
+        "quickAt": 639,
         "quickScheduled": true,
         "quickFocusMs": 21,
-        "quickPaintMs": 67,
-        "addAt": 969,
+        "quickPaintMs": 66,
+        "addAt": 971,
         "pendingScheduled": true,
-        "pendingPaintMs": 25,
-        "canonicalAt": 1000,
+        "pendingPaintMs": 22,
+        "canonicalAt": 1001,
         "canonicalScheduled": true,
-        "dialogLogicalCloseMs": 9,
+        "dialogLogicalCloseMs": 7,
         "dialogCloseCssMs": 160,
-        "canonicalPaintMs": 42
+        "canonicalPaintMs": 41
       },
       "startupRequests": [
         "POST /api/app/session",
@@ -778,18 +779,18 @@
             "durationMs": 0
           }
         ],
-        "quickAt": 640,
+        "quickAt": 618,
         "quickScheduled": true,
-        "quickFocusMs": 21,
-        "quickPaintMs": 81,
-        "addAt": 970,
+        "quickFocusMs": 10,
+        "quickPaintMs": 57,
+        "addAt": 937,
         "pendingScheduled": true,
-        "pendingPaintMs": 24,
-        "canonicalAt": 1002,
+        "pendingPaintMs": 27,
+        "canonicalAt": 983,
         "canonicalScheduled": true,
         "dialogLogicalCloseMs": 8,
         "dialogCloseCssMs": 160,
-        "canonicalPaintMs": 40
+        "canonicalPaintMs": 28
       },
       "startupRequests": [
         "POST /api/app/session",
@@ -818,18 +819,18 @@
             "durationMs": 0
           }
         ],
-        "quickAt": 636,
+        "quickAt": 622,
         "quickScheduled": true,
         "quickFocusMs": 20,
-        "quickPaintMs": 68,
-        "addAt": 951,
+        "quickPaintMs": 67,
+        "addAt": 936,
         "pendingScheduled": true,
         "pendingPaintMs": 26,
-        "canonicalAt": 983,
+        "canonicalAt": 969,
         "canonicalScheduled": true,
-        "dialogLogicalCloseMs": 7,
+        "dialogLogicalCloseMs": 6,
         "dialogCloseCssMs": 160,
-        "canonicalPaintMs": 26
+        "canonicalPaintMs": 25
       },
       "startupRequests": [
         "POST /api/app/session",
@@ -855,21 +856,21 @@
           },
           {
             "phase": "committed",
-            "durationMs": 0
+            "durationMs": 1
           }
         ],
-        "quickAt": 625,
+        "quickAt": 641,
         "quickScheduled": true,
-        "quickFocusMs": 21,
+        "quickFocusMs": 22,
         "quickPaintMs": 79,
-        "addAt": 956,
+        "addAt": 988,
         "pendingScheduled": true,
         "pendingPaintMs": 22,
-        "canonicalAt": 986,
+        "canonicalAt": 1020,
         "canonicalScheduled": true,
-        "dialogLogicalCloseMs": 9,
+        "dialogLogicalCloseMs": 8,
         "dialogCloseCssMs": 160,
-        "canonicalPaintMs": 39
+        "canonicalPaintMs": 38
       },
       "startupRequests": [
         "POST /api/app/session",
@@ -898,16 +899,16 @@
             "durationMs": 0
           }
         ],
-        "quickAt": 639,
+        "quickAt": 641,
         "quickScheduled": true,
-        "quickFocusMs": 10,
-        "quickPaintMs": 54,
-        "addAt": 936,
+        "quickFocusMs": 21,
+        "quickPaintMs": 79,
+        "addAt": 973,
         "pendingScheduled": true,
-        "pendingPaintMs": 26,
-        "canonicalAt": 968,
+        "pendingPaintMs": 20,
+        "canonicalAt": 1001,
         "canonicalScheduled": true,
-        "dialogLogicalCloseMs": 8,
+        "dialogLogicalCloseMs": 9,
         "dialogCloseCssMs": 160,
         "canonicalPaintMs": 41
       },
@@ -925,6 +926,5 @@
       ],
       "blockingBootstrapCount": 0
     }
-  ],
-  "baselineSHA": "bc4d966ded4650d79667b19d12902ac49e4eff78"
+  ]
 }

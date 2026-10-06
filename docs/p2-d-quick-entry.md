@@ -36,7 +36,7 @@ The [byte comparison](evidence/p2-d/ownership-proof.json) records unchanged fina
 | T2 | A bounded 2s timer adds 「連線比平常慢」. The existing 30s/ambiguous UNKNOWN contract preserves the original immutable operation. Closing/switching cannot cancel it. Explicit replay uses identical bytes/key. |
 | T3 | Existing proof validation accepts only a canonical committed result. Full results update the canonical collection, balance, next payer and version through the existing owner. |
 | T4/T5 | The modal closes on known commit. Home's row/balance cards expose the same canonical version for the atomic DOM assertion. Today targets the actual row, expands the P2-C window if needed, focuses with `preventScroll`, and performs at most one necessary scroll adjustment. |
-| T6 | Complete canonical create does not require bootstrap. Partial proof still uses the existing read recovery. Read500 leaves the committed message intact; retry is GET-only. |
+| T6 | Complete canonical create does not require bootstrap. Partial proof still uses the existing read recovery. View is offered once P2-C's canonical collection contains the transaction; a commit receipt alone does not create a Detail data owner. Read500 leaves the committed message intact; retry is GET-only. |
 
 Completion and timeline date labels use the existing Asia/Taipei current-date helper, including crossing midnight. The editor compares date hints with the owner's opening seed so a blur at midnight does not move Add during a tap. Backdated/future dates preserve chronological order and expose 「查看」. A moved reading position, changed surface or background completion avoids automatic row scrolling. Search keeps its filters and excludes a nonmatching transaction. View opens the exact canonical P2-C Detail.
 
@@ -64,12 +64,12 @@ Baseline was built from an exact archive of `bc4d966…`; candidate used the sam
 
 | Measurement | Baseline median / p95 / max | Candidate median / p95 / max |
 | --- | --- | --- |
-| Initial gzip JS (deduplicated manifest, level 9) | 199,527 bytes | 201,914 bytes: **+2,387 bytes**, below 10KB |
-| Quick Entry tap → focus | N/A: permanent inline form | 21 / 24 / 33ms |
-| Quick Entry tap → painted-frame proxy | N/A: permanent inline form | 70 / 89 / 90ms |
-| Add → pending painted-frame proxy | 65 / 80 / 80ms | 26 / 35 / 38ms |
-| Canonical JSON → Home painted-frame proxy | 30 / 36 / 36ms | 38 / 42 / 43ms |
-| Canonical JSON → logical dialog close | N/A | 8 / 13 / 14ms |
+| Initial gzip JS (deduplicated manifest, level 9) | 199,527 bytes | 201,936 bytes: **+2,409 bytes**, below 10KB |
+| Quick Entry tap → focus | N/A: permanent inline form | 20 / 22 / 30ms |
+| Quick Entry tap → painted-frame proxy | N/A: permanent inline form | 69 / 82 / 84ms |
+| Add → pending painted-frame proxy | 65 / 80 / 80ms | 25 / 33 / 36ms |
+| Canonical JSON → Home painted-frame proxy | 30 / 36 / 36ms | 34 / 41 / 42ms |
+| Canonical JSON → logical dialog close | N/A | 8 / 9 / 11ms |
 | Close CSS duration | N/A | 160ms |
 | Recovery sessionStorage write (40 per stage) | 0 / 0 / 1ms | 0 / 0 / 1ms |
 
