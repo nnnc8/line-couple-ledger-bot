@@ -489,7 +489,7 @@ export function V2LiffHome() {
       {v2.preference?.ledgerId === nav.ledgerId && v2.preference.status === "failed" ? <div role="status" className="mb-3"><p>這本可查看，LINE 的預設帳本尚未更新</p><Button variant="outline" size="sm" onClick={() => v2.preference?.authError ? location.reload() : void v2.activateLedger(nav.ledgerId!)}>{v2.preference.authError ? "重新登入" : "重試更新 LINE 預設"}</Button></div> : null}
       {pending?.kind === "navigate" && entry.operation && dialog !== "leave" ? <div className="mb-3 rounded-xl border p-3 text-sm"><p>先確認「{ledgerName}」這筆記帳的結果，再前往指定的帳本。</p>{entry.write === "committed" ? <Button variant="outline" size="sm" onClick={() => { if (pendingRef.current) request(pendingRef.current); }}>繼續前往指定帳本</Button> : null}</div> : null}
       {v2.authError ? <div role="alert"><p>登入已失效。</p><Button onClick={() => location.reload()}>重新登入</Button></div> : null}
-      <V2LedgerHome key={v2.activeLedgerId ?? "no-ledger"} user={v2.context.user} users={v2.context.users} today={v2.context.today}
+      <V2LedgerHome key={v2.activeLedgerId ?? "no-ledger"} user={v2.context.user} users={v2.context.users} today={currentEntryDate()}
         ledgers={v2.ledgers} activeLedgerId={v2.activeLedgerId} bootstrap={v2.bootstrap} error={v2.error} busy={v2.busy}
         reload={async () => v2.activeLedgerId ? v2.loadBootstrap(v2.activeLedgerId) : v2.loadLedgers()}
         onOpenEntryControls={openEntryControls}

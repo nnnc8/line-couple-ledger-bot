@@ -38,7 +38,7 @@ The hook's opening method is the only addition to the P1-B owner. Financial comm
 | T4/T5 | The modal closes on known commit. Home's row/balance cards expose the same canonical version for the atomic DOM assertion. Today targets the actual row, expands the P2-C window if needed, focuses with `preventScroll`, and performs at most one necessary scroll adjustment. |
 | T6 | Complete canonical create does not require bootstrap. Partial proof still uses the existing read recovery. Read500 leaves the committed message intact; retry is GET-only. |
 
-Completion uses the existing Asia/Taipei current-date helper, including crossing midnight. Backdated/future dates preserve chronological order and expose 「查看」. A moved reading position, changed surface or background completion avoids automatic row scrolling. Search keeps its filters and excludes a nonmatching transaction. View opens the exact canonical P2-C Detail.
+Completion and timeline date labels use the existing Asia/Taipei current-date helper, including crossing midnight. The editor compares date hints with the owner's opening seed so a blur at midnight does not move Add during a tap. Backdated/future dates preserve chronological order and expose 「查看」. A moved reading position, changed surface or background completion avoids automatic row scrolling. Search keeps its filters and excludes a nonmatching transaction. View opens the exact canonical P2-C Detail.
 
 There is one contextual status surface at a time. Home uses its stable sticky status slot; while entry is active only Quick Entry shows that operation's status. There is no success card/toast. The success text stays stable through read refresh/failure, with the read suffix outside live announcements. Timeline count is readable but does not issue a competing live announcement. Row highlight is visual only: 140ms opacity plus 1.2s background; completion expansion does not animate the other revealed rows. Reduced motion removes motion and retains a static subtle highlight.
 
@@ -64,12 +64,12 @@ Baseline was built from an exact archive of `bc4d966…`; candidate used the sam
 
 | Measurement | Baseline median / p95 / max | Candidate median / p95 / max |
 | --- | --- | --- |
-| Initial gzip JS (deduplicated manifest, level 9) | 199,527 bytes | 201,907 bytes: **+2,380 bytes**, below 10KB |
-| Quick Entry tap → focus | N/A: permanent inline form | 20 / 22 / 32ms |
-| Quick Entry tap → painted-frame proxy | N/A: permanent inline form | 77 / 83 / 92ms |
-| Add → pending painted-frame proxy | 65 / 80 / 80ms | 24 / 36 / 39ms |
+| Initial gzip JS (deduplicated manifest, level 9) | 199,527 bytes | 201,914 bytes: **+2,387 bytes**, below 10KB |
+| Quick Entry tap → focus | N/A: permanent inline form | 21 / 24 / 33ms |
+| Quick Entry tap → painted-frame proxy | N/A: permanent inline form | 70 / 89 / 90ms |
+| Add → pending painted-frame proxy | 65 / 80 / 80ms | 26 / 35 / 38ms |
 | Canonical JSON → Home painted-frame proxy | 30 / 36 / 36ms | 38 / 42 / 43ms |
-| Canonical JSON → logical dialog close | N/A | 8 / 10 / 12ms |
+| Canonical JSON → logical dialog close | N/A | 8 / 13 / 14ms |
 | Close CSS duration | N/A | 160ms |
 | Recovery sessionStorage write (40 per stage) | 0 / 0 / 1ms | 0 / 1 / 1ms |
 

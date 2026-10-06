@@ -56,7 +56,9 @@ export function V2TransactionEditor({ user, partner, draft, categoryOptions = []
   if (draft.categoryId && !categoryChoices.some(option => option.id === draft.categoryId)) categoryChoices.push({ id: draft.categoryId, name: draft.category || "原有分類" });
   const noteCharacters = Array.from(draft.note);
   const notePreview = noteCharacters.slice(0, 40).join("") + (noteCharacters.length > 40 ? "…" : "");
-  const indications = [draft.type === "income" ? "收入／退款" : draft.type === "transfer" ? "轉帳" : "", draft.occurredOn !== currentEntryDate() ? draft.occurredOn : "", draft.category || (draft.categoryId ? "已選分類" : ""), draft.note ? `備註：${notePreview}` : ""].filter(Boolean);
+  // Keep the opening-date hint stable through midnight so blur cannot move Add during a tap.
+  const defaultDate = draft.operationType === "create" ? draft.seed.occurredOn : currentEntryDate();
+  const indications = [draft.type === "income" ? "收入／退款" : draft.type === "transfer" ? "轉帳" : "", draft.occurredOn !== defaultDate ? draft.occurredOn : "", draft.category || (draft.categoryId ? "已選分類" : ""), draft.note ? `備註：${notePreview}` : ""].filter(Boolean);
   return <form ref={form} className="space-y-3" onSubmit={event => { event.preventDefault(); if (validation.field) { blur(validation.field); focusField(validation.field); } }} aria-busy={busy}
     onCompositionStart={() => { compositionEnding.current = false; composingRef.current = true; setComposing(true); }} onCompositionEnd={() => { composingRef.current = false; compositionEnding.current = true; setComposing(false); requestAnimationFrame(() => { compositionEnding.current = false; }); }}
     onKeyDown={event => {

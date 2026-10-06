@@ -48,6 +48,7 @@ test("single bottom CTA replaces the persistent form; opening is synchronous, la
   const y = await page.evaluate(() => scrollY);
   await openEntry(page);
   await expect(dialog(page)).toHaveAccessibleName("記一筆");
+  await expect(dialog(page)).toHaveAccessibleDescription("共同生活");
   await expect(page.getByTestId("quick-entry-ledger")).toHaveText("共同生活");
   await expect(amount(page)).toBeFocused();
   await expect(amount(page)).toHaveAttribute("inputmode", "numeric");
@@ -120,7 +121,7 @@ test("untouched cancel restores Home CTA; dirty cancel keeps the previous field 
 
 test("T0 double activation has one recovery record/key/effect; pending, slow and close stay bound to the original operation", async ({ page }, info) => {
   const { state } = await entryBrowser(page); state.mode = "delay"; await fillEntry(page, "晚餐", "680");
-  await page.clock.install();
+  await page.clock.install({ time: new Date("2026-09-25T04:00:00Z") });
   await add(page).evaluate(node => { (node as HTMLButtonElement).click(); (node as HTMLButtonElement).click(); });
   await expect.poll(() => state.posts.length).toBe(1);
   const pending = page.getByRole("button", { name: "正在加入…", exact: true });
@@ -305,7 +306,10 @@ test("Taipei midnight keeps the existing draft date contextual, then a fresh tod
   await expect(view(page)).toBeFocused(); await expect(outcome(page)).toContainText("已加入昨天的跨日保留 NT$680");
   expect(state.posts[0]!.body.occurredOn).toBe("2026-09-25");
   await fillEntry(page, "新一天", "680"); await add(page).click();
+  await expect.poll(() => state.posts.length).toBe(2);
   expect(state.posts[1]!.body.occurredOn).toBe("2026-09-26");
   await expect(page.locator(`button[data-transaction-id="${state.rows[0]!.id}"]`)).toBeFocused();
   await expect(outcome(page)).toContainText("已加入新一天 NT$680"); expect(state.effects).toBe(2);
+  await expect(page.locator('[data-timeline-date="2026-09-26"]')).toHaveText("今天");
+  await expect(page.locator('[data-timeline-date="2026-09-25"]')).toHaveText("昨天");
 });
