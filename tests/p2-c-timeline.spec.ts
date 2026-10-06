@@ -112,7 +112,7 @@ for (const scenario of [
   { number: "11", id: IDS.transfer, type: "轉帳", summary: "你 → 另一半", name: "transfer" },
   { number: "12", id: IDS.both, type: "支出", summary: "兩人付款", name: "both-payer" },
 ]) test(`${scenario.number} ${scenario.name} row and Detail use truthful type/payment semantics`, async ({ page }, info) => {
-  await start(page); const target = row(page, scenario.id);
+  const fixture = await start(page); const target = row(page, scenario.id);
   await expect(target).toContainText(scenario.summary); await expect(target).toHaveAccessibleName(new RegExp(scenario.type));
   if (scenario.id === IDS.income) await expect(target).toContainText(/＋NT\$100|\+NT\$100/);
   if (scenario.id === IDS.both) { await expect(target).not.toContainText("NT$120"); await expect(target).not.toContainText("NT$80"); }
@@ -120,8 +120,26 @@ for (const scenario of [
   await expect(detail(page)).toContainText(scenario.type);
   if (scenario.id === IDS.both) { await expect(detail(page)).toContainText("NT$120"); await expect(detail(page)).toContainText("NT$80"); }
   if (scenario.id === IDS.transfer) { await expect(detail(page)).toContainText("你 → 另一半"); await expect(detail(page)).not.toContainText("分攤："); }
-  if (scenario.id === IDS.income) await expect(detail(page)).toContainText(/收款|分配/);
+  if (scenario.id === IDS.income) { await expect(detail(page)).toContainText(/收款|分配/); await expect(detail(page)).toContainText("未分類"); }
   await capture(page, info, `${scenario.name}-detail`);
+  if (scenario.id === IDS.expense) {
+    const categoryId = "00000000-0000-4000-8000-000000003000";
+    Object.assign(fixture.state.rows.find(item => item.id === IDS.expense)!, { category: null, categoryId });
+    let categoryReadFails = true;
+    await page.route(`**/api/app/v2/ledgers/${A}/categories`, route => categoryReadFails
+      ? route.fulfill({ status: 500, json: { error: "fixture category read failure" } })
+      : route.fulfill({ json: { categories: [{ id: categoryId, ledgerId: A, name: "封存餐飲", status: "archived", isDefault: false, createdAt: "2026-09-24T00:00:00Z", updatedAt: "2026-09-25T00:00:00Z" }] } }));
+    const failedCategoryRead = page.waitForResponse(response => response.url().endsWith(`/ledgers/${A}/categories`) && response.status() === 500);
+    await page.reload(); await failedCategoryRead; await expect(detail(page)).toBeVisible();
+    await expect(detail(page)).toContainText("分類暫時無法顯示"); await expect(detail(page)).not.toContainText("未分類");
+    await capture(page, info, "category-unavailable", { categoryId, categoryReadStatus: 500, requests: fixture.state.requests });
+    categoryReadFails = false;
+    const archivedCategoryRead = page.waitForResponse(response => response.url().endsWith(`/ledgers/${A}/categories`) && response.status() === 200);
+    await page.reload(); await archivedCategoryRead; await expect(detail(page)).toContainText("封存餐飲");
+    await expect(detail(page)).not.toContainText("分類暫時無法顯示"); await expect(detail(page)).not.toContainText("未分類");
+    expect(fixture.actions.mutations).toHaveLength(0); expect(fixture.state.posts).toHaveLength(0);
+    await capture(page, info, "archived-category-detail", { categoryId, categoryReadStatus: 200, categoryStatus: "archived", requests: fixture.state.requests });
+  }
 });
 
 test("13–17 canonical Detail focuses heading, opens at top and returns scroll/focus to row beyond initial 20", async ({ page }, info) => {

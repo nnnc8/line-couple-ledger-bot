@@ -8,7 +8,7 @@ Home renders the first 20 effective transactions from the existing complete boot
 
 Order matches existing chronology: occurredOn descending, createdAt descending, ID descending. Grouping uses occurredOn and the existing Asia/Taipei context date; today/yesterday, same-year month/day and cross-year year labels are deterministic, including future dates. Visible slicing happens before grouping, so append boundaries join the same date heading. Pure helpers have focused unit coverage.
 
-Rows are single buttons with full accessible context (purpose, transaction type, amount, payer/direction, date). Purpose visually clamps to two lines; amount remains complete, uses tabular figures, and wraps onto another line when needed. Canonical integer strings go directly through BigInt formatting. Expense summaries say 你付款 / 另一半付款 / 兩人付款; income visibly says 收入／退款 with ＋ and receiver wording; transfer shows explicit sender → receiver. Stored category snapshots stay truthful.
+Rows are single buttons with full accessible context (purpose, transaction type, amount, payer/direction, date). Purpose visually clamps to two lines; amount remains complete, uses tabular figures, and wraps onto another line when needed. Canonical integer strings go directly through BigInt formatting. Expense summaries say 你付款 / 另一半付款 / 兩人付款; income visibly says 收入／退款 with ＋ and receiver wording; transfer shows explicit sender → receiver. Stored category snapshots and known scoped category names, including archived ones, stay truthful. A category reference without a readable name says 分類暫時無法顯示; 未分類 is reserved for an absent name/reference.
 
 ## One Detail and existing operations
 

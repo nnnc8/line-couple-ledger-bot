@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { api, ApiError } from "@/lib/api";
 import type { User, V2Attachment, V2Category, V2LedgerTransaction } from "@/lib/types";
-import { timelineMoney, timelinePurpose, timelineTransferDirection, timelineTypeLabel } from "@/lib/v2-timeline";
+import { timelineCategoryLabel, timelineMoney, timelinePurpose, timelineTransferDirection, timelineTypeLabel } from "@/lib/v2-timeline";
 import { transactionStatusProof, type TransactionStatusProof } from "@/lib/v2-transaction-status";
 
 type Props = {
@@ -39,7 +39,7 @@ export function TransactionDetail({ transaction, transactions, userId, users, ca
   React.useEffect(() => { mounted.current = true; return () => { mounted.current = false; attachmentRead.current += 1; }; }, []);
   const purpose = timelinePurpose(transaction);
   const type = timelineTypeLabel(transaction.type);
-  const category = transaction.category ?? categories.find(item => item.id === transaction.categoryId)?.name;
+  const category = timelineCategoryLabel(transaction, categories);
   const replaced = Boolean(transaction.replacedByTransactionId);
   const current = transaction.status === "posted";
   const knownLink = (id: string | null | undefined) => id && transactions.some(row => row.id === id && row.ledgerId === transaction.ledgerId) ? id : null;
@@ -146,7 +146,7 @@ export function TransactionDetail({ transaction, transactions, userId, users, ca
         <dl className="mt-2 space-y-2">{transaction.shares.map(part => <div key={part.userId} className="flex flex-wrap justify-between gap-x-4 gap-y-1"><dt>{memberName(part.userId)}</dt><dd className="tabular-nums">{timelineMoney(part.amountTwd)}</dd></div>)}</dl>
       </section>
       {transaction.type === "income" ? <p className="text-sm text-[var(--muted-foreground)]">收入／退款由收款人收到，款項分配代表兩人的權益。</p> : null}
-      <section aria-labelledby="detail-category"><h3 id="detail-category" className="font-bold">分類</h3><p className="mt-2">{category ?? "未分類"}</p></section>
+      <section aria-labelledby="detail-category"><h3 id="detail-category" className="font-bold">分類</h3><p className="mt-2">{category ?? (transaction.categoryId ? "分類暫時無法顯示" : "未分類")}</p></section>
       <section aria-labelledby="detail-note"><h3 id="detail-note" className="font-bold">備註</h3><p className="mt-2 whitespace-pre-wrap">{transaction.note || "沒有備註"}</p></section>
     </Card>
     <Card className="p-4">
