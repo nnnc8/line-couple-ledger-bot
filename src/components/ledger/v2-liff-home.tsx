@@ -477,14 +477,14 @@ export function V2LiffHome() {
   return <main className={`mx-auto min-h-dvh max-w-[640px] px-4 ${nav.surface === "HOME" ? "min-[380px]:px-5 pb-[calc(104px+env(safe-area-inset-bottom))]" : "pb-6"} pt-[max(16px,env(safe-area-inset-top))]`} onFocusCapture={event => {
     if (event.target instanceof HTMLElement && event.target.matches("[data-entry-field], input, select, textarea")) editingField.current = event.target;
   }}>
-    <header className={nav.surface === "HOME" ? "mb-6 flex min-w-0 items-start gap-2" : "mb-3 space-y-2"}>
+    <header className={nav.surface === "HOME" ? "mb-6 flex min-w-0 flex-wrap items-start gap-2" : "mb-3 space-y-2"}>
       {nav.surface !== "HOME" ? <Button data-testid="transaction-detail-back" aria-label="返回帳本" variant="ghost" size="sm" className="h-auto min-h-11 max-w-full whitespace-normal text-left [overflow-wrap:anywhere]" onClick={() => {
         const origin = nav.surface === "TRANSACTION_DETAIL" ? appOrigin(accepted.current.state, documentId.current, nav.ledgerId) : null;
         const destination = origin?.surface === "SEARCH" ? { ...ledgerHome(nav.ledgerId), surface: "SEARCH" as const, filters: origin.filters ?? {} } : ledgerHome(nav.ledgerId);
         request({ kind: "navigate", nav: destination, mode: "replace", rowId: origin?.rowId });
       }}>‹ {ledgerName}</Button> : null}
-      <h1 tabIndex={-1} data-testid="surface-heading" className={`${nav.surface === "HOME" ? "min-w-0 flex-1 text-[1.375rem] leading-7 focus:outline-none" : "text-xl"} font-bold [overflow-wrap:anywhere]`}>{scopeError ? "連結無法開啟" : nav.surface === "HOME" ? identityTrigger ?? (nav.ledgerId ? "正在載入帳本…" : "共同帳本") : nav.surface === "PROPOSAL_COMPAT_ENTRY" ? titles[nav.surface] : `${ledgerName} · ${titles[nav.surface]}`}</h1>
-      {nav.surface === "HOME" && identityTrigger && !v2.authError ? <div className="flex shrink-0 gap-1">
+      <h1 tabIndex={-1} data-testid="surface-heading" className={`${nav.surface === "HOME" ? "min-w-0 flex-1 basis-[11rem] text-[1.375rem] leading-7 focus:outline-none" : "text-xl"} font-bold [overflow-wrap:anywhere]`}>{scopeError ? "連結無法開啟" : nav.surface === "HOME" ? identityTrigger ?? (nav.ledgerId ? "正在載入帳本…" : "共同帳本") : nav.surface === "PROPOSAL_COMPAT_ENTRY" ? titles[nav.surface] : `${ledgerName} · ${titles[nav.surface]}`}</h1>
+      {nav.surface === "HOME" && identityTrigger && !v2.authError ? <div className="ml-auto flex shrink-0 gap-1">
         <Button tabIndex={0} data-testid="home-search-trigger" variant="ghost" size="icon" className="text-foreground" aria-label="搜尋紀錄" onClick={() => openSurface("SEARCH")}><Search aria-hidden="true" className="size-5" /></Button>
         <Button tabIndex={0} data-testid="home-more-trigger" variant="ghost" size="icon" className="text-foreground" aria-label="更多" aria-haspopup="dialog" aria-expanded={dialog === "home-more"} aria-controls="ledger-surface-dialog" onClick={event => {
           trigger.current = event.currentTarget; returnFocus.current = event.currentTarget; setDialog("home-more");

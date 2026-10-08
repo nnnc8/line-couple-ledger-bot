@@ -175,8 +175,10 @@ for (const textSize of [100, 200]) test(`40-character Ledger name and huge balan
   expect(LONG_NAME.length).toBe(40); await start(page, { name: LONG_NAME, balance: LARGE_BALANCE, nextPayer: PARTNER });
   if (textSize === 200) await page.addStyleTag({ content: "html { font-size: 200% !important; }" });
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(LONG_NAME); await expect(balance(page)).toContainText(LARGE_AMOUNT);
-  const boxes = await page.locator("header button").evaluateAll(nodes => nodes.map(node => ({ left: node.getBoundingClientRect().left, right: node.getBoundingClientRect().right })));
-  expect(boxes[0]!.right).toBeLessThanOrEqual(boxes[1]!.left); expect(boxes[1]!.right).toBeLessThanOrEqual(boxes[2]!.left);
+  const boxes = await page.locator("header button").evaluateAll(nodes => nodes.map(node => { const box = node.getBoundingClientRect(); return { left: box.left, right: box.right, top: box.top, bottom: box.bottom, width: box.width }; }));
+  expect(boxes[0]!.right <= boxes[1]!.left || boxes[0]!.bottom <= boxes[1]!.top).toBe(true);
+  expect(boxes[1]!.right).toBeLessThanOrEqual(boxes[2]!.left);
+  if (textSize === 200) expect(boxes[0]!.width).toBeGreaterThan(page.viewportSize()!.width / 2);
   await capture(page, info, `long-name-${textSize}`); await more(page).click(); await page.keyboard.press("Escape"); await expect(more(page)).toBeFocused();
   await page.getByTestId("quick-entry-trigger").click(); await expect(dialog(page)).toHaveAccessibleName("記一筆"); await noOverflow(page);
 });

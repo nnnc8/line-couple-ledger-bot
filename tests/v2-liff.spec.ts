@@ -651,6 +651,9 @@ async function twoLedgers(page: Page) {
   }
   await page.reload();
   await expect(page.getByTestId("surface-heading")).toContainText("Scope A");
+  // The validated name can appear before bootstrap; hold only a later refresh.
+  await expect(page.getByTestId("ledger-balance")).toHaveAttribute("data-ledger-version", "1");
+  await expect(page.getByTestId("quick-entry-trigger")).toBeVisible();
 }
 
 async function releaseScopeResponse(page: Page, route: Route, reply: Parameters<Route["fulfill"]>[0]) {
