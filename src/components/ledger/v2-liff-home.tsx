@@ -483,7 +483,7 @@ export function V2LiffHome() {
         const destination = origin?.surface === "SEARCH" ? { ...ledgerHome(nav.ledgerId), surface: "SEARCH" as const, filters: origin.filters ?? {} } : ledgerHome(nav.ledgerId);
         request({ kind: "navigate", nav: destination, mode: "replace", rowId: origin?.rowId });
       }}>‹ {ledgerName}</Button> : null}
-      <h1 tabIndex={-1} data-testid="surface-heading" className={`${nav.surface === "HOME" ? "min-w-0 flex-1 text-[1.375rem] leading-7" : "text-xl"} font-bold [overflow-wrap:anywhere]`}>{scopeError ? "連結無法開啟" : nav.surface === "HOME" ? identityTrigger ?? (nav.ledgerId ? "正在載入帳本…" : "共同帳本") : nav.surface === "PROPOSAL_COMPAT_ENTRY" ? titles[nav.surface] : `${ledgerName} · ${titles[nav.surface]}`}</h1>
+      <h1 tabIndex={-1} data-testid="surface-heading" className={`${nav.surface === "HOME" ? "min-w-0 flex-1 text-[1.375rem] leading-7 focus:outline-none" : "text-xl"} font-bold [overflow-wrap:anywhere]`}>{scopeError ? "連結無法開啟" : nav.surface === "HOME" ? identityTrigger ?? (nav.ledgerId ? "正在載入帳本…" : "共同帳本") : nav.surface === "PROPOSAL_COMPAT_ENTRY" ? titles[nav.surface] : `${ledgerName} · ${titles[nav.surface]}`}</h1>
       {nav.surface === "HOME" && identityTrigger && !v2.authError ? <div className="flex shrink-0 gap-1">
         <Button tabIndex={0} data-testid="home-search-trigger" variant="ghost" size="icon" className="text-foreground" aria-label="搜尋紀錄" onClick={() => openSurface("SEARCH")}><Search aria-hidden="true" className="size-5" /></Button>
         <Button tabIndex={0} data-testid="home-more-trigger" variant="ghost" size="icon" className="text-foreground" aria-label="更多" aria-haspopup="dialog" aria-expanded={dialog === "home-more"} aria-controls="ledger-surface-dialog" onClick={event => {
@@ -519,7 +519,7 @@ export function V2LiffHome() {
       if (host) host.scrollTop = quickFocus.current.scrollTop;
       return host?.querySelector<HTMLElement>(quickFocus.current.selector) ?? null;
     }} title={dialog === "home-more" ? "更多" : dialog === "quick-entry" ? "記一筆" : dialog === "switcher" ? "切換帳本" : dialog === "create" ? "建立帳本" : dialog === "payer" ? entry.draft?.type === "income" ? "選擇收款人" : entry.draft?.type === "transfer" ? "選擇發送人" : "選擇付款人" : dialog === "split" ? entry.draft?.type === "income" ? "款項分配" : "選擇分攤" : leaveTitle} onCancel={() => cancelDialog()} cancelDisabled={dialog === "create" && v2.busy} returnFocus={() => returnFocus.current}>
-      {dialog === "home-more" ? <div className="space-y-2">
+      {dialog === "home-more" ? <div data-home-more className="space-y-2">
         <Button tabIndex={0} variant="ghost" className="w-full justify-start text-foreground" onClick={() => openSurface("SETTINGS")}>帳本設定</Button>
         <Button tabIndex={0} variant="ghost" className="w-full justify-start text-foreground" onClick={() => {
           setDialog(quickEntryActive ? "quick-entry" : null);
