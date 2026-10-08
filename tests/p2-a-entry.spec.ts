@@ -1,4 +1,5 @@
-import { openEntry, outerIntentClick } from "./fixtures/p1-b-browser";
+import { homeAction } from "./fixtures/p1-b-browser";
+import { openEntry } from "./fixtures/p1-b-browser";
 import { expect, test, type Page, type TestInfo } from "@playwright/test";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { correctionDraft, newTransactionDraft, normalizeTransactionDraft, type DraftFields } from "../src/lib/v2-transaction-draft";
@@ -143,7 +144,7 @@ test("incomplete percentages do not pretend to be equal and default snapshot sta
   const { state } = await entryBrowser(page, { weights: { [OWNER]: "2", [PARTNER]: "1" } }); await fillEntry(page);
   await expect(split(page)).toContainText("你 2：另一半 1 分攤");
   state.weights = { [OWNER]: "1", [PARTNER]: "1" }; state.version += 1;
-  await outerIntentClick(page, page.getByLabel("重新整理帳本")); await expect(split(page)).toContainText("你 2：另一半 1 分攤");
+  await homeAction(page, "重新整理"); await expect(split(page)).toContainText("你 2：另一半 1 分攤");
   await setSplit(page, "percentage", ["", "100"]); await expect(join(page)).toBeDisabled(); await expect(split(page)).toContainText("分攤尚未完成");
   await setSplit(page, "percentage", ["33.333", "66.667"]); await expect(join(page)).toBeDisabled();
   await setSplit(page, "weights"); await expect(split(page)).toContainText("你 2：另一半 1 分攤");

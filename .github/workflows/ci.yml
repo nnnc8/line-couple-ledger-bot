@@ -139,6 +139,17 @@ jobs:
           retention-days: 14
           if-no-files-found: error
 
+      - name: Preserve P2-E Home evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: p2-e-browser-evidence-shard-${{ matrix.shard }}
+          path: |
+            output/playwright/p2-e/
+            output/playwright/results/p2-e-home-*/
+          retention-days: 14
+          if-no-files-found: error
+
       - name: Build
         run: pnpm build
         env:
