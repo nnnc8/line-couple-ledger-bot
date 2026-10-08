@@ -1,0 +1,279 @@
+{
+  "baseline": "1d52fd6371440833118dae0ac072256e00fd2764",
+  "productSha": "0d08bc2e9fe49ca172e7f6bbee7d7735b3a5d918",
+  "method": "20 samples per fixture, production next start, mocked LIFF/auth/APIs with 30ms delay per API; MutationObserver readiness to two requestAnimationFrames. Browser paint proxy; not physical LINE/4G or a production SLA. CLS excludes recent input. Long tasks reported without attribution; transport payload is decoded fixture JSON, no payload reduction claimed.",
+  "clock": "native browser performance.now and requestAnimationFrame; fixture fake clock disabled",
+  "scope": "Controlled local production-build browser comparison; not physical LINE, 4G, VoiceOver or a production SLA.",
+  "gzip": {
+    "before": 201954,
+    "after": 202629,
+    "delta": 675,
+    "target": 10240
+  },
+  "scenarios": [
+    {
+      "scenario": "empty",
+      "samplesPerStage": 20,
+      "before": {
+        "scenario": "empty",
+        "samples": 20,
+        "marks": {
+          "homeUsablePaintMs": {
+            "median": 238.5,
+            "p75": 242,
+            "p95": 246.69999998807907
+          },
+          "switchIdentityPaintMs": {
+            "median": 23.100000023841858,
+            "p75": 30.69999998807907,
+            "p95": 32.80000001192093
+          },
+          "switchUsablePaintMs": {
+            "median": 66.10000002384186,
+            "p75": 68.90000003576279,
+            "p95": 70.10000002384186
+          },
+          "quickEntryFeedbackPaintMs": {
+            "median": 17.399999976158142,
+            "p75": 18.80000001192093,
+            "p95": 37.69999998807907
+          }
+        },
+        "startupRequestCounts": [
+          5
+        ],
+        "initialRows": [
+          0
+        ],
+        "maxCLS": 0,
+        "maxLongTaskMs": 60
+      },
+      "after": {
+        "scenario": "empty",
+        "samples": 20,
+        "marks": {
+          "homeUsablePaintMs": {
+            "median": 240.19999998807907,
+            "p75": 243.69999998807907,
+            "p95": 248.5
+          },
+          "switchIdentityPaintMs": {
+            "median": 22.400000035762787,
+            "p75": 23.69999998807907,
+            "p95": 33
+          },
+          "switchUsablePaintMs": {
+            "median": 58.30000001192093,
+            "p75": 68.10000002384186,
+            "p95": 80
+          },
+          "quickEntryFeedbackPaintMs": {
+            "median": 28.30000001192093,
+            "p75": 36.10000002384186,
+            "p95": 38.60000002384186
+          }
+        },
+        "startupRequestCounts": [
+          5
+        ],
+        "initialRows": [
+          0
+        ],
+        "maxCLS": 0,
+        "maxLongTaskMs": 0
+      },
+      "decodedBootstrapBytes": {
+        "before": [
+          611
+        ],
+        "after": [
+          611
+        ]
+      },
+      "quickEntryRequestDelta": [
+        0
+      ],
+      "homeRequestDelta": 0
+    },
+    {
+      "scenario": "50-rows",
+      "samplesPerStage": 20,
+      "before": {
+        "scenario": "50-rows",
+        "samples": 20,
+        "marks": {
+          "homeUsablePaintMs": {
+            "median": 231,
+            "p75": 238,
+            "p95": 245.89999997615814
+          },
+          "switchIdentityPaintMs": {
+            "median": 26.099999964237213,
+            "p75": 27.80000001192093,
+            "p95": 30.5
+          },
+          "switchUsablePaintMs": {
+            "median": 60.89999997615814,
+            "p75": 62.60000002384186,
+            "p95": 69.39999997615814
+          },
+          "quickEntryFeedbackPaintMs": {
+            "median": 11.300000011920929,
+            "p75": 16.80000001192093,
+            "p95": 37.19999998807907
+          }
+        },
+        "startupRequestCounts": [
+          5
+        ],
+        "initialRows": [
+          20
+        ],
+        "maxCLS": 0,
+        "maxLongTaskMs": 0
+      },
+      "after": {
+        "scenario": "50-rows",
+        "samples": 20,
+        "marks": {
+          "homeUsablePaintMs": {
+            "median": 243.39999997615814,
+            "p75": 243.70000004768372,
+            "p95": 251.9000000357628
+          },
+          "switchIdentityPaintMs": {
+            "median": 25.899999976158142,
+            "p75": 27.80000001192093,
+            "p95": 32
+          },
+          "switchUsablePaintMs": {
+            "median": 60.80000001192093,
+            "p75": 63.200000047683716,
+            "p95": 67
+          },
+          "quickEntryFeedbackPaintMs": {
+            "median": 19.100000023841858,
+            "p75": 37.59999996423721,
+            "p95": 39.5
+          }
+        },
+        "startupRequestCounts": [
+          5
+        ],
+        "initialRows": [
+          20
+        ],
+        "maxCLS": 0,
+        "maxLongTaskMs": 0
+      },
+      "decodedBootstrapBytes": {
+        "before": [
+          28430
+        ],
+        "after": [
+          28430
+        ]
+      },
+      "quickEntryRequestDelta": [
+        0
+      ],
+      "homeRequestDelta": 0
+    },
+    {
+      "scenario": "mixed-200-rows",
+      "samplesPerStage": 20,
+      "before": {
+        "scenario": "mixed-200-rows",
+        "samples": 20,
+        "marks": {
+          "homeUsablePaintMs": {
+            "median": 234.60000002384186,
+            "p75": 243.5,
+            "p95": 248.79999995231628
+          },
+          "switchIdentityPaintMs": {
+            "median": 28,
+            "p75": 29,
+            "p95": 30.400000035762787
+          },
+          "switchUsablePaintMs": {
+            "median": 61,
+            "p75": 62.5,
+            "p95": 63.80000001192093
+          },
+          "quickEntryFeedbackPaintMs": {
+            "median": 11.399999976158142,
+            "p75": 11.900000035762787,
+            "p95": 16.69999998807907
+          }
+        },
+        "startupRequestCounts": [
+          5
+        ],
+        "initialRows": [
+          20
+        ],
+        "maxCLS": 0,
+        "maxLongTaskMs": 0
+      },
+      "after": {
+        "scenario": "mixed-200-rows",
+        "samples": 20,
+        "marks": {
+          "homeUsablePaintMs": {
+            "median": 242.39999997615814,
+            "p75": 246.19999998807907,
+            "p95": 248.39999997615814
+          },
+          "switchIdentityPaintMs": {
+            "median": 27.399999976158142,
+            "p75": 28.69999998807907,
+            "p95": 31
+          },
+          "switchUsablePaintMs": {
+            "median": 63.19999998807907,
+            "p75": 64.39999997615814,
+            "p95": 66.80000001192093
+          },
+          "quickEntryFeedbackPaintMs": {
+            "median": 11.299999952316284,
+            "p75": 13.399999976158142,
+            "p95": 22.600000023841858
+          }
+        },
+        "startupRequestCounts": [
+          5
+        ],
+        "initialRows": [
+          20
+        ],
+        "maxCLS": 0,
+        "maxLongTaskMs": 0
+      },
+      "decodedBootstrapBytes": {
+        "before": [
+          111852
+        ],
+        "after": [
+          111852
+        ]
+      },
+      "quickEntryRequestDelta": [
+        0
+      ],
+      "homeRequestDelta": 0
+    }
+  ],
+  "observations": {
+    "noNewBlockingRequest": true,
+    "noNewRuntimeDependency": true,
+    "initialDomRows": "0 for empty, 20 for both populated fixtures; same before/after",
+    "payloadReductionBytes": 0,
+    "encodedPayload": "unmeasured; mocked JSON is uncompressed",
+    "cls": "0 observed in all 120 native-clock samples, excluding recent input; not a universal zero-shift guarantee",
+    "longTasks": "One 60ms task observed in baseline empty run; browser observer does not assign a code stack. No >50ms task observed in candidate samples. No source attribution or universal no-jank claim.",
+    "allCandidateFeedbackMaxMs": 40.19999998807907,
+    "allCandidateSwitchIdentityMaxMs": 37.200000047683716,
+    "allCandidateStartupMaxMs": 265.80000001192093
+  }
+}

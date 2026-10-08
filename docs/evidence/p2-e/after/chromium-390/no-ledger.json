@@ -1,0 +1,57 @@
+{
+  "stage": "after",
+  "state": "no-ledger",
+  "baseURL": "http://localhost:3119",
+  "dom": {
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "scrollWidth": 390,
+    "textSize": "16px",
+    "header": {
+      "tag": "H1",
+      "text": "共同帳本",
+      "top": 16,
+      "bottom": 44,
+      "left": 20,
+      "right": 370,
+      "width": 350,
+      "height": 28,
+      "fontSize": "22px",
+      "lineHeight": "28px",
+      "weight": "700",
+      "color": "rgb(15, 23, 42)",
+      "background": "rgba(0, 0, 0, 0)",
+      "backgroundImage": "none"
+    },
+    "balance": null,
+    "nextPayer": null,
+    "cta": null,
+    "headerActions": [],
+    "initialDomRows": 0,
+    "fullyVisibleRows": 0,
+    "activeElement": "",
+    "dialogs": 0
+  },
+  "requests": [
+    {
+      "method": "POST",
+      "path": "/api/app/session",
+      "at": 7031.471167,
+      "finishedAt": 7037.389
+    },
+    {
+      "method": "GET",
+      "path": "/api/app/v2/context",
+      "at": 7037.418709,
+      "finishedAt": 7042.021709
+    },
+    {
+      "method": "GET",
+      "path": "/api/app/v2/ledgers",
+      "at": 7042.047167,
+      "finishedAt": 7043.201459
+    }
+  ]
+}

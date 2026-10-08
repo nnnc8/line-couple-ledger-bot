@@ -1,0 +1,32 @@
+[
+  {
+    "target": "body/header/icons",
+    "foreground": "#0f172a",
+    "background": "#f4f6fa",
+    "ratio": 16.500291903450677
+  },
+  {
+    "target": "next payer/statistics/timeline secondary",
+    "foreground": "#334155",
+    "background": "#f4f6fa",
+    "ratio": 9.57042389305903
+  },
+  {
+    "target": "Quick Entry text",
+    "foreground": "#ffffff",
+    "background": "#142a47",
+    "ratio": 14.46363968979878
+  },
+  {
+    "target": "focus ring",
+    "foreground": "#3b82f6",
+    "background": "#f4f6fa",
+    "ratio": 3.399317954298329
+  },
+  {
+    "target": "More close text",
+    "foreground": "#0f172a",
+    "background": "#ffffff",
+    "ratio": 17.85253496299567
+  }
+]

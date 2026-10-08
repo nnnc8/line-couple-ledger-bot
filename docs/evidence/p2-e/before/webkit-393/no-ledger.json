@@ -1,0 +1,57 @@
+{
+  "stage": "before",
+  "state": "no-ledger",
+  "baseURL": "http://localhost:3118",
+  "dom": {
+    "viewport": {
+      "width": 393,
+      "height": 852
+    },
+    "scrollWidth": 393,
+    "textSize": "16px",
+    "header": {
+      "tag": "H1",
+      "text": "帳本",
+      "top": 16,
+      "bottom": 44,
+      "left": 16,
+      "right": 377,
+      "width": 361,
+      "height": 28,
+      "fontSize": "20px",
+      "lineHeight": "28px",
+      "weight": "700",
+      "color": "rgb(15, 23, 42)",
+      "background": "rgba(0, 0, 0, 0)",
+      "backgroundImage": "none"
+    },
+    "balance": null,
+    "nextPayer": null,
+    "cta": null,
+    "headerActions": [],
+    "initialDomRows": 0,
+    "fullyVisibleRows": 0,
+    "activeElement": "",
+    "dialogs": 0
+  },
+  "requests": [
+    {
+      "method": "POST",
+      "path": "/api/app/session",
+      "at": 72873.365,
+      "finishedAt": 72881.637291
+    },
+    {
+      "method": "GET",
+      "path": "/api/app/v2/context",
+      "at": 72882.480583,
+      "finishedAt": 72887.867125
+    },
+    {
+      "method": "GET",
+      "path": "/api/app/v2/ledgers",
+      "at": 72888.142708,
+      "finishedAt": 72891.688875
+    }
+  ]
+}

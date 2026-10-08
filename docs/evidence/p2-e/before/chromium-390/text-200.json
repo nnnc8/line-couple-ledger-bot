@@ -1,0 +1,131 @@
+{
+  "stage": "before",
+  "state": "text-200",
+  "baseURL": "http://localhost:3118",
+  "dom": {
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "scrollWidth": 390,
+    "textSize": "32px",
+    "header": {
+      "tag": "H1",
+      "text": "我們一起記錄生活與旅行和家人共度每一天的共同帳本留存美好回憶直到未來每個重要時刻",
+      "top": 16,
+      "bottom": 384,
+      "left": 32,
+      "right": 358,
+      "width": 326,
+      "height": 368,
+      "fontSize": "40px",
+      "lineHeight": "56px",
+      "weight": "700",
+      "color": "rgb(15, 23, 42)",
+      "background": "rgba(0, 0, 0, 0)",
+      "backgroundImage": "none"
+    },
+    "balance": {
+      "tag": "DIV",
+      "text": "我們一起記錄生活與旅行和家人共度每一天的共同帳本留存美好回憶直到未來每個重要時刻你目前多付NT$900,719,925,474,099,300,000下次建議由 另一半 付款",
+      "top": 568,
+      "bottom": 1070,
+      "left": 32,
+      "right": 358,
+      "width": 326,
+      "height": 502,
+      "fontSize": "32px",
+      "lineHeight": "48px",
+      "weight": "400",
+      "color": "rgb(255, 255, 255)",
+      "background": "rgba(0, 0, 0, 0)",
+      "backgroundImage": "linear-gradient(140deg, rgb(23, 59, 99), rgb(12, 34, 64))"
+    },
+    "nextPayer": {
+      "tag": "P",
+      "text": "下次建議由 另一半 付款",
+      "top": 949,
+      "bottom": 1029,
+      "left": 73,
+      "right": 317,
+      "width": 244,
+      "height": 80,
+      "fontSize": "28px",
+      "lineHeight": "40px",
+      "weight": "400",
+      "color": "oklab(0.999994 0.0000455678 0.0000200868 / 0.75)",
+      "background": "rgba(0, 0, 0, 0)",
+      "backgroundImage": "none"
+    },
+    "cta": {
+      "tag": "BUTTON",
+      "text": "記一筆",
+      "top": 744,
+      "bottom": 832,
+      "left": 32,
+      "right": 358,
+      "width": 326,
+      "height": 88,
+      "fontSize": "32px",
+      "lineHeight": "48px",
+      "weight": "600",
+      "color": "rgb(255, 255, 255)",
+      "background": "rgb(20, 42, 71)",
+      "backgroundImage": "none"
+    },
+    "headerActions": [
+      {
+        "tag": "BUTTON",
+        "text": "我們一起記錄生活與旅行和家人共度每一天的共同帳本留存美好回憶直到未來每個重要時刻",
+        "top": 16,
+        "bottom": 384,
+        "left": 32,
+        "right": 358,
+        "width": 326,
+        "height": 368,
+        "fontSize": "40px",
+        "lineHeight": "56px",
+        "weight": "700",
+        "color": "rgb(15, 23, 42)",
+        "background": "rgba(0, 0, 0, 0)",
+        "backgroundImage": "none"
+      }
+    ],
+    "initialDomRows": 20,
+    "fullyVisibleRows": 0,
+    "activeElement": "",
+    "dialogs": 0
+  },
+  "requests": [
+    {
+      "method": "POST",
+      "path": "/api/app/session",
+      "at": 14140.769041,
+      "finishedAt": 14154.06075
+    },
+    {
+      "method": "GET",
+      "path": "/api/app/v2/context",
+      "at": 14156.487875,
+      "finishedAt": 14177.173208
+    },
+    {
+      "method": "GET",
+      "path": "/api/app/v2/ledgers",
+      "at": 14177.25625,
+      "finishedAt": 14207.64825
+    },
+    {
+      "method": "GET",
+      "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/bootstrap",
+      "at": 14218.202666,
+      "finishedAt": 14303.679375
+    },
+    {
+      "method": "GET",
+      "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories",
+      "at": 14303.74075,
+      "finishedAt": 14321.673416
+    }
+  ]
+}

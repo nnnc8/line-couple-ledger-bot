@@ -1,0 +1,163 @@
+{
+  "stage": "after",
+  "state": "text-200",
+  "baseURL": "http://localhost:3119",
+  "dom": {
+    "viewport": {
+      "width": 393,
+      "height": 852
+    },
+    "scrollWidth": 393,
+    "textSize": "32px",
+    "header": {
+      "tag": "H1",
+      "text": "我們一起記錄生活與旅行和家人共度每一天的共同帳本留存美好回憶直到未來每個重要時刻",
+      "top": 16,
+      "bottom": 440,
+      "left": 40,
+      "right": 353,
+      "width": 313,
+      "height": 424,
+      "fontSize": "44px",
+      "lineHeight": "56px",
+      "weight": "700",
+      "color": "rgb(15, 23, 42)",
+      "background": "rgba(0, 0, 0, 0)",
+      "backgroundImage": "none"
+    },
+    "balance": {
+      "tag": "SECTION",
+      "text": "你目前多付你目前多付 NT$900,719,925,474,099,312,345下次建議由 另一半 付款",
+      "top": 600,
+      "bottom": 1062,
+      "left": 40,
+      "right": 353,
+      "width": 313,
+      "height": 462,
+      "fontSize": "32px",
+      "lineHeight": "48px",
+      "weight": "400",
+      "color": "rgb(15, 23, 42)",
+      "background": "rgba(0, 0, 0, 0)",
+      "backgroundImage": "none"
+    },
+    "nextPayer": {
+      "tag": "P",
+      "text": "下次建議由 另一半 付款",
+      "top": 954,
+      "bottom": 1062,
+      "left": 40,
+      "right": 353,
+      "width": 313,
+      "height": 108,
+      "fontSize": "34px",
+      "lineHeight": "50px",
+      "weight": "400",
+      "color": "rgb(51, 65, 85)",
+      "background": "rgba(0, 0, 0, 0)",
+      "backgroundImage": "none"
+    },
+    "cta": {
+      "tag": "BUTTON",
+      "text": "記一筆",
+      "top": 752,
+      "bottom": 840,
+      "left": 40,
+      "right": 353,
+      "width": 313,
+      "height": 88,
+      "fontSize": "32px",
+      "lineHeight": "48px",
+      "weight": "600",
+      "color": "rgb(255, 255, 255)",
+      "background": "rgb(20, 42, 71)",
+      "backgroundImage": "none"
+    },
+    "headerActions": [
+      {
+        "tag": "BUTTON",
+        "text": "我們一起記錄生活與旅行和家人共度每一天的共同帳本留存美好回憶直到未來每個重要時刻",
+        "top": 16,
+        "bottom": 440,
+        "left": 40,
+        "right": 353,
+        "width": 313,
+        "height": 424,
+        "fontSize": "44px",
+        "lineHeight": "56px",
+        "weight": "700",
+        "color": "rgb(15, 23, 42)",
+        "background": "rgba(0, 0, 0, 0)",
+        "backgroundImage": "none"
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "top": 456,
+        "bottom": 544,
+        "left": 169,
+        "right": 257,
+        "width": 88,
+        "height": 88,
+        "fontSize": "32px",
+        "lineHeight": "48px",
+        "weight": "600",
+        "color": "rgb(15, 23, 42)",
+        "background": "rgba(0, 0, 0, 0)",
+        "backgroundImage": "none"
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "top": 456,
+        "bottom": 544,
+        "left": 265,
+        "right": 353,
+        "width": 88,
+        "height": 88,
+        "fontSize": "32px",
+        "lineHeight": "48px",
+        "weight": "600",
+        "color": "rgb(15, 23, 42)",
+        "background": "rgba(0, 0, 0, 0)",
+        "backgroundImage": "none"
+      }
+    ],
+    "initialDomRows": 20,
+    "fullyVisibleRows": 0,
+    "activeElement": "",
+    "dialogs": 0
+  },
+  "requests": [
+    {
+      "method": "POST",
+      "path": "/api/app/session",
+      "at": 11117.830334,
+      "finishedAt": 11123.617042
+    },
+    {
+      "method": "GET",
+      "path": "/api/app/v2/context",
+      "at": 11123.647417,
+      "finishedAt": 11127.7325
+    },
+    {
+      "method": "GET",
+      "path": "/api/app/v2/ledgers",
+      "at": 11127.869375,
+      "finishedAt": 11129.17825
+    },
+    {
+      "method": "GET",
+      "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/bootstrap",
+      "at": 11149.394417,
+      "finishedAt": 11151.445042
+    },
+    {
+      "method": "GET",
+      "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories",
+      "at": 11156.989042,
+      "finishedAt": 11158.062042
+    }
+  ]
+}

@@ -1,0 +1,139 @@
+$ tsx --test src/lib/v2-precutover.pg.test.ts
+TAP version 13
+# v2_notification_outbox_enqueued {
+#   transactionId: 'c4b6b91d-874b-48c1-86e6-1a693bf7dd73',
+#   dedupeKey: 'v2:transaction:c4b6b91d-874b-48c1-86e6-1a693bf7dd73:user:22222222-2222-4222-8222-222222222222'
+# }
+# Subtest: real PostgreSQL multi-command proposal failure rolls back every command and receipt side effect
+ok 1 - real PostgreSQL multi-command proposal failure rolls back every command and receipt side effect
+  ---
+  duration_ms: 97.467333
+  type: 'test'
+  ...
+# v2_notification_outbox_enqueued {
+#   transactionId: '78c1e2fa-f871-415c-af1d-7b06caa17a81',
+#   dedupeKey: 'v2:transaction:78c1e2fa-f871-415c-af1d-7b06caa17a81:user:22222222-2222-4222-8222-222222222222'
+# }
+# v2_notification_outbox_enqueued {
+#   transactionId: '2e57e462-9681-40ba-ade8-e0e2e8a70aa5',
+#   dedupeKey: 'v2:transaction:2e57e462-9681-40ba-ade8-e0e2e8a70aa5:user:22222222-2222-4222-8222-222222222222'
+# }
+# v2_notification_outbox_enqueued {
+#   transactionId: '870987b4-9aca-4dcc-83b5-c6cc94a97415',
+#   dedupeKey: 'v2:transaction:870987b4-9aca-4dcc-83b5-c6cc94a97415:user:22222222-2222-4222-8222-222222222222'
+# }
+# v2_notification_outbox_enqueued {
+#   transactionId: '57d5f718-f190-4d2d-abea-1b6d64d6f3a5',
+#   dedupeKey: 'v2:transaction:57d5f718-f190-4d2d-abea-1b6d64d6f3a5:user:22222222-2222-4222-8222-222222222222'
+# }
+# v2_notification_outbox_enqueued {
+#   transactionId: '8c37c9ae-3248-4fd4-95f8-ac4b42460663',
+#   dedupeKey: 'v2:transaction:8c37c9ae-3248-4fd4-95f8-ac4b42460663:user:22222222-2222-4222-8222-222222222222'
+# }
+# v2_notification_outbox_enqueued {
+#   transactionId: '135fb47f-518b-47b2-bc43-36b371780cae',
+#   dedupeKey: 'v2:transaction:135fb47f-518b-47b2-bc43-36b371780cae:user:22222222-2222-4222-8222-222222222222'
+# }
+# v2_notification_outbox_enqueued {
+#   transactionId: '311236f2-ab83-406c-b293-1d89b6f76a7d',
+#   dedupeKey: 'v2:transaction:311236f2-ab83-406c-b293-1d89b6f76a7d:user:22222222-2222-4222-8222-222222222222'
+# }
+# v2_notification_outbox_enqueued {
+#   transactionId: 'd8aa18bc-0e28-45c1-a4de-19766a4ce32b',
+#   dedupeKey: 'v2:transaction:d8aa18bc-0e28-45c1-a4de-19766a4ce32b:user:22222222-2222-4222-8222-222222222222'
+# }
+# v2_notification_outbox_enqueued {
+#   transactionId: 'ea4c261a-aed5-4480-9f53-54ad77f49a81',
+#   dedupeKey: 'v2:transaction:ea4c261a-aed5-4480-9f53-54ad77f49a81:user:22222222-2222-4222-8222-222222222222'
+# }
+# Subtest: migrated V2 schema exercises allocations, lineage, categories, recurring, cursor, receipt metadata, and CSV
+ok 2 - migrated V2 schema exercises allocations, lineage, categories, recurring, cursor, receipt metadata, and CSV
+  ---
+  duration_ms: 113.707458
+  type: 'test'
+  ...
+# v2_notification_outbox_enqueued {
+#   transactionId: '818ad742-f220-4e96-88cc-d2eb8cb00b9d',
+#   dedupeKey: 'v2:transaction:818ad742-f220-4e96-88cc-d2eb8cb00b9d:user:22222222-2222-4222-8222-222222222222'
+# }
+# Subtest: exact LINE webhook replay is one DB transaction/effect with a stable response
+ok 3 - exact LINE webhook replay is one DB transaction/effect with a stable response
+  ---
+  duration_ms: 26.618792
+  type: 'test'
+  ...
+# v2_line_inbox_business_failure { inboxId: '1', kind: 'RETRYABLE_PROCESSING_FAILURE' }
+# v2_line_inbox_business_failure { inboxId: '1', kind: 'RETRYABLE_PROCESSING_FAILURE' }
+# v2_line_inbox_business_failure { inboxId: '1', kind: 'RETRYABLE_PROCESSING_FAILURE' }
+# v2_notification_outbox_drain_start { limit: 1 }
+# v2_notification_outbox_drain_selected { limit: 1, recoveredLeases: 0, selected: 1 }
+# v2_notification_outbox_delivery_failure {
+#   outboxId: '12',
+#   dedupeKey: 'pg-precutover:0f36990e-a0d:outbox',
+#   attempt: 1,
+#   disposition: 'transient',
+#   error: 'LINE delivery HTTP 503'
+# }
+# v2_notification_outbox_drain_finish { limit: 1, selected: 1, sent: 0 }
+# v2_notification_outbox_drain_start { limit: 1 }
+# v2_notification_outbox_drain_selected { limit: 1, recoveredLeases: 0, selected: 1 }
+# v2_notification_outbox_delivery_failure {
+#   outboxId: '12',
+#   dedupeKey: 'pg-precutover:0f36990e-a0d:outbox',
+#   attempt: 2,
+#   disposition: 'transient',
+#   error: 'LINE delivery HTTP 503'
+# }
+# v2_notification_outbox_drain_finish { limit: 1, selected: 1, sent: 0 }
+# v2_notification_outbox_drain_start { limit: 1 }
+# v2_notification_outbox_drain_selected { limit: 1, recoveredLeases: 0, selected: 1 }
+# v2_notification_outbox_delivery_failure {
+#   outboxId: '12',
+#   dedupeKey: 'pg-precutover:0f36990e-a0d:outbox',
+#   attempt: 3,
+#   disposition: 'transient',
+#   error: 'LINE delivery HTTP 503'
+# }
+# v2_notification_outbox_drain_finish { limit: 1, selected: 1, sent: 0 }
+# Subtest: inbox/outbox failures recover leases, retry, dead-letter, and never replay finance
+ok 4 - inbox/outbox failures recover leases, retry, dead-letter, and never replay finance
+  ---
+  duration_ms: 63.547042
+  type: 'test'
+  ...
+# Subtest: worker retry SQL exposes the persisted first-failure delay
+ok 5 - worker retry SQL exposes the persisted first-failure delay
+  ---
+  duration_ms: 1.398
+  type: 'test'
+  ...
+# v2_notification_outbox_drain_start { limit: 2 }
+# v2_notification_outbox_drain_selected { limit: 2, recoveredLeases: 0, selected: 2 }
+# v2_notification_outbox_delivery_failure {
+#   outboxId: '13',
+#   dedupeKey: 'pg-precutover:0f36990e-a0d:outbox-permanent',
+#   attempt: 1,
+#   disposition: 'permanent',
+#   error: 'LINE delivery HTTP 400'
+# }
+# v2_notification_outbox_sent {
+#   outboxId: '14',
+#   dedupeKey: 'pg-precutover:0f36990e-a0d:outbox-later',
+#   attempt: 1
+# }
+# v2_notification_outbox_drain_finish { limit: 2, selected: 2, sent: 1 }
+# Subtest: permanent outbox failures dead-letter once, do not block later rows, and leases are exclusive
+ok 6 - permanent outbox failures dead-letter once, do not block later rows, and leases are exclusive
+  ---
+  duration_ms: 12.582292
+  type: 'test'
+  ...
+1..6
+# tests 6
+# suites 0
+# pass 6
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 11113.961208

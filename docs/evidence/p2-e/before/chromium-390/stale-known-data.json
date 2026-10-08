@@ -1,0 +1,137 @@
+{
+  "stage": "before",
+  "state": "stale-known-data",
+  "baseURL": "http://localhost:3118",
+  "dom": {
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "scrollWidth": 390,
+    "textSize": "16px",
+    "header": {
+      "tag": "H1",
+      "text": "共同生活",
+      "top": 16,
+      "bottom": 60,
+      "left": 16,
+      "right": 374,
+      "width": 358,
+      "height": 44,
+      "fontSize": "20px",
+      "lineHeight": "28px",
+      "weight": "700",
+      "color": "rgb(15, 23, 42)",
+      "background": "rgba(0, 0, 0, 0)",
+      "backgroundImage": "none"
+    },
+    "balance": {
+      "tag": "DIV",
+      "text": "共同生活你目前多付NT$2,480下次建議由 另一半 付款",
+      "top": 228,
+      "bottom": 396.9375,
+      "left": 16,
+      "right": 374,
+      "width": 358,
+      "height": 168.9375,
+      "fontSize": "16px",
+      "lineHeight": "24px",
+      "weight": "400",
+      "color": "rgb(255, 255, 255)",
+      "background": "rgba(0, 0, 0, 0)",
+      "backgroundImage": "linear-gradient(140deg, rgb(23, 59, 99), rgb(12, 34, 64))"
+    },
+    "nextPayer": {
+      "tag": "P",
+      "text": "下次建議由 另一半 付款",
+      "top": 355.9375,
+      "bottom": 375.9375,
+      "left": 37,
+      "right": 353,
+      "width": 316,
+      "height": 20,
+      "fontSize": "14px",
+      "lineHeight": "20px",
+      "weight": "400",
+      "color": "oklab(0.999994 0.0000455678 0.0000200868 / 0.75)",
+      "background": "rgba(0, 0, 0, 0)",
+      "backgroundImage": "none"
+    },
+    "cta": {
+      "tag": "BUTTON",
+      "text": "記一筆",
+      "top": 780,
+      "bottom": 832,
+      "left": 16,
+      "right": 374,
+      "width": 358,
+      "height": 52,
+      "fontSize": "16px",
+      "lineHeight": "24px",
+      "weight": "600",
+      "color": "rgb(255, 255, 255)",
+      "background": "rgb(20, 42, 71)",
+      "backgroundImage": "none"
+    },
+    "headerActions": [
+      {
+        "tag": "BUTTON",
+        "text": "共同生活",
+        "top": 16,
+        "bottom": 60,
+        "left": 16,
+        "right": 118.40625,
+        "width": 102.40625,
+        "height": 44,
+        "fontSize": "20px",
+        "lineHeight": "28px",
+        "weight": "700",
+        "color": "rgb(15, 23, 42)",
+        "background": "rgba(0, 0, 0, 0)",
+        "backgroundImage": "none"
+      }
+    ],
+    "initialDomRows": 20,
+    "fullyVisibleRows": 3,
+    "activeElement": "",
+    "dialogs": 0
+  },
+  "requests": [
+    {
+      "method": "POST",
+      "path": "/api/app/session",
+      "at": 10099.695833,
+      "finishedAt": 10123.82125
+    },
+    {
+      "method": "GET",
+      "path": "/api/app/v2/context",
+      "at": 10123.874083,
+      "finishedAt": 10134.869916
+    },
+    {
+      "method": "GET",
+      "path": "/api/app/v2/ledgers",
+      "at": 10134.941041,
+      "finishedAt": 10142.014166
+    },
+    {
+      "method": "GET",
+      "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/bootstrap",
+      "at": 10163.514791,
+      "finishedAt": 10172.944625
+    },
+    {
+      "method": "GET",
+      "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories",
+      "at": 10183.5975,
+      "finishedAt": 10189.884208
+    },
+    {
+      "method": "GET",
+      "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/bootstrap",
+      "at": 10295.159041,
+      "finishedAt": 10312.719416
+    }
+  ]
+}

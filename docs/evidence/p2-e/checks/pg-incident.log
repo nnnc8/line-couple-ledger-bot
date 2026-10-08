@@ -1,0 +1,41 @@
+$ tsx --test src/lib/v2-category-migration.pg.test.ts src/lib/v2-incident-freeze.test.ts
+TAP version 13
+# Subtest: old category order fails with SQLSTATE 55006 and corrected order plus runtime grant are atomic
+ok 1 - old category order fails with SQLSTATE 55006 and corrected order plus runtime grant are atomic
+  ---
+  duration_ms: 42.144083
+  type: 'test'
+  ...
+# Subtest: incident freeze error has the stable maintenance response
+ok 2 - incident freeze error has the stable maintenance response
+  ---
+  duration_ms: 0.555875
+  type: 'test'
+  ...
+# Subtest: incident freeze detection does not classify ordinary errors
+ok 3 - incident freeze detection does not classify ordinary errors
+  ---
+  duration_ms: 0.074209
+  type: 'test'
+  ...
+# Subtest: bootstrap-only mode is explicit and disabled by default
+ok 4 - bootstrap-only mode is explicit and disabled by default
+  ---
+  duration_ms: 0.061375
+  type: 'test'
+  ...
+# Subtest: bootstrap-only mode allows only schema-compatible V2 reads
+ok 5 - bootstrap-only mode allows only schema-compatible V2 reads
+  ---
+  duration_ms: 0.116667
+  type: 'test'
+  ...
+1..5
+# tests 5
+# suites 0
+# pass 5
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 270.16625

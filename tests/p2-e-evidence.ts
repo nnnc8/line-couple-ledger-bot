@@ -65,6 +65,10 @@ async function main() {
           if (state.text) await page.addStyleTag({ content: "html { font-size: 200% !important; }" });
           await capture(page, `${directory}/${state.name}`, fixture, state.name);
           if (stage === "after" && state.name === "self-positive") { await page.getByTestId("home-more-trigger").click(); await capture(page, `${directory}/home-more`, fixture, "home-more"); }
+          if (stage === "after" && state.text) {
+            await page.getByTestId("ledger-balance").scrollIntoViewIfNeeded();
+            await capture(page, `${directory}/text-200-scrolled`, fixture, "text-200-scrolled");
+          }
         } finally { hold.release(); await context.close(); }
       }
     }

@@ -1,0 +1,368 @@
+$ tsx scripts/test-v3-0-pg.ts
+TAP version 13
+# Subtest: F1 refusal: zero financial write
+ok 1 - F1 refusal: zero financial write
+  ---
+  duration_ms: 79.465167
+  type: 'test'
+  ...
+# Subtest: F1 negation: zero financial write
+ok 2 - F1 negation: zero financial write
+  ---
+  duration_ms: 2.405458
+  type: 'test'
+  ...
+# Subtest: F1 multi-command: zero financial write
+ok 3 - F1 multi-command: zero financial write
+  ---
+  duration_ms: 1.034459
+  type: 'test'
+  ...
+# Subtest: F1 decimal: zero financial write
+ok 4 - F1 decimal: zero financial write
+  ---
+  duration_ms: 1.251709
+  type: 'test'
+  ...
+# Subtest: F1 foreign currency: zero financial write
+ok 5 - F1 foreign currency: zero financial write
+  ---
+  duration_ms: 1.328416
+  type: 'test'
+  ...
+# Subtest: F1 date-like integers: zero financial write
+ok 6 - F1 date-like integers: zero financial write
+  ---
+  duration_ms: 0.887
+  type: 'test'
+  ...
+# Subtest: F1 ambiguous numbers: zero financial write
+ok 7 - F1 ambiguous numbers: zero financial write
+  ---
+  duration_ms: 0.74575
+  type: 'test'
+  ...
+# Subtest: F1 unsupported kind: zero financial write
+ok 8 - F1 unsupported kind: zero financial write
+  ---
+  duration_ms: 1.627375
+  type: 'test'
+  ...
+# Subtest: F1 missing payer: zero financial write
+ok 9 - F1 missing payer: zero financial write
+  ---
+  duration_ms: 1.365209
+  type: 'test'
+  ...
+# Subtest: F1 unknown shares: zero financial write
+ok 10 - F1 unknown shares: zero financial write
+  ---
+  duration_ms: 1.104208
+  type: 'test'
+  ...
+# Subtest: F1 relative date: zero financial write
+ok 11 - F1 relative date: zero financial write
+  ---
+  duration_ms: 1.158292
+  type: 'test'
+  ...
+# Subtest: F1 refund with old payer: zero financial write
+ok 12 - F1 refund with old payer: zero financial write
+  ---
+  duration_ms: 0.633791
+  type: 'test'
+  ...
+# v2_notification_outbox_enqueued {
+#   transactionId: '5937f88b-260b-4435-ac5e-50188e12122c',
+#   dedupeKey: 'v2:transaction:5937f88b-260b-4435-ac5e-50188e12122c:user:22222222-2222-4222-8222-222222222222'
+# }
+# v2_notification_outbox_enqueued {
+#   transactionId: '2fefe230-f76e-4db1-9f36-90a06c4e3e58',
+#   dedupeKey: 'v2:transaction:2fefe230-f76e-4db1-9f36-90a06c4e3e58:user:22222222-2222-4222-8222-222222222222'
+# }
+# v2_notification_outbox_enqueued {
+#   transactionId: 'b62eedf6-e286-4023-9493-6df11d60aa7f',
+#   dedupeKey: 'v2:transaction:b62eedf6-e286-4023-9493-6df11d60aa7f:user:22222222-2222-4222-8222-222222222222'
+# }
+# Subtest: F1 supported deterministic expense, income and transfer preserve normal entry
+ok 13 - F1 supported deterministic expense, income and transfer preserve normal entry
+  ---
+  duration_ms: 125.286875
+  type: 'test'
+  ...
+# Subtest: F1 audio and AI-derived sources never inherit direct-save eligibility
+ok 14 - F1 audio and AI-derived sources never inherit direct-save eligibility
+  ---
+  duration_ms: 31.300334
+  type: 'test'
+  ...
+# Subtest: F1 explicit Ledger must match exactly, never by substring
+ok 15 - F1 explicit Ledger must match exactly, never by substring
+  ---
+  duration_ms: 2.032041
+  type: 'test'
+  ...
+# v2_notification_outbox_enqueued {
+#   transactionId: '718d2165-a585-4690-aca2-be9190335c9d',
+#   dedupeKey: 'v2:transaction:718d2165-a585-4690-aca2-be9190335c9d:user:22222222-2222-4222-8222-222222222222'
+# }
+# Subtest: F4 same scope replay and concurrent duplicate have one canonical effect
+ok 16 - F4 same scope replay and concurrent duplicate have one canonical effect
+  ---
+  duration_ms: 23.741875
+  type: 'test'
+  ...
+# v2_notification_outbox_enqueued {
+#   transactionId: '711e69ff-b519-4e83-8990-49af7abb3753',
+#   dedupeKey: 'v2:transaction:711e69ff-b519-4e83-8990-49af7abb3753:user:22222222-2222-4222-8222-222222222222'
+# }
+# v2_notification_outbox_enqueued {
+#   transactionId: '8ef7b924-3f1c-4e2f-bedf-26acaf6e6148',
+#   dedupeKey: 'v2:transaction:8ef7b924-3f1c-4e2f-bedf-26acaf6e6148:user:22222222-2222-4222-8222-222222222222'
+# }
+# Subtest: F4 same key in another Ledger must not replay the first Ledger
+ok 17 - F4 same key in another Ledger must not replay the first Ledger
+  ---
+  duration_ms: 33.777708
+  type: 'test'
+  ...
+# v2_notification_outbox_enqueued {
+#   transactionId: '9f9d97ba-ab8e-495c-9826-6118199f5654',
+#   dedupeKey: 'v2:transaction:9f9d97ba-ab8e-495c-9826-6118199f5654:user:22222222-2222-4222-8222-222222222222'
+# }
+# v2_notification_outbox_enqueued {
+#   transactionId: '1c2e0794-af9f-4459-bfd7-ecbee200d43f',
+#   dedupeKey: 'v2:transaction:1c2e0794-af9f-4459-bfd7-ecbee200d43f:user:22222222-2222-4222-8222-222222222222'
+# }
+# Subtest: F4 conflicting payload has no effect; another operation has its own scope
+ok 18 - F4 conflicting payload has no effect; another operation has its own scope
+  ---
+  duration_ms: 25.102041
+  type: 'test'
+  ...
+# v2_notification_outbox_enqueued {
+#   transactionId: '1f06003a-4e00-4e40-9bc5-0fce221409f6',
+#   dedupeKey: 'v2:transaction:1f06003a-4e00-4e40-9bc5-0fce221409f6:user:22222222-2222-4222-8222-222222222222'
+# }
+# Subtest: F4 receipt replay cannot bypass actor membership
+ok 19 - F4 receipt replay cannot bypass actor membership
+  ---
+  duration_ms: 10.708834
+  type: 'test'
+  ...
+# Subtest: PG canonical insert rollback is atomic when an event insert fails
+ok 20 - PG canonical insert rollback is atomic when an event insert fails
+  ---
+  duration_ms: 11.739875
+  type: 'test'
+  ...
+# Subtest: PG writer active-plane, mutation fence and maintenance prevent financial effects
+ok 21 - PG writer active-plane, mutation fence and maintenance prevent financial effects
+  ---
+  duration_ms: 12.863917
+  type: 'test'
+  ...
+# v2_line_inbox_business_failure { inboxId: '1', kind: 'RETRYABLE_PROCESSING_FAILURE' }
+# Subtest: F5 temporary DB failure remains retryable
+ok 22 - F5 temporary DB failure remains retryable
+  ---
+  duration_ms: 11.130041
+  type: 'test'
+  ...
+# v2_line_inbox_business_failure { inboxId: '2', kind: 'RETRYABLE_PROCESSING_FAILURE' }
+# Subtest: F5 provider timeout remains retryable
+ok 23 - F5 provider timeout remains retryable
+  ---
+  duration_ms: 13.486125
+  type: 'test'
+  ...
+# Subtest: F5 explicit clarification is terminal without financial writes
+ok 24 - F5 explicit clarification is terminal without financial writes
+  ---
+  duration_ms: 9.54875
+  type: 'test'
+  ...
+# v2_notification_outbox_enqueued {
+#   transactionId: '0a2f8845-9e10-4e2e-92dd-20de2583fa87',
+#   dedupeKey: 'v2:transaction:0a2f8845-9e10-4e2e-92dd-20de2583fa87:user:22222222-2222-4222-8222-222222222222'
+# }
+# v2_line_inbox_reply_failure {
+#   inboxId: '4',
+#   disposition: 'transient',
+#   operationError: 'LINE delivery network failure'
+# }
+# Subtest: F5 successful accounting survives reply failure and duplicate webhook
+ok 25 - F5 successful accounting survives reply failure and duplicate webhook
+  ---
+  duration_ms: 44.618959
+  type: 'test'
+  ...
+# Subtest: F5 maintenance preserves an unclaimed event and attempt budget
+ok 26 - F5 maintenance preserves an unclaimed event and attempt budget
+  ---
+  duration_ms: 3.252125
+  type: 'test'
+  ...
+# v2_notification_outbox_enqueued {
+#   transactionId: '92d27bc3-1d0e-4e4b-a30c-32834e421749',
+#   dedupeKey: 'v2:transaction:92d27bc3-1d0e-4e4b-a30c-32834e421749:user:11111111-1111-4111-8111-111111111111'
+# }
+# Subtest: P1-B frozen explicit 681 shares survive changed defaults, replay once, and reject changed body
+ok 27 - P1-B frozen explicit 681 shares survive changed defaults, replay once, and reject changed body
+  ---
+  duration_ms: 33.076917
+  type: 'test'
+  ...
+# v2_notification_outbox_enqueued {
+#   transactionId: 'a4998e9e-84e0-45b4-82e0-641cc246c7dc',
+#   dedupeKey: 'v2:transaction:a4998e9e-84e0-45b4-82e0-641cc246c7dc:user:22222222-2222-4222-8222-222222222222'
+# }
+# v2_notification_outbox_enqueued {
+#   transactionId: '88634f29-2b47-48e3-968b-ee29725a0d37',
+#   dedupeKey: 'v2:transaction:88634f29-2b47-48e3-968b-ee29725a0d37:user:11111111-1111-4111-8111-111111111111'
+# }
+# Subtest: P1-B correction exact command replays original replacement despite stale expectedVersion
+ok 28 - P1-B correction exact command replays original replacement despite stale expectedVersion
+  ---
+  duration_ms: 46.172292
+  type: 'test'
+  ...
+# v2_notification_outbox_enqueued {
+#   transactionId: 'b5ce0562-a959-458e-aee1-02344a033422',
+#   dedupeKey: 'v2:transaction:b5ce0562-a959-458e-aee1-02344a033422:user:22222222-2222-4222-8222-222222222222'
+# }
+# v2_notification_outbox_enqueued {
+#   transactionId: '7ae9786b-17b3-45e5-bd7a-e4b450a05801',
+#   dedupeKey: 'v2:transaction:7ae9786b-17b3-45e5-bd7a-e4b450a05801:user:22222222-2222-4222-8222-222222222222'
+# }
+# Subtest: P1-B replacement rollback leaves original posted and no replacement or receipt
+ok 29 - P1-B replacement rollback leaves original posted and no replacement or receipt
+  ---
+  duration_ms: 44.30025
+  type: 'test'
+  ...
+# v2_notification_outbox_enqueued {
+#   transactionId: '4359074f-4e53-4c8e-a903-994948ed3d79',
+#   dedupeKey: 'v2:transaction:4359074f-4e53-4c8e-a903-994948ed3d79:user:22222222-2222-4222-8222-222222222222'
+# }
+# Subtest: F4 canonical spelling and participant order replay the same transaction
+ok 30 - F4 canonical spelling and participant order replay the same transaction
+  ---
+  duration_ms: 8.210625
+  type: 'test'
+  ...
+# v2_notification_outbox_enqueued {
+#   transactionId: 'f52b8ab3-cf71-4950-95b1-ba7b542749db',
+#   dedupeKey: 'v2:transaction:f52b8ab3-cf71-4950-95b1-ba7b542749db:user:22222222-2222-4222-8222-222222222222'
+# }
+# Subtest: F4 historical receipts replay in place; ambiguous Ledger/actor reuse fails closed
+ok 31 - F4 historical receipts replay in place; ambiguous Ledger/actor reuse fails closed
+  ---
+  duration_ms: 28.194583
+  type: 'test'
+  ...
+# v2_notification_outbox_enqueued {
+#   transactionId: '43110ca6-6ffb-4ecb-be77-0b2c4ea60628',
+#   dedupeKey: 'v2:transaction:43110ca6-6ffb-4ecb-be77-0b2c4ea60628:user:22222222-2222-4222-8222-222222222222'
+# }
+# v2_notification_outbox_enqueued {
+#   transactionId: '5225e669-a982-4f96-aac6-8ca320e81d85',
+#   dedupeKey: 'v2:transaction:5225e669-a982-4f96-aac6-8ca320e81d85:user:22222222-2222-4222-8222-222222222222'
+# }
+# Subtest: F4 every receipt-backed operation preserves authorized retry and resource scope
+ok 32 - F4 every receipt-backed operation preserves authorized retry and resource scope
+  ---
+  duration_ms: 81.208917
+  type: 'test'
+  ...
+# v2_line_inbox_business_failure { inboxId: '7', kind: 'PERMANENT_BUSINESS_FAILURE' }
+# Subtest: F5 malformed input is a permanent business failure without a provider or write
+ok 33 - F5 malformed input is a permanent business failure without a provider or write
+  ---
+  duration_ms: 5.033416
+  type: 'test'
+  ...
+# Subtest: PG inbox claim token prevents an old worker from overwriting a new lease
+ok 34 - PG inbox claim token prevents an old worker from overwriting a new lease
+  ---
+  duration_ms: 8.313959
+  type: 'test'
+  ...
+# Subtest: PG all canonical transactions retain payment/share totals and independent zero-sum balances
+ok 35 - PG all canonical transactions retain payment/share totals and independent zero-sum balances
+  ---
+  duration_ms: 1.841
+  type: 'test'
+  ...
+# Subtest: F1 real audio dispatch preserves the STT source and creates only a proposal
+ok 36 - F1 real audio dispatch preserves the STT source and creates only a proposal
+  ---
+  duration_ms: 15.448792
+  type: 'test'
+  ...
+# Subtest: F1 AI-generated candidate output creates a proposal, never a canonical transaction
+ok 37 - F1 AI-generated candidate output creates a proposal, never a canonical transaction
+  ---
+  duration_ms: 8.476958
+  type: 'test'
+  ...
+# v2_line_inbox_business_failure { inboxId: '10', kind: 'RETRYABLE_PROCESSING_FAILURE' }
+# v2_notification_outbox_enqueued {
+#   transactionId: '90016555-87e1-4ac1-9c4e-e03325ff08df',
+#   dedupeKey: 'v2:transaction:90016555-87e1-4ac1-9c4e-e03325ff08df:user:22222222-2222-4222-8222-222222222222'
+# }
+# Subtest: F5 temporary DB failure recovers to exactly one canonical effect
+ok 38 - F5 temporary DB failure recovers to exactly one canonical effect
+  ---
+  duration_ms: 18.90625
+  type: 'test'
+  ...
+# v2_notification_outbox_enqueued {
+#   transactionId: '1a53446c-1254-405b-8613-d79fbfe7d369',
+#   dedupeKey: 'v2:transaction:1a53446c-1254-405b-8613-d79fbfe7d369:user:22222222-2222-4222-8222-222222222222'
+# }
+# Subtest: F5 freeze racing a claim releases the lease without consuming an attempt
+ok 39 - F5 freeze racing a claim releases the lease without consuming an attempt
+  ---
+  duration_ms: 22.691417
+  type: 'test'
+  ...
+# v2_notification_outbox_enqueued {
+#   transactionId: '4776c788-dff7-4689-b0bc-f93fae41a21d',
+#   dedupeKey: 'v2:transaction:4776c788-dff7-4689-b0bc-f93fae41a21d:user:22222222-2222-4222-8222-222222222222'
+# }
+# Subtest: F4 LINE event identity cannot create a second effect after its active Ledger changes
+ok 40 - F4 LINE event identity cannot create a second effect after its active Ledger changes
+  ---
+  duration_ms: 18.788792
+  type: 'test'
+  ...
+# v2_notification_outbox_enqueued {
+#   transactionId: 'e8003cac-5017-4fac-a41e-51e1964834d9',
+#   dedupeKey: 'v2:transaction:e8003cac-5017-4fac-a41e-51e1964834d9:user:22222222-2222-4222-8222-222222222222'
+# }
+# Subtest: PG Ledger balances are independent and remain zero-sum after a canonical write
+ok 41 - PG Ledger balances are independent and remain zero-sum after a canonical write
+  ---
+  duration_ms: 11.178625
+  type: 'test'
+  ...
+# v2_notification_outbox_enqueued {
+#   transactionId: 'e90f3b1f-27fd-48fb-8e15-bf23fca22c3c',
+#   dedupeKey: 'v2:transaction:e90f3b1f-27fd-48fb-8e15-bf23fca22c3c:user:22222222-2222-4222-8222-222222222222'
+# }
+# Subtest: F5 commit-before-ack replay remains processed after the active Ledger changes
+ok 42 - F5 commit-before-ack replay remains processed after the active Ledger changes
+  ---
+  duration_ms: 24.874458
+  type: 'test'
+  ...
+1..42
+# tests 42
+# suites 0
+# pass 42
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 12052.158875

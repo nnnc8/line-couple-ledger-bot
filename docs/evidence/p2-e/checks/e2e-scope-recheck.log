@@ -1,0 +1,53 @@
+$ playwright test tests/v2-liff.spec.ts --grep V3-0 --workers=2
+
+[WebServer] (node:23355) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `pnpm --trace-warnings ...` to show where the warning was created)
+
+[WebServer] (node:23368) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+[WebServer] (node:23374) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+[WebServer] (node:23384) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 24 tests using 2 workers
+
+
+(node:23397) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+(node:23396) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+[1/24] [chromium-iphone] › tests/v2-liff.spec.ts:667:5 › V3-0 ignores reversed bootstrap responses after explicit draft discard
+[2/24] [webkit-iphone] › tests/v2-liff.spec.ts:667:5 › V3-0 ignores reversed bootstrap responses after explicit draft discard
+[3/24] [chromium-iphone] › tests/v2-liff.spec.ts:690:5 › V3-0 rapid A B A switches ignore the first A generation and stale errors
+[4/24] [webkit-iphone] › tests/v2-liff.spec.ts:690:5 › V3-0 rapid A B A switches ignore the first A generation and stale errors
+[5/24] [webkit-iphone] › tests/v2-liff.spec.ts:709:7 › V3-0 ignores reversed statistics responses across Ledgers
+[6/24] [chromium-iphone] › tests/v2-liff.spec.ts:709:7 › V3-0 ignores reversed statistics responses across Ledgers
+[7/24] [chromium-iphone] › tests/v2-liff.spec.ts:709:7 › V3-0 ignores reversed categories responses across Ledgers
+[8/24] [webkit-iphone] › tests/v2-liff.spec.ts:709:7 › V3-0 ignores reversed categories responses across Ledgers
+[9/24] [webkit-iphone] › tests/v2-liff.spec.ts:709:7 › V3-0 ignores reversed recurring responses across Ledgers
+[10/24] [chromium-iphone] › tests/v2-liff.spec.ts:709:7 › V3-0 ignores reversed recurring responses across Ledgers
+[11/24] [chromium-iphone] › tests/v2-liff.spec.ts:709:7 › V3-0 ignores reversed transactions responses across Ledgers
+[12/24] [webkit-iphone] › tests/v2-liff.spec.ts:709:7 › V3-0 ignores reversed transactions responses across Ledgers
+[13/24] [chromium-iphone] › tests/v2-liff.spec.ts:737:5 › V3-0 switching Ledger after a deep link stays on the manual selection
+[14/24] [webkit-iphone] › tests/v2-liff.spec.ts:737:5 › V3-0 switching Ledger after a deep link stays on the manual selection
+[15/24] [chromium-iphone] › tests/v2-liff.spec.ts:755:5 › V3-0 guards a late A save, then explicit discard cannot reuse A feedback or key in B
+[16/24] [webkit-iphone] › tests/v2-liff.spec.ts:755:5 › V3-0 guards a late A save, then explicit discard cannot reuse A feedback or key in B
+
+(node:23887) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+[17/24] [chromium-wide] › tests/v2-liff.spec.ts:667:5 › V3-0 ignores reversed bootstrap responses after explicit draft discard
+[18/24] [chromium-wide] › tests/v2-liff.spec.ts:690:5 › V3-0 rapid A B A switches ignore the first A generation and stale errors
+[19/24] [chromium-wide] › tests/v2-liff.spec.ts:709:7 › V3-0 ignores reversed statistics responses across Ledgers
+[20/24] [chromium-wide] › tests/v2-liff.spec.ts:709:7 › V3-0 ignores reversed categories responses across Ledgers
+[21/24] [chromium-wide] › tests/v2-liff.spec.ts:709:7 › V3-0 ignores reversed recurring responses across Ledgers
+[22/24] [chromium-wide] › tests/v2-liff.spec.ts:709:7 › V3-0 ignores reversed transactions responses across Ledgers
+[23/24] [chromium-wide] › tests/v2-liff.spec.ts:737:5 › V3-0 switching Ledger after a deep link stays on the manual selection
+[24/24] [chromium-wide] › tests/v2-liff.spec.ts:755:5 › V3-0 guards a late A save, then explicit discard cannot reuse A feedback or key in B
+  24 passed (38.1s)

@@ -1,0 +1,1153 @@
+$ playwright test --workers=4
+
+[WebServer] (node:5777) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `pnpm --trace-warnings ...` to show where the warning was created)
+
+[WebServer] (node:5785) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+[WebServer] (node:5791) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+[WebServer] (node:5867) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 973 tests using 4 workers
+
+
+(node:5879) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+(node:5881) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+(node:5878) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+(node:5880) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+[1/973] [chromium-iphone] › tests/p2-b-identity.spec.ts:23:5 › name is the single Home identity; switch A B A reuses canonical scope
+[2/973] [chromium-iphone] › tests/p2-a-entry.spec.ts:57:35 › command body matches P1-B and kernel: default-simple-1-1
+[3/973] [chromium-iphone] › tests/p1-b-entry.spec.ts:27:5 › normal create commits row, balance and next payer together without a bootstrap refresh
+[4/973] [chromium-iphone] › tests/p1-c-navigation.spec.ts:17:5 › 01 normal launch replaces current URL with explicit canonical Ledger
+[5/973] [chromium-iphone] › tests/p1-c-navigation.spec.ts:18:5 › 02 explicit B deep link reads only B
+[6/973] [chromium-iphone] › tests/p2-b-identity.spec.ts:53:5 › deep-link viewed B and LINE default A remain distinct and selected is announced
+[7/973] [chromium-iphone] › tests/p2-a-entry.spec.ts:57:35 › command body matches P1-B and kernel: non-50-50-second-member-partner-2-1
+[8/973] [chromium-iphone] › tests/p1-b-entry.spec.ts:42:5 › double tap owns one operation and guards switching while submitting
+[9/973] [chromium-iphone] › tests/p1-c-navigation.spec.ts:19:130 › 03 nonexistent explicit target offers bounded recovery
+[10/973] [chromium-iphone] › tests/p2-b-identity.spec.ts:66:5 › activation syncing and failure stay bounded while B remains readable
+[11/973] [chromium-iphone] › tests/p1-c-navigation.spec.ts:19:130 › 04 unauthorized explicit target offers bounded recovery
+[12/973] [chromium-iphone] › tests/p1-b-entry.spec.ts:57:5 › commit then dropped response reloads UNKNOWN and explicit replay returns original result with identical body/key
+[13/973] [chromium-iphone] › tests/p2-a-entry.spec.ts:57:35 › command body matches P1-B and kernel: both-payers-second-member-0-1
+[14/973] [chromium-iphone] › tests/p1-c-navigation.spec.ts:20:5 › 05 invalid explicit B never paints A content
+[15/973] [chromium-iphone] › tests/p2-b-identity.spec.ts:88:39 › 40 character identities stay complete and wrap at 100% text
+[16/973] [chromium-iphone] › tests/p1-c-navigation.spec.ts:21:5 › 06 transaction with correct Ledger reconstructs and focuses detail
+[17/973] [chromium-iphone] › tests/p2-a-entry.spec.ts:57:35 › command body matches P1-B and kernel: equal-second-member
+[18/973] [chromium-iphone] › tests/p1-b-entry.spec.ts:75:5 › compatible partial commit plus GET 500 stays COMMITTED, including reload and read-only retry
+[19/973] [chromium-iphone] › tests/p1-c-navigation.spec.ts:22:5 › 07 transaction with wrong Ledger shows link error without guessing another Ledger
+[20/973] [chromium-iphone] › tests/p2-b-identity.spec.ts:88:39 › 40 character identities stay complete and wrap at 200% text
+[21/973] [chromium-iphone] › tests/p1-c-navigation.spec.ts:23:5 › 08 transaction without Ledger does not scan for ownership
+[22/973] [chromium-iphone] › tests/p2-a-entry.spec.ts:57:35 › command body matches P1-B and kernel: percentage-fractional
+[23/973] [chromium-iphone] › tests/p1-c-navigation.spec.ts:24:5 › 09 app row pushes detail and Back restores row focus
+[24/973] [chromium-iphone] › tests/p2-b-identity.spec.ts:116:5 › 40 unbroken Latin characters wrap without horizontal scroll at 200%
+[25/973] [chromium-iphone] › tests/p1-b-entry.spec.ts:86:63 › malformed 2xx cannot claim success
+[26/973] [chromium-iphone] › tests/p2-a-entry.spec.ts:57:35 › command body matches P1-B and kernel: exact-partner-payer
+[27/973] [chromium-iphone] › tests/p2-b-identity.spec.ts:126:5 › keyboard enters titled dialog, moves options without writes, selects and returns focus
+[28/973] [chromium-iphone] › tests/p1-c-navigation.spec.ts:25:5 › 10 direct detail visible Back replaces to Home without leaving product
+[29/973] [chromium-iphone] › tests/p1-b-entry.spec.ts:86:63 › wrong-scope 2xx cannot claim success
+[30/973] [chromium-iphone] › tests/p1-c-navigation.spec.ts:26:5 › 11 reload detail preserves URL and drops stale app origin
+[31/973] [chromium-iphone] › tests/p2-b-identity.spec.ts:149:5 › create cancel returns to the same switcher and never changes scope or history
+[32/973] [chromium-iphone] › tests/p1-b-entry.spec.ts:92:5 › storage unavailable or incorrect read-back prevents POST and keeps editing
+[33/973] [chromium-iphone] › tests/p2-a-entry.spec.ts:57:35 › command body matches P1-B and kernel: income-both
+[34/973] [chromium-iphone] › tests/p2-b-identity.spec.ts:169:40 › create success accepts new name and scope from switcher
+[35/973] [chromium-iphone] › tests/p1-c-navigation.spec.ts:27:95 › 12 收支概況 push reload deterministic Back
+[36/973] [chromium-iphone] › tests/p1-b-entry.spec.ts:101:5 › recovery identity mismatch reveals no stored financial content and cannot replay
+[37/973] [chromium-iphone] › tests/p2-a-entry.spec.ts:57:35 › command body matches P1-B and kernel: transfer-partner-direction
+[38/973] [chromium-iphone] › tests/p2-b-identity.spec.ts:169:40 › create success accepts new name and scope from empty list
+[39/973] [chromium-iphone] › tests/p1-c-navigation.spec.ts:27:95 › 13 帳本設定 push reload deterministic Back
+[40/973] [chromium-iphone] › tests/p1-b-entry.spec.ts:111:5 › recovery couple mismatch cannot hydrate even when actor and ledger IDs match
+[41/973] [chromium-iphone] › tests/p2-b-identity.spec.ts:190:5 › empty list cancel returns to one clear create entry
+[42/973] [chromium-iphone] › tests/p2-a-entry.spec.ts:84:5 › one host, cancel preserves draft, Apply only edits draft and returns focus
+[43/973] [chromium-iphone] › tests/p2-b-identity.spec.ts:207:5 › archived-only list has no broken identity trigger
+[44/973] [chromium-iphone] › tests/p1-b-entry.spec.ts:118:5 › Ledger A recovery takes priority over URL B without activating or moving a write to B
+[45/973] [chromium-iphone] › tests/p1-c-navigation.spec.ts:28:5 › 14 recurring URL reconstructs secondary surface
+[46/973] [chromium-iphone] › tests/p2-a-entry.spec.ts:104:5 › both payments and exact shares retain explicit amounts after total changes
+[47/973] [chromium-iphone] › tests/p2-b-identity.spec.ts:215:5 › create rejection preserves name and scope; cancelled retry writes nothing
+[48/973] [chromium-iphone] › tests/p1-c-navigation.spec.ts:29:5 › 15 Search pushes URL and Back returns Home
+[49/973] [chromium-iphone] › tests/p1-b-entry.spec.ts:132:5 › unknown followed by 401 remains unknown with original operation
+[50/973] [chromium-iphone] › tests/p2-b-identity.spec.ts:228:5 › create is single flight and keeps its only dialog until response
+[51/973] [chromium-iphone] › tests/p1-c-navigation.spec.ts:30:5 › 16 manual A to B replaces Home and focuses accepted Ledger
+[52/973] [chromium-iphone] › tests/p2-a-entry.spec.ts:121:5 › IME, Enter, disabled reasons, inline association and first-invalid focus
+[53/973] [chromium-iphone] › tests/p2-c-timeline.spec.ts:60:5 › 01–05 20+20 client window preserves identity and single date headings across 20/21 and 40/41
+[54/973] [chromium-iphone] › tests/p1-b-entry.spec.ts:141:5 › authorized A recovery remains available when the linked Ledger no longer exists
+[55/973] [chromium-iphone] › tests/p1-c-navigation.spec.ts:31:5 › 17 A to B to A is generation safe for queued preference
+[56/973] [chromium-iphone] › tests/p2-a-entry.spec.ts:143:5 › incomplete percentages do not pretend to be equal and default snapshot stays frozen
+[57/973] [chromium-iphone] › tests/p1-c-navigation.spec.ts:32:77 › 18 late A bootstrap success cannot update B
+[58/973] [chromium-iphone] › tests/p1-b-entry.spec.ts:154:5 › an actor change in the existing document is detected before replay POST
+[59/973] [chromium-iphone] › tests/p2-c-timeline.spec.ts:83:5 › 06 today yesterday cross-year and future use occurrence date under Taipei semantics
+[60/973] [chromium-iphone] › tests/p1-c-navigation.spec.ts:32:77 › 19 late A bootstrap failure cannot update B
+[61/973] [chromium-iphone] › tests/p1-b-entry.spec.ts:163:5 › a new authorization failure hides cached financial content without discarding commit proof
+[62/973] [chromium-iphone] › tests/p2-a-entry.spec.ts:156:68 › correction hydrates actual stored expense with historical exact shares
+[63/973] [chromium-iphone] › tests/p1-c-navigation.spec.ts:33:5 › 20 activation failure keeps B readable and retry touches preference only
+[64/973] [chromium-iphone] › tests/p2-c-timeline.spec.ts:92:5 › 07 long purpose stays bounded on row and appears in full with long note in Detail
+[65/973] [chromium-iphone] › tests/p1-b-entry.spec.ts:174:5 › timeout after dispatch becomes unknown and preserves the exact recovery operation
+[66/973] [chromium-iphone] › tests/p2-a-entry.spec.ts:156:68 › correction hydrates actual stored income with historical exact shares
+[67/973] [chromium-iphone] › tests/p1-c-navigation.spec.ts:34:5 › 21 deep link B has NOT-SENT activate evidence
+[68/973] [chromium-iphone] › tests/p1-b-entry.spec.ts:187:5 › correction drop-response reload replay retains original replacement and expected version
+[69/973] [chromium-iphone] › tests/p1-c-navigation.spec.ts:35:5 › 22 explicit Switcher B sends preference activation once
+[70/973] [chromium-iphone] › tests/p2-c-timeline.spec.ts:101:5 › 08 huge canonical TWD remains exact and readable at 200% text
+[71/973] [chromium-iphone] › tests/p2-a-entry.spec.ts:156:68 › correction hydrates actual stored transfer with historical exact shares
+[72/973] [chromium-iphone] › tests/p1-c-navigation.spec.ts:36:5 › 23 initial draft switches without confirmation and receives fresh defaults
+[73/973] [chromium-iphone] › tests/p1-b-entry.spec.ts:198:5 › first rejection preserves editable draft and unchanged retry reuses the key
+[74/973] [chromium-iphone] › tests/p1-c-navigation.spec.ts:37:5 › 24 amount-only dirty cancel preserves value focus URL and NOT-SENT activation
+[75/973] [chromium-iphone] › tests/p2-a-entry.spec.ts:174:5 › More retains non-default values and 200% text remains reachable without overflow
+[76/973] [chromium-iphone] › tests/p2-c-timeline.spec.ts:115:8 › 09 expense row and Detail use truthful type/payment semantics
+[77/973] [chromium-iphone] › tests/p1-b-entry.spec.ts:207:5 › one create/correction draft requires explicit keep or discard
+[78/973] [chromium-iphone] › tests/p1-c-navigation.spec.ts:38:5 › 25 amount-only discard accepts B exactly once
+[79/973] [chromium-iphone] › tests/p2-a-entry.spec.ts:188:5 › switching both to transfer requires an explicit sender and never dispatches a guessed direction
+[80/973] [chromium-iphone] › tests/p1-b-entry.spec.ts:219:5 › creating a Ledger after discarding A opens a usable draft in the new Ledger
+[81/973] [chromium-iphone] › tests/p1-c-navigation.spec.ts:39:5 › 26 description dirty is guarded and semantic reversion becomes clean
+[82/973] [chromium-iphone] › tests/p2-c-timeline.spec.ts:115:8 › 10 income row and Detail use truthful type/payment semantics
+[83/973] [chromium-iphone] › tests/p2-a-entry.spec.ts:199:5 › second-member controls retain Ledger order, full kernel preview and associated incomplete errors
+[84/973] [chromium-iphone] › tests/p1-c-navigation.spec.ts:40:5 › 27 advanced-field-only note is dirty with empty amount and retains focus
+[85/973] [chromium-iphone] › tests/p1-b-entry.spec.ts:244:45 › correction success preserves commit when refresh succeeds
+[86/973] [chromium-iphone] › tests/p2-c-timeline.spec.ts:115:8 › 11 transfer row and Detail use truthful type/payment semantics
+[87/973] [chromium-iphone] › tests/p2-d-quick-entry.spec.ts:41:5 › single bottom CTA replaces the persistent form; opening is synchronous, labelled and network-free
+[88/973] [chromium-iphone] › tests/p1-c-navigation.spec.ts:41:5 › 28 SUBMITTING blocks switch without aborting original POST
+[89/973] [chromium-iphone] › tests/p2-c-timeline.spec.ts:115:8 › 12 both-payer row and Detail use truthful type/payment semantics
+[90/973] [chromium-iphone] › tests/p2-d-quick-entry.spec.ts:65:5 › amount Next, purpose Enter, Chinese composition and 229 never implicitly submit
+[91/973] [chromium-iphone] › tests/p1-b-entry.spec.ts:244:45 › correction success preserves commit when refresh fails
+[92/973] [chromium-iphone] › tests/p1-c-navigation.spec.ts:42:76 › 29 COMMITTED with pending refresh permits switch
+[93/973] [chromium-iphone] › tests/p2-c-timeline.spec.ts:146:5 › 13–17 canonical Detail focuses heading, opens at top and returns scroll/focus to row beyond initial 20
+[94/973] [chromium-iphone] › tests/p2-d-quick-entry.spec.ts:88:5 › payer and split replace one host and restore editor disclosure, scroll and focus without requests
+[95/973] [chromium-iphone] › tests/p1-c-navigation.spec.ts:42:76 › 30 COMMITTED with failed refresh permits switch
+[96/973] [chromium-iphone] › tests/p1-b-entry.spec.ts:266:5 › a stale posted receipt cannot downgrade balance/next payer or resurrect a later void
+[97/973] [chromium-iphone] › tests/p2-c-timeline.spec.ts:161:5 › 18–19 direct Detail and reload replace Back to scoped Home without app-origin history escape
+[98/973] [chromium-iphone] › tests/p1-c-navigation.spec.ts:43:5 › 31 UNKNOWN blocks financial scope and activation is NOT-SENT
+[99/973] [chromium-iphone] › tests/p2-d-quick-entry.spec.ts:110:5 › untouched cancel restores Home CTA; dirty cancel keeps the previous field or discards explicitly
+[100/973] [chromium-iphone] › tests/p1-c-navigation.spec.ts:44:5 › 32 UNKNOWN replay remains bound to original Ledger body and key
+[101/973] [chromium-iphone] › tests/p2-c-timeline.spec.ts:170:129 › 20 wrong scoped or nonexistent transaction never falls back
+[102/973] [chromium-iphone] › tests/p1-b-entry.spec.ts:279:5 › a stale posted receipt cannot resurrect a replaced transaction
+[103/973] [chromium-iphone] › tests/p2-d-quick-entry.spec.ts:123:5 › T0 double activation has one recovery record/key/effect; pending, slow and close stay bound to the original operation
+[104/973] [chromium-iphone] › tests/p2-c-timeline.spec.ts:170:129 › 21 wrong scoped or nonexistent transaction never falls back
+[105/973] [chromium-iphone] › tests/p1-c-navigation.spec.ts:45:5 › 33 latest pending destination wins without queued switches
+[106/973] [chromium-iphone] › tests/p2-c-timeline.spec.ts:180:5 › 22–24 replaced and void historical deep links resolve and 查看新版 opens exact replacement
+[107/973] [chromium-iphone] › tests/p2-d-quick-entry.spec.ts:145:5 › UNKNOWN retains immutable original operation and reload never auto posts; replay uses the same bytes and key
+[108/973] [chromium-iphone] › tests/p1-b-entry.spec.ts:293:5 › partner login odd 681 uses kernel member order and opening defaults despite a background change
+[109/973] [chromium-iphone] › tests/p1-c-navigation.spec.ts:46:76 › 34 popstate dirty cancel restores truth without activation
+[110/973] [chromium-iphone] › tests/p2-c-timeline.spec.ts:188:5 › 25–26 edit uses shared P2-A controls and clean cancel returns to Detail
+[111/973] [chromium-iphone] › tests/p1-c-navigation.spec.ts:46:76 › 35 popstate dirty accept restores truth without activation
+[112/973] [chromium-iphone] › tests/p1-b-entry.spec.ts:303:5 › midnight preserves the current draft date and opens the next draft with today's Taipei date
+[113/973] [chromium-iphone] › tests/p2-d-quick-entry.spec.ts:159:5 › full canonical success closes once, updates row/balance/next payer atomically, targets today and uses no bootstrap GET
+[114/973] [chromium-iphone] › tests/p2-c-timeline.spec.ts:197:46 › 27 correction known commit remains success when read succeeds
+[115/973] [chromium-iphone] › tests/p1-c-navigation.spec.ts:47:5 › 36 repeated Back and Forward do not loop or inflate history
+[116/973] [chromium-iphone] › tests/p1-b-entry.spec.ts:317:5 › recovery persistence overhead is bounded and stores only submitted operations
+[117/973] [chromium-iphone] › tests/p2-d-quick-entry.spec.ts:187:5 › today targeting expands P2-C's window past future and newer rows without moving dates or losing identity
+[118/973] [chromium-iphone] › tests/p1-c-navigation.spec.ts:48:5 › 37 late activation and secondary errors cannot contaminate newer Ledger
+[119/973] [chromium-iphone] › tests/p2-c-timeline.spec.ts:197:46 › 28 correction known commit remains success when read 500
+[120/973] [chromium-iphone] › tests/p1-c-navigation.spec.ts:49:5 › 38 Escape equals visible cancel and host never stacks dialogs
+[121/973] [chromium-iphone] › tests/p2-d-quick-entry.spec.ts:197:60 › 2026-09-03 preserves chronological position and focuses one contextual View into canonical Detail
+
+(node:6950) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+[122/973] [chromium-iphone] › tests/p1-c-races.spec.ts:9:5 › native push and replace remain observable and preserve unrelated and Next state
+[123/973] [chromium-iphone] › tests/p2-c-timeline.spec.ts:208:46 › 29 explicit void preserves known success when read succeeds
+[124/973] [chromium-iphone] › tests/p1-c-navigation.spec.ts:50:5 › 39 native dialog labels traps background and restores Ledger trigger focus
+[125/973] [chromium-iphone] › tests/p2-d-quick-entry.spec.ts:197:60 › 2026-09-28 preserves chronological position and focuses one contextual View into canonical Detail
+[126/973] [chromium-iphone] › tests/p2-c-timeline.spec.ts:208:46 › 30 explicit void preserves known success when read 500
+[127/973] [chromium-iphone] › tests/p1-c-races.spec.ts:24:5 › LIFF redirect parameters are untouched until init resolves
+[128/973] [chromium-iphone] › tests/p1-c-navigation.spec.ts:51:5 › 40 per-Ledger Home scroll restores A to B to A
+[129/973] [chromium-iphone] › tests/p1-c-races.spec.ts:39:5 › delayed deep-link B cannot pull a subsequent manual A selection back
+[130/973] [chromium-iphone] › tests/p2-d-quick-entry.spec.ts:210:5 › a moved Home reading position is preserved and View is visible without a forced scroll
+[131/973] [chromium-iphone] › tests/p2-c-timeline.spec.ts:219:5 › 31 historical void Detail retains service restore ability
+[132/973] [chromium-iphone] › tests/p1-c-races.spec.ts:48:42 › A-B-A late first A bootstrap success cannot overwrite new A
+[133/973] [chromium-iphone] › tests/p1-c-navigation.spec.ts:52:5 › 41 Search query does not carry from A into B
+[134/973] [chromium-iphone] › tests/p2-d-quick-entry.spec.ts:226:5 › filtered Search keeps its query and excludes a nonmatching canonical row, with View using P2-C Detail
+[135/973] [chromium-iphone] › tests/p1-c-races.spec.ts:48:42 › A-B-A late first A bootstrap failure cannot overwrite new A
+[136/973] [chromium-iphone] › tests/p1-c-navigation.spec.ts:53:5 › 42 proposal compatibility remains reachable without claimed Ledger ownership
+[137/973] [chromium-iphone] › tests/p2-c-timeline.spec.ts:227:5 › 32–34 receipt existing open upload and delete stay within Detail attachment capability
+[138/973] [chromium-iphone] › tests/p1-c-navigation.spec.ts:54:5 › 43 200 percent text has no body overflow and important controls remain 44px
+[139/973] [chromium-iphone] › tests/p1-c-races.spec.ts:63:7 › A-B-A late categories success stays in its generation
+[140/973] [chromium-iphone] › tests/p2-d-quick-entry.spec.ts:237:5 › partial commit plus read500 closes as success, and retry remains GET-only
+[141/973] [chromium-iphone] › tests/p1-c-navigation.spec.ts:55:5 › 44 reduced motion retains native focus and navigation
+[142/973] [chromium-iphone] › tests/p2-c-timeline.spec.ts:239:5 › 35 attachment failure preserves posted financial state and sends no financial mutation
+[143/973] [chromium-iphone] › tests/p1-c-races.spec.ts:63:7 › A-B-A late categories failure stays in its generation
+[144/973] [chromium-iphone] › tests/p1-c-navigation.spec.ts:57:5 › 45 browser Back restores the original transaction row focus
+[145/973] [chromium-iphone] › tests/p2-d-quick-entry.spec.ts:254:5 › the next explicit open snapshots fresh defaults and has no prior amount, payer, shares or key
+[146/973] [chromium-iphone] › tests/p2-c-timeline.spec.ts:248:5 › 36–37 timeline has one interactive row and no legacy details or duplicate financial/receipt actions
+[147/973] [chromium-iphone] › tests/p1-c-navigation.spec.ts:64:5 › 46 dirty discard into a secondary surface focuses heading after dialog closes
+[148/973] [chromium-iphone] › tests/p1-c-races.spec.ts:63:7 › A-B-A late recurring success stays in its generation
+[149/973] [chromium-iphone] › tests/p2-c-timeline.spec.ts:257:5 › 38–39 Search preserves secondary filters and include-void reveals historical row, with origin Back
+[150/973] [chromium-iphone] › tests/p1-c-navigation.spec.ts:72:5 › 47 amount and purpose closing guard cancels without losing input
+[151/973] [chromium-iphone] › tests/p1-c-races.spec.ts:63:7 › A-B-A late recurring failure stays in its generation
+[152/973] [chromium-iphone] › tests/p2-d-quick-entry.spec.ts:270:5 › Ledger switch works after closing Quick Entry; secondary pages have no create form or CTA
+[153/973] [chromium-iphone] › tests/p1-c-navigation.spec.ts:82:5 › 48 UNKNOWN latest destination survives replay and replaces initial deep-link intent
+[154/973] [chromium-iphone] › tests/p1-c-races.spec.ts:63:7 › A-B-A late statistics success stays in its generation
+[155/973] [chromium-iphone] › tests/p2-d-quick-entry.spec.ts:283:5 › background and foreground preserve unsent draft and focus without storage or POST
+[156/973] [chromium-iphone] › tests/p2-c-timeline.spec.ts:268:5 › 40 P2-B Ledger switch keeps truthful identity and scopes timeline data
+
+[WebServer] (node:7255) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+[157/973] [chromium-iphone] › tests/p2-d-quick-entry.spec.ts:295:5 › reduced motion, 200% text and keyboard-sized viewport keep labelled controls and Add reachable
+[158/973] [chromium-iphone] › tests/p1-c-races.spec.ts:63:7 › A-B-A late statistics failure stays in its generation
+[159/973] [chromium-iphone] › tests/p2-c-timeline.spec.ts:274:5 › 41 P2-A create editor remains usable and canonical upsert keeps future row first
+[160/973] [chromium-iphone] › tests/p1-c-navigation.spec.ts:94:5 › 49 committed recovery awaiting A read permits B without hydrating A into B
+[161/973] [chromium-iphone] › tests/p2-d-quick-entry.spec.ts:310:5 › Taipei midnight keeps the existing draft date contextual, then a fresh today draft targets its row
+[162/973] [chromium-iphone] › tests/p1-c-races.spec.ts:63:7 › A-B-A late history success stays in its generation
+[163/973] [chromium-iphone] › tests/p2-c-timeline.spec.ts:283:5 › 42 dirty correction leave guard keeps draft/focus or explicitly discards with one dialog host
+[164/973] [chromium-iphone] › tests/p1-c-navigation.spec.ts:105:46 › 50 bootstrap 401 has a scoped recovery action
+[165/973] [chromium-iphone] › tests/p1-c-navigation.spec.ts:105:46 › 50 bootstrap 403 has a scoped recovery action
+[166/973] [chromium-iphone] › tests/p1-c-races.spec.ts:63:7 › A-B-A late history failure stays in its generation
+
+(node:7402) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+[167/973] [chromium-iphone] › tests/p2-c-timeline.spec.ts:292:5 › first read has three static timeline skeletons and refresh failure preserves known effective rows
+[168/973] [chromium-iphone] › tests/p2-e-home.spec.ts:39:5 › Home has one location heading, direct header Search/More and the frozen semantic hierarchy
+[169/973] [chromium-iphone] › tests/p1-c-navigation.spec.ts:105:46 › 50 bootstrap 404 has a scoped recovery action
+[170/973] [chromium-iphone] › tests/p1-c-navigation.spec.ts:105:46 › 50 bootstrap 500 has a scoped recovery action
+[171/973] [chromium-iphone] › tests/p2-c-timeline.spec.ts:301:5 › empty effective history avoids fake zeros and historical records remain deep-linkable
+[172/973] [chromium-iphone] › tests/p1-c-races.spec.ts:93:5 › same-ledger Detail identity change cannot reuse previous attachments
+[173/973] [chromium-iphone] › tests/p2-e-home.spec.ts:60:134 › canonical 2480 displays 你目前多付 without debt framing
+[174/973] [chromium-iphone] › tests/p1-c-races.spec.ts:103:5 › search failure is visible on Search and absent after leaving its scope
+[175/973] [chromium-iphone] › tests/p2-c-timeline.spec.ts:307:5 › Detail pending read and read500 never guess a transaction or reveal foreign scope
+
+(node:7495) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+[176/973] [chromium-iphone] › tests/v2-liff.spec.ts:232:5 › P1-A keeps the native transaction date fully readable at mobile widths and enlarged text
+[177/973] [chromium-iphone] › tests/p2-e-home.spec.ts:60:134 › canonical -2480 displays 另一半目前多付 without debt framing
+[178/973] [chromium-iphone] › tests/p1-c-races.spec.ts:112:5 › same-ledger proposal compatibility responses stay with their proposal id
+[179/973] [chromium-iphone] › tests/p2-e-home.spec.ts:60:134 › canonical 0 displays 目前很平衡 without debt framing
+[180/973] [chromium-iphone] › tests/p1-c-races.spec.ts:124:52 › popstate while SUBMITTING keeps original scope and sends no destination request
+[181/973] [chromium-iphone] › tests/p2-c-timeline.spec.ts:316:5 › 200% long notes and reduced motion keep Back and More actions reachable without overflow
+[182/973] [chromium-iphone] › tests/v2-liff.spec.ts:325:5 › uses the V2 startup request budget
+[183/973] [chromium-iphone] › tests/p2-e-home.spec.ts:68:5 › next payer follows the supplied canonical recommendation, including one differing from the balance sign
+[184/973] [chromium-iphone] › tests/p1-c-races.spec.ts:124:52 › popstate while UNKNOWN keeps original scope and sends no destination request
+[185/973] [chromium-iphone] › tests/v2-liff.spec.ts:336:5 › P1-A restores zoom and keeps primary controls readable and tappable
+[186/973] [chromium-iphone] › tests/p2-e-home.spec.ts:71:51 › no payer fabrication when canonical next payer is null
+[187/973] [chromium-iphone] › tests/p2-c-timeline.spec.ts:323:5 › filtered Search preserves insertion-independent origin scroll and loaded second history page without a new request
+[188/973] [chromium-iphone] › tests/p1-c-races.spec.ts:141:5 › late refresh and background resume do not steal editing focus
+[189/973] [chromium-iphone] › tests/p2-e-home.spec.ts:71:51 › no payer fabrication when canonical next payer is missing-member
+[190/973] [chromium-iphone] › tests/p2-e-home.spec.ts:75:63 › BigInt complete absolute balance 900719925474099312345 has no exponent, clipping or overflow
+[191/973] [chromium-iphone] › tests/p1-c-races.spec.ts:152:49 › 收支概況 Back restores Home scroll; reload resets it
+[192/973] [chromium-iphone] › tests/v2-liff.spec.ts:430:5 › P1-A keeps keyboard focus visible and honors reduced motion
+[193/973] [chromium-iphone] › tests/p2-e-home.spec.ts:75:63 › BigInt complete absolute balance -900719925474099312345 has no exponent, clipping or overflow
+[194/973] [chromium-iphone] › tests/p2-c-timeline.spec.ts:338:45 › Search mutation refresh restores loaded history window and reads the same two pages
+[195/973] [chromium-iphone] › tests/p1-c-races.spec.ts:152:49 › 帳本設定 Back restores Home scroll; reload resets it
+[196/973] [chromium-iphone] › tests/v2-liff.spec.ts:461:5 › P1-A keeps long Ledger names and large TWD balances reachable at 200% text size
+[197/973] [chromium-iphone] › tests/p2-e-home.spec.ts:81:5 › zero-record Ledger is balanced, has an empty timeline and one valid Quick Entry
+[198/973] [chromium-iphone] › tests/v2-liff.spec.ts:484:5 › loads statistics and recurring rules only when their secondary UI is opened
+[199/973] [chromium-iphone] › tests/p2-e-home.spec.ts:89:5 › no-Ledger state has only the existing create flow, with no financial Home shell
+[200/973] [chromium-iphone] › tests/p1-c-races.spec.ts:152:49 › 搜尋 Back restores Home scroll; reload resets it
+[201/973] [chromium-iphone] › tests/v2-liff.spec.ts:491:5 › shows server-confirmed saving and success feedback without waiting for history reload
+[202/973] [chromium-iphone] › tests/p2-c-timeline.spec.ts:338:45 › Search mutation refresh restores loaded history window and preserves known rows on read500
+[203/973] [chromium-iphone] › tests/p2-e-home.spec.ts:100:5 › first bootstrap loading keeps accepted identity and quiet skeletons without fake zero/empty
+[204/973] [chromium-iphone] › tests/v2-liff.spec.ts:519:5 › payer and split choices use the existing native host while low-frequency fields stay under More
+[205/973] [chromium-iphone] › tests/p1-c-races.spec.ts:166:47 › unsaved setting 新增自訂分類 shares the leave host and preserves focus on cancel
+[206/973] [chromium-iphone] › tests/p2-e-home.spec.ts:110:5 › initial read failure is unavailable, scoped and retryable, not an empty or valid submit state
+[207/973] [chromium-iphone] › tests/v2-liff.spec.ts:545:5 › uses continuous balance language for either payer and balanced state
+[208/973] [chromium-iphone] › tests/p1-c-races.spec.ts:166:47 › unsaved setting 週期交易名稱 shares the leave host and preserves focus on cancel
+[209/973] [chromium-iphone] › tests/p2-e-home.spec.ts:118:5 › known refresh failure keeps balance, payer and timeline, adds stale copy and contextual retry
+[210/973] [chromium-iphone] › tests/p2-c-timeline.spec.ts:358:5 › direct Detail retry focuses purpose heading after initial bootstrap read500
+[211/973] [chromium-iphone] › tests/v2-liff.spec.ts:556:5 › keeps the daily UI usable on a narrow mobile viewport
+[212/973] [chromium-iphone] › tests/p2-c-timeline.spec.ts:366:5 › ambiguous void response retains original mutation key and expectedVersion across a successful background read
+[213/973] [chromium-iphone] › tests/p1-c-races.spec.ts:179:88 › stats read 401 offers the correct recovery action without changing Ledger preference
+[214/973] [chromium-iphone] › tests/p2-e-home.spec.ts:127:5 › read 401 remains a distinct authentication failure
+[215/973] [chromium-iphone] › tests/p1-c-races.spec.ts:179:88 › stats read 500 offers the correct recovery action without changing Ledger preference
+[216/973] [chromium-iphone] › tests/p2-e-home.spec.ts:133:5 › More reuses one bounded host, makes no request/history change and restores focus
+[217/973] [chromium-iphone] › tests/p2-c-timeline.spec.ts:382:5 › voiding an origin row beyond twenty returns focus to its nearest surviving timeline row
+[218/973] [chromium-iphone] › tests/v2-liff.spec.ts:574:5 › keeps voided transactions distinct in canonical Detail and excludes them from daily history
+[219/973] [chromium-iphone] › tests/p1-c-races.spec.ts:179:88 › recurring read 401 offers the correct recovery action without changing Ledger preference
+[220/973] [chromium-iphone] › tests/p2-e-home.spec.ts:144:5 › More Refresh performs only existing scoped reads and returns focus
+[221/973] [chromium-iphone] › tests/p1-c-races.spec.ts:179:88 › recurring read 500 offers the correct recovery action without changing Ledger preference
+[222/973] [chromium-iphone] › tests/v2-liff.spec.ts:589:5 › uses the canonical save response without reloading the Ledger
+[223/973] [chromium-iphone] › tests/p2-c-timeline.spec.ts:392:5 › browser records native view-transition support for bounded Detail-close motion
+[224/973] [chromium-iphone] › tests/p2-e-home.spec.ts:152:48 › 收支概況 is reachable with existing scoped Back
+[225/973] [chromium-iphone] › tests/p1-c-races.spec.ts:179:88 › search read 401 offers the correct recovery action without changing Ledger preference
+[226/973] [chromium-iphone] › tests/v2-liff.spec.ts:598:5 › keeps the draft on a rejected POST and does not add a local row
+[227/973] [chromium-iphone] › tests/p2-e-home.spec.ts:152:48 › 帳本設定 is reachable with existing scoped Back
+[228/973] [chromium-iphone] › tests/p2-c-timeline.spec.ts:412:5 › aborted filtered Search append returns an enabled retry and preserves the loaded first page
+[229/973] [chromium-iphone] › tests/p1-c-races.spec.ts:179:88 › search read 500 offers the correct recovery action without changing Ledger preference
+[230/973] [chromium-iphone] › tests/v2-liff.spec.ts:610:5 › reuses the idempotency key on an unchanged retry
+[231/973] [chromium-iphone] › tests/p2-e-home.spec.ts:152:48 › 搜尋 is reachable with existing scoped Back
+[232/973] [chromium-iphone] › tests/p1-c-races.spec.ts:202:5 › stale app-origin row marker falls back to a surviving Home row
+[233/973] [chromium-iphone] › tests/p2-e-home.spec.ts:158:5 › timeline stays 20+20 without an append request; Detail returns focus and scroll to its original row
+[234/973] [chromium-iphone] › tests/v2-liff.spec.ts:624:5 › keeps a committed transaction out of a nonmatching search projection
+[235/973] [chromium-iphone] › tests/p2-e-home.spec.ts:166:5 › A to B shows B identity/skeleton with neither A balance nor A rows
+[236/973] [chromium-iphone] › tests/p2-c-timeline.spec.ts:427:5 › Back expands root render window when a new canonical row moves the surviving origin beyond row twenty
+[237/973] [chromium-iphone] › tests/v2-liff.spec.ts:664:5 › V3-0 ignores reversed bootstrap responses after explicit draft discard
+[238/973] [chromium-iphone] › tests/p2-e-home.spec.ts:174:40 › 40-character Ledger name and huge balance wrap at 100% without obscuring header controls
+[239/973] [chromium-iphone] › tests/p2-e-home.spec.ts:174:40 › 40-character Ledger name and huge balance wrap at 200% without obscuring header controls
+[240/973] [chromium-iphone] › tests/p2-e-home.spec.ts:184:5 › header keyboard order is identity, Search, More, followed by the quiet statistics target
+[241/973] [chromium-iphone] › tests/p2-e-home.spec.ts:189:5 › Quick Entry create preserves one contextual success, canonical row/balance targeting and fresh draft
+
+(node:8608) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+[242/973] [webkit-iphone] › tests/p1-c-navigation.spec.ts:17:5 › 01 normal launch replaces current URL with explicit canonical Ledger
+[243/973] [chromium-iphone] › tests/p2-e-home.spec.ts:196:5 › reduced motion retains the complete Home and More focus behavior
+
+(node:8709) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+[244/973] [webkit-iphone] › tests/p1-b-entry.spec.ts:27:5 › normal create commits row, balance and next payer together without a bootstrap refresh
+[245/973] [webkit-iphone] › tests/p1-c-navigation.spec.ts:18:5 › 02 explicit B deep link reads only B
+[246/973] [webkit-iphone] › tests/p1-b-entry.spec.ts:42:5 › double tap owns one operation and guards switching while submitting
+[247/973] [webkit-iphone] › tests/p1-c-navigation.spec.ts:19:130 › 03 nonexistent explicit target offers bounded recovery
+[248/973] [webkit-iphone] › tests/p1-b-entry.spec.ts:57:5 › commit then dropped response reloads UNKNOWN and explicit replay returns original result with identical body/key
+[249/973] [webkit-iphone] › tests/p1-c-navigation.spec.ts:19:130 › 04 unauthorized explicit target offers bounded recovery
+[250/973] [webkit-iphone] › tests/p1-c-navigation.spec.ts:20:5 › 05 invalid explicit B never paints A content
+[251/973] [webkit-iphone] › tests/p1-b-entry.spec.ts:75:5 › compatible partial commit plus GET 500 stays COMMITTED, including reload and read-only retry
+[252/973] [webkit-iphone] › tests/p1-c-navigation.spec.ts:21:5 › 06 transaction with correct Ledger reconstructs and focuses detail
+[253/973] [webkit-iphone] › tests/p1-c-navigation.spec.ts:22:5 › 07 transaction with wrong Ledger shows link error without guessing another Ledger
+[254/973] [webkit-iphone] › tests/p1-b-entry.spec.ts:86:63 › malformed 2xx cannot claim success
+[255/973] [webkit-iphone] › tests/p1-c-navigation.spec.ts:23:5 › 08 transaction without Ledger does not scan for ownership
+[256/973] [webkit-iphone] › tests/p1-b-entry.spec.ts:86:63 › wrong-scope 2xx cannot claim success
+[257/973] [webkit-iphone] › tests/p1-c-navigation.spec.ts:24:5 › 09 app row pushes detail and Back restores row focus
+[258/973] [webkit-iphone] › tests/p1-b-entry.spec.ts:92:5 › storage unavailable or incorrect read-back prevents POST and keeps editing
+[259/973] [webkit-iphone] › tests/p1-c-navigation.spec.ts:25:5 › 10 direct detail visible Back replaces to Home without leaving product
+[260/973] [webkit-iphone] › tests/p1-c-navigation.spec.ts:26:5 › 11 reload detail preserves URL and drops stale app origin
+[261/973] [webkit-iphone] › tests/p1-b-entry.spec.ts:101:5 › recovery identity mismatch reveals no stored financial content and cannot replay
+[262/973] [webkit-iphone] › tests/p1-c-navigation.spec.ts:27:95 › 12 收支概況 push reload deterministic Back
+[263/973] [webkit-iphone] › tests/p1-b-entry.spec.ts:111:5 › recovery couple mismatch cannot hydrate even when actor and ledger IDs match
+[264/973] [webkit-iphone] › tests/p1-c-navigation.spec.ts:27:95 › 13 帳本設定 push reload deterministic Back
+[265/973] [webkit-iphone] › tests/p1-b-entry.spec.ts:118:5 › Ledger A recovery takes priority over URL B without activating or moving a write to B
+[266/973] [webkit-iphone] › tests/p1-c-navigation.spec.ts:28:5 › 14 recurring URL reconstructs secondary surface
+[267/973] [webkit-iphone] › tests/p1-b-entry.spec.ts:132:5 › unknown followed by 401 remains unknown with original operation
+  1) [chromium-iphone] › tests/v2-liff.spec.ts:664:5 › V3-0 ignores reversed bootstrap responses after explicit draft discard
+
+    Test timeout of 30000ms exceeded.
+
+    Error: locator.click: Test timeout of 30000ms exceeded.
+    Call log:
+      - waiting for getByTestId('quick-entry-trigger')
+
+
+       at fixtures/p1-b-browser.ts:81
+
+      79 |
+      80 | export async function openEntry(page: Page) {
+    > 81 |   if (!await page.getByLabel("金額，新臺幣").isVisible()) await page.getByTestId("quick-entry-trigger").click();
+         |                                                                                                   ^
+      82 |   await expect(page.getByLabel("金額，新臺幣")).toBeVisible();
+      83 | }
+      84 |
+        at openEntry (/Users/nc8/.codex/worktrees/p2-e-ledger-home/New project/tests/fixtures/p1-b-browser.ts:81:99)
+        at /Users/nc8/.codex/worktrees/p2-e-ledger-home/New project/tests/v2-liff.spec.ts:668:3
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    output/playwright/results/v2-liff-V3-0-ignores-rever-c853b-fter-explicit-draft-discard-chromium-iphone/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: output/playwright/results/v2-liff-V3-0-ignores-rever-c853b-fter-explicit-draft-discard-chromium-iphone/error-context.md
+
+    attachment #3: trace (application/zip) ─────────────────────────────────────────────────────────
+    output/playwright/results/v2-liff-V3-0-ignores-rever-c853b-fter-explicit-draft-discard-chromium-iphone/trace.zip
+    Usage:
+
+        pnpm exec playwright show-trace output/playwright/results/v2-liff-V3-0-ignores-rever-c853b-fter-explicit-draft-discard-chromium-iphone/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+
+(node:9794) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+[268/973] [webkit-iphone] › tests/p2-a-entry.spec.ts:57:35 › command body matches P1-B and kernel: default-simple-1-1
+[269/973] [webkit-iphone] › tests/p1-c-navigation.spec.ts:29:5 › 15 Search pushes URL and Back returns Home
+
+(node:9800) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+[270/973] [chromium-iphone] › tests/v2-liff.spec.ts:687:5 › V3-0 rapid A B A switches ignore the first A generation and stale errors
+[271/973] [webkit-iphone] › tests/p1-b-entry.spec.ts:141:5 › authorized A recovery remains available when the linked Ledger no longer exists
+[272/973] [webkit-iphone] › tests/p1-c-navigation.spec.ts:30:5 › 16 manual A to B replaces Home and focuses accepted Ledger
+[273/973] [webkit-iphone] › tests/p1-b-entry.spec.ts:154:5 › an actor change in the existing document is detected before replay POST
+[274/973] [webkit-iphone] › tests/p1-c-navigation.spec.ts:31:5 › 17 A to B to A is generation safe for queued preference
+[275/973] [webkit-iphone] › tests/p2-a-entry.spec.ts:57:35 › command body matches P1-B and kernel: non-50-50-second-member-partner-2-1
+[276/973] [chromium-iphone] › tests/v2-liff.spec.ts:706:7 › V3-0 ignores reversed statistics responses across Ledgers
+[277/973] [webkit-iphone] › tests/p1-b-entry.spec.ts:163:5 › a new authorization failure hides cached financial content without discarding commit proof
+[278/973] [webkit-iphone] › tests/p1-c-navigation.spec.ts:32:77 › 18 late A bootstrap success cannot update B
+[279/973] [webkit-iphone] › tests/p2-a-entry.spec.ts:57:35 › command body matches P1-B and kernel: both-payers-second-member-0-1
+[280/973] [chromium-iphone] › tests/v2-liff.spec.ts:706:7 › V3-0 ignores reversed categories responses across Ledgers
+[281/973] [webkit-iphone] › tests/p1-c-navigation.spec.ts:32:77 › 19 late A bootstrap failure cannot update B
+[282/973] [webkit-iphone] › tests/p1-b-entry.spec.ts:174:5 › timeout after dispatch becomes unknown and preserves the exact recovery operation
+[283/973] [webkit-iphone] › tests/p2-a-entry.spec.ts:57:35 › command body matches P1-B and kernel: equal-second-member
+[284/973] [chromium-iphone] › tests/v2-liff.spec.ts:706:7 › V3-0 ignores reversed recurring responses across Ledgers
+[285/973] [webkit-iphone] › tests/p1-c-navigation.spec.ts:33:5 › 20 activation failure keeps B readable and retry touches preference only
+[286/973] [webkit-iphone] › tests/p1-b-entry.spec.ts:187:5 › correction drop-response reload replay retains original replacement and expected version
+[287/973] [webkit-iphone] › tests/p2-a-entry.spec.ts:57:35 › command body matches P1-B and kernel: percentage-fractional
+[288/973] [chromium-iphone] › tests/v2-liff.spec.ts:706:7 › V3-0 ignores reversed transactions responses across Ledgers
+[289/973] [webkit-iphone] › tests/p1-c-navigation.spec.ts:34:5 › 21 deep link B has NOT-SENT activate evidence
+[290/973] [chromium-iphone] › tests/v2-liff.spec.ts:734:5 › V3-0 switching Ledger after a deep link stays on the manual selection
+[291/973] [webkit-iphone] › tests/p2-a-entry.spec.ts:57:35 › command body matches P1-B and kernel: exact-partner-payer
+[292/973] [webkit-iphone] › tests/p1-b-entry.spec.ts:198:5 › first rejection preserves editable draft and unchanged retry reuses the key
+[293/973] [webkit-iphone] › tests/p1-c-navigation.spec.ts:35:5 › 22 explicit Switcher B sends preference activation once
+[294/973] [webkit-iphone] › tests/p1-b-entry.spec.ts:207:5 › one create/correction draft requires explicit keep or discard
+[295/973] [chromium-iphone] › tests/v2-liff.spec.ts:752:5 › V3-0 guards a late A save, then explicit discard cannot reuse A feedback or key in B
+[296/973] [webkit-iphone] › tests/p2-a-entry.spec.ts:57:35 › command body matches P1-B and kernel: income-both
+[297/973] [webkit-iphone] › tests/p1-c-navigation.spec.ts:36:5 › 23 initial draft switches without confirmation and receives fresh defaults
+[298/973] [webkit-iphone] › tests/p1-c-navigation.spec.ts:37:5 › 24 amount-only dirty cancel preserves value focus URL and NOT-SENT activation
+[299/973] [webkit-iphone] › tests/p1-b-entry.spec.ts:219:5 › creating a Ledger after discarding A opens a usable draft in the new Ledger
+[300/973] [webkit-iphone] › tests/p2-a-entry.spec.ts:57:35 › command body matches P1-B and kernel: transfer-partner-direction
+
+(node:10284) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+[301/973] [webkit-iphone] › tests/p2-b-identity.spec.ts:23:5 › name is the single Home identity; switch A B A reuses canonical scope
+[302/973] [webkit-iphone] › tests/p1-c-navigation.spec.ts:38:5 › 25 amount-only discard accepts B exactly once
+[303/973] [webkit-iphone] › tests/p1-b-entry.spec.ts:244:45 › correction success preserves commit when refresh succeeds
+[304/973] [webkit-iphone] › tests/p2-a-entry.spec.ts:84:5 › one host, cancel preserves draft, Apply only edits draft and returns focus
+[305/973] [webkit-iphone] › tests/p1-c-navigation.spec.ts:39:5 › 26 description dirty is guarded and semantic reversion becomes clean
+[306/973] [webkit-iphone] › tests/p2-a-entry.spec.ts:104:5 › both payments and exact shares retain explicit amounts after total changes
+[307/973] [webkit-iphone] › tests/p1-b-entry.spec.ts:244:45 › correction success preserves commit when refresh fails
+[308/973] [webkit-iphone] › tests/p2-b-identity.spec.ts:53:5 › deep-link viewed B and LINE default A remain distinct and selected is announced
+[309/973] [webkit-iphone] › tests/p1-c-navigation.spec.ts:40:5 › 27 advanced-field-only note is dirty with empty amount and retains focus
+[310/973] [webkit-iphone] › tests/p2-a-entry.spec.ts:121:5 › IME, Enter, disabled reasons, inline association and first-invalid focus
+[311/973] [webkit-iphone] › tests/p1-b-entry.spec.ts:266:5 › a stale posted receipt cannot downgrade balance/next payer or resurrect a later void
+[312/973] [webkit-iphone] › tests/p2-b-identity.spec.ts:66:5 › activation syncing and failure stay bounded while B remains readable
+[313/973] [webkit-iphone] › tests/p1-c-navigation.spec.ts:41:5 › 28 SUBMITTING blocks switch without aborting original POST
+[314/973] [webkit-iphone] › tests/p2-b-identity.spec.ts:88:39 › 40 character identities stay complete and wrap at 100% text
+[315/973] [webkit-iphone] › tests/p1-c-navigation.spec.ts:42:76 › 29 COMMITTED with pending refresh permits switch
+[316/973] [webkit-iphone] › tests/p2-a-entry.spec.ts:143:5 › incomplete percentages do not pretend to be equal and default snapshot stays frozen
+[317/973] [webkit-iphone] › tests/p1-b-entry.spec.ts:279:5 › a stale posted receipt cannot resurrect a replaced transaction
+[318/973] [webkit-iphone] › tests/p2-b-identity.spec.ts:88:39 › 40 character identities stay complete and wrap at 200% text
+[319/973] [webkit-iphone] › tests/p1-c-navigation.spec.ts:42:76 › 30 COMMITTED with failed refresh permits switch
+[320/973] [webkit-iphone] › tests/p2-a-entry.spec.ts:156:68 › correction hydrates actual stored expense with historical exact shares
+[321/973] [webkit-iphone] › tests/p1-b-entry.spec.ts:293:5 › partner login odd 681 uses kernel member order and opening defaults despite a background change
+[322/973] [webkit-iphone] › tests/p1-c-navigation.spec.ts:43:5 › 31 UNKNOWN blocks financial scope and activation is NOT-SENT
+[323/973] [webkit-iphone] › tests/p2-b-identity.spec.ts:116:5 › 40 unbroken Latin characters wrap without horizontal scroll at 200%
+[324/973] [webkit-iphone] › tests/p2-a-entry.spec.ts:156:68 › correction hydrates actual stored income with historical exact shares
+[325/973] [webkit-iphone] › tests/p1-c-navigation.spec.ts:44:5 › 32 UNKNOWN replay remains bound to original Ledger body and key
+[326/973] [webkit-iphone] › tests/p1-b-entry.spec.ts:303:5 › midnight preserves the current draft date and opens the next draft with today's Taipei date
+[327/973] [webkit-iphone] › tests/p2-b-identity.spec.ts:126:5 › keyboard enters titled dialog, moves options without writes, selects and returns focus
+[328/973] [webkit-iphone] › tests/p1-c-navigation.spec.ts:45:5 › 33 latest pending destination wins without queued switches
+[329/973] [webkit-iphone] › tests/p2-a-entry.spec.ts:156:68 › correction hydrates actual stored transfer with historical exact shares
+[330/973] [webkit-iphone] › tests/p2-b-identity.spec.ts:149:5 › create cancel returns to the same switcher and never changes scope or history
+[331/973] [webkit-iphone] › tests/p1-b-entry.spec.ts:317:5 › recovery persistence overhead is bounded and stores only submitted operations
+[332/973] [webkit-iphone] › tests/p1-c-navigation.spec.ts:46:76 › 34 popstate dirty cancel restores truth without activation
+[333/973] [webkit-iphone] › tests/p2-c-timeline.spec.ts:60:5 › 01–05 20+20 client window preserves identity and single date headings across 20/21 and 40/41
+[334/973] [webkit-iphone] › tests/p2-a-entry.spec.ts:174:5 › More retains non-default values and 200% text remains reachable without overflow
+[335/973] [webkit-iphone] › tests/p2-b-identity.spec.ts:169:40 › create success accepts new name and scope from switcher
+[336/973] [webkit-iphone] › tests/p1-c-navigation.spec.ts:46:76 › 35 popstate dirty accept restores truth without activation
+[337/973] [webkit-iphone] › tests/p2-b-identity.spec.ts:169:40 › create success accepts new name and scope from empty list
+[338/973] [webkit-iphone] › tests/p2-a-entry.spec.ts:188:5 › switching both to transfer requires an explicit sender and never dispatches a guessed direction
+[339/973] [webkit-iphone] › tests/p1-c-navigation.spec.ts:47:5 › 36 repeated Back and Forward do not loop or inflate history
+[340/973] [webkit-iphone] › tests/p2-c-timeline.spec.ts:83:5 › 06 today yesterday cross-year and future use occurrence date under Taipei semantics
+[341/973] [webkit-iphone] › tests/p2-b-identity.spec.ts:190:5 › empty list cancel returns to one clear create entry
+[342/973] [webkit-iphone] › tests/p1-c-navigation.spec.ts:48:5 › 37 late activation and secondary errors cannot contaminate newer Ledger
+[343/973] [webkit-iphone] › tests/p2-c-timeline.spec.ts:92:5 › 07 long purpose stays bounded on row and appears in full with long note in Detail
+[344/973] [webkit-iphone] › tests/p2-a-entry.spec.ts:199:5 › second-member controls retain Ledger order, full kernel preview and associated incomplete errors
+[345/973] [webkit-iphone] › tests/p2-b-identity.spec.ts:207:5 › archived-only list has no broken identity trigger
+[346/973] [webkit-iphone] › tests/p1-c-navigation.spec.ts:49:5 › 38 Escape equals visible cancel and host never stacks dialogs
+[347/973] [webkit-iphone] › tests/p2-c-timeline.spec.ts:101:5 › 08 huge canonical TWD remains exact and readable at 200% text
+[348/973] [webkit-iphone] › tests/p2-b-identity.spec.ts:215:5 › create rejection preserves name and scope; cancelled retry writes nothing
+[349/973] [webkit-iphone] › tests/p2-d-quick-entry.spec.ts:41:5 › single bottom CTA replaces the persistent form; opening is synchronous, labelled and network-free
+[350/973] [webkit-iphone] › tests/p1-c-navigation.spec.ts:50:5 › 39 native dialog labels traps background and restores Ledger trigger focus
+[351/973] [webkit-iphone] › tests/p2-b-identity.spec.ts:228:5 › create is single flight and keeps its only dialog until response
+[352/973] [webkit-iphone] › tests/p2-c-timeline.spec.ts:115:8 › 09 expense row and Detail use truthful type/payment semantics
+[353/973] [webkit-iphone] › tests/p2-d-quick-entry.spec.ts:65:5 › amount Next, purpose Enter, Chinese composition and 229 never implicitly submit
+[354/973] [webkit-iphone] › tests/p1-c-navigation.spec.ts:51:5 › 40 per-Ledger Home scroll restores A to B to A
+[355/973] [webkit-iphone] › tests/p2-d-quick-entry.spec.ts:88:5 › payer and split replace one host and restore editor disclosure, scroll and focus without requests
+[356/973] [webkit-iphone] › tests/p1-c-navigation.spec.ts:52:5 › 41 Search query does not carry from A into B
+
+(node:10984) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+[357/973] [webkit-iphone] › tests/p1-c-races.spec.ts:9:5 › native push and replace remain observable and preserve unrelated and Next state
+[358/973] [webkit-iphone] › tests/p2-c-timeline.spec.ts:115:8 › 10 income row and Detail use truthful type/payment semantics
+[359/973] [webkit-iphone] › tests/p1-c-navigation.spec.ts:53:5 › 42 proposal compatibility remains reachable without claimed Ledger ownership
+[360/973] [webkit-iphone] › tests/p2-c-timeline.spec.ts:115:8 › 11 transfer row and Detail use truthful type/payment semantics
+[361/973] [webkit-iphone] › tests/p2-d-quick-entry.spec.ts:110:5 › untouched cancel restores Home CTA; dirty cancel keeps the previous field or discards explicitly
+[362/973] [webkit-iphone] › tests/p1-c-navigation.spec.ts:54:5 › 43 200 percent text has no body overflow and important controls remain 44px
+[363/973] [webkit-iphone] › tests/p1-c-races.spec.ts:24:5 › LIFF redirect parameters are untouched until init resolves
+[364/973] [webkit-iphone] › tests/p2-c-timeline.spec.ts:115:8 › 12 both-payer row and Detail use truthful type/payment semantics
+[365/973] [webkit-iphone] › tests/p1-c-navigation.spec.ts:55:5 › 44 reduced motion retains native focus and navigation
+[366/973] [webkit-iphone] › tests/p2-d-quick-entry.spec.ts:123:5 › T0 double activation has one recovery record/key/effect; pending, slow and close stay bound to the original operation
+[367/973] [webkit-iphone] › tests/p1-c-races.spec.ts:39:5 › delayed deep-link B cannot pull a subsequent manual A selection back
+[368/973] [webkit-iphone] › tests/p2-c-timeline.spec.ts:146:5 › 13–17 canonical Detail focuses heading, opens at top and returns scroll/focus to row beyond initial 20
+[369/973] [webkit-iphone] › tests/p1-c-navigation.spec.ts:57:5 › 45 browser Back restores the original transaction row focus
+[370/973] [webkit-iphone] › tests/p1-c-races.spec.ts:48:42 › A-B-A late first A bootstrap success cannot overwrite new A
+[371/973] [webkit-iphone] › tests/p2-d-quick-entry.spec.ts:145:5 › UNKNOWN retains immutable original operation and reload never auto posts; replay uses the same bytes and key
+[372/973] [webkit-iphone] › tests/p1-c-navigation.spec.ts:64:5 › 46 dirty discard into a secondary surface focuses heading after dialog closes
+[373/973] [webkit-iphone] › tests/p1-c-races.spec.ts:48:42 › A-B-A late first A bootstrap failure cannot overwrite new A
+[374/973] [webkit-iphone] › tests/p2-c-timeline.spec.ts:161:5 › 18–19 direct Detail and reload replace Back to scoped Home without app-origin history escape
+[375/973] [webkit-iphone] › tests/p1-c-navigation.spec.ts:72:5 › 47 amount and purpose closing guard cancels without losing input
+[376/973] [webkit-iphone] › tests/p2-d-quick-entry.spec.ts:159:5 › full canonical success closes once, updates row/balance/next payer atomically, targets today and uses no bootstrap GET
+[377/973] [webkit-iphone] › tests/p1-c-races.spec.ts:63:7 › A-B-A late categories success stays in its generation
+[378/973] [webkit-iphone] › tests/p2-c-timeline.spec.ts:170:129 › 20 wrong scoped or nonexistent transaction never falls back
+[379/973] [webkit-iphone] › tests/p1-c-navigation.spec.ts:82:5 › 48 UNKNOWN latest destination survives replay and replaces initial deep-link intent
+[380/973] [webkit-iphone] › tests/p2-d-quick-entry.spec.ts:187:5 › today targeting expands P2-C's window past future and newer rows without moving dates or losing identity
+[381/973] [webkit-iphone] › tests/p2-c-timeline.spec.ts:170:129 › 21 wrong scoped or nonexistent transaction never falls back
+[382/973] [webkit-iphone] › tests/p1-c-races.spec.ts:63:7 › A-B-A late categories failure stays in its generation
+[383/973] [webkit-iphone] › tests/p2-d-quick-entry.spec.ts:197:60 › 2026-09-03 preserves chronological position and focuses one contextual View into canonical Detail
+[384/973] [webkit-iphone] › tests/p2-c-timeline.spec.ts:180:5 › 22–24 replaced and void historical deep links resolve and 查看新版 opens exact replacement
+[385/973] [webkit-iphone] › tests/p1-c-navigation.spec.ts:94:5 › 49 committed recovery awaiting A read permits B without hydrating A into B
+[386/973] [webkit-iphone] › tests/p1-c-races.spec.ts:63:7 › A-B-A late recurring success stays in its generation
+[387/973] [webkit-iphone] › tests/p2-d-quick-entry.spec.ts:197:60 › 2026-09-28 preserves chronological position and focuses one contextual View into canonical Detail
+[388/973] [webkit-iphone] › tests/p2-c-timeline.spec.ts:188:5 › 25–26 edit uses shared P2-A controls and clean cancel returns to Detail
+[389/973] [webkit-iphone] › tests/p1-c-navigation.spec.ts:105:46 › 50 bootstrap 401 has a scoped recovery action
+[390/973] [webkit-iphone] › tests/p1-c-races.spec.ts:63:7 › A-B-A late recurring failure stays in its generation
+[391/973] [webkit-iphone] › tests/p2-d-quick-entry.spec.ts:210:5 › a moved Home reading position is preserved and View is visible without a forced scroll
+[392/973] [webkit-iphone] › tests/p1-c-navigation.spec.ts:105:46 › 50 bootstrap 403 has a scoped recovery action
+[393/973] [webkit-iphone] › tests/p2-c-timeline.spec.ts:197:46 › 27 correction known commit remains success when read succeeds
+[394/973] [webkit-iphone] › tests/p1-c-navigation.spec.ts:105:46 › 50 bootstrap 404 has a scoped recovery action
+[395/973] [webkit-iphone] › tests/p1-c-races.spec.ts:63:7 › A-B-A late statistics success stays in its generation
+[396/973] [webkit-iphone] › tests/p2-d-quick-entry.spec.ts:226:5 › filtered Search keeps its query and excludes a nonmatching canonical row, with View using P2-C Detail
+[397/973] [webkit-iphone] › tests/p2-c-timeline.spec.ts:197:46 › 28 correction known commit remains success when read 500
+[398/973] [webkit-iphone] › tests/p1-c-navigation.spec.ts:105:46 › 50 bootstrap 500 has a scoped recovery action
+[399/973] [webkit-iphone] › tests/p1-c-races.spec.ts:63:7 › A-B-A late statistics failure stays in its generation
+[400/973] [webkit-iphone] › tests/p2-d-quick-entry.spec.ts:237:5 › partial commit plus read500 closes as success, and retry remains GET-only
+[401/973] [webkit-iphone] › tests/p2-c-timeline.spec.ts:208:46 › 29 explicit void preserves known success when read succeeds
+
+(node:11495) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+[402/973] [webkit-iphone] › tests/p2-e-home.spec.ts:39:5 › Home has one location heading, direct header Search/More and the frozen semantic hierarchy
+[403/973] [webkit-iphone] › tests/p1-c-races.spec.ts:63:7 › A-B-A late history success stays in its generation
+[404/973] [webkit-iphone] › tests/p2-d-quick-entry.spec.ts:254:5 › the next explicit open snapshots fresh defaults and has no prior amount, payer, shares or key
+[405/973] [webkit-iphone] › tests/p2-c-timeline.spec.ts:208:46 › 30 explicit void preserves known success when read 500
+[406/973] [webkit-iphone] › tests/p1-c-races.spec.ts:63:7 › A-B-A late history failure stays in its generation
+[407/973] [webkit-iphone] › tests/p2-d-quick-entry.spec.ts:270:5 › Ledger switch works after closing Quick Entry; secondary pages have no create form or CTA
+[408/973] [webkit-iphone] › tests/p2-c-timeline.spec.ts:219:5 › 31 historical void Detail retains service restore ability
+[409/973] [webkit-iphone] › tests/p2-e-home.spec.ts:60:134 › canonical 2480 displays 你目前多付 without debt framing
+[410/973] [webkit-iphone] › tests/p2-e-home.spec.ts:60:134 › canonical -2480 displays 另一半目前多付 without debt framing
+[411/973] [webkit-iphone] › tests/p2-d-quick-entry.spec.ts:283:5 › background and foreground preserve unsent draft and focus without storage or POST
+
+[WebServer] (node:11607) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+[412/973] [webkit-iphone] › tests/p1-c-races.spec.ts:93:5 › same-ledger Detail identity change cannot reuse previous attachments
+[413/973] [webkit-iphone] › tests/p2-c-timeline.spec.ts:227:5 › 32–34 receipt existing open upload and delete stay within Detail attachment capability
+[414/973] [webkit-iphone] › tests/p1-c-races.spec.ts:103:5 › search failure is visible on Search and absent after leaving its scope
+[415/973] [webkit-iphone] › tests/p2-d-quick-entry.spec.ts:295:5 › reduced motion, 200% text and keyboard-sized viewport keep labelled controls and Add reachable
+[416/973] [webkit-iphone] › tests/p2-e-home.spec.ts:60:134 › canonical 0 displays 目前很平衡 without debt framing
+[417/973] [webkit-iphone] › tests/p2-c-timeline.spec.ts:239:5 › 35 attachment failure preserves posted financial state and sends no financial mutation
+[418/973] [webkit-iphone] › tests/p1-c-races.spec.ts:112:5 › same-ledger proposal compatibility responses stay with their proposal id
+[419/973] [webkit-iphone] › tests/p2-e-home.spec.ts:68:5 › next payer follows the supplied canonical recommendation, including one differing from the balance sign
+[420/973] [webkit-iphone] › tests/p2-d-quick-entry.spec.ts:310:5 › Taipei midnight keeps the existing draft date contextual, then a fresh today draft targets its row
+[421/973] [webkit-iphone] › tests/p2-c-timeline.spec.ts:248:5 › 36–37 timeline has one interactive row and no legacy details or duplicate financial/receipt actions
+[422/973] [webkit-iphone] › tests/p1-c-races.spec.ts:124:52 › popstate while SUBMITTING keeps original scope and sends no destination request
+[423/973] [webkit-iphone] › tests/p2-e-home.spec.ts:71:51 › no payer fabrication when canonical next payer is null
+[424/973] [webkit-iphone] › tests/p2-e-home.spec.ts:71:51 › no payer fabrication when canonical next payer is missing-member
+[425/973] [webkit-iphone] › tests/p2-c-timeline.spec.ts:257:5 › 38–39 Search preserves secondary filters and include-void reveals historical row, with origin Back
+[426/973] [webkit-iphone] › tests/p1-c-races.spec.ts:124:52 › popstate while UNKNOWN keeps original scope and sends no destination request
+[427/973] [webkit-iphone] › tests/p2-e-home.spec.ts:75:63 › BigInt complete absolute balance 900719925474099312345 has no exponent, clipping or overflow
+
+(node:11727) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+[428/973] [webkit-iphone] › tests/v2-liff.spec.ts:232:5 › P1-A keeps the native transaction date fully readable at mobile widths and enlarged text
+[429/973] [webkit-iphone] › tests/p1-c-races.spec.ts:141:5 › late refresh and background resume do not steal editing focus
+[430/973] [webkit-iphone] › tests/p2-e-home.spec.ts:75:63 › BigInt complete absolute balance -900719925474099312345 has no exponent, clipping or overflow
+[431/973] [webkit-iphone] › tests/p2-c-timeline.spec.ts:268:5 › 40 P2-B Ledger switch keeps truthful identity and scopes timeline data
+[432/973] [webkit-iphone] › tests/p1-c-races.spec.ts:152:49 › 收支概況 Back restores Home scroll; reload resets it
+[433/973] [webkit-iphone] › tests/p2-e-home.spec.ts:81:5 › zero-record Ledger is balanced, has an empty timeline and one valid Quick Entry
+[434/973] [webkit-iphone] › tests/p2-e-home.spec.ts:89:5 › no-Ledger state has only the existing create flow, with no financial Home shell
+[435/973] [webkit-iphone] › tests/p1-c-races.spec.ts:152:49 › 帳本設定 Back restores Home scroll; reload resets it
+[436/973] [webkit-iphone] › tests/p2-c-timeline.spec.ts:274:5 › 41 P2-A create editor remains usable and canonical upsert keeps future row first
+[437/973] [webkit-iphone] › tests/v2-liff.spec.ts:325:5 › uses the V2 startup request budget
+[438/973] [webkit-iphone] › tests/p2-e-home.spec.ts:100:5 › first bootstrap loading keeps accepted identity and quiet skeletons without fake zero/empty
+[439/973] [webkit-iphone] › tests/v2-liff.spec.ts:336:5 › P1-A restores zoom and keeps primary controls readable and tappable
+[440/973] [webkit-iphone] › tests/p1-c-races.spec.ts:152:49 › 搜尋 Back restores Home scroll; reload resets it
+[441/973] [webkit-iphone] › tests/p2-e-home.spec.ts:110:5 › initial read failure is unavailable, scoped and retryable, not an empty or valid submit state
+[442/973] [webkit-iphone] › tests/p2-c-timeline.spec.ts:283:5 › 42 dirty correction leave guard keeps draft/focus or explicitly discards with one dialog host
+[443/973] [webkit-iphone] › tests/p1-c-races.spec.ts:166:47 › unsaved setting 新增自訂分類 shares the leave host and preserves focus on cancel
+[444/973] [webkit-iphone] › tests/p2-e-home.spec.ts:118:5 › known refresh failure keeps balance, payer and timeline, adds stale copy and contextual retry
+[445/973] [webkit-iphone] › tests/p2-c-timeline.spec.ts:292:5 › first read has three static timeline skeletons and refresh failure preserves known effective rows
+[446/973] [webkit-iphone] › tests/v2-liff.spec.ts:430:5 › P1-A keeps keyboard focus visible and honors reduced motion
+[447/973] [webkit-iphone] › tests/p1-c-races.spec.ts:166:47 › unsaved setting 週期交易名稱 shares the leave host and preserves focus on cancel
+[448/973] [webkit-iphone] › tests/p2-e-home.spec.ts:127:5 › read 401 remains a distinct authentication failure
+[449/973] [webkit-iphone] › tests/v2-liff.spec.ts:461:5 › P1-A keeps long Ledger names and large TWD balances reachable at 200% text size
+[450/973] [webkit-iphone] › tests/p2-e-home.spec.ts:133:5 › More reuses one bounded host, makes no request/history change and restores focus
+[451/973] [webkit-iphone] › tests/p2-c-timeline.spec.ts:301:5 › empty effective history avoids fake zeros and historical records remain deep-linkable
+[452/973] [webkit-iphone] › tests/v2-liff.spec.ts:484:5 › loads statistics and recurring rules only when their secondary UI is opened
+[453/973] [webkit-iphone] › tests/p1-c-races.spec.ts:179:88 › stats read 401 offers the correct recovery action without changing Ledger preference
+[454/973] [webkit-iphone] › tests/p1-c-races.spec.ts:179:88 › stats read 500 offers the correct recovery action without changing Ledger preference
+[455/973] [webkit-iphone] › tests/p2-e-home.spec.ts:144:5 › More Refresh performs only existing scoped reads and returns focus
+[456/973] [webkit-iphone] › tests/v2-liff.spec.ts:491:5 › shows server-confirmed saving and success feedback without waiting for history reload
+[457/973] [webkit-iphone] › tests/p2-c-timeline.spec.ts:307:5 › Detail pending read and read500 never guess a transaction or reveal foreign scope
+[458/973] [webkit-iphone] › tests/p1-c-races.spec.ts:179:88 › recurring read 401 offers the correct recovery action without changing Ledger preference
+[459/973] [webkit-iphone] › tests/p2-e-home.spec.ts:152:48 › 收支概況 is reachable with existing scoped Back
+[460/973] [webkit-iphone] › tests/p1-c-races.spec.ts:179:88 › recurring read 500 offers the correct recovery action without changing Ledger preference
+[461/973] [webkit-iphone] › tests/v2-liff.spec.ts:519:5 › payer and split choices use the existing native host while low-frequency fields stay under More
+[462/973] [webkit-iphone] › tests/p2-c-timeline.spec.ts:316:5 › 200% long notes and reduced motion keep Back and More actions reachable without overflow
+[463/973] [webkit-iphone] › tests/p2-e-home.spec.ts:152:48 › 帳本設定 is reachable with existing scoped Back
+[464/973] [webkit-iphone] › tests/p1-c-races.spec.ts:179:88 › search read 401 offers the correct recovery action without changing Ledger preference
+[465/973] [webkit-iphone] › tests/p2-e-home.spec.ts:152:48 › 搜尋 is reachable with existing scoped Back
+[466/973] [webkit-iphone] › tests/p2-c-timeline.spec.ts:323:5 › filtered Search preserves insertion-independent origin scroll and loaded second history page without a new request
+[467/973] [webkit-iphone] › tests/p1-c-races.spec.ts:179:88 › search read 500 offers the correct recovery action without changing Ledger preference
+[468/973] [webkit-iphone] › tests/v2-liff.spec.ts:545:5 › uses continuous balance language for either payer and balanced state
+[469/973] [webkit-iphone] › tests/p2-e-home.spec.ts:158:5 › timeline stays 20+20 without an append request; Detail returns focus and scroll to its original row
+[470/973] [webkit-iphone] › tests/p1-c-races.spec.ts:202:5 › stale app-origin row marker falls back to a surviving Home row
+[471/973] [webkit-iphone] › tests/v2-liff.spec.ts:556:5 › keeps the daily UI usable on a narrow mobile viewport
+[472/973] [webkit-iphone] › tests/p2-e-home.spec.ts:166:5 › A to B shows B identity/skeleton with neither A balance nor A rows
+[473/973] [webkit-iphone] › tests/p2-c-timeline.spec.ts:338:45 › Search mutation refresh restores loaded history window and reads the same two pages
+
+(node:12298) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+[474/973] [chromium-393] › tests/p1-b-entry.spec.ts:27:5 › normal create commits row, balance and next payer together without a bootstrap refresh
+[475/973] [webkit-iphone] › tests/v2-liff.spec.ts:574:5 › keeps voided transactions distinct in canonical Detail and excludes them from daily history
+[476/973] [webkit-iphone] › tests/p2-e-home.spec.ts:174:40 › 40-character Ledger name and huge balance wrap at 100% without obscuring header controls
+[477/973] [webkit-iphone] › tests/v2-liff.spec.ts:589:5 › uses the canonical save response without reloading the Ledger
+[478/973] [webkit-iphone] › tests/p2-c-timeline.spec.ts:338:45 › Search mutation refresh restores loaded history window and preserves known rows on read500
+[479/973] [webkit-iphone] › tests/p2-e-home.spec.ts:174:40 › 40-character Ledger name and huge balance wrap at 200% without obscuring header controls
+[480/973] [chromium-393] › tests/p1-b-entry.spec.ts:42:5 › double tap owns one operation and guards switching while submitting
+[481/973] [webkit-iphone] › tests/v2-liff.spec.ts:598:5 › keeps the draft on a rejected POST and does not add a local row
+[482/973] [webkit-iphone] › tests/p2-e-home.spec.ts:184:5 › header keyboard order is identity, Search, More, followed by the quiet statistics target
+[483/973] [webkit-iphone] › tests/p2-c-timeline.spec.ts:358:5 › direct Detail retry focuses purpose heading after initial bootstrap read500
+[484/973] [chromium-393] › tests/p1-b-entry.spec.ts:57:5 › commit then dropped response reloads UNKNOWN and explicit replay returns original result with identical body/key
+[485/973] [webkit-iphone] › tests/p2-e-home.spec.ts:189:5 › Quick Entry create preserves one contextual success, canonical row/balance targeting and fresh draft
+[486/973] [webkit-iphone] › tests/v2-liff.spec.ts:610:5 › reuses the idempotency key on an unchanged retry
+[487/973] [webkit-iphone] › tests/p2-c-timeline.spec.ts:366:5 › ambiguous void response retains original mutation key and expectedVersion across a successful background read
+[488/973] [webkit-iphone] › tests/v2-liff.spec.ts:624:5 › keeps a committed transaction out of a nonmatching search projection
+[489/973] [webkit-iphone] › tests/p2-e-home.spec.ts:196:5 › reduced motion retains the complete Home and More focus behavior
+[490/973] [chromium-393] › tests/p1-b-entry.spec.ts:75:5 › compatible partial commit plus GET 500 stays COMMITTED, including reload and read-only retry
+[491/973] [chromium-393] › tests/p1-b-entry.spec.ts:86:63 › malformed 2xx cannot claim success
+[492/973] [webkit-iphone] › tests/v2-liff.spec.ts:664:5 › V3-0 ignores reversed bootstrap responses after explicit draft discard
+
+(node:12513) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+[493/973] [webkit-iphone] › tests/p2-c-timeline.spec.ts:382:5 › voiding an origin row beyond twenty returns focus to its nearest surviving timeline row
+[494/973] [chromium-393] › tests/p1-c-navigation.spec.ts:17:5 › 01 normal launch replaces current URL with explicit canonical Ledger
+[495/973] [chromium-393] › tests/p1-c-navigation.spec.ts:18:5 › 02 explicit B deep link reads only B
+[496/973] [chromium-393] › tests/p1-b-entry.spec.ts:86:63 › wrong-scope 2xx cannot claim success
+[497/973] [chromium-393] › tests/p1-c-navigation.spec.ts:19:130 › 03 nonexistent explicit target offers bounded recovery
+[498/973] [chromium-393] › tests/p1-b-entry.spec.ts:92:5 › storage unavailable or incorrect read-back prevents POST and keeps editing
+[499/973] [webkit-iphone] › tests/p2-c-timeline.spec.ts:392:5 › browser records native view-transition support for bounded Detail-close motion
+[500/973] [webkit-iphone] › tests/v2-liff.spec.ts:687:5 › V3-0 rapid A B A switches ignore the first A generation and stale errors
+[501/973] [chromium-393] › tests/p1-c-navigation.spec.ts:19:130 › 04 unauthorized explicit target offers bounded recovery
+[502/973] [chromium-393] › tests/p1-b-entry.spec.ts:101:5 › recovery identity mismatch reveals no stored financial content and cannot replay
+[503/973] [chromium-393] › tests/p1-c-navigation.spec.ts:20:5 › 05 invalid explicit B never paints A content
+[504/973] [chromium-393] › tests/p1-c-navigation.spec.ts:21:5 › 06 transaction with correct Ledger reconstructs and focuses detail
+[505/973] [webkit-iphone] › tests/p2-c-timeline.spec.ts:412:5 › aborted filtered Search append returns an enabled retry and preserves the loaded first page
+[506/973] [chromium-393] › tests/p1-b-entry.spec.ts:111:5 › recovery couple mismatch cannot hydrate even when actor and ledger IDs match
+[507/973] [webkit-iphone] › tests/v2-liff.spec.ts:706:7 › V3-0 ignores reversed statistics responses across Ledgers
+[508/973] [chromium-393] › tests/p1-c-navigation.spec.ts:22:5 › 07 transaction with wrong Ledger shows link error without guessing another Ledger
+[509/973] [chromium-393] › tests/p1-c-navigation.spec.ts:23:5 › 08 transaction without Ledger does not scan for ownership
+[510/973] [chromium-393] › tests/p1-b-entry.spec.ts:118:5 › Ledger A recovery takes priority over URL B without activating or moving a write to B
+[511/973] [chromium-393] › tests/p1-c-navigation.spec.ts:24:5 › 09 app row pushes detail and Back restores row focus
+[512/973] [webkit-iphone] › tests/v2-liff.spec.ts:706:7 › V3-0 ignores reversed categories responses across Ledgers
+[513/973] [webkit-iphone] › tests/p2-c-timeline.spec.ts:427:5 › Back expands root render window when a new canonical row moves the surviving origin beyond row twenty
+[514/973] [chromium-393] › tests/p1-c-navigation.spec.ts:25:5 › 10 direct detail visible Back replaces to Home without leaving product
+[515/973] [chromium-393] › tests/p1-b-entry.spec.ts:132:5 › unknown followed by 401 remains unknown with original operation
+[516/973] [chromium-393] › tests/p1-c-navigation.spec.ts:26:5 › 11 reload detail preserves URL and drops stale app origin
+[517/973] [chromium-393] › tests/p1-b-entry.spec.ts:141:5 › authorized A recovery remains available when the linked Ledger no longer exists
+[518/973] [chromium-393] › tests/p1-c-navigation.spec.ts:27:95 › 12 收支概況 push reload deterministic Back
+[519/973] [webkit-iphone] › tests/v2-liff.spec.ts:706:7 › V3-0 ignores reversed recurring responses across Ledgers
+[520/973] [chromium-393] › tests/p1-b-entry.spec.ts:154:5 › an actor change in the existing document is detected before replay POST
+
+(node:12812) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+[521/973] [chromium-393] › tests/p1-c-navigation.spec.ts:27:95 › 13 帳本設定 push reload deterministic Back
+[522/973] [chromium-393] › tests/p2-a-entry.spec.ts:57:35 › command body matches P1-B and kernel: default-simple-1-1
+[523/973] [chromium-393] › tests/p1-b-entry.spec.ts:163:5 › a new authorization failure hides cached financial content without discarding commit proof
+[524/973] [chromium-393] › tests/p1-b-entry.spec.ts:174:5 › timeout after dispatch becomes unknown and preserves the exact recovery operation
+[525/973] [chromium-393] › tests/p1-c-navigation.spec.ts:28:5 › 14 recurring URL reconstructs secondary surface
+[526/973] [chromium-393] › tests/p2-a-entry.spec.ts:57:35 › command body matches P1-B and kernel: non-50-50-second-member-partner-2-1
+[527/973] [webkit-iphone] › tests/v2-liff.spec.ts:706:7 › V3-0 ignores reversed transactions responses across Ledgers
+[528/973] [chromium-393] › tests/p1-c-navigation.spec.ts:29:5 › 15 Search pushes URL and Back returns Home
+[529/973] [chromium-393] › tests/p1-b-entry.spec.ts:187:5 › correction drop-response reload replay retains original replacement and expected version
+[530/973] [chromium-393] › tests/p2-a-entry.spec.ts:57:35 › command body matches P1-B and kernel: both-payers-second-member-0-1
+[531/973] [chromium-393] › tests/p1-c-navigation.spec.ts:30:5 › 16 manual A to B replaces Home and focuses accepted Ledger
+[532/973] [chromium-393] › tests/p1-b-entry.spec.ts:198:5 › first rejection preserves editable draft and unchanged retry reuses the key
+[533/973] [chromium-393] › tests/p1-c-navigation.spec.ts:31:5 › 17 A to B to A is generation safe for queued preference
+[534/973] [chromium-393] › tests/p2-a-entry.spec.ts:57:35 › command body matches P1-B and kernel: equal-second-member
+[535/973] [webkit-iphone] › tests/v2-liff.spec.ts:734:5 › V3-0 switching Ledger after a deep link stays on the manual selection
+[536/973] [chromium-393] › tests/p1-b-entry.spec.ts:207:5 › one create/correction draft requires explicit keep or discard
+[537/973] [chromium-393] › tests/p1-c-navigation.spec.ts:32:77 › 18 late A bootstrap success cannot update B
+[538/973] [chromium-393] › tests/p2-a-entry.spec.ts:57:35 › command body matches P1-B and kernel: percentage-fractional
+[539/973] [chromium-393] › tests/p1-c-navigation.spec.ts:32:77 › 19 late A bootstrap failure cannot update B
+[540/973] [chromium-393] › tests/p1-b-entry.spec.ts:219:5 › creating a Ledger after discarding A opens a usable draft in the new Ledger
+[541/973] [webkit-iphone] › tests/v2-liff.spec.ts:752:5 › V3-0 guards a late A save, then explicit discard cannot reuse A feedback or key in B
+[542/973] [chromium-393] › tests/p2-a-entry.spec.ts:57:35 › command body matches P1-B and kernel: exact-partner-payer
+[543/973] [chromium-393] › tests/p1-c-navigation.spec.ts:33:5 › 20 activation failure keeps B readable and retry touches preference only
+[544/973] [chromium-393] › tests/p1-b-entry.spec.ts:244:45 › correction success preserves commit when refresh succeeds
+[545/973] [chromium-393] › tests/p1-c-navigation.spec.ts:34:5 › 21 deep link B has NOT-SENT activate evidence
+[546/973] [chromium-393] › tests/p2-a-entry.spec.ts:57:35 › command body matches P1-B and kernel: income-both
+[547/973] [chromium-393] › tests/p1-c-navigation.spec.ts:35:5 › 22 explicit Switcher B sends preference activation once
+[548/973] [chromium-393] › tests/p1-c-navigation.spec.ts:36:5 › 23 initial draft switches without confirmation and receives fresh defaults
+[549/973] [chromium-393] › tests/p1-b-entry.spec.ts:244:45 › correction success preserves commit when refresh fails
+[550/973] [chromium-393] › tests/p2-a-entry.spec.ts:57:35 › command body matches P1-B and kernel: transfer-partner-direction
+
+(node:13199) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+[551/973] [chromium-393] › tests/p1-c-navigation.spec.ts:37:5 › 24 amount-only dirty cancel preserves value focus URL and NOT-SENT activation
+[552/973] [chromium-393] › tests/p2-b-identity.spec.ts:23:5 › name is the single Home identity; switch A B A reuses canonical scope
+[553/973] [chromium-393] › tests/p2-a-entry.spec.ts:84:5 › one host, cancel preserves draft, Apply only edits draft and returns focus
+[554/973] [chromium-393] › tests/p1-c-navigation.spec.ts:38:5 › 25 amount-only discard accepts B exactly once
+[555/973] [chromium-393] › tests/p1-b-entry.spec.ts:266:5 › a stale posted receipt cannot downgrade balance/next payer or resurrect a later void
+[556/973] [chromium-393] › tests/p2-b-identity.spec.ts:53:5 › deep-link viewed B and LINE default A remain distinct and selected is announced
+[557/973] [chromium-393] › tests/p1-c-navigation.spec.ts:39:5 › 26 description dirty is guarded and semantic reversion becomes clean
+[558/973] [chromium-393] › tests/p2-a-entry.spec.ts:104:5 › both payments and exact shares retain explicit amounts after total changes
+[559/973] [chromium-393] › tests/p2-b-identity.spec.ts:66:5 › activation syncing and failure stay bounded while B remains readable
+[560/973] [chromium-393] › tests/p1-c-navigation.spec.ts:40:5 › 27 advanced-field-only note is dirty with empty amount and retains focus
+[561/973] [chromium-393] › tests/p1-b-entry.spec.ts:279:5 › a stale posted receipt cannot resurrect a replaced transaction
+[562/973] [chromium-393] › tests/p2-b-identity.spec.ts:88:39 › 40 character identities stay complete and wrap at 100% text
+[563/973] [chromium-393] › tests/p2-a-entry.spec.ts:121:5 › IME, Enter, disabled reasons, inline association and first-invalid focus
+[564/973] [chromium-393] › tests/p1-c-navigation.spec.ts:41:5 › 28 SUBMITTING blocks switch without aborting original POST
+[565/973] [chromium-393] › tests/p2-b-identity.spec.ts:88:39 › 40 character identities stay complete and wrap at 200% text
+[566/973] [chromium-393] › tests/p1-b-entry.spec.ts:293:5 › partner login odd 681 uses kernel member order and opening defaults despite a background change
+[567/973] [chromium-393] › tests/p1-c-navigation.spec.ts:42:76 › 29 COMMITTED with pending refresh permits switch
+[568/973] [chromium-393] › tests/p2-a-entry.spec.ts:143:5 › incomplete percentages do not pretend to be equal and default snapshot stays frozen
+[569/973] [chromium-393] › tests/p2-b-identity.spec.ts:116:5 › 40 unbroken Latin characters wrap without horizontal scroll at 200%
+[570/973] [chromium-393] › tests/p1-c-navigation.spec.ts:42:76 › 30 COMMITTED with failed refresh permits switch
+[571/973] [chromium-393] › tests/p1-b-entry.spec.ts:303:5 › midnight preserves the current draft date and opens the next draft with today's Taipei date
+[572/973] [chromium-393] › tests/p2-b-identity.spec.ts:126:5 › keyboard enters titled dialog, moves options without writes, selects and returns focus
+[573/973] [chromium-393] › tests/p2-a-entry.spec.ts:156:68 › correction hydrates actual stored expense with historical exact shares
+[574/973] [chromium-393] › tests/p1-c-navigation.spec.ts:43:5 › 31 UNKNOWN blocks financial scope and activation is NOT-SENT
+[575/973] [chromium-393] › tests/p1-b-entry.spec.ts:317:5 › recovery persistence overhead is bounded and stores only submitted operations
+[576/973] [chromium-393] › tests/p2-b-identity.spec.ts:149:5 › create cancel returns to the same switcher and never changes scope or history
+[577/973] [chromium-393] › tests/p2-a-entry.spec.ts:156:68 › correction hydrates actual stored income with historical exact shares
+[578/973] [chromium-393] › tests/p2-c-timeline.spec.ts:60:5 › 01–05 20+20 client window preserves identity and single date headings across 20/21 and 40/41
+[579/973] [chromium-393] › tests/p1-c-navigation.spec.ts:44:5 › 32 UNKNOWN replay remains bound to original Ledger body and key
+[580/973] [chromium-393] › tests/p2-b-identity.spec.ts:169:40 › create success accepts new name and scope from switcher
+[581/973] [chromium-393] › tests/p2-a-entry.spec.ts:156:68 › correction hydrates actual stored transfer with historical exact shares
+[582/973] [chromium-393] › tests/p1-c-navigation.spec.ts:45:5 › 33 latest pending destination wins without queued switches
+[583/973] [chromium-393] › tests/p2-b-identity.spec.ts:169:40 › create success accepts new name and scope from empty list
+[584/973] [chromium-393] › tests/p2-c-timeline.spec.ts:83:5 › 06 today yesterday cross-year and future use occurrence date under Taipei semantics
+[585/973] [chromium-393] › tests/p2-a-entry.spec.ts:174:5 › More retains non-default values and 200% text remains reachable without overflow
+[586/973] [chromium-393] › tests/p2-b-identity.spec.ts:190:5 › empty list cancel returns to one clear create entry
+[587/973] [chromium-393] › tests/p1-c-navigation.spec.ts:46:76 › 34 popstate dirty cancel restores truth without activation
+[588/973] [chromium-393] › tests/p2-b-identity.spec.ts:207:5 › archived-only list has no broken identity trigger
+[589/973] [chromium-393] › tests/p2-c-timeline.spec.ts:92:5 › 07 long purpose stays bounded on row and appears in full with long note in Detail
+[590/973] [chromium-393] › tests/p1-c-navigation.spec.ts:46:76 › 35 popstate dirty accept restores truth without activation
+[591/973] [chromium-393] › tests/p2-a-entry.spec.ts:188:5 › switching both to transfer requires an explicit sender and never dispatches a guessed direction
+[592/973] [chromium-393] › tests/p2-b-identity.spec.ts:215:5 › create rejection preserves name and scope; cancelled retry writes nothing
+[593/973] [chromium-393] › tests/p2-c-timeline.spec.ts:101:5 › 08 huge canonical TWD remains exact and readable at 200% text
+[594/973] [chromium-393] › tests/p1-c-navigation.spec.ts:47:5 › 36 repeated Back and Forward do not loop or inflate history
+[595/973] [chromium-393] › tests/p2-b-identity.spec.ts:228:5 › create is single flight and keeps its only dialog until response
+[596/973] [chromium-393] › tests/p2-a-entry.spec.ts:199:5 › second-member controls retain Ledger order, full kernel preview and associated incomplete errors
+[597/973] [chromium-393] › tests/p1-c-navigation.spec.ts:48:5 › 37 late activation and secondary errors cannot contaminate newer Ledger
+[598/973] [chromium-393] › tests/p2-d-quick-entry.spec.ts:41:5 › single bottom CTA replaces the persistent form; opening is synchronous, labelled and network-free
+[599/973] [chromium-393] › tests/p1-c-navigation.spec.ts:49:5 › 38 Escape equals visible cancel and host never stacks dialogs
+[600/973] [chromium-393] › tests/p2-c-timeline.spec.ts:115:8 › 09 expense row and Detail use truthful type/payment semantics
+[601/973] [chromium-393] › tests/p2-d-quick-entry.spec.ts:65:5 › amount Next, purpose Enter, Chinese composition and 229 never implicitly submit
+[602/973] [chromium-393] › tests/p1-c-navigation.spec.ts:50:5 › 39 native dialog labels traps background and restores Ledger trigger focus
+
+(node:13722) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+[603/973] [chromium-393] › tests/p1-c-races.spec.ts:9:5 › native push and replace remain observable and preserve unrelated and Next state
+[604/973] [chromium-393] › tests/p2-d-quick-entry.spec.ts:88:5 › payer and split replace one host and restore editor disclosure, scroll and focus without requests
+[605/973] [chromium-393] › tests/p1-c-navigation.spec.ts:51:5 › 40 per-Ledger Home scroll restores A to B to A
+[606/973] [chromium-393] › tests/p1-c-races.spec.ts:24:5 › LIFF redirect parameters are untouched until init resolves
+[607/973] [chromium-393] › tests/p2-c-timeline.spec.ts:115:8 › 10 income row and Detail use truthful type/payment semantics
+[608/973] [chromium-393] › tests/p1-c-races.spec.ts:39:5 › delayed deep-link B cannot pull a subsequent manual A selection back
+[609/973] [chromium-393] › tests/p1-c-navigation.spec.ts:52:5 › 41 Search query does not carry from A into B
+[610/973] [chromium-393] › tests/p2-d-quick-entry.spec.ts:110:5 › untouched cancel restores Home CTA; dirty cancel keeps the previous field or discards explicitly
+[611/973] [chromium-393] › tests/p2-c-timeline.spec.ts:115:8 › 11 transfer row and Detail use truthful type/payment semantics
+[612/973] [chromium-393] › tests/p1-c-races.spec.ts:48:42 › A-B-A late first A bootstrap success cannot overwrite new A
+[613/973] [chromium-393] › tests/p1-c-navigation.spec.ts:53:5 › 42 proposal compatibility remains reachable without claimed Ledger ownership
+[614/973] [chromium-393] › tests/p2-d-quick-entry.spec.ts:123:5 › T0 double activation has one recovery record/key/effect; pending, slow and close stay bound to the original operation
+[615/973] [chromium-393] › tests/p1-c-navigation.spec.ts:54:5 › 43 200 percent text has no body overflow and important controls remain 44px
+[616/973] [chromium-393] › tests/p2-c-timeline.spec.ts:115:8 › 12 both-payer row and Detail use truthful type/payment semantics
+[617/973] [chromium-393] › tests/p1-c-races.spec.ts:48:42 › A-B-A late first A bootstrap failure cannot overwrite new A
+[618/973] [chromium-393] › tests/p1-c-navigation.spec.ts:55:5 › 44 reduced motion retains native focus and navigation
+[619/973] [chromium-393] › tests/p2-d-quick-entry.spec.ts:145:5 › UNKNOWN retains immutable original operation and reload never auto posts; replay uses the same bytes and key
+[620/973] [chromium-393] › tests/p1-c-races.spec.ts:63:7 › A-B-A late categories success stays in its generation
+[621/973] [chromium-393] › tests/p2-c-timeline.spec.ts:146:5 › 13–17 canonical Detail focuses heading, opens at top and returns scroll/focus to row beyond initial 20
+[622/973] [chromium-393] › tests/p1-c-navigation.spec.ts:57:5 › 45 browser Back restores the original transaction row focus
+[623/973] [chromium-393] › tests/p1-c-races.spec.ts:63:7 › A-B-A late categories failure stays in its generation
+[624/973] [chromium-393] › tests/p1-c-navigation.spec.ts:64:5 › 46 dirty discard into a secondary surface focuses heading after dialog closes
+[625/973] [chromium-393] › tests/p2-d-quick-entry.spec.ts:159:5 › full canonical success closes once, updates row/balance/next payer atomically, targets today and uses no bootstrap GET
+[626/973] [chromium-393] › tests/p2-c-timeline.spec.ts:161:5 › 18–19 direct Detail and reload replace Back to scoped Home without app-origin history escape
+[627/973] [chromium-393] › tests/p1-c-navigation.spec.ts:72:5 › 47 amount and purpose closing guard cancels without losing input
+[628/973] [chromium-393] › tests/p1-c-races.spec.ts:63:7 › A-B-A late recurring success stays in its generation
+[629/973] [chromium-393] › tests/p2-d-quick-entry.spec.ts:187:5 › today targeting expands P2-C's window past future and newer rows without moving dates or losing identity
+[630/973] [chromium-393] › tests/p2-c-timeline.spec.ts:170:129 › 20 wrong scoped or nonexistent transaction never falls back
+[631/973] [chromium-393] › tests/p1-c-navigation.spec.ts:82:5 › 48 UNKNOWN latest destination survives replay and replaces initial deep-link intent
+[632/973] [chromium-393] › tests/p1-c-races.spec.ts:63:7 › A-B-A late recurring failure stays in its generation
+[633/973] [chromium-393] › tests/p2-c-timeline.spec.ts:170:129 › 21 wrong scoped or nonexistent transaction never falls back
+[634/973] [chromium-393] › tests/p2-d-quick-entry.spec.ts:197:60 › 2026-09-03 preserves chronological position and focuses one contextual View into canonical Detail
+[635/973] [chromium-393] › tests/p1-c-races.spec.ts:63:7 › A-B-A late statistics success stays in its generation
+[636/973] [chromium-393] › tests/p2-c-timeline.spec.ts:180:5 › 22–24 replaced and void historical deep links resolve and 查看新版 opens exact replacement
+[637/973] [chromium-393] › tests/p1-c-navigation.spec.ts:94:5 › 49 committed recovery awaiting A read permits B without hydrating A into B
+[638/973] [chromium-393] › tests/p1-c-races.spec.ts:63:7 › A-B-A late statistics failure stays in its generation
+[639/973] [chromium-393] › tests/p2-d-quick-entry.spec.ts:197:60 › 2026-09-28 preserves chronological position and focuses one contextual View into canonical Detail
+[640/973] [chromium-393] › tests/p2-c-timeline.spec.ts:188:5 › 25–26 edit uses shared P2-A controls and clean cancel returns to Detail
+[641/973] [chromium-393] › tests/p1-c-races.spec.ts:63:7 › A-B-A late history success stays in its generation
+[642/973] [chromium-393] › tests/p1-c-navigation.spec.ts:105:46 › 50 bootstrap 401 has a scoped recovery action
+[643/973] [chromium-393] › tests/p2-d-quick-entry.spec.ts:210:5 › a moved Home reading position is preserved and View is visible without a forced scroll
+[644/973] [chromium-393] › tests/p1-c-navigation.spec.ts:105:46 › 50 bootstrap 403 has a scoped recovery action
+[645/973] [chromium-393] › tests/p2-c-timeline.spec.ts:197:46 › 27 correction known commit remains success when read succeeds
+[646/973] [chromium-393] › tests/p1-c-navigation.spec.ts:105:46 › 50 bootstrap 404 has a scoped recovery action
+[647/973] [chromium-393] › tests/p2-d-quick-entry.spec.ts:226:5 › filtered Search keeps its query and excludes a nonmatching canonical row, with View using P2-C Detail
+[648/973] [chromium-393] › tests/p1-c-races.spec.ts:63:7 › A-B-A late history failure stays in its generation
+[649/973] [chromium-393] › tests/p2-c-timeline.spec.ts:197:46 › 28 correction known commit remains success when read 500
+[650/973] [chromium-393] › tests/p1-c-navigation.spec.ts:105:46 › 50 bootstrap 500 has a scoped recovery action
+[651/973] [chromium-393] › tests/p2-d-quick-entry.spec.ts:237:5 › partial commit plus read500 closes as success, and retry remains GET-only
+[652/973] [chromium-393] › tests/p2-c-timeline.spec.ts:208:46 › 29 explicit void preserves known success when read succeeds
+[653/973] [chromium-393] › tests/p1-c-races.spec.ts:93:5 › same-ledger Detail identity change cannot reuse previous attachments
+
+(node:14153) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+[654/973] [chromium-393] › tests/p2-e-home.spec.ts:39:5 › Home has one location heading, direct header Search/More and the frozen semantic hierarchy
+[655/973] [chromium-393] › tests/p1-c-races.spec.ts:103:5 › search failure is visible on Search and absent after leaving its scope
+[656/973] [chromium-393] › tests/p2-d-quick-entry.spec.ts:254:5 › the next explicit open snapshots fresh defaults and has no prior amount, payer, shares or key
+[657/973] [chromium-393] › tests/p2-c-timeline.spec.ts:208:46 › 30 explicit void preserves known success when read 500
+[658/973] [chromium-393] › tests/p1-c-races.spec.ts:112:5 › same-ledger proposal compatibility responses stay with their proposal id
+[659/973] [chromium-393] › tests/p2-e-home.spec.ts:60:134 › canonical 2480 displays 你目前多付 without debt framing
+[660/973] [chromium-393] › tests/p2-c-timeline.spec.ts:219:5 › 31 historical void Detail retains service restore ability
+[661/973] [chromium-393] › tests/p1-c-races.spec.ts:124:52 › popstate while SUBMITTING keeps original scope and sends no destination request
+[662/973] [chromium-393] › tests/p2-d-quick-entry.spec.ts:270:5 › Ledger switch works after closing Quick Entry; secondary pages have no create form or CTA
+[663/973] [chromium-393] › tests/p2-e-home.spec.ts:60:134 › canonical -2480 displays 另一半目前多付 without debt framing
+[664/973] [chromium-393] › tests/p1-c-races.spec.ts:124:52 › popstate while UNKNOWN keeps original scope and sends no destination request
+[665/973] [chromium-393] › tests/p2-e-home.spec.ts:60:134 › canonical 0 displays 目前很平衡 without debt framing
+[666/973] [chromium-393] › tests/p2-d-quick-entry.spec.ts:283:5 › background and foreground preserve unsent draft and focus without storage or POST
+[667/973] [chromium-393] › tests/p2-c-timeline.spec.ts:227:5 › 32–34 receipt existing open upload and delete stay within Detail attachment capability
+
+[WebServer] (node:14264) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+[668/973] [chromium-393] › tests/p1-c-races.spec.ts:141:5 › late refresh and background resume do not steal editing focus
+[669/973] [chromium-393] › tests/p2-d-quick-entry.spec.ts:295:5 › reduced motion, 200% text and keyboard-sized viewport keep labelled controls and Add reachable
+[670/973] [chromium-393] › tests/p2-e-home.spec.ts:68:5 › next payer follows the supplied canonical recommendation, including one differing from the balance sign
+[671/973] [chromium-393] › tests/p1-c-races.spec.ts:152:49 › 收支概況 Back restores Home scroll; reload resets it
+[672/973] [chromium-393] › tests/p2-c-timeline.spec.ts:239:5 › 35 attachment failure preserves posted financial state and sends no financial mutation
+[673/973] [chromium-393] › tests/p2-e-home.spec.ts:71:51 › no payer fabrication when canonical next payer is null
+[674/973] [chromium-393] › tests/p2-d-quick-entry.spec.ts:310:5 › Taipei midnight keeps the existing draft date contextual, then a fresh today draft targets its row
+[675/973] [chromium-393] › tests/p2-e-home.spec.ts:71:51 › no payer fabrication when canonical next payer is missing-member
+[676/973] [chromium-393] › tests/p2-c-timeline.spec.ts:248:5 › 36–37 timeline has one interactive row and no legacy details or duplicate financial/receipt actions
+[677/973] [chromium-393] › tests/p1-c-races.spec.ts:152:49 › 帳本設定 Back restores Home scroll; reload resets it
+[678/973] [chromium-393] › tests/p2-e-home.spec.ts:75:63 › BigInt complete absolute balance 900719925474099312345 has no exponent, clipping or overflow
+[679/973] [chromium-393] › tests/p2-c-timeline.spec.ts:257:5 › 38–39 Search preserves secondary filters and include-void reveals historical row, with origin Back
+[680/973] [chromium-393] › tests/p2-e-home.spec.ts:75:63 › BigInt complete absolute balance -900719925474099312345 has no exponent, clipping or overflow
+[681/973] [chromium-393] › tests/p1-c-races.spec.ts:152:49 › 搜尋 Back restores Home scroll; reload resets it
+
+(node:14367) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+[682/973] [webkit-393] › tests/p1-b-entry.spec.ts:27:5 › normal create commits row, balance and next payer together without a bootstrap refresh
+[683/973] [chromium-393] › tests/p2-e-home.spec.ts:81:5 › zero-record Ledger is balanced, has an empty timeline and one valid Quick Entry
+[684/973] [chromium-393] › tests/p2-c-timeline.spec.ts:268:5 › 40 P2-B Ledger switch keeps truthful identity and scopes timeline data
+[685/973] [chromium-393] › tests/p1-c-races.spec.ts:166:47 › unsaved setting 新增自訂分類 shares the leave host and preserves focus on cancel
+[686/973] [chromium-393] › tests/p2-e-home.spec.ts:89:5 › no-Ledger state has only the existing create flow, with no financial Home shell
+[687/973] [chromium-393] › tests/p2-c-timeline.spec.ts:274:5 › 41 P2-A create editor remains usable and canonical upsert keeps future row first
+[688/973] [chromium-393] › tests/p1-c-races.spec.ts:166:47 › unsaved setting 週期交易名稱 shares the leave host and preserves focus on cancel
+[689/973] [chromium-393] › tests/p2-e-home.spec.ts:100:5 › first bootstrap loading keeps accepted identity and quiet skeletons without fake zero/empty
+[690/973] [chromium-393] › tests/p1-c-races.spec.ts:179:88 › stats read 401 offers the correct recovery action without changing Ledger preference
+[691/973] [chromium-393] › tests/p2-e-home.spec.ts:110:5 › initial read failure is unavailable, scoped and retryable, not an empty or valid submit state
+[692/973] [chromium-393] › tests/p2-c-timeline.spec.ts:283:5 › 42 dirty correction leave guard keeps draft/focus or explicitly discards with one dialog host
+[693/973] [chromium-393] › tests/p1-c-races.spec.ts:179:88 › stats read 500 offers the correct recovery action without changing Ledger preference
+[694/973] [chromium-393] › tests/p2-e-home.spec.ts:118:5 › known refresh failure keeps balance, payer and timeline, adds stale copy and contextual retry
+[695/973] [webkit-393] › tests/p1-b-entry.spec.ts:42:5 › double tap owns one operation and guards switching while submitting
+[696/973] [chromium-393] › tests/p1-c-races.spec.ts:179:88 › recurring read 401 offers the correct recovery action without changing Ledger preference
+[697/973] [chromium-393] › tests/p2-c-timeline.spec.ts:292:5 › first read has three static timeline skeletons and refresh failure preserves known effective rows
+[698/973] [chromium-393] › tests/p1-c-races.spec.ts:179:88 › recurring read 500 offers the correct recovery action without changing Ledger preference
+[699/973] [chromium-393] › tests/p2-e-home.spec.ts:127:5 › read 401 remains a distinct authentication failure
+[700/973] [chromium-393] › tests/p1-c-races.spec.ts:179:88 › search read 401 offers the correct recovery action without changing Ledger preference
+[701/973] [chromium-393] › tests/p2-e-home.spec.ts:133:5 › More reuses one bounded host, makes no request/history change and restores focus
+[702/973] [chromium-393] › tests/p2-c-timeline.spec.ts:301:5 › empty effective history avoids fake zeros and historical records remain deep-linkable
+[703/973] [webkit-393] › tests/p1-b-entry.spec.ts:57:5 › commit then dropped response reloads UNKNOWN and explicit replay returns original result with identical body/key
+[704/973] [chromium-393] › tests/p2-e-home.spec.ts:144:5 › More Refresh performs only existing scoped reads and returns focus
+[705/973] [chromium-393] › tests/p1-c-races.spec.ts:179:88 › search read 500 offers the correct recovery action without changing Ledger preference
+[706/973] [chromium-393] › tests/p2-c-timeline.spec.ts:307:5 › Detail pending read and read500 never guess a transaction or reveal foreign scope
+[707/973] [chromium-393] › tests/p2-e-home.spec.ts:152:48 › 收支概況 is reachable with existing scoped Back
+[708/973] [webkit-393] › tests/p1-b-entry.spec.ts:75:5 › compatible partial commit plus GET 500 stays COMMITTED, including reload and read-only retry
+[709/973] [chromium-393] › tests/p1-c-races.spec.ts:202:5 › stale app-origin row marker falls back to a surviving Home row
+[710/973] [chromium-393] › tests/p2-c-timeline.spec.ts:316:5 › 200% long notes and reduced motion keep Back and More actions reachable without overflow
+[711/973] [chromium-393] › tests/p2-e-home.spec.ts:152:48 › 帳本設定 is reachable with existing scoped Back
+[712/973] [chromium-393] › tests/p2-c-timeline.spec.ts:323:5 › filtered Search preserves insertion-independent origin scroll and loaded second history page without a new request
+[713/973] [chromium-393] › tests/p2-e-home.spec.ts:152:48 › 搜尋 is reachable with existing scoped Back
+
+(node:14744) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+[714/973] [webkit-393] › tests/p1-c-navigation.spec.ts:17:5 › 01 normal launch replaces current URL with explicit canonical Ledger
+[715/973] [chromium-393] › tests/p2-e-home.spec.ts:158:5 › timeline stays 20+20 without an append request; Detail returns focus and scroll to its original row
+[716/973] [webkit-393] › tests/p1-b-entry.spec.ts:86:63 › malformed 2xx cannot claim success
+[717/973] [chromium-393] › tests/p2-e-home.spec.ts:166:5 › A to B shows B identity/skeleton with neither A balance nor A rows
+[718/973] [chromium-393] › tests/p2-c-timeline.spec.ts:338:45 › Search mutation refresh restores loaded history window and reads the same two pages
+[719/973] [webkit-393] › tests/p1-b-entry.spec.ts:86:63 › wrong-scope 2xx cannot claim success
+[720/973] [chromium-393] › tests/p2-e-home.spec.ts:174:40 › 40-character Ledger name and huge balance wrap at 100% without obscuring header controls
+[721/973] [webkit-393] › tests/p1-c-navigation.spec.ts:18:5 › 02 explicit B deep link reads only B
+[722/973] [webkit-393] › tests/p1-b-entry.spec.ts:92:5 › storage unavailable or incorrect read-back prevents POST and keeps editing
+[723/973] [chromium-393] › tests/p2-e-home.spec.ts:174:40 › 40-character Ledger name and huge balance wrap at 200% without obscuring header controls
+[724/973] [chromium-393] › tests/p2-c-timeline.spec.ts:338:45 › Search mutation refresh restores loaded history window and preserves known rows on read500
+[725/973] [webkit-393] › tests/p1-c-navigation.spec.ts:19:130 › 03 nonexistent explicit target offers bounded recovery
+[726/973] [webkit-393] › tests/p1-b-entry.spec.ts:101:5 › recovery identity mismatch reveals no stored financial content and cannot replay
+[727/973] [chromium-393] › tests/p2-e-home.spec.ts:184:5 › header keyboard order is identity, Search, More, followed by the quiet statistics target
+[728/973] [chromium-393] › tests/p2-e-home.spec.ts:189:5 › Quick Entry create preserves one contextual success, canonical row/balance targeting and fresh draft
+[729/973] [webkit-393] › tests/p1-c-navigation.spec.ts:19:130 › 04 unauthorized explicit target offers bounded recovery
+[730/973] [chromium-393] › tests/p2-c-timeline.spec.ts:358:5 › direct Detail retry focuses purpose heading after initial bootstrap read500
+[731/973] [webkit-393] › tests/p1-b-entry.spec.ts:111:5 › recovery couple mismatch cannot hydrate even when actor and ledger IDs match
+[732/973] [chromium-393] › tests/p2-c-timeline.spec.ts:366:5 › ambiguous void response retains original mutation key and expectedVersion across a successful background read
+[733/973] [webkit-393] › tests/p1-c-navigation.spec.ts:20:5 › 05 invalid explicit B never paints A content
+[734/973] [chromium-393] › tests/p2-e-home.spec.ts:196:5 › reduced motion retains the complete Home and More focus behavior
+[735/973] [webkit-393] › tests/p1-b-entry.spec.ts:118:5 › Ledger A recovery takes priority over URL B without activating or moving a write to B
+[736/973] [webkit-393] › tests/p1-c-navigation.spec.ts:21:5 › 06 transaction with correct Ledger reconstructs and focuses detail
+[737/973] [chromium-393] › tests/p2-c-timeline.spec.ts:382:5 › voiding an origin row beyond twenty returns focus to its nearest surviving timeline row
+[738/973] [webkit-393] › tests/p1-c-navigation.spec.ts:22:5 › 07 transaction with wrong Ledger shows link error without guessing another Ledger
+
+(node:14981) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+[739/973] [webkit-393] › tests/p2-a-entry.spec.ts:57:35 › command body matches P1-B and kernel: default-simple-1-1
+[740/973] [webkit-393] › tests/p1-c-navigation.spec.ts:23:5 › 08 transaction without Ledger does not scan for ownership
+[741/973] [webkit-393] › tests/p1-b-entry.spec.ts:132:5 › unknown followed by 401 remains unknown with original operation
+[742/973] [chromium-393] › tests/p2-c-timeline.spec.ts:392:5 › browser records native view-transition support for bounded Detail-close motion
+[743/973] [webkit-393] › tests/p1-c-navigation.spec.ts:24:5 › 09 app row pushes detail and Back restores row focus
+[744/973] [webkit-393] › tests/p1-b-entry.spec.ts:141:5 › authorized A recovery remains available when the linked Ledger no longer exists
+[745/973] [chromium-393] › tests/p2-c-timeline.spec.ts:412:5 › aborted filtered Search append returns an enabled retry and preserves the loaded first page
+[746/973] [webkit-393] › tests/p2-a-entry.spec.ts:57:35 › command body matches P1-B and kernel: non-50-50-second-member-partner-2-1
+[747/973] [webkit-393] › tests/p1-c-navigation.spec.ts:25:5 › 10 direct detail visible Back replaces to Home without leaving product
+[748/973] [webkit-393] › tests/p1-b-entry.spec.ts:154:5 › an actor change in the existing document is detected before replay POST
+[749/973] [webkit-393] › tests/p1-c-navigation.spec.ts:26:5 › 11 reload detail preserves URL and drops stale app origin
+[750/973] [webkit-393] › tests/p1-b-entry.spec.ts:163:5 › a new authorization failure hides cached financial content without discarding commit proof
+[751/973] [chromium-393] › tests/p2-c-timeline.spec.ts:427:5 › Back expands root render window when a new canonical row moves the surviving origin beyond row twenty
+[752/973] [webkit-393] › tests/p2-a-entry.spec.ts:57:35 › command body matches P1-B and kernel: both-payers-second-member-0-1
+[753/973] [webkit-393] › tests/p1-b-entry.spec.ts:174:5 › timeout after dispatch becomes unknown and preserves the exact recovery operation
+[754/973] [webkit-393] › tests/p2-a-entry.spec.ts:57:35 › command body matches P1-B and kernel: equal-second-member
+[755/973] [webkit-393] › tests/p1-c-navigation.spec.ts:27:95 › 12 收支概況 push reload deterministic Back
+
+(node:15298) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+[756/973] [webkit-393] › tests/p2-b-identity.spec.ts:23:5 › name is the single Home identity; switch A B A reuses canonical scope
+[757/973] [webkit-393] › tests/p1-b-entry.spec.ts:187:5 › correction drop-response reload replay retains original replacement and expected version
+[758/973] [webkit-393] › tests/p2-a-entry.spec.ts:57:35 › command body matches P1-B and kernel: percentage-fractional
+[759/973] [webkit-393] › tests/p1-c-navigation.spec.ts:27:95 › 13 帳本設定 push reload deterministic Back
+[760/973] [webkit-393] › tests/p2-a-entry.spec.ts:57:35 › command body matches P1-B and kernel: exact-partner-payer
+[761/973] [webkit-393] › tests/p1-c-navigation.spec.ts:28:5 › 14 recurring URL reconstructs secondary surface
+[762/973] [webkit-393] › tests/p2-b-identity.spec.ts:53:5 › deep-link viewed B and LINE default A remain distinct and selected is announced
+[763/973] [webkit-393] › tests/p1-b-entry.spec.ts:198:5 › first rejection preserves editable draft and unchanged retry reuses the key
+[764/973] [webkit-393] › tests/p1-c-navigation.spec.ts:29:5 › 15 Search pushes URL and Back returns Home
+[765/973] [webkit-393] › tests/p2-b-identity.spec.ts:66:5 › activation syncing and failure stay bounded while B remains readable
+[766/973] [webkit-393] › tests/p1-b-entry.spec.ts:207:5 › one create/correction draft requires explicit keep or discard
+[767/973] [webkit-393] › tests/p2-a-entry.spec.ts:57:35 › command body matches P1-B and kernel: income-both
+[768/973] [webkit-393] › tests/p2-b-identity.spec.ts:88:39 › 40 character identities stay complete and wrap at 100% text
+[769/973] [webkit-393] › tests/p1-c-navigation.spec.ts:30:5 › 16 manual A to B replaces Home and focuses accepted Ledger
+[770/973] [webkit-393] › tests/p2-a-entry.spec.ts:57:35 › command body matches P1-B and kernel: transfer-partner-direction
+[771/973] [webkit-393] › tests/p1-b-entry.spec.ts:219:5 › creating a Ledger after discarding A opens a usable draft in the new Ledger
+[772/973] [webkit-393] › tests/p1-c-navigation.spec.ts:31:5 › 17 A to B to A is generation safe for queued preference
+[773/973] [webkit-393] › tests/p2-b-identity.spec.ts:88:39 › 40 character identities stay complete and wrap at 200% text
+[774/973] [webkit-393] › tests/p2-a-entry.spec.ts:84:5 › one host, cancel preserves draft, Apply only edits draft and returns focus
+[775/973] [webkit-393] › tests/p1-b-entry.spec.ts:244:45 › correction success preserves commit when refresh succeeds
+[776/973] [webkit-393] › tests/p1-c-navigation.spec.ts:32:77 › 18 late A bootstrap success cannot update B
+[777/973] [webkit-393] › tests/p2-b-identity.spec.ts:116:5 › 40 unbroken Latin characters wrap without horizontal scroll at 200%
+[778/973] [webkit-393] › tests/p2-a-entry.spec.ts:104:5 › both payments and exact shares retain explicit amounts after total changes
+[779/973] [webkit-393] › tests/p1-b-entry.spec.ts:244:45 › correction success preserves commit when refresh fails
+[780/973] [webkit-393] › tests/p2-b-identity.spec.ts:126:5 › keyboard enters titled dialog, moves options without writes, selects and returns focus
+[781/973] [webkit-393] › tests/p1-c-navigation.spec.ts:32:77 › 19 late A bootstrap failure cannot update B
+[782/973] [webkit-393] › tests/p2-a-entry.spec.ts:121:5 › IME, Enter, disabled reasons, inline association and first-invalid focus
+[783/973] [webkit-393] › tests/p1-b-entry.spec.ts:266:5 › a stale posted receipt cannot downgrade balance/next payer or resurrect a later void
+[784/973] [webkit-393] › tests/p1-c-navigation.spec.ts:33:5 › 20 activation failure keeps B readable and retry touches preference only
+[785/973] [webkit-393] › tests/p2-b-identity.spec.ts:149:5 › create cancel returns to the same switcher and never changes scope or history
+[786/973] [webkit-393] › tests/p1-c-navigation.spec.ts:34:5 › 21 deep link B has NOT-SENT activate evidence
+[787/973] [webkit-393] › tests/p2-b-identity.spec.ts:169:40 › create success accepts new name and scope from switcher
+[788/973] [webkit-393] › tests/p2-a-entry.spec.ts:143:5 › incomplete percentages do not pretend to be equal and default snapshot stays frozen
+[789/973] [webkit-393] › tests/p1-b-entry.spec.ts:279:5 › a stale posted receipt cannot resurrect a replaced transaction
+[790/973] [webkit-393] › tests/p1-c-navigation.spec.ts:35:5 › 22 explicit Switcher B sends preference activation once
+[791/973] [webkit-393] › tests/p2-b-identity.spec.ts:169:40 › create success accepts new name and scope from empty list
+[792/973] [webkit-393] › tests/p1-c-navigation.spec.ts:36:5 › 23 initial draft switches without confirmation and receives fresh defaults
+[793/973] [webkit-393] › tests/p2-a-entry.spec.ts:156:68 › correction hydrates actual stored expense with historical exact shares
+[794/973] [webkit-393] › tests/p1-b-entry.spec.ts:293:5 › partner login odd 681 uses kernel member order and opening defaults despite a background change
+[795/973] [webkit-393] › tests/p2-b-identity.spec.ts:190:5 › empty list cancel returns to one clear create entry
+[796/973] [webkit-393] › tests/p1-c-navigation.spec.ts:37:5 › 24 amount-only dirty cancel preserves value focus URL and NOT-SENT activation
+[797/973] [webkit-393] › tests/p2-b-identity.spec.ts:207:5 › archived-only list has no broken identity trigger
+[798/973] [webkit-393] › tests/p2-a-entry.spec.ts:156:68 › correction hydrates actual stored income with historical exact shares
+[799/973] [webkit-393] › tests/p1-b-entry.spec.ts:303:5 › midnight preserves the current draft date and opens the next draft with today's Taipei date
+[800/973] [webkit-393] › tests/p2-b-identity.spec.ts:215:5 › create rejection preserves name and scope; cancelled retry writes nothing
+[801/973] [webkit-393] › tests/p1-c-navigation.spec.ts:38:5 › 25 amount-only discard accepts B exactly once
+[802/973] [webkit-393] › tests/p2-a-entry.spec.ts:156:68 › correction hydrates actual stored transfer with historical exact shares
+[803/973] [webkit-393] › tests/p1-b-entry.spec.ts:317:5 › recovery persistence overhead is bounded and stores only submitted operations
+[804/973] [webkit-393] › tests/p2-b-identity.spec.ts:228:5 › create is single flight and keeps its only dialog until response
+[805/973] [webkit-393] › tests/p1-c-navigation.spec.ts:39:5 › 26 description dirty is guarded and semantic reversion becomes clean
+[806/973] [webkit-393] › tests/p2-c-timeline.spec.ts:60:5 › 01–05 20+20 client window preserves identity and single date headings across 20/21 and 40/41
+[807/973] [webkit-393] › tests/p2-d-quick-entry.spec.ts:41:5 › single bottom CTA replaces the persistent form; opening is synchronous, labelled and network-free
+[808/973] [webkit-393] › tests/p2-a-entry.spec.ts:174:5 › More retains non-default values and 200% text remains reachable without overflow
+[809/973] [webkit-393] › tests/p1-c-navigation.spec.ts:40:5 › 27 advanced-field-only note is dirty with empty amount and retains focus
+[810/973] [webkit-393] › tests/p2-d-quick-entry.spec.ts:65:5 › amount Next, purpose Enter, Chinese composition and 229 never implicitly submit
+[811/973] [webkit-393] › tests/p2-c-timeline.spec.ts:83:5 › 06 today yesterday cross-year and future use occurrence date under Taipei semantics
+[812/973] [webkit-393] › tests/p2-a-entry.spec.ts:188:5 › switching both to transfer requires an explicit sender and never dispatches a guessed direction
+[813/973] [webkit-393] › tests/p1-c-navigation.spec.ts:41:5 › 28 SUBMITTING blocks switch without aborting original POST
+[814/973] [webkit-393] › tests/p2-d-quick-entry.spec.ts:88:5 › payer and split replace one host and restore editor disclosure, scroll and focus without requests
+[815/973] [webkit-393] › tests/p1-c-navigation.spec.ts:42:76 › 29 COMMITTED with pending refresh permits switch
+[816/973] [webkit-393] › tests/p2-c-timeline.spec.ts:92:5 › 07 long purpose stays bounded on row and appears in full with long note in Detail
+[817/973] [webkit-393] › tests/p2-a-entry.spec.ts:199:5 › second-member controls retain Ledger order, full kernel preview and associated incomplete errors
+[818/973] [webkit-393] › tests/p1-c-navigation.spec.ts:42:76 › 30 COMMITTED with failed refresh permits switch
+[819/973] [webkit-393] › tests/p2-c-timeline.spec.ts:101:5 › 08 huge canonical TWD remains exact and readable at 200% text
+[820/973] [webkit-393] › tests/p2-d-quick-entry.spec.ts:110:5 › untouched cancel restores Home CTA; dirty cancel keeps the previous field or discards explicitly
+
+(node:16215) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+[821/973] [webkit-393] › tests/p1-c-races.spec.ts:9:5 › native push and replace remain observable and preserve unrelated and Next state
+[822/973] [webkit-393] › tests/p1-c-navigation.spec.ts:43:5 › 31 UNKNOWN blocks financial scope and activation is NOT-SENT
+[823/973] [webkit-393] › tests/p2-d-quick-entry.spec.ts:123:5 › T0 double activation has one recovery record/key/effect; pending, slow and close stay bound to the original operation
+[824/973] [webkit-393] › tests/p2-c-timeline.spec.ts:115:8 › 09 expense row and Detail use truthful type/payment semantics
+[825/973] [webkit-393] › tests/p1-c-races.spec.ts:24:5 › LIFF redirect parameters are untouched until init resolves
+[826/973] [webkit-393] › tests/p1-c-navigation.spec.ts:44:5 › 32 UNKNOWN replay remains bound to original Ledger body and key
+[827/973] [webkit-393] › tests/p2-d-quick-entry.spec.ts:145:5 › UNKNOWN retains immutable original operation and reload never auto posts; replay uses the same bytes and key
+[828/973] [webkit-393] › tests/p2-c-timeline.spec.ts:115:8 › 10 income row and Detail use truthful type/payment semantics
+[829/973] [webkit-393] › tests/p1-c-races.spec.ts:39:5 › delayed deep-link B cannot pull a subsequent manual A selection back
+[830/973] [webkit-393] › tests/p1-c-navigation.spec.ts:45:5 › 33 latest pending destination wins without queued switches
+[831/973] [webkit-393] › tests/p2-d-quick-entry.spec.ts:159:5 › full canonical success closes once, updates row/balance/next payer atomically, targets today and uses no bootstrap GET
+[832/973] [webkit-393] › tests/p1-c-races.spec.ts:48:42 › A-B-A late first A bootstrap success cannot overwrite new A
+[833/973] [webkit-393] › tests/p2-c-timeline.spec.ts:115:8 › 11 transfer row and Detail use truthful type/payment semantics
+[834/973] [webkit-393] › tests/p1-c-navigation.spec.ts:46:76 › 34 popstate dirty cancel restores truth without activation
+[835/973] [webkit-393] › tests/p2-c-timeline.spec.ts:115:8 › 12 both-payer row and Detail use truthful type/payment semantics
+[836/973] [webkit-393] › tests/p1-c-races.spec.ts:48:42 › A-B-A late first A bootstrap failure cannot overwrite new A
+[837/973] [webkit-393] › tests/p2-d-quick-entry.spec.ts:187:5 › today targeting expands P2-C's window past future and newer rows without moving dates or losing identity
+[838/973] [webkit-393] › tests/p1-c-navigation.spec.ts:46:76 › 35 popstate dirty accept restores truth without activation
+[839/973] [webkit-393] › tests/p1-c-races.spec.ts:63:7 › A-B-A late categories success stays in its generation
+[840/973] [webkit-393] › tests/p1-c-navigation.spec.ts:47:5 › 36 repeated Back and Forward do not loop or inflate history
+[841/973] [webkit-393] › tests/p2-d-quick-entry.spec.ts:197:60 › 2026-09-03 preserves chronological position and focuses one contextual View into canonical Detail
+[842/973] [webkit-393] › tests/p2-c-timeline.spec.ts:146:5 › 13–17 canonical Detail focuses heading, opens at top and returns scroll/focus to row beyond initial 20
+[843/973] [webkit-393] › tests/p1-c-navigation.spec.ts:48:5 › 37 late activation and secondary errors cannot contaminate newer Ledger
+[844/973] [webkit-393] › tests/p2-d-quick-entry.spec.ts:197:60 › 2026-09-28 preserves chronological position and focuses one contextual View into canonical Detail
+[845/973] [webkit-393] › tests/p1-c-races.spec.ts:63:7 › A-B-A late categories failure stays in its generation
+[846/973] [webkit-393] › tests/p2-c-timeline.spec.ts:161:5 › 18–19 direct Detail and reload replace Back to scoped Home without app-origin history escape
+[847/973] [webkit-393] › tests/p1-c-navigation.spec.ts:49:5 › 38 Escape equals visible cancel and host never stacks dialogs
+[848/973] [webkit-393] › tests/p2-d-quick-entry.spec.ts:210:5 › a moved Home reading position is preserved and View is visible without a forced scroll
+[849/973] [webkit-393] › tests/p1-c-races.spec.ts:63:7 › A-B-A late recurring success stays in its generation
+[850/973] [webkit-393] › tests/p2-c-timeline.spec.ts:170:129 › 20 wrong scoped or nonexistent transaction never falls back
+[851/973] [webkit-393] › tests/p2-c-timeline.spec.ts:170:129 › 21 wrong scoped or nonexistent transaction never falls back
+[852/973] [webkit-393] › tests/p1-c-navigation.spec.ts:50:5 › 39 native dialog labels traps background and restores Ledger trigger focus
+[853/973] [webkit-393] › tests/p2-d-quick-entry.spec.ts:226:5 › filtered Search keeps its query and excludes a nonmatching canonical row, with View using P2-C Detail
+[854/973] [webkit-393] › tests/p1-c-races.spec.ts:63:7 › A-B-A late recurring failure stays in its generation
+[855/973] [webkit-393] › tests/p2-c-timeline.spec.ts:180:5 › 22–24 replaced and void historical deep links resolve and 查看新版 opens exact replacement
+[856/973] [webkit-393] › tests/p1-c-navigation.spec.ts:51:5 › 40 per-Ledger Home scroll restores A to B to A
+[857/973] [webkit-393] › tests/p1-c-races.spec.ts:63:7 › A-B-A late statistics success stays in its generation
+[858/973] [webkit-393] › tests/p2-d-quick-entry.spec.ts:237:5 › partial commit plus read500 closes as success, and retry remains GET-only
+[859/973] [webkit-393] › tests/p2-c-timeline.spec.ts:188:5 › 25–26 edit uses shared P2-A controls and clean cancel returns to Detail
+[860/973] [webkit-393] › tests/p1-c-navigation.spec.ts:52:5 › 41 Search query does not carry from A into B
+[861/973] [webkit-393] › tests/p1-c-races.spec.ts:63:7 › A-B-A late statistics failure stays in its generation
+[862/973] [webkit-393] › tests/p2-d-quick-entry.spec.ts:254:5 › the next explicit open snapshots fresh defaults and has no prior amount, payer, shares or key
+[863/973] [webkit-393] › tests/p1-c-navigation.spec.ts:53:5 › 42 proposal compatibility remains reachable without claimed Ledger ownership
+[864/973] [webkit-393] › tests/p2-c-timeline.spec.ts:197:46 › 27 correction known commit remains success when read succeeds
+[865/973] [webkit-393] › tests/p1-c-races.spec.ts:63:7 › A-B-A late history success stays in its generation
+[866/973] [webkit-393] › tests/p1-c-navigation.spec.ts:54:5 › 43 200 percent text has no body overflow and important controls remain 44px
+[867/973] [webkit-393] › tests/p2-d-quick-entry.spec.ts:270:5 › Ledger switch works after closing Quick Entry; secondary pages have no create form or CTA
+[868/973] [webkit-393] › tests/p2-c-timeline.spec.ts:197:46 › 28 correction known commit remains success when read 500
+[869/973] [webkit-393] › tests/p1-c-navigation.spec.ts:55:5 › 44 reduced motion retains native focus and navigation
+[870/973] [webkit-393] › tests/p1-c-races.spec.ts:63:7 › A-B-A late history failure stays in its generation
+[871/973] [webkit-393] › tests/p2-c-timeline.spec.ts:208:46 › 29 explicit void preserves known success when read succeeds
+[872/973] [webkit-393] › tests/p1-c-navigation.spec.ts:57:5 › 45 browser Back restores the original transaction row focus
+[873/973] [webkit-393] › tests/p2-d-quick-entry.spec.ts:283:5 › background and foreground preserve unsent draft and focus without storage or POST
+
+[WebServer] (node:16869) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+[874/973] [webkit-393] › tests/p1-c-navigation.spec.ts:64:5 › 46 dirty discard into a secondary surface focuses heading after dialog closes
+[875/973] [webkit-393] › tests/p2-d-quick-entry.spec.ts:295:5 › reduced motion, 200% text and keyboard-sized viewport keep labelled controls and Add reachable
+[876/973] [webkit-393] › tests/p2-c-timeline.spec.ts:208:46 › 30 explicit void preserves known success when read 500
+[877/973] [webkit-393] › tests/p1-c-races.spec.ts:93:5 › same-ledger Detail identity change cannot reuse previous attachments
+[878/973] [webkit-393] › tests/p1-c-races.spec.ts:103:5 › search failure is visible on Search and absent after leaving its scope
+[879/973] [webkit-393] › tests/p1-c-navigation.spec.ts:72:5 › 47 amount and purpose closing guard cancels without losing input
+[880/973] [webkit-393] › tests/p2-d-quick-entry.spec.ts:310:5 › Taipei midnight keeps the existing draft date contextual, then a fresh today draft targets its row
+[881/973] [webkit-393] › tests/p2-c-timeline.spec.ts:219:5 › 31 historical void Detail retains service restore ability
+[882/973] [webkit-393] › tests/p1-c-navigation.spec.ts:82:5 › 48 UNKNOWN latest destination survives replay and replaces initial deep-link intent
+[883/973] [webkit-393] › tests/p1-c-races.spec.ts:112:5 › same-ledger proposal compatibility responses stay with their proposal id
+[884/973] [webkit-393] › tests/p2-c-timeline.spec.ts:227:5 › 32–34 receipt existing open upload and delete stay within Detail attachment capability
+
+(node:17059) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+[885/973] [webkit-393] › tests/p2-e-home.spec.ts:39:5 › Home has one location heading, direct header Search/More and the frozen semantic hierarchy
+[886/973] [webkit-393] › tests/p1-c-races.spec.ts:124:52 › popstate while SUBMITTING keeps original scope and sends no destination request
+[887/973] [webkit-393] › tests/p2-c-timeline.spec.ts:239:5 › 35 attachment failure preserves posted financial state and sends no financial mutation
+[888/973] [webkit-393] › tests/p1-c-navigation.spec.ts:94:5 › 49 committed recovery awaiting A read permits B without hydrating A into B
+[889/973] [webkit-393] › tests/p1-c-races.spec.ts:124:52 › popstate while UNKNOWN keeps original scope and sends no destination request
+[890/973] [webkit-393] › tests/p2-c-timeline.spec.ts:248:5 › 36–37 timeline has one interactive row and no legacy details or duplicate financial/receipt actions
+[891/973] [webkit-393] › tests/p2-e-home.spec.ts:60:134 › canonical 2480 displays 你目前多付 without debt framing
+[892/973] [webkit-393] › tests/p1-c-navigation.spec.ts:105:46 › 50 bootstrap 401 has a scoped recovery action
+[893/973] [webkit-393] › tests/p1-c-races.spec.ts:141:5 › late refresh and background resume do not steal editing focus
+[894/973] [webkit-393] › tests/p2-c-timeline.spec.ts:257:5 › 38–39 Search preserves secondary filters and include-void reveals historical row, with origin Back
+[895/973] [webkit-393] › tests/p2-e-home.spec.ts:60:134 › canonical -2480 displays 另一半目前多付 without debt framing
+[896/973] [webkit-393] › tests/p1-c-navigation.spec.ts:105:46 › 50 bootstrap 403 has a scoped recovery action
+[897/973] [webkit-393] › tests/p2-e-home.spec.ts:60:134 › canonical 0 displays 目前很平衡 without debt framing
+[898/973] [webkit-393] › tests/p1-c-races.spec.ts:152:49 › 收支概況 Back restores Home scroll; reload resets it
+[899/973] [webkit-393] › tests/p2-c-timeline.spec.ts:268:5 › 40 P2-B Ledger switch keeps truthful identity and scopes timeline data
+[900/973] [webkit-393] › tests/p1-c-navigation.spec.ts:105:46 › 50 bootstrap 404 has a scoped recovery action
+[901/973] [webkit-393] › tests/p2-e-home.spec.ts:68:5 › next payer follows the supplied canonical recommendation, including one differing from the balance sign
+[902/973] [webkit-393] › tests/p1-c-navigation.spec.ts:105:46 › 50 bootstrap 500 has a scoped recovery action
+[903/973] [webkit-393] › tests/p1-c-races.spec.ts:152:49 › 帳本設定 Back restores Home scroll; reload resets it
+[904/973] [webkit-393] › tests/p2-c-timeline.spec.ts:274:5 › 41 P2-A create editor remains usable and canonical upsert keeps future row first
+[905/973] [webkit-393] › tests/p2-e-home.spec.ts:71:51 › no payer fabrication when canonical next payer is null
+
+(node:17350) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+[906/973] [webkit-393] › tests/p1-c-races.spec.ts:152:49 › 搜尋 Back restores Home scroll; reload resets it
+[907/973] [webkit-393] › tests/p2-e-home.spec.ts:71:51 › no payer fabrication when canonical next payer is missing-member
+[908/973] [chromium-wide] › tests/v2-liff.spec.ts:232:5 › P1-A keeps the native transaction date fully readable at mobile widths and enlarged text
+[909/973] [webkit-393] › tests/p2-c-timeline.spec.ts:283:5 › 42 dirty correction leave guard keeps draft/focus or explicitly discards with one dialog host
+[910/973] [webkit-393] › tests/p2-e-home.spec.ts:75:63 › BigInt complete absolute balance 900719925474099312345 has no exponent, clipping or overflow
+[911/973] [webkit-393] › tests/p1-c-races.spec.ts:166:47 › unsaved setting 新增自訂分類 shares the leave host and preserves focus on cancel
+[912/973] [webkit-393] › tests/p2-e-home.spec.ts:75:63 › BigInt complete absolute balance -900719925474099312345 has no exponent, clipping or overflow
+[913/973] [webkit-393] › tests/p2-c-timeline.spec.ts:292:5 › first read has three static timeline skeletons and refresh failure preserves known effective rows
+[914/973] [chromium-wide] › tests/v2-liff.spec.ts:325:5 › uses the V2 startup request budget
+[915/973] [webkit-393] › tests/p2-e-home.spec.ts:81:5 › zero-record Ledger is balanced, has an empty timeline and one valid Quick Entry
+[916/973] [webkit-393] › tests/p1-c-races.spec.ts:166:47 › unsaved setting 週期交易名稱 shares the leave host and preserves focus on cancel
+[917/973] [chromium-wide] › tests/v2-liff.spec.ts:336:5 › P1-A restores zoom and keeps primary controls readable and tappable
+[918/973] [webkit-393] › tests/p2-c-timeline.spec.ts:301:5 › empty effective history avoids fake zeros and historical records remain deep-linkable
+[919/973] [webkit-393] › tests/p2-e-home.spec.ts:89:5 › no-Ledger state has only the existing create flow, with no financial Home shell
+[920/973] [webkit-393] › tests/p1-c-races.spec.ts:179:88 › stats read 401 offers the correct recovery action without changing Ledger preference
+[921/973] [webkit-393] › tests/p2-c-timeline.spec.ts:307:5 › Detail pending read and read500 never guess a transaction or reveal foreign scope
+[922/973] [chromium-wide] › tests/v2-liff.spec.ts:430:5 › P1-A keeps keyboard focus visible and honors reduced motion
+[923/973] [webkit-393] › tests/p1-c-races.spec.ts:179:88 › stats read 500 offers the correct recovery action without changing Ledger preference
+[924/973] [webkit-393] › tests/p2-e-home.spec.ts:100:5 › first bootstrap loading keeps accepted identity and quiet skeletons without fake zero/empty
+[925/973] [chromium-wide] › tests/v2-liff.spec.ts:461:5 › P1-A keeps long Ledger names and large TWD balances reachable at 200% text size
+[926/973] [webkit-393] › tests/p1-c-races.spec.ts:179:88 › recurring read 401 offers the correct recovery action without changing Ledger preference
+[927/973] [webkit-393] › tests/p2-c-timeline.spec.ts:316:5 › 200% long notes and reduced motion keep Back and More actions reachable without overflow
+[928/973] [webkit-393] › tests/p2-e-home.spec.ts:110:5 › initial read failure is unavailable, scoped and retryable, not an empty or valid submit state
+[929/973] [chromium-wide] › tests/v2-liff.spec.ts:484:5 › loads statistics and recurring rules only when their secondary UI is opened
+[930/973] [webkit-393] › tests/p1-c-races.spec.ts:179:88 › recurring read 500 offers the correct recovery action without changing Ledger preference
+[931/973] [webkit-393] › tests/p2-e-home.spec.ts:118:5 › known refresh failure keeps balance, payer and timeline, adds stale copy and contextual retry
+[932/973] [chromium-wide] › tests/v2-liff.spec.ts:491:5 › shows server-confirmed saving and success feedback without waiting for history reload
+[933/973] [webkit-393] › tests/p2-c-timeline.spec.ts:323:5 › filtered Search preserves insertion-independent origin scroll and loaded second history page without a new request
+[934/973] [webkit-393] › tests/p1-c-races.spec.ts:179:88 › search read 401 offers the correct recovery action without changing Ledger preference
+[935/973] [webkit-393] › tests/p2-e-home.spec.ts:127:5 › read 401 remains a distinct authentication failure
+[936/973] [chromium-wide] › tests/v2-liff.spec.ts:519:5 › payer and split choices use the existing native host while low-frequency fields stay under More
+[937/973] [webkit-393] › tests/p2-c-timeline.spec.ts:338:45 › Search mutation refresh restores loaded history window and reads the same two pages
+[938/973] [webkit-393] › tests/p2-e-home.spec.ts:133:5 › More reuses one bounded host, makes no request/history change and restores focus
+[939/973] [webkit-393] › tests/p1-c-races.spec.ts:179:88 › search read 500 offers the correct recovery action without changing Ledger preference
+[940/973] [chromium-wide] › tests/v2-liff.spec.ts:545:5 › uses continuous balance language for either payer and balanced state
+[941/973] [webkit-393] › tests/p2-c-timeline.spec.ts:338:45 › Search mutation refresh restores loaded history window and preserves known rows on read500
+[942/973] [chromium-wide] › tests/v2-liff.spec.ts:556:5 › keeps the daily UI usable on a narrow mobile viewport
+[943/973] [webkit-393] › tests/p2-e-home.spec.ts:144:5 › More Refresh performs only existing scoped reads and returns focus
+[944/973] [webkit-393] › tests/p1-c-races.spec.ts:202:5 › stale app-origin row marker falls back to a surviving Home row
+[945/973] [webkit-393] › tests/p2-e-home.spec.ts:152:48 › 收支概況 is reachable with existing scoped Back
+[946/973] [chromium-wide] › tests/v2-liff.spec.ts:574:5 › keeps voided transactions distinct in canonical Detail and excludes them from daily history
+[947/973] [webkit-393] › tests/p2-c-timeline.spec.ts:358:5 › direct Detail retry focuses purpose heading after initial bootstrap read500
+[948/973] [webkit-393] › tests/p2-e-home.spec.ts:152:48 › 帳本設定 is reachable with existing scoped Back
+[949/973] [chromium-wide] › tests/v2-liff.spec.ts:589:5 › uses the canonical save response without reloading the Ledger
+[950/973] [webkit-393] › tests/p2-c-timeline.spec.ts:366:5 › ambiguous void response retains original mutation key and expectedVersion across a successful background read
+[951/973] [chromium-wide] › tests/v2-liff.spec.ts:598:5 › keeps the draft on a rejected POST and does not add a local row
+[952/973] [webkit-393] › tests/p2-e-home.spec.ts:152:48 › 搜尋 is reachable with existing scoped Back
+[953/973] [chromium-wide] › tests/v2-liff.spec.ts:610:5 › reuses the idempotency key on an unchanged retry
+[954/973] [webkit-393] › tests/p2-e-home.spec.ts:158:5 › timeline stays 20+20 without an append request; Detail returns focus and scroll to its original row
+[955/973] [webkit-393] › tests/p2-c-timeline.spec.ts:382:5 › voiding an origin row beyond twenty returns focus to its nearest surviving timeline row
+[956/973] [chromium-wide] › tests/v2-liff.spec.ts:624:5 › keeps a committed transaction out of a nonmatching search projection
+[957/973] [webkit-393] › tests/p2-c-timeline.spec.ts:392:5 › browser records native view-transition support for bounded Detail-close motion
+[958/973] [webkit-393] › tests/p2-e-home.spec.ts:166:5 › A to B shows B identity/skeleton with neither A balance nor A rows
+[959/973] [chromium-wide] › tests/v2-liff.spec.ts:664:5 › V3-0 ignores reversed bootstrap responses after explicit draft discard
+[960/973] [webkit-393] › tests/p2-e-home.spec.ts:174:40 › 40-character Ledger name and huge balance wrap at 100% without obscuring header controls
+[961/973] [webkit-393] › tests/p2-c-timeline.spec.ts:412:5 › aborted filtered Search append returns an enabled retry and preserves the loaded first page
+[962/973] [webkit-393] › tests/p2-e-home.spec.ts:174:40 › 40-character Ledger name and huge balance wrap at 200% without obscuring header controls
+[963/973] [chromium-wide] › tests/v2-liff.spec.ts:687:5 › V3-0 rapid A B A switches ignore the first A generation and stale errors
+[964/973] [webkit-393] › tests/p2-c-timeline.spec.ts:427:5 › Back expands root render window when a new canonical row moves the surviving origin beyond row twenty
+[965/973] [webkit-393] › tests/p2-e-home.spec.ts:184:5 › header keyboard order is identity, Search, More, followed by the quiet statistics target
+[966/973] [webkit-393] › tests/p2-e-home.spec.ts:189:5 › Quick Entry create preserves one contextual success, canonical row/balance targeting and fresh draft
+[967/973] [chromium-wide] › tests/v2-liff.spec.ts:706:7 › V3-0 ignores reversed statistics responses across Ledgers
+[968/973] [webkit-393] › tests/p2-e-home.spec.ts:196:5 › reduced motion retains the complete Home and More focus behavior
+[969/973] [chromium-wide] › tests/v2-liff.spec.ts:706:7 › V3-0 ignores reversed categories responses across Ledgers
+[970/973] [chromium-wide] › tests/v2-liff.spec.ts:706:7 › V3-0 ignores reversed recurring responses across Ledgers
+[971/973] [chromium-wide] › tests/v2-liff.spec.ts:706:7 › V3-0 ignores reversed transactions responses across Ledgers
+[972/973] [chromium-wide] › tests/v2-liff.spec.ts:734:5 › V3-0 switching Ledger after a deep link stays on the manual selection
+[973/973] [chromium-wide] › tests/v2-liff.spec.ts:752:5 › V3-0 guards a late A save, then explicit discard cannot reuse A feedback or key in B
+  1 failed
+    [chromium-iphone] › tests/v2-liff.spec.ts:664:5 › V3-0 ignores reversed bootstrap responses after explicit draft discard
+  972 passed (11.2m)
+[ELIFECYCLE] Command failed with exit code 1.

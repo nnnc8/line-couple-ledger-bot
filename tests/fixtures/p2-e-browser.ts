@@ -4,10 +4,10 @@ export { A, B, OWNER, PARTNER, deferred, switchLedger } from "./p1-c-browser";
 export const LARGE_BALANCE = "900719925474099312345";
 export const LARGE_AMOUNT = "NT$900,719,925,474,099,312,345";
 export const LONG_NAME = "我們一起記錄生活與旅行和家人共度每一天的共同帳本留存美好回憶直到未來每個重要時刻";
-export type HomeFixtureOptions = { balance?: string; nextPayer?: string | null; name?: string; count?: number; noLedger?: boolean };
+export type HomeFixtureOptions = { balance?: string; nextPayer?: string | null; name?: string; count?: number; noLedger?: boolean; useRealClock?: boolean };
 
 export async function homeBrowser(page: Page, options: HomeFixtureOptions = {}) {
-  const fixture = await navigationBrowser(page);
+  const fixture = await navigationBrowser(page, { useRealClock: options.useRealClock });
   if (options.name) fixture.state.names[A] = options.name;
   if (options.noLedger) fixture.state.ledgerIds = [];
   fixture.state.rows = [
