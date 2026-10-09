@@ -1,3 +1,4 @@
+import { homeAction } from "./fixtures/p1-b-browser";
 import { expect, test, type Page, type TestInfo } from "@playwright/test";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { performance } from "node:perf_hooks";
@@ -254,13 +255,13 @@ test("36–37 timeline has one interactive row and no legacy details or duplicat
 });
 
 test("38–39 Search preserves secondary filters and include-void reveals historical row, with origin Back", async ({ page }, info) => {
-  const fixture = await start(page); await expect(page.getByLabel("搜尋紀錄")).toHaveCount(0); await page.getByRole("button", { name: "搜尋", exact: true }).click();
-  await expect(page.getByLabel("搜尋紀錄")).toBeVisible(); await expect(page.getByLabel("紀錄開始日期")).toBeVisible(); await expect(page.getByLabel("紀錄結束日期")).toBeVisible();
+  const fixture = await start(page); await expect(page.getByRole("textbox", { name: "搜尋紀錄", exact: true })).toHaveCount(0); await page.getByRole("button", { name: "搜尋紀錄", exact: true }).click();
+  await expect(page.getByRole("textbox", { name: "搜尋紀錄", exact: true })).toBeVisible(); await expect(page.getByLabel("紀錄開始日期")).toBeVisible(); await expect(page.getByLabel("紀錄結束日期")).toBeVisible();
   await expect(page.getByLabel("付款人", { exact: true })).toBeVisible(); await expect(page.getByLabel("紀錄分類")).toBeVisible(); await expect(page.getByLabel("紀錄類型")).toBeVisible();
-  await page.getByLabel("搜尋紀錄").fill("已作廢早餐"); await expect(row(page, IDS.voided)).toHaveCount(0);
+  await page.getByRole("textbox", { name: "搜尋紀錄", exact: true }).fill("已作廢早餐"); await expect(row(page, IDS.voided)).toHaveCount(0);
   await page.getByLabel("包含已作廢", { exact: true }).check(); await expect(row(page, IDS.voided)).toBeVisible(); expect(new URL(page.url()).searchParams.get("includeVoided")).toBe("1");
   await row(page, IDS.voided).click(); await expect(detail(page)).toContainText("已作廢，不計入目前近況"); await back(page).click();
-  await expect(page).toHaveURL(/view=search/); await expect(page.getByLabel("搜尋紀錄")).toHaveValue("已作廢早餐"); await expect(page.getByLabel("包含已作廢")).toBeChecked(); await expect(row(page, IDS.voided)).toBeFocused();
+  await expect(page).toHaveURL(/view=search/); await expect(page.getByRole("textbox", { name: "搜尋紀錄", exact: true })).toHaveValue("已作廢早餐"); await expect(page.getByLabel("包含已作廢")).toBeChecked(); await expect(row(page, IDS.voided)).toBeFocused();
   await capture(page, info, "search-void-back", { requests: fixture.state.requests });
 });
 
@@ -293,7 +294,7 @@ test("first read has three static timeline skeletons and refresh failure preserv
   await fixture.goto(); await expect(timeline(page).locator("[data-timeline-skeleton]")).toHaveCount(3);
   await expect(page.getByText("從一起花的第一筆開始", { exact: true })).toHaveCount(0); await capture(page, info, "timeline-loading");
   hold.release(); await fixture.ready(); await expect(rows(page)).toHaveCount(20); fixture.state.failReads.set(A, 500);
-  await page.getByRole("button", { name: "重新整理帳本", exact: true }).click(); await expect(page.getByRole("alert").filter({ hasText: /fixture read failure/ })).toBeVisible();
+  await homeAction(page, "重新整理"); await expect(page.getByRole("alert").filter({ hasText: /fixture read failure/ })).toBeVisible();
   await expect(rows(page)).toHaveCount(20); await capture(page, info, "read-failure-keeps-timeline");
 });
 
@@ -320,23 +321,23 @@ test("200% long notes and reduced motion keep Back and More actions reachable wi
 });
 
 test("filtered Search preserves insertion-independent origin scroll and loaded second history page without a new request", async ({ page }, info) => {
-  const fixture = await start(page, { searchPageSize: 50 }); await page.getByRole("button", { name: "搜尋", exact: true }).click();
-  await page.getByLabel("紀錄類型").selectOption("expense"); await page.getByLabel("搜尋紀錄").fill("日常紀錄");
+  const fixture = await start(page, { searchPageSize: 50 }); await page.getByRole("button", { name: "搜尋紀錄", exact: true }).click();
+  await page.getByLabel("紀錄類型").selectOption("expense"); await page.getByRole("textbox", { name: "搜尋紀錄", exact: true }).fill("日常紀錄");
   await expect(page.getByRole("button", { name: "載入更早交易", exact: true })).toBeVisible();
   await page.getByRole("button", { name: "載入更早交易", exact: true }).click();
   const origin = row(page, transactionId(59)); await expect(origin).toBeVisible(); await origin.scrollIntoViewIfNeeded(); await origin.focus();
   const before = await origin.evaluate(node => ({ top: node.getBoundingClientRect().top, scrollY })); expect(before.scrollY).toBeGreaterThan(500);
   const requests = fixture.state.requests.length; await origin.click(); await expect(detail(page)).toBeVisible(); await back(page).click();
   await expect(page.locator("[data-search-ready]")).toHaveAttribute("data-search-ready", "true"); await expect(origin).toBeFocused();
-  await expect(page.getByLabel("紀錄類型")).toHaveValue("expense"); await expect(page.getByLabel("搜尋紀錄")).toHaveValue("日常紀錄");
+  await expect(page.getByLabel("紀錄類型")).toHaveValue("expense"); await expect(page.getByRole("textbox", { name: "搜尋紀錄", exact: true })).toHaveValue("日常紀錄");
   await expect.poll(async () => Math.abs((await origin.evaluate(node => node.getBoundingClientRect().top)) - before.top)).toBeLessThan(5);
   expect(fixture.state.requests.slice(requests)).toEqual([]); await expect(page.getByRole("button", { name: "載入更早交易", exact: true })).toHaveCount(0);
   await capture(page, info, "search-page-2-origin-restored", { origin: before, requests: fixture.state.requests });
 });
 
 for (const failedRead of [false, true]) test(`Search mutation refresh restores loaded history window and ${failedRead ? "preserves known rows on read500" : "reads the same two pages"}`, async ({ page }, info) => {
-  const fixture = await start(page, { searchPageSize: 50 }); await page.getByRole("button", { name: "搜尋", exact: true }).click();
-  await page.getByLabel("搜尋紀錄").fill("日常紀錄"); await expect(page.getByRole("button", { name: "載入更早交易", exact: true })).toBeVisible(); await page.getByRole("button", { name: "載入更早交易", exact: true }).click();
+  const fixture = await start(page, { searchPageSize: 50 }); await page.getByRole("button", { name: "搜尋紀錄", exact: true }).click();
+  await page.getByRole("textbox", { name: "搜尋紀錄", exact: true }).fill("日常紀錄"); await expect(page.getByRole("button", { name: "載入更早交易", exact: true })).toBeVisible(); await page.getByRole("button", { name: "載入更早交易", exact: true }).click();
   const origin = row(page, transactionId(59)); await expect(origin).toBeVisible(); await origin.scrollIntoViewIfNeeded(); await origin.click(); await expect(detail(page)).toBeVisible(); await openActions(page);
   await detail(page).getByRole("button", { name: "作廢", exact: true }).click(); await detail(page).getByRole("button", { name: "確認作廢", exact: true }).click();
   await expect(detail(page)).toContainText("已作廢，不計入目前近況");
@@ -365,7 +366,7 @@ test("direct Detail retry focuses purpose heading after initial bootstrap read50
 test("ambiguous void response retains original mutation key and expectedVersion across a successful background read", async ({ page }, info) => {
   const fixture = await start(page), hold = deferred();
   await page.route(`**/api/app/v2/ledgers/${A}/bootstrap`, async route => { await hold.promise; await route.fulfill({ json: fixture.snapshot(A) }); });
-  await page.getByRole("button", { name: "重新整理帳本", exact: true }).click();
+  await homeAction(page, "重新整理");
   await expect.poll(() => fixture.state.requests.filter(item => item.path.endsWith("/bootstrap")).length).toBe(2);
   await openDetail(page, IDS.expense); await openActions(page); fixture.actions.dropNextMutationResponse = true;
   await detail(page).getByRole("button", { name: "作廢", exact: true }).click(); await detail(page).getByRole("button", { name: "確認作廢", exact: true }).click();
@@ -409,7 +410,7 @@ test("browser records native view-transition support for bounded Detail-close mo
 });
 
 test("aborted filtered Search append returns an enabled retry and preserves the loaded first page", async ({ page }, info) => {
-  const fixture = await start(page, { searchPageSize: 50 }); await page.getByRole("button", { name: "搜尋", exact: true }).click(); await page.getByLabel("搜尋紀錄").fill("日常紀錄");
+  const fixture = await start(page, { searchPageSize: 50 }); await page.getByRole("button", { name: "搜尋紀錄", exact: true }).click(); await page.getByRole("textbox", { name: "搜尋紀錄", exact: true }).fill("日常紀錄");
   await expect(page.getByRole("button", { name: "載入更早交易", exact: true })).toBeVisible(); const hold = deferred(); let holdOlder = true;
   await page.route(`**/api/app/v2/ledgers/${A}/transactions?*`, async route => {
     if (new URL(route.request().url()).searchParams.get("cursor") === "50" && holdOlder) await hold.promise;
@@ -426,7 +427,7 @@ test("aborted filtered Search append returns an enabled retry and preserves the 
 test("Back expands root render window when a new canonical row moves the surviving origin beyond row twenty", async ({ page }, info) => {
   const fixture = await start(page), hold = deferred();
   await page.route(`**/api/app/v2/ledgers/${A}/bootstrap`, async route => { await hold.promise; await route.fulfill({ json: fixture.snapshot(A) }); });
-  await page.getByRole("button", { name: "重新整理帳本", exact: true }).click();
+  await homeAction(page, "重新整理");
   await expect.poll(() => fixture.state.requests.filter(item => item.path.endsWith("/bootstrap")).length).toBe(2);
   const origin = row(page, transactionId(20)); await origin.scrollIntoViewIfNeeded(); await origin.click(); await expect(detail(page)).toBeVisible();
   const source = fixture.state.rows.find(item => item.id === IDS.expense)!;

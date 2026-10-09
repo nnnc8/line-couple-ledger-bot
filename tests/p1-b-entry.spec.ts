@@ -1,3 +1,4 @@
+import { homeAction } from "./fixtures/p1-b-browser";
 import { openEntry, outerIntentClick } from "./fixtures/p1-b-browser";
 import { expect, test, type Page, type TestInfo } from "@playwright/test";
 import { mkdirSync, writeFileSync } from "node:fs";
@@ -293,7 +294,7 @@ test("partner login odd 681 uses kernel member order and opening defaults despit
   const { state } = await entryBrowser(page); state.actor = PARTNER; await page.reload(); await fillEntry(page);
   await expect(page.getByTestId("entry-preview")).toContainText("另一半 NT$341、你 NT$340");
   state.weights = { [OWNER]: "0", [PARTNER]: "1" }; state.version += 1;
-  await outerIntentClick(page, page.getByLabel("重新整理帳本")); await expect(page.getByTestId("entry-preview")).toContainText("另一半 NT$341、你 NT$340");
+  await homeAction(page, "重新整理"); await expect(page.getByTestId("entry-preview")).toContainText("另一半 NT$341、你 NT$340");
   await page.getByRole("button", { name: "加入" }).click(); await expect(status(page)).toContainText("已加入晚餐");
   expect(state.posts[0]!.body.shares).toEqual([{ userId: OWNER, amountTwd: "341" }, { userId: PARTNER, amountTwd: "340" }]);
   await fillEntry(page, "下一筆"); await expect(page.getByTestId("entry-preview")).toContainText("另一半 NT$0、你 NT$681");

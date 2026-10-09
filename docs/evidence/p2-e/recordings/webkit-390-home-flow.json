@@ -1,0 +1,112 @@
+{
+  "engine": "webkit",
+  "viewport": "390x844",
+  "baseURL": "http://localhost:3119",
+  "scope": "Local production build with mocked LIFF/auth/API; no production writes or physical LINE proof.",
+  "assertions": [
+    "More heading/return focus",
+    "Settings and scoped Back",
+    "Refresh",
+    "one canonical create",
+    "row focus",
+    "one contextual success",
+    "fresh next draft",
+    "Quick Entry return focus"
+  ],
+  "requests": [
+    {
+      "method": "POST",
+      "path": "/api/app/session",
+      "at": 6680.909709,
+      "finishedAt": 6698.691209
+    },
+    {
+      "method": "GET",
+      "path": "/api/app/v2/context",
+      "at": 6700.822334,
+      "finishedAt": 6726.749625
+    },
+    {
+      "method": "GET",
+      "path": "/api/app/v2/ledgers",
+      "at": 6726.870125,
+      "finishedAt": 6737.984542
+    },
+    {
+      "method": "GET",
+      "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/bootstrap",
+      "at": 6771.161792,
+      "finishedAt": 6785.51675
+    },
+    {
+      "method": "GET",
+      "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories",
+      "at": 6823.372,
+      "finishedAt": 6827.401709
+    },
+    {
+      "method": "GET",
+      "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/recurring",
+      "at": 7027.393875,
+      "finishedAt": 7037.933292
+    },
+    {
+      "method": "GET",
+      "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/bootstrap",
+      "at": 7177.08125,
+      "finishedAt": 7190.749
+    },
+    {
+      "method": "GET",
+      "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories",
+      "at": 7225.524625,
+      "finishedAt": 7230.870792
+    },
+    {
+      "method": "POST",
+      "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/transactions",
+      "at": 7580.217625,
+      "finishedAt": 7610.865084
+    },
+    {
+      "method": "GET",
+      "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories",
+      "at": 7631.560542,
+      "finishedAt": 7646.78975
+    }
+  ],
+  "posts": [
+    {
+      "endpoint": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/transactions",
+      "bytes": "{\"type\":\"expense\",\"amountTwd\":\"680\",\"occurredOn\":\"2026-09-25\",\"description\":\"剛加入\",\"category\":null,\"categoryId\":null,\"note\":null,\"splitMethod\":\"weights\",\"payments\":[{\"userId\":\"00000000-0000-4000-8000-000000000001\",\"amountTwd\":\"680\"}],\"shares\":[{\"userId\":\"00000000-0000-4000-8000-000000000001\",\"amountTwd\":\"340\"},{\"userId\":\"00000000-0000-4000-8000-000000000002\",\"amountTwd\":\"340\"}],\"idempotencyKey\":\"ff96c2da-9b6b-4854-8d43-2d629e25e508\"}",
+      "body": {
+        "type": "expense",
+        "amountTwd": "680",
+        "occurredOn": "2026-09-25",
+        "description": "剛加入",
+        "category": null,
+        "categoryId": null,
+        "note": null,
+        "splitMethod": "weights",
+        "payments": [
+          {
+            "userId": "00000000-0000-4000-8000-000000000001",
+            "amountTwd": "680"
+          }
+        ],
+        "shares": [
+          {
+            "userId": "00000000-0000-4000-8000-000000000001",
+            "amountTwd": "340"
+          },
+          {
+            "userId": "00000000-0000-4000-8000-000000000002",
+            "amountTwd": "340"
+          }
+        ],
+        "idempotencyKey": "ff96c2da-9b6b-4854-8d43-2d629e25e508"
+      },
+      "key": "ff96c2da-9b6b-4854-8d43-2d629e25e508"
+    }
+  ]
+}

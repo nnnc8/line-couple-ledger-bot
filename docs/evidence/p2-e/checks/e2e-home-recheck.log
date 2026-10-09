@@ -1,0 +1,213 @@
+$ playwright test tests/p2-e-home.spec.ts tests/p2-b-identity.spec.ts --workers=3
+
+[WebServer] (node:25185) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `pnpm --trace-warnings ...` to show where the warning was created)
+
+[WebServer] (node:25208) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+[WebServer] (node:25214) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+[WebServer] (node:25226) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 164 tests using 3 workers
+
+
+(node:25304) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+(node:25303) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+(node:25302) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+[1/164] [chromium-iphone] › tests/p2-e-home.spec.ts:39:5 › Home has one location heading, direct header Search/More and the frozen semantic hierarchy
+[2/164] [chromium-iphone] › tests/p2-b-identity.spec.ts:23:5 › name is the single Home identity; switch A B A reuses canonical scope
+[3/164] [webkit-iphone] › tests/p2-b-identity.spec.ts:23:5 › name is the single Home identity; switch A B A reuses canonical scope
+[4/164] [chromium-iphone] › tests/p2-e-home.spec.ts:60:134 › canonical 2480 displays 你目前多付 without debt framing
+[5/164] [chromium-iphone] › tests/p2-b-identity.spec.ts:53:5 › deep-link viewed B and LINE default A remain distinct and selected is announced
+[6/164] [chromium-iphone] › tests/p2-b-identity.spec.ts:66:5 › activation syncing and failure stay bounded while B remains readable
+[7/164] [chromium-iphone] › tests/p2-e-home.spec.ts:60:134 › canonical -2480 displays 另一半目前多付 without debt framing
+[8/164] [chromium-iphone] › tests/p2-e-home.spec.ts:60:134 › canonical 0 displays 目前很平衡 without debt framing
+[9/164] [chromium-iphone] › tests/p2-b-identity.spec.ts:88:39 › 40 character identities stay complete and wrap at 100% text
+[10/164] [webkit-iphone] › tests/p2-b-identity.spec.ts:53:5 › deep-link viewed B and LINE default A remain distinct and selected is announced
+[11/164] [chromium-iphone] › tests/p2-e-home.spec.ts:68:5 › next payer follows the supplied canonical recommendation, including one differing from the balance sign
+[12/164] [chromium-iphone] › tests/p2-b-identity.spec.ts:88:39 › 40 character identities stay complete and wrap at 200% text
+[13/164] [webkit-iphone] › tests/p2-b-identity.spec.ts:66:5 › activation syncing and failure stay bounded while B remains readable
+[14/164] [chromium-iphone] › tests/p2-e-home.spec.ts:71:51 › no payer fabrication when canonical next payer is null
+[15/164] [chromium-iphone] › tests/p2-b-identity.spec.ts:116:5 › 40 unbroken Latin characters wrap without horizontal scroll at 200%
+[16/164] [chromium-iphone] › tests/p2-e-home.spec.ts:71:51 › no payer fabrication when canonical next payer is missing-member
+[17/164] [chromium-iphone] › tests/p2-b-identity.spec.ts:126:5 › keyboard enters titled dialog, moves options without writes, selects and returns focus
+[18/164] [chromium-iphone] › tests/p2-e-home.spec.ts:75:63 › BigInt complete absolute balance 900719925474099312345 has no exponent, clipping or overflow
+[19/164] [webkit-iphone] › tests/p2-b-identity.spec.ts:88:39 › 40 character identities stay complete and wrap at 100% text
+[20/164] [chromium-iphone] › tests/p2-e-home.spec.ts:75:63 › BigInt complete absolute balance -900719925474099312345 has no exponent, clipping or overflow
+[21/164] [chromium-iphone] › tests/p2-b-identity.spec.ts:149:5 › create cancel returns to the same switcher and never changes scope or history
+[22/164] [chromium-iphone] › tests/p2-e-home.spec.ts:81:5 › zero-record Ledger is balanced, has an empty timeline and one valid Quick Entry
+[23/164] [webkit-iphone] › tests/p2-b-identity.spec.ts:88:39 › 40 character identities stay complete and wrap at 200% text
+[24/164] [chromium-iphone] › tests/p2-b-identity.spec.ts:169:40 › create success accepts new name and scope from switcher
+[25/164] [chromium-iphone] › tests/p2-e-home.spec.ts:89:5 › no-Ledger state has only the existing create flow, with no financial Home shell
+[26/164] [chromium-iphone] › tests/p2-b-identity.spec.ts:169:40 › create success accepts new name and scope from empty list
+[27/164] [chromium-iphone] › tests/p2-e-home.spec.ts:100:5 › first bootstrap loading keeps accepted identity and quiet skeletons without fake zero/empty
+[28/164] [chromium-iphone] › tests/p2-b-identity.spec.ts:190:5 › empty list cancel returns to one clear create entry
+[29/164] [webkit-iphone] › tests/p2-b-identity.spec.ts:116:5 › 40 unbroken Latin characters wrap without horizontal scroll at 200%
+[30/164] [chromium-iphone] › tests/p2-e-home.spec.ts:110:5 › initial read failure is unavailable, scoped and retryable, not an empty or valid submit state
+[31/164] [chromium-iphone] › tests/p2-b-identity.spec.ts:207:5 › archived-only list has no broken identity trigger
+[32/164] [chromium-iphone] › tests/p2-e-home.spec.ts:118:5 › known refresh failure keeps balance, payer and timeline, adds stale copy and contextual retry
+[33/164] [chromium-iphone] › tests/p2-b-identity.spec.ts:215:5 › create rejection preserves name and scope; cancelled retry writes nothing
+[34/164] [webkit-iphone] › tests/p2-b-identity.spec.ts:126:5 › keyboard enters titled dialog, moves options without writes, selects and returns focus
+[35/164] [chromium-iphone] › tests/p2-b-identity.spec.ts:228:5 › create is single flight and keeps its only dialog until response
+[36/164] [chromium-iphone] › tests/p2-e-home.spec.ts:127:5 › read 401 remains a distinct authentication failure
+[37/164] [chromium-iphone] › tests/p2-e-home.spec.ts:133:5 › More reuses one bounded host, makes no request/history change and restores focus
+[38/164] [webkit-iphone] › tests/p2-b-identity.spec.ts:149:5 › create cancel returns to the same switcher and never changes scope or history
+[39/164] [chromium-iphone] › tests/p2-e-home.spec.ts:144:5 › More Refresh performs only existing scoped reads and returns focus
+[40/164] [chromium-iphone] › tests/p2-e-home.spec.ts:152:48 › 收支概況 is reachable with existing scoped Back
+[41/164] [webkit-iphone] › tests/p2-b-identity.spec.ts:169:40 › create success accepts new name and scope from switcher
+[42/164] [chromium-iphone] › tests/p2-e-home.spec.ts:152:48 › 帳本設定 is reachable with existing scoped Back
+[43/164] [chromium-iphone] › tests/p2-e-home.spec.ts:152:48 › 搜尋 is reachable with existing scoped Back
+[44/164] [webkit-iphone] › tests/p2-b-identity.spec.ts:169:40 › create success accepts new name and scope from empty list
+[45/164] [chromium-iphone] › tests/p2-e-home.spec.ts:158:5 › timeline stays 20+20 without an append request; Detail returns focus and scroll to its original row
+[46/164] [webkit-iphone] › tests/p2-b-identity.spec.ts:190:5 › empty list cancel returns to one clear create entry
+[47/164] [chromium-iphone] › tests/p2-e-home.spec.ts:166:5 › A to B shows B identity/skeleton with neither A balance nor A rows
+[48/164] [webkit-iphone] › tests/p2-b-identity.spec.ts:207:5 › archived-only list has no broken identity trigger
+[49/164] [chromium-iphone] › tests/p2-e-home.spec.ts:174:40 › 40-character Ledger name and huge balance wrap at 100% without obscuring header controls
+[50/164] [webkit-iphone] › tests/p2-b-identity.spec.ts:215:5 › create rejection preserves name and scope; cancelled retry writes nothing
+[51/164] [chromium-iphone] › tests/p2-e-home.spec.ts:174:40 › 40-character Ledger name and huge balance wrap at 200% without obscuring header controls
+[52/164] [webkit-iphone] › tests/p2-b-identity.spec.ts:228:5 › create is single flight and keeps its only dialog until response
+[53/164] [chromium-iphone] › tests/p2-e-home.spec.ts:186:5 › header keyboard order is identity, Search, More, followed by the quiet statistics target
+
+(node:25997) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+[54/164] [chromium-393] › tests/p2-b-identity.spec.ts:23:5 › name is the single Home identity; switch A B A reuses canonical scope
+[55/164] [chromium-iphone] › tests/p2-e-home.spec.ts:191:5 › Quick Entry create preserves one contextual success, canonical row/balance targeting and fresh draft
+[56/164] [chromium-393] › tests/p2-b-identity.spec.ts:53:5 › deep-link viewed B and LINE default A remain distinct and selected is announced
+[57/164] [chromium-iphone] › tests/p2-e-home.spec.ts:198:5 › reduced motion retains the complete Home and More focus behavior
+[58/164] [chromium-393] › tests/p2-b-identity.spec.ts:66:5 › activation syncing and failure stay bounded while B remains readable
+[59/164] [chromium-393] › tests/p2-b-identity.spec.ts:88:39 › 40 character identities stay complete and wrap at 100% text
+[60/164] [chromium-393] › tests/p2-b-identity.spec.ts:88:39 › 40 character identities stay complete and wrap at 200% text
+[61/164] [chromium-393] › tests/p2-b-identity.spec.ts:116:5 › 40 unbroken Latin characters wrap without horizontal scroll at 200%
+[62/164] [chromium-393] › tests/p2-b-identity.spec.ts:126:5 › keyboard enters titled dialog, moves options without writes, selects and returns focus
+[63/164] [chromium-393] › tests/p2-b-identity.spec.ts:149:5 › create cancel returns to the same switcher and never changes scope or history
+[64/164] [chromium-393] › tests/p2-b-identity.spec.ts:169:40 › create success accepts new name and scope from switcher
+
+(node:26199) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+[65/164] [webkit-iphone] › tests/p2-e-home.spec.ts:39:5 › Home has one location heading, direct header Search/More and the frozen semantic hierarchy
+
+(node:26200) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+[66/164] [chromium-393] › tests/p2-e-home.spec.ts:39:5 › Home has one location heading, direct header Search/More and the frozen semantic hierarchy
+[67/164] [chromium-393] › tests/p2-b-identity.spec.ts:169:40 › create success accepts new name and scope from empty list
+[68/164] [chromium-393] › tests/p2-b-identity.spec.ts:190:5 › empty list cancel returns to one clear create entry
+[69/164] [chromium-393] › tests/p2-e-home.spec.ts:60:134 › canonical 2480 displays 你目前多付 without debt framing
+[70/164] [chromium-393] › tests/p2-b-identity.spec.ts:207:5 › archived-only list has no broken identity trigger
+[71/164] [chromium-393] › tests/p2-e-home.spec.ts:60:134 › canonical -2480 displays 另一半目前多付 without debt framing
+[72/164] [chromium-393] › tests/p2-b-identity.spec.ts:215:5 › create rejection preserves name and scope; cancelled retry writes nothing
+[73/164] [chromium-393] › tests/p2-e-home.spec.ts:60:134 › canonical 0 displays 目前很平衡 without debt framing
+[74/164] [webkit-iphone] › tests/p2-e-home.spec.ts:60:134 › canonical 2480 displays 你目前多付 without debt framing
+[75/164] [chromium-393] › tests/p2-b-identity.spec.ts:228:5 › create is single flight and keeps its only dialog until response
+[76/164] [chromium-393] › tests/p2-e-home.spec.ts:68:5 › next payer follows the supplied canonical recommendation, including one differing from the balance sign
+[77/164] [webkit-iphone] › tests/p2-e-home.spec.ts:60:134 › canonical -2480 displays 另一半目前多付 without debt framing
+[78/164] [chromium-393] › tests/p2-e-home.spec.ts:71:51 › no payer fabrication when canonical next payer is null
+[79/164] [chromium-393] › tests/p2-e-home.spec.ts:71:51 › no payer fabrication when canonical next payer is missing-member
+[80/164] [webkit-iphone] › tests/p2-e-home.spec.ts:60:134 › canonical 0 displays 目前很平衡 without debt framing
+[81/164] [chromium-393] › tests/p2-e-home.spec.ts:75:63 › BigInt complete absolute balance 900719925474099312345 has no exponent, clipping or overflow
+[82/164] [chromium-393] › tests/p2-e-home.spec.ts:75:63 › BigInt complete absolute balance -900719925474099312345 has no exponent, clipping or overflow
+[83/164] [webkit-iphone] › tests/p2-e-home.spec.ts:68:5 › next payer follows the supplied canonical recommendation, including one differing from the balance sign
+[84/164] [webkit-iphone] › tests/p2-e-home.spec.ts:71:51 › no payer fabrication when canonical next payer is null
+[85/164] [chromium-393] › tests/p2-e-home.spec.ts:81:5 › zero-record Ledger is balanced, has an empty timeline and one valid Quick Entry
+[86/164] [webkit-iphone] › tests/p2-e-home.spec.ts:71:51 › no payer fabrication when canonical next payer is missing-member
+[87/164] [chromium-393] › tests/p2-e-home.spec.ts:89:5 › no-Ledger state has only the existing create flow, with no financial Home shell
+[88/164] [webkit-iphone] › tests/p2-e-home.spec.ts:75:63 › BigInt complete absolute balance 900719925474099312345 has no exponent, clipping or overflow
+[89/164] [chromium-393] › tests/p2-e-home.spec.ts:100:5 › first bootstrap loading keeps accepted identity and quiet skeletons without fake zero/empty
+[90/164] [webkit-iphone] › tests/p2-e-home.spec.ts:75:63 › BigInt complete absolute balance -900719925474099312345 has no exponent, clipping or overflow
+[91/164] [chromium-393] › tests/p2-e-home.spec.ts:110:5 › initial read failure is unavailable, scoped and retryable, not an empty or valid submit state
+[92/164] [webkit-iphone] › tests/p2-e-home.spec.ts:81:5 › zero-record Ledger is balanced, has an empty timeline and one valid Quick Entry
+[93/164] [chromium-393] › tests/p2-e-home.spec.ts:118:5 › known refresh failure keeps balance, payer and timeline, adds stale copy and contextual retry
+[94/164] [webkit-iphone] › tests/p2-e-home.spec.ts:89:5 › no-Ledger state has only the existing create flow, with no financial Home shell
+[95/164] [chromium-393] › tests/p2-e-home.spec.ts:127:5 › read 401 remains a distinct authentication failure
+
+(node:26422) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+[96/164] [webkit-393] › tests/p2-b-identity.spec.ts:23:5 › name is the single Home identity; switch A B A reuses canonical scope
+[97/164] [webkit-iphone] › tests/p2-e-home.spec.ts:100:5 › first bootstrap loading keeps accepted identity and quiet skeletons without fake zero/empty
+[98/164] [chromium-393] › tests/p2-e-home.spec.ts:133:5 › More reuses one bounded host, makes no request/history change and restores focus
+[99/164] [webkit-iphone] › tests/p2-e-home.spec.ts:110:5 › initial read failure is unavailable, scoped and retryable, not an empty or valid submit state
+[100/164] [chromium-393] › tests/p2-e-home.spec.ts:144:5 › More Refresh performs only existing scoped reads and returns focus
+[101/164] [webkit-iphone] › tests/p2-e-home.spec.ts:118:5 › known refresh failure keeps balance, payer and timeline, adds stale copy and contextual retry
+[102/164] [chromium-393] › tests/p2-e-home.spec.ts:152:48 › 收支概況 is reachable with existing scoped Back
+[103/164] [webkit-393] › tests/p2-b-identity.spec.ts:53:5 › deep-link viewed B and LINE default A remain distinct and selected is announced
+[104/164] [chromium-393] › tests/p2-e-home.spec.ts:152:48 › 帳本設定 is reachable with existing scoped Back
+[105/164] [chromium-393] › tests/p2-e-home.spec.ts:152:48 › 搜尋 is reachable with existing scoped Back
+[106/164] [webkit-iphone] › tests/p2-e-home.spec.ts:127:5 › read 401 remains a distinct authentication failure
+[107/164] [webkit-393] › tests/p2-b-identity.spec.ts:66:5 › activation syncing and failure stay bounded while B remains readable
+[108/164] [chromium-393] › tests/p2-e-home.spec.ts:158:5 › timeline stays 20+20 without an append request; Detail returns focus and scroll to its original row
+[109/164] [webkit-iphone] › tests/p2-e-home.spec.ts:133:5 › More reuses one bounded host, makes no request/history change and restores focus
+[110/164] [webkit-393] › tests/p2-b-identity.spec.ts:88:39 › 40 character identities stay complete and wrap at 100% text
+[111/164] [chromium-393] › tests/p2-e-home.spec.ts:166:5 › A to B shows B identity/skeleton with neither A balance nor A rows
+[112/164] [webkit-iphone] › tests/p2-e-home.spec.ts:144:5 › More Refresh performs only existing scoped reads and returns focus
+[113/164] [webkit-393] › tests/p2-b-identity.spec.ts:88:39 › 40 character identities stay complete and wrap at 200% text
+[114/164] [chromium-393] › tests/p2-e-home.spec.ts:174:40 › 40-character Ledger name and huge balance wrap at 100% without obscuring header controls
+[115/164] [webkit-iphone] › tests/p2-e-home.spec.ts:152:48 › 收支概況 is reachable with existing scoped Back
+[116/164] [webkit-iphone] › tests/p2-e-home.spec.ts:152:48 › 帳本設定 is reachable with existing scoped Back
+[117/164] [chromium-393] › tests/p2-e-home.spec.ts:174:40 › 40-character Ledger name and huge balance wrap at 200% without obscuring header controls
+[118/164] [webkit-393] › tests/p2-b-identity.spec.ts:116:5 › 40 unbroken Latin characters wrap without horizontal scroll at 200%
+[119/164] [webkit-iphone] › tests/p2-e-home.spec.ts:152:48 › 搜尋 is reachable with existing scoped Back
+[120/164] [webkit-393] › tests/p2-b-identity.spec.ts:126:5 › keyboard enters titled dialog, moves options without writes, selects and returns focus
+[121/164] [chromium-393] › tests/p2-e-home.spec.ts:186:5 › header keyboard order is identity, Search, More, followed by the quiet statistics target
+[122/164] [webkit-iphone] › tests/p2-e-home.spec.ts:158:5 › timeline stays 20+20 without an append request; Detail returns focus and scroll to its original row
+[123/164] [chromium-393] › tests/p2-e-home.spec.ts:191:5 › Quick Entry create preserves one contextual success, canonical row/balance targeting and fresh draft
+[124/164] [webkit-393] › tests/p2-b-identity.spec.ts:149:5 › create cancel returns to the same switcher and never changes scope or history
+[125/164] [webkit-iphone] › tests/p2-e-home.spec.ts:166:5 › A to B shows B identity/skeleton with neither A balance nor A rows
+[126/164] [chromium-393] › tests/p2-e-home.spec.ts:198:5 › reduced motion retains the complete Home and More focus behavior
+[127/164] [webkit-393] › tests/p2-b-identity.spec.ts:169:40 › create success accepts new name and scope from switcher
+[128/164] [webkit-iphone] › tests/p2-e-home.spec.ts:174:40 › 40-character Ledger name and huge balance wrap at 100% without obscuring header controls
+[129/164] [webkit-393] › tests/p2-b-identity.spec.ts:169:40 › create success accepts new name and scope from empty list
+[130/164] [webkit-iphone] › tests/p2-e-home.spec.ts:174:40 › 40-character Ledger name and huge balance wrap at 200% without obscuring header controls
+[131/164] [webkit-393] › tests/p2-b-identity.spec.ts:190:5 › empty list cancel returns to one clear create entry
+[132/164] [webkit-iphone] › tests/p2-e-home.spec.ts:186:5 › header keyboard order is identity, Search, More, followed by the quiet statistics target
+[133/164] [webkit-iphone] › tests/p2-e-home.spec.ts:191:5 › Quick Entry create preserves one contextual success, canonical row/balance targeting and fresh draft
+[134/164] [webkit-393] › tests/p2-b-identity.spec.ts:207:5 › archived-only list has no broken identity trigger
+[135/164] [webkit-393] › tests/p2-b-identity.spec.ts:215:5 › create rejection preserves name and scope; cancelled retry writes nothing
+[136/164] [webkit-iphone] › tests/p2-e-home.spec.ts:198:5 › reduced motion retains the complete Home and More focus behavior
+[137/164] [webkit-393] › tests/p2-b-identity.spec.ts:228:5 › create is single flight and keeps its only dialog until response
+
+(node:27118) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+[138/164] [webkit-393] › tests/p2-e-home.spec.ts:39:5 › Home has one location heading, direct header Search/More and the frozen semantic hierarchy
+[139/164] [webkit-393] › tests/p2-e-home.spec.ts:60:134 › canonical 2480 displays 你目前多付 without debt framing
+[140/164] [webkit-393] › tests/p2-e-home.spec.ts:60:134 › canonical -2480 displays 另一半目前多付 without debt framing
+[141/164] [webkit-393] › tests/p2-e-home.spec.ts:60:134 › canonical 0 displays 目前很平衡 without debt framing
+[142/164] [webkit-393] › tests/p2-e-home.spec.ts:68:5 › next payer follows the supplied canonical recommendation, including one differing from the balance sign
+[143/164] [webkit-393] › tests/p2-e-home.spec.ts:71:51 › no payer fabrication when canonical next payer is null
+[144/164] [webkit-393] › tests/p2-e-home.spec.ts:71:51 › no payer fabrication when canonical next payer is missing-member
+[145/164] [webkit-393] › tests/p2-e-home.spec.ts:75:63 › BigInt complete absolute balance 900719925474099312345 has no exponent, clipping or overflow
+[146/164] [webkit-393] › tests/p2-e-home.spec.ts:75:63 › BigInt complete absolute balance -900719925474099312345 has no exponent, clipping or overflow
+[147/164] [webkit-393] › tests/p2-e-home.spec.ts:81:5 › zero-record Ledger is balanced, has an empty timeline and one valid Quick Entry
+[148/164] [webkit-393] › tests/p2-e-home.spec.ts:89:5 › no-Ledger state has only the existing create flow, with no financial Home shell
+[149/164] [webkit-393] › tests/p2-e-home.spec.ts:100:5 › first bootstrap loading keeps accepted identity and quiet skeletons without fake zero/empty
+[150/164] [webkit-393] › tests/p2-e-home.spec.ts:110:5 › initial read failure is unavailable, scoped and retryable, not an empty or valid submit state
+[151/164] [webkit-393] › tests/p2-e-home.spec.ts:118:5 › known refresh failure keeps balance, payer and timeline, adds stale copy and contextual retry
+[152/164] [webkit-393] › tests/p2-e-home.spec.ts:127:5 › read 401 remains a distinct authentication failure
+[153/164] [webkit-393] › tests/p2-e-home.spec.ts:133:5 › More reuses one bounded host, makes no request/history change and restores focus
+[154/164] [webkit-393] › tests/p2-e-home.spec.ts:144:5 › More Refresh performs only existing scoped reads and returns focus
+[155/164] [webkit-393] › tests/p2-e-home.spec.ts:152:48 › 收支概況 is reachable with existing scoped Back
+[156/164] [webkit-393] › tests/p2-e-home.spec.ts:152:48 › 帳本設定 is reachable with existing scoped Back
+[157/164] [webkit-393] › tests/p2-e-home.spec.ts:152:48 › 搜尋 is reachable with existing scoped Back
+[158/164] [webkit-393] › tests/p2-e-home.spec.ts:158:5 › timeline stays 20+20 without an append request; Detail returns focus and scroll to its original row
+[159/164] [webkit-393] › tests/p2-e-home.spec.ts:166:5 › A to B shows B identity/skeleton with neither A balance nor A rows
+[160/164] [webkit-393] › tests/p2-e-home.spec.ts:174:40 › 40-character Ledger name and huge balance wrap at 100% without obscuring header controls
+[161/164] [webkit-393] › tests/p2-e-home.spec.ts:174:40 › 40-character Ledger name and huge balance wrap at 200% without obscuring header controls
+[162/164] [webkit-393] › tests/p2-e-home.spec.ts:186:5 › header keyboard order is identity, Search, More, followed by the quiet statistics target
+[163/164] [webkit-393] › tests/p2-e-home.spec.ts:191:5 › Quick Entry create preserves one contextual success, canonical row/balance targeting and fresh draft
+[164/164] [webkit-393] › tests/p2-e-home.spec.ts:198:5 › reduced motion retains the complete Home and More focus behavior
+  164 passed (2.1m)

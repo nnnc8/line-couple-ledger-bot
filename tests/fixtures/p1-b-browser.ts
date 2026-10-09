@@ -94,3 +94,15 @@ export async function fillEntry(page: Page, description = "晚餐", amount = "68
   await page.getByLabel("金額，新臺幣").fill(amount);
   await page.getByLabel("用途", { exact: true }).fill(description);
 }
+
+/** Home administration uses the single More host; outer intents retain existing guard tests. */
+export async function homeAction(page: Page, action: "帳本設定" | "重新整理", preserveViewport = false) {
+  if (preserveViewport) await page.getByTestId("home-more-trigger").evaluate(node => (node as HTMLElement).click());
+  else await outerIntentClick(page, page.getByTestId("home-more-trigger"));
+  await outerIntentClick(page, page.getByRole("dialog").getByRole("button", { name: action, exact: true }));
+}
+export async function homeSurface(page: Page, name: string, preserveViewport = false) {
+  if (name === "帳本設定") return homeAction(page, "帳本設定", preserveViewport);
+  const target = page.getByRole("button", { name: name === "搜尋" ? "搜尋紀錄" : name, exact: true });
+  if (preserveViewport) await target.evaluate(node => (node as HTMLElement).click()); else await outerIntentClick(page, target);
+}

@@ -1,3 +1,4 @@
+import { homeAction, homeSurface } from "./fixtures/p1-b-browser";
 import { openEntry, outerIntentClick } from "./fixtures/p1-b-browser";
 import { expect, test, type Page, type Route } from "@playwright/test";
 import { mkdirSync, writeFileSync } from "node:fs";
@@ -299,7 +300,7 @@ async function returnHome(page: Page) {
 }
 async function openSecondary(page: Page, surface: "stats" | "settings" | "recurring" | "search") {
   if (await page.getByRole("button", { name: "返回帳本", exact: true }).isVisible()) await returnHome(page);
-  await page.getByRole("button", { name: surface === "stats" ? "收支概況" : surface === "search" ? "搜尋" : "帳本設定", exact: true }).click();
+  await homeSurface(page, surface === "stats" ? "收支概況" : surface === "search" ? "搜尋" : "帳本設定");
   if (surface === "recurring") await page.getByRole("button", { name: "固定記帳", exact: true }).click();
 }
 
@@ -357,10 +358,11 @@ test("P1-A restores zoom and keeps primary controls readable and tappable", asyn
   expect(createDimensions!.height).toBeGreaterThanOrEqual(44);
   expect(createDimensions!.width).toBeGreaterThanOrEqual(44);
   await page.getByRole("dialog").getByRole("button", { name: "關閉視窗" }).click();
-  await expect(page.getByLabel("重新整理帳本")).toBeVisible();
+  await expect(page.getByTestId("home-more-trigger")).toBeVisible();
+  await expect(page.getByRole("button", { name: "重新整理", exact: true })).toHaveCount(0);
   await expect(page.getByLabel("金額，新臺幣")).toHaveCount(0);
   await expect(page.getByLabel("用途")).toHaveCount(0);
-  await expect(page.getByRole("heading", { name: "生活紀錄", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "最近紀錄", exact: true })).toBeVisible();
 
   for (const viewportSize of [{ width: 390, height: 844 }, { width: 393, height: 852 }]) {
     await page.setViewportSize(viewportSize);
@@ -368,11 +370,10 @@ test("P1-A restores zoom and keeps primary controls readable and tappable", asyn
     expect(overflow.documentWidth, JSON.stringify(overflow)).toBeLessThanOrEqual(overflow.expectedWidth);
     const controlsToMeasure = [
       page.getByTestId("ledger-name-trigger"),
-      page.getByRole("button", { name: "搜尋", exact: true }),
-      page.getByLabel("重新整理帳本"),
+      page.getByRole("button", { name: "搜尋紀錄", exact: true }),
+      page.getByTestId("home-more-trigger"),
       page.getByTestId("quick-entry-trigger"),
       page.getByRole("button", { name: "收支概況", exact: true }),
-      page.getByRole("button", { name: "帳本設定", exact: true }),
     ];
     const dimensions = await Promise.all(controlsToMeasure.map((control) => control.evaluate((element) => {
       const rect = element.getBoundingClientRect();
@@ -461,7 +462,7 @@ test("P1-A keeps long Ledger names and large TWD balances reachable at 200% text
   const ledgerName = "我們的共同生活帳本名稱超過一般長度的範例";
   controls(page).setLedgerName(ledgerName);
   controls(page).setBalance("999999999", "-999999999");
-  await outerIntentClick(page, page.getByLabel("重新整理帳本"));
+  await homeAction(page, "重新整理");
   await expect(page.getByText(ledgerName, { exact: true })).toBeVisible();
   await expect(page.getByText("NT$999,999,999", { exact: true })).toBeVisible();
   await page.evaluate(() => { document.documentElement.style.fontSize = "200%"; });
@@ -543,11 +544,11 @@ test("payer and split choices use the existing native host while low-frequency f
 
 test("uses continuous balance language for either payer and balanced state", async ({ page }) => {
   controls(page).setBalance("50", "-50");
-  await outerIntentClick(page, page.getByLabel("重新整理帳本"));
+  await homeAction(page, "重新整理");
   await expect(page.getByRole("heading", { name: "你目前多付" })).toBeVisible();
   await expect(page.getByText("下次建議由 另一半 付款", { exact: true })).toBeVisible();
   controls(page).setBalance("0", "0");
-  await outerIntentClick(page, page.getByLabel("重新整理帳本"));
+  await homeAction(page, "重新整理");
   await expect(page.getByRole("heading", { name: "目前很平衡" })).toBeVisible();
   await expect(page.getByText(/欠|全部結清|轉帳／結清/)).toHaveCount(0);
 });
@@ -626,7 +627,7 @@ test("keeps a committed transaction out of a nonmatching search projection", asy
   await page.getByRole("button", { name: "加入" }).click();
   await expect(page.getByRole("status").filter({ hasText: "已加入午餐 NT$100" }).first()).toBeVisible();
   await openSecondary(page, "search");
-  await page.getByLabel("搜尋紀錄").fill("晚餐");
+  await page.getByRole("textbox", { name: "搜尋紀錄", exact: true }).fill("晚餐");
   await expect.poll(() => controls(page).getRequestPaths().some(path => path.includes("q=%E6%99%9A%E9%A4%90"))).toBe(true);
   await expect(page.getByText("午餐", { exact: true })).toHaveCount(0);
 });
@@ -649,7 +650,10 @@ async function twoLedgers(page: Page) {
     await page.route(`**/api/app/v2/ledgers/${id}/transactions?*`, route => route.fulfill({ json: { transactions: [], nextCursor: null } }));
   }
   await page.reload();
-  await expect(page.locator('[style*="linear-gradient"]').first()).toContainText("Scope A");
+  await expect(page.getByTestId("surface-heading")).toContainText("Scope A");
+  // The validated name can appear before bootstrap; hold only a later refresh.
+  await expect(page.getByTestId("ledger-balance")).toHaveAttribute("data-ledger-version", "1");
+  await expect(page.getByTestId("quick-entry-trigger")).toBeVisible();
 }
 
 async function releaseScopeResponse(page: Page, route: Route, reply: Parameters<Route["fulfill"]>[0]) {
@@ -666,11 +670,11 @@ test("V3-0 ignores reversed bootstrap responses after explicit draft discard", a
   await page.route(`**/api/app/v2/ledgers/${LEDGER}/bootstrap`, route => { held.push(route); });
   await openEntry(page); await page.getByLabel("金額，新臺幣").fill("731");
   await openEntry(page); await page.getByLabel("用途").fill("A draft");
-  await outerIntentClick(page, page.getByLabel("重新整理帳本"));
+  await homeAction(page, "重新整理");
   await expect.poll(() => held.length).toBe(1);
   await chooseLedger(page, SECOND_LEDGER);
   await page.getByRole("dialog").getByRole("button", { name: "放棄並切換", exact: true }).click();
-  const card = page.locator('[style*="linear-gradient"]').first();
+  const card = page.getByTestId("surface-heading");
   await expect(card).toContainText("Scope B");
   await releaseScopeResponse(page, held[0]!, { json: scopeBootstrap(LEDGER, "STALE A") });
   // An independent B request gives the browser an observable processing barrier.
@@ -687,18 +691,18 @@ test("V3-0 rapid A B A switches ignore the first A generation and stale errors",
   await twoLedgers(page);
   const held: Route[] = [];
   await page.route(`**/api/app/v2/ledgers/${LEDGER}/bootstrap`, route => { held.push(route); });
-  await outerIntentClick(page, page.getByLabel("重新整理帳本"));
+  await homeAction(page, "重新整理");
   await expect.poll(() => held.length).toBe(1);
   await chooseLedger(page, SECOND_LEDGER);
-  await expect(page.locator('[style*="linear-gradient"]').first()).toContainText("Scope B");
+  await expect(page.getByTestId("surface-heading")).toContainText("Scope B");
   await chooseLedger(page, LEDGER);
   await expect.poll(() => held.length).toBe(2);
   await held[1]!.fulfill({ json: scopeBootstrap(LEDGER, "NEW A") });
-  await expect(page.locator('[style*="linear-gradient"]').first()).toContainText("NEW A");
+  await expect(page.getByTestId("surface-heading")).toContainText("NEW A");
   await releaseScopeResponse(page, held[0]!, { status: 503, json: { error: "STALE ERROR" } });
   await openEntry(page); await page.getByLabel("金額，新臺幣").fill("12");
   await expect(page.getByText("STALE ERROR", { exact: true })).toHaveCount(0);
-  await expect(page.locator('[style*="linear-gradient"]').first()).toContainText("NEW A");
+  await expect(page.getByTestId("surface-heading")).toContainText("NEW A");
 });
 
 for (const endpoint of ["statistics", "categories", "recurring", "transactions"] as const) {
@@ -708,11 +712,11 @@ for (const endpoint of ["statistics", "categories", "recurring", "transactions"]
     await page.route(`**/api/app/v2/ledgers/${LEDGER}/${endpoint}${endpoint === "transactions" ? "?*" : ""}`, route => { held.push(route); });
     if (endpoint === "statistics") await openSecondary(page, "stats");
     if (endpoint === "recurring") await openSecondary(page, "recurring");
-    if (endpoint === "categories") await outerIntentClick(page, page.getByLabel("重新整理帳本"));
-    if (endpoint === "transactions") { await openSecondary(page, "search"); await page.getByLabel("搜尋紀錄").fill("STALE"); }
+    if (endpoint === "categories") await homeAction(page, "重新整理");
+    if (endpoint === "transactions") { await openSecondary(page, "search"); await page.getByRole("textbox", { name: "搜尋紀錄", exact: true }).fill("STALE"); }
     await expect.poll(() => held.length).toBeGreaterThan(0);
     await chooseLedger(page, SECOND_LEDGER);
-    await expect(page.locator('[style*="linear-gradient"]').first()).toContainText("Scope B");
+    await expect(page.getByTestId("surface-heading")).toContainText("Scope B");
     await openSecondary(page, endpoint === "statistics" ? "stats" : endpoint === "transactions" ? "search" : endpoint === "recurring" ? "recurring" : "settings");
     const json = endpoint === "statistics" ? { byType: {}, byCategory: { STALE: "731" }, paidBy: {}, borneBy: {} }
       : endpoint === "categories" ? { categories: [{ id: "stale-cat", ledgerId: LEDGER, name: "STALE", status: "active" }] }
@@ -726,21 +730,21 @@ for (const endpoint of ["statistics", "categories", "recurring", "transactions"]
     await expect(page.getByLabel("STALE 分類名稱", { exact: true })).toHaveCount(0);
     await returnHome(page);
     await openEntry(page); await page.getByLabel("金額，新臺幣").fill("12");
-    await expect(page.locator('[style*="linear-gradient"]').first()).toContainText("Scope B");
+    await expect(page.getByTestId("surface-heading")).toContainText("Scope B");
   });
 }
 
 test("V3-0 switching Ledger after a deep link stays on the manual selection", async ({ page }) => {
   await twoLedgers(page);
   await page.goto(`/?v2Ledger=${LEDGER}`);
-  await expect(page.locator('[style*="linear-gradient"]').first()).toContainText("Scope A");
+  await expect(page.getByTestId("surface-heading")).toContainText("Scope A");
   const activations: string[] = [];
   await page.route("**/api/app/v2/ledgers/*/activate", route => {
     activations.push(route.request().url().split("/").at(-2)!);
     return route.fulfill({ json: { ok: true } });
   });
   await chooseLedger(page, SECOND_LEDGER);
-  await expect(page.locator('[style*="linear-gradient"]').first()).toContainText("Scope B");
+  await expect(page.getByTestId("surface-heading")).toContainText("Scope B");
   await expect.poll(() => activations.length).toBeGreaterThan(0);
   await page.evaluate(() => new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
   expect(activations).toEqual([SECOND_LEDGER]);
@@ -770,7 +774,7 @@ test("V3-0 guards a late A save, then explicit discard cannot reuse A feedback o
   await expect(page.getByRole("alert").filter({ hasText: "STALE SAVE ERROR" })).toBeVisible();
   await chooseLedger(page, SECOND_LEDGER);
   await page.getByRole("dialog").getByRole("button", { name: "放棄並切換", exact: true }).click();
-  await expect(page.locator('[style*="linear-gradient"]').first()).toContainText("Scope B");
+  await expect(page.getByTestId("surface-heading")).toContainText("Scope B");
   await expect(page.getByText("STALE SAVE ERROR", { exact: true })).toHaveCount(0);
   await openEntry(page); await expect(page.getByLabel("金額，新臺幣")).toHaveValue("");
   await openEntry(page); await page.getByLabel("金額，新臺幣").fill("100");

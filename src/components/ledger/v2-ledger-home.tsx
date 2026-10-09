@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { CalendarClock, Download, Plus, RefreshCw } from "lucide-react";
+import { CalendarClock, ChevronRight, Download, Plus } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -9,9 +9,11 @@ import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { V2TransactionEditor, type EntryControlSurface } from "./v2-transaction-editor";
 import { LedgerTimeline, TimelineTransactionRow } from "./ledger-timeline";
+import { LedgerBalanceSummary } from "./ledger-balance-summary";
 import { TransactionDetail, TransactionDetailSkeleton } from "./transaction-detail";
 import { effectiveTimelineTransactions, lookupTimelineTransaction } from "@/lib/v2-timeline";
 import type { TransactionStatusProof } from "@/lib/v2-transaction-status";
+import type { ReadFreshness } from "@/lib/v2-entry-operation";
 import { api, ApiError } from "@/lib/api";
 import { money } from "@/lib/format";
 import type { V2EntrySession } from "@/hooks/use-v2-entry-session";
@@ -30,6 +32,8 @@ interface V2LedgerHomeProps {
   activeLedgerId: string | null;
   bootstrap: V2LedgerBootstrap | null;
   error: string;
+  read: ReadFreshness;
+  authError: boolean;
   busy: boolean;
   reload: () => Promise<unknown>;
   entry: V2EntrySession;
@@ -59,6 +63,8 @@ export function V2LedgerHome({
   activeLedgerId,
   bootstrap,
   error,
+  read,
+  authError,
   busy,
   reload,
   entry,
@@ -362,22 +368,23 @@ export function V2LedgerHome({
   if (!partner || !bootstrap) {
     return (
       <div className="space-y-3 pt-1">
-        {!activeLedgerId && !ledgers.some(ledger => ledger.status === "active") ? <Card className="space-y-3 p-4"><h2 className="font-bold">還沒有帳本</h2><p>建立一本帳本，開始一起記錄生活。</p><Button tabIndex={0} onClick={event => onCreateLedger(event.currentTarget)}>建立帳本</Button></Card>
-          : error ? <Card role="alert" className="p-4 text-sm text-[var(--muted-foreground)]">暫時讀不到這本帳本。{error}<Button className="mt-2" variant="outline" size="sm" onClick={() => void reload().catch(() => undefined)}>重新讀取</Button></Card>
-          : isDetail ? <TransactionDetailSkeleton /> : isHome ? <Card className="p-4"><LedgerTimeline transactions={[]} userId={user.id} categories={categories} today={today} visibleCount={visibleCount} onLoadOlder={() => undefined} onOpenTransaction={() => undefined} loading /></Card> : <Card className="p-4">正在載入帳本…</Card>}
+        {!activeLedgerId && !ledgers.some(ledger => ledger.status === "active") ? <section className="space-y-4 py-8"><h2 className="text-xl font-semibold">還沒有帳本</h2><p>建立一本帳本，開始一起記錄生活。</p><Button tabIndex={0} onClick={event => onCreateLedger(event.currentTarget)}>建立帳本</Button></section>
+          : authError && isHome ? <p>登入後即可查看這本帳本。</p>
+          : error ? isHome ? <div className="space-y-4">
+            <LedgerBalanceSummary selfBalance={null} />
+            <div role="alert" className="space-y-2"><p>暫時讀不到這本帳本。</p><Button variant="outline" size="sm" onClick={() => void reload().catch(() => undefined)}>重新讀取</Button></div>
+          </div> : <Card role="alert" className="p-4 text-sm text-[var(--muted-foreground)]">暫時讀不到這本帳本。{error}<Button className="mt-2" variant="outline" size="sm" onClick={() => void reload().catch(() => undefined)}>重新讀取</Button></Card>
+          : isDetail ? <TransactionDetailSkeleton /> : isHome ? <div className="space-y-4">
+            <LedgerBalanceSummary selfBalance={null} loading />
+            <section className="ledger-home-timeline" aria-labelledby="home-timeline-heading"><h2 id="home-timeline-heading" className="font-semibold">最近紀錄</h2><LedgerTimeline transactions={[]} userId={user.id} categories={categories} today={today} visibleCount={visibleCount} onLoadOlder={() => undefined} onOpenTransaction={() => undefined} loading /></section>
+          </div> : <Card className="p-4">正在載入帳本…</Card>}
         {!quickEntryActive ? <EntryStatus entry={entry} ledgerId={activeLedgerId} today={currentEntryDate()} onView={onViewCreated} /> : null}
       </div>
     );
   }
 
-  const selfBalance = Number(bootstrap.balance[user.id] ?? "0");
   const nextPayer = bootstrap.nextPayer;
   const nextPayerUser = nextPayer ? users.find((candidate) => candidate.id === nextPayer.payerUserId) : null;
-  const balanceHeadline = selfBalance === 0
-    ? "目前很平衡"
-    : selfBalance > 0
-      ? "你目前多付"
-      : "另一半目前多付";
   async function saveRecurring(event: React.FormEvent) {
     event.preventDefault();
     const amountValue = Number(recurringAmount);
@@ -537,10 +544,7 @@ export function V2LedgerHome({
   }
 
   return (
-    <div className="space-y-3 pt-1">
-      {isHome ? <div className="flex items-center justify-end gap-2">
-        <Button variant="ghost" size="icon-sm" aria-label="重新整理帳本" onClick={() => void refreshLedger().catch(() => undefined)}><RefreshCw className="size-4" /></Button>
-      </div> : null}
+    <div data-testid={isHome ? "ledger-home-core" : undefined} className={isHome ? "space-y-4 pt-1" : "space-y-3 pt-1"}>
       {formError ? <div className="text-sm font-medium text-destructive" role="alert"><p>{formError}</p>
         {surfaceError?.retry ? <Button variant="outline" size="sm" onClick={() => {
           if (surfaceError.auth) { location.reload(); return; }
@@ -549,7 +553,7 @@ export function V2LedgerHome({
           void retry().catch(reason => setReadError(reason, retry));
         }}>{surfaceError.auth ? "重新登入" : "重新讀取"}</Button> : null}
       </div> : null}
-      <div data-testid={isHome ? "home-entry-status" : undefined} className={isHome ? "sticky top-0 z-20 bg-[var(--background)] py-1" : undefined}>
+      <div data-testid={isHome ? "home-entry-status" : undefined} className={isHome ? "sticky top-0 z-20 bg-[var(--background)] py-1 [&:empty]:hidden" : undefined}>
         {!quickEntryActive && !(isDetail && isCorrection) ? <EntryStatus entry={entry} ledgerId={activeLedgerId} today={currentEntryDate()} onView={onViewCreated} /> : null}
       </div>
       {error && entry.write !== "committed" ? <div role="alert" className="text-sm"><p>內容暫時無法更新。{error}</p><Button variant="outline" size="sm" onClick={() => void refreshLedger().catch(() => undefined)}>重新讀取</Button></div> : null}
@@ -557,20 +561,11 @@ export function V2LedgerHome({
       {proposalId && proposalStatus ? <Card className="border-accent/30 bg-accent-soft p-4"><p className="font-semibold">LINE 待確認草稿</p><p className="mt-1 text-sm text-[var(--muted-foreground)]">狀態：{proposalStatus === "proposed" ? "待確認" : proposalStatus === "confirmed" ? "已入帳" : proposalStatus === "cancelled" ? "已取消" : proposalStatus}</p>{proposalStatus === "proposed" ? <div className="mt-3 flex gap-2"><Button variant="primary" size="sm" onClick={() => void confirmProposal()} disabled={saving}>確認入帳</Button><Button variant="ghost" size="sm" onClick={() => void cancelProposal()} disabled={saving}>取消</Button></div> : null}</Card> : null}
 
 
-      {isHome ? <><Card data-testid="ledger-balance" data-ledger-version={bootstrap.ledger.version} className="overflow-hidden p-5 text-white" style={{ background: `linear-gradient(140deg, ${bootstrap.ledger.color}, #0c2240)` }}>
-        <p className="text-sm font-semibold text-white/75">{bootstrap.ledger.name}</p>
-        <h2 className="mt-1 text-xl font-extrabold tracking-tight">{balanceHeadline}</h2>
-        {selfBalance !== 0 ? <p className="mt-0.5 text-[clamp(1rem,7vw,1.75rem)] font-extrabold tracking-tight">{money(Math.abs(selfBalance))}</p> : null}
-        {nextPayer ? <>
-          <p className="mt-3 text-sm text-white/75">下次建議由 {nextPayerUser?.label ?? "另一半"} 付款</p>
-        </> : null}
-      </Card>
-
-      <nav className="flex flex-wrap gap-2" aria-label="帳本功能">
-        <Button variant="outline" size="sm" onClick={() => onOpenSurface("STATS")}>收支概況</Button>
-        <Button variant="outline" size="sm" onClick={() => onOpenSurface("SETTINGS")}>帳本設定</Button>
-        <Button variant="outline" size="sm" onClick={() => onOpenSurface("SEARCH")}>搜尋</Button>
-      </nav></> : null}
+      {isHome ? <>
+        <LedgerBalanceSummary selfBalance={bootstrap.balance[user.id] ?? null} nextPayerLabel={nextPayerUser?.label}
+          stale={read === "failed"} ledgerVersion={bootstrap.ledger.version} />
+        <Button tabIndex={0} variant="ghost" className="justify-start px-0 font-normal text-[var(--ink-2)]" onClick={() => onOpenSurface("STATS")}>收支概況<ChevronRight aria-hidden="true" className="size-4" /></Button>
+      </> : null}
 
       {isDetail && isCorrection ? <Card className="p-4" data-entry>
         <h2 className="mb-3 font-bold">修改這筆紀錄</h2>
@@ -651,13 +646,13 @@ export function V2LedgerHome({
           {recurring.length ? <div className="divide-y divide-[var(--border)]">{recurring.map((rule) => <div key={rule.id} className="flex items-center gap-2 py-2"><div className="min-w-0 flex-1"><p className="truncate text-sm font-semibold">{rule.name} · {money(Number(rule.amountTwd))}</p><p className="text-xs text-[var(--muted-foreground)]">{rule.frequency === "weekly" ? "每週" : rule.frequency === "monthly" ? "每月" : "每年"} · {rule.splitMethod} · 下次 {rule.nextRunDate}</p></div><Button variant="ghost" size="sm" onClick={() => void toggleRecurring(rule)} disabled={saving}>{rule.active ? "停用" : "啟用"}</Button></div>)}</div> : <p className="text-sm text-[var(--muted-foreground)]">尚未設定週期交易</p>}
       </Card> : null}
 
-      {isHome ? <Card data-testid="home-timeline-card" data-ledger-version={bootstrap.ledger.version} className="p-4"><h2 className="mb-2 font-bold">生活紀錄</h2>
+      {isHome ? <section data-testid="home-timeline-section" data-ledger-version={bootstrap.ledger.version} className="ledger-home-timeline min-w-0 border-t pt-4" aria-labelledby="home-timeline-heading"><h2 id="home-timeline-heading" className="font-semibold">最近紀錄</h2>
         <LedgerTimeline transactions={bootstrap.transactions} userId={user.id} categories={categories} today={today}
           visibleCount={visibleCount} onLoadOlder={onLoadOlder} highlightedId={highlightedId}
           onOpenTransaction={id => onOpenSurface("TRANSACTION_DETAIL", id)} />
-      </Card> : null}
-      {isHome ? <div data-testid="home-entry-action" className="pointer-events-none fixed inset-x-0 bottom-0 z-10 mx-auto max-w-[640px] px-4 pb-[max(12px,env(safe-area-inset-bottom))] pt-3">
-        <Button data-testid="quick-entry-trigger" aria-haspopup="dialog" aria-controls="ledger-surface-dialog" className="pointer-events-auto min-h-[52px] w-full text-base shadow-md" onClick={event => onQuickEntry(event.currentTarget)}><Plus aria-hidden="true" className="size-5" />記一筆</Button>
+      </section> : null}
+      {isHome ? <div data-testid="home-entry-action" className="pointer-events-none fixed inset-x-0 bottom-0 z-10 mx-auto max-w-[640px] bg-[var(--background)] px-4 min-[380px]:px-5 pb-[max(12px,env(safe-area-inset-bottom))] pt-3">
+        <Button data-testid="quick-entry-trigger" aria-haspopup="dialog" aria-controls="ledger-surface-dialog" className="pointer-events-auto min-h-[52px] w-full text-base" onClick={event => onQuickEntry(event.currentTarget)}><Plus aria-hidden="true" className="size-5" />記一筆</Button>
       </div> : null}
       {isSearch ? <Card className="p-4" data-search-ready={historyReady ? "true" : "false"}>
         <div className="mb-2 flex items-center justify-between gap-2"><h2 className="font-bold">搜尋紀錄</h2><span className="text-xs text-[var(--muted-foreground)]">已載入 {historyRows.length} 筆</span></div>

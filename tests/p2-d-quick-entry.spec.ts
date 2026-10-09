@@ -1,3 +1,4 @@
+import { homeAction, homeSurface } from "./fixtures/p1-b-browser";
 import { expect, test, type Page, type TestInfo } from "@playwright/test";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { ENTRY_RECOVERY_KEY } from "../src/lib/v2-entry-operation";
@@ -163,7 +164,7 @@ test("full canonical success closes once, updates row/balance/next payer atomica
     new MutationObserver(() => {
       if (!document.querySelector('button[data-transaction-id]')) return;
       const balance = document.querySelector('[data-testid="ledger-balance"]');
-      const timeline = document.querySelector('[data-testid="home-timeline-card"]');
+      const timeline = document.querySelector('[data-testid="home-timeline-section"]');
       if (!balance?.textContent?.includes("NT$340") || !balance.textContent.includes("下次建議由 另一半 付款") || balance.getAttribute("data-ledger-version") !== "2" || timeline?.getAttribute("data-ledger-version") !== "2")
         (window as unknown as { inconsistentCreatePaint: string[] }).inconsistentCreatePaint.push(document.body.textContent ?? "");
     }).observe(document.querySelector("main")!, { subtree: true, childList: true, characterData: true });
@@ -225,12 +226,12 @@ test("a moved Home reading position is preserved and View is visible without a f
 test("filtered Search keeps its query and excludes a nonmatching canonical row, with View using P2-C Detail", async ({ page }) => {
   const fixture = await timelineBrowser(page); await fixture.goto(); await fixture.ready();
   await fillEntry(page, "新加入不符合搜尋", "680"); await add(page).click(); await expect(dialog(page)).toHaveCount(0);
-  await page.getByRole("button", { name: "搜尋", exact: true }).click(); await page.getByLabel("搜尋紀錄").fill("昨日買菜");
+  await page.getByRole("button", { name: "搜尋紀錄", exact: true }).click(); await page.getByRole("textbox", { name: "搜尋紀錄", exact: true }).fill("昨日買菜");
   await expect(page.getByRole("button", { name: /新加入不符合搜尋，支出/ })).toHaveCount(0);
-  await expect(page.getByLabel("搜尋紀錄")).toHaveValue("昨日買菜");
+  await expect(page.getByRole("textbox", { name: "搜尋紀錄", exact: true })).toHaveValue("昨日買菜");
   await expect(view(page)).toBeVisible(); await view(page).click();
   await expect(page.locator("[data-detail-heading]")).toHaveText("新加入不符合搜尋");
-  await page.getByTestId("transaction-detail-back").click(); await expect(page.getByLabel("搜尋紀錄")).toHaveValue("昨日買菜");
+  await page.getByTestId("transaction-detail-back").click(); await expect(page.getByRole("textbox", { name: "搜尋紀錄", exact: true })).toHaveValue("昨日買菜");
 });
 
 test("partial commit plus read500 closes as success, and retry remains GET-only", async ({ page }, info) => {
@@ -255,7 +256,7 @@ test("the next explicit open snapshots fresh defaults and has no prior amount, p
   await page.getByTestId("payer-summary").click(); await dialog(page).getByRole("combobox").selectOption("partner"); await dialog(page).getByRole("button", { name: "套用", exact: true }).click();
   await add(page).click(); await expect(dialog(page)).toHaveCount(0);
   state.weights = { [OWNER]: "2", [PARTNER]: "1" }; state.version += 1;
-  await page.getByLabel("重新整理帳本").click(); await expect(outcome(page)).toHaveAttribute("data-read-freshness", "ready");
+  await homeAction(page, "重新整理"); await expect(outcome(page)).toHaveAttribute("data-read-freshness", "ready");
   await openEntry(page); await expect(amount(page)).toHaveValue(""); await expect(purpose(page)).toHaveValue("");
   await expect(page.getByTestId("entry-success-copy")).toHaveCount(0);
   await expect(outcome(page)).toHaveCount(0);
@@ -272,7 +273,7 @@ test("Ledger switch works after closing Quick Entry; secondary pages have no cre
   await expect(page.getByTestId("surface-heading")).toHaveText("旅行帳本"); await openEntry(page);
   await expect(page.getByTestId("quick-entry-ledger")).toHaveText("旅行帳本"); await page.keyboard.press("Escape");
   for (const name of ["收支概況", "帳本設定", "搜尋"]) {
-    await page.getByRole("button", { name, exact: true }).click();
+    await homeSurface(page, name);
     await expect(page.locator("[data-entry] form")).toHaveCount(0); await expect(page.getByTestId("quick-entry-trigger")).toHaveCount(0);
     await page.getByTestId("transaction-detail-back").click();
   }

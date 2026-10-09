@@ -246,6 +246,8 @@
 .animate-toast-in { animation: toastIn 0.32s var(--ease-out) both; }
 .detail-enter { view-transition-name: transaction-detail; animation: fadeIn 160ms ease-out both; }
 .timeline-new-row { animation: fadeIn 120ms ease-out both; }
+.ledger-home-timeline { --muted-foreground: var(--ink-2); }
+#ledger-surface-dialog:has([data-home-more]) [aria-label="關閉視窗"] { color: var(--foreground); }
 .ledger-quick-dialog {
   position: fixed;
   inset: var(--ledger-viewport-top, 0px) 0 auto;

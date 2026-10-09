@@ -1,0 +1,3423 @@
+{
+  "stage": "before",
+  "baseURL": "http://localhost:3118",
+  "os": "darwin 27.2.0",
+  "browser": "Chromium 149.0.7827.55",
+  "node": "v22.23.1",
+  "device": "Local macOS browser emulation of iPhone 13, not a physical iPhone or LINE host",
+  "viewport": "390x844",
+  "text": "100%",
+  "network": "mocked 30ms delay per API; no throughput throttle",
+  "encodedPayload": "not measured; mocked JSON is uncompressed",
+  "cache": "fresh contexts, warm production server",
+  "clock": "native browser performance.now and requestAnimationFrame; fixture fake clock disabled",
+  "method": "20 samples per fixture, production next start, mocked LIFF/auth/APIs with 30ms delay per API; MutationObserver readiness to two requestAnimationFrames. Browser paint proxy; not physical LINE/4G or a production SLA. CLS excludes recent input. Long tasks reported without attribution; transport payload is decoded fixture JSON, no payload reduction claimed.",
+  "summaries": [
+    {
+      "scenario": "empty",
+      "samples": 20,
+      "marks": {
+        "homeUsablePaintMs": {
+          "median": 238.5,
+          "p75": 242,
+          "p95": 246.69999998807907
+        },
+        "switchIdentityPaintMs": {
+          "median": 23.100000023841858,
+          "p75": 30.69999998807907,
+          "p95": 32.80000001192093
+        },
+        "switchUsablePaintMs": {
+          "median": 66.10000002384186,
+          "p75": 68.90000003576279,
+          "p95": 70.10000002384186
+        },
+        "quickEntryFeedbackPaintMs": {
+          "median": 17.399999976158142,
+          "p75": 18.80000001192093,
+          "p95": 37.69999998807907
+        }
+      },
+      "startupRequestCounts": [
+        5
+      ],
+      "initialRows": [
+        0
+      ],
+      "maxCLS": 0,
+      "maxLongTaskMs": 60
+    },
+    {
+      "scenario": "50-rows",
+      "samples": 20,
+      "marks": {
+        "homeUsablePaintMs": {
+          "median": 231,
+          "p75": 238,
+          "p95": 245.89999997615814
+        },
+        "switchIdentityPaintMs": {
+          "median": 26.099999964237213,
+          "p75": 27.80000001192093,
+          "p95": 30.5
+        },
+        "switchUsablePaintMs": {
+          "median": 60.89999997615814,
+          "p75": 62.60000002384186,
+          "p95": 69.39999997615814
+        },
+        "quickEntryFeedbackPaintMs": {
+          "median": 11.300000011920929,
+          "p75": 16.80000001192093,
+          "p95": 37.19999998807907
+        }
+      },
+      "startupRequestCounts": [
+        5
+      ],
+      "initialRows": [
+        20
+      ],
+      "maxCLS": 0,
+      "maxLongTaskMs": 0
+    },
+    {
+      "scenario": "mixed-200-rows",
+      "samples": 20,
+      "marks": {
+        "homeUsablePaintMs": {
+          "median": 234.60000002384186,
+          "p75": 243.5,
+          "p95": 248.79999995231628
+        },
+        "switchIdentityPaintMs": {
+          "median": 28,
+          "p75": 29,
+          "p95": 30.400000035762787
+        },
+        "switchUsablePaintMs": {
+          "median": 61,
+          "p75": 62.5,
+          "p95": 63.80000001192093
+        },
+        "quickEntryFeedbackPaintMs": {
+          "median": 11.399999976158142,
+          "p75": 11.900000035762787,
+          "p95": 16.69999998807907
+        }
+      },
+      "startupRequestCounts": [
+        5
+      ],
+      "initialRows": [
+        20
+      ],
+      "maxCLS": 0,
+      "maxLongTaskMs": 0
+    }
+  ],
+  "samples": [
+    {
+      "scenario": "empty",
+      "run": 0,
+      "startupRequests": [
+        "POST /api/app/session",
+        "GET /api/app/v2/context",
+        "GET /api/app/v2/ledgers",
+        "GET /api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/bootstrap",
+        "GET /api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories"
+      ],
+      "requestWaterfall": [
+        {
+          "method": "POST",
+          "path": "/api/app/session",
+          "startMs": 0,
+          "durationMs": 32.42033399999991
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/context",
+          "startMs": 32.831292000000076,
+          "durationMs": 32.88349999999991
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/ledgers",
+          "startMs": 66.12454200000002,
+          "durationMs": 34.10154199999988
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/bootstrap",
+          "startMs": 170.39941699999986,
+          "durationMs": 33.67750000000001
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories",
+          "startMs": 221.97670900000003,
+          "durationMs": 34.80304100000012
+        }
+      ],
+      "initialRows": 0,
+      "bootstrapBytes": 611,
+      "quickEntryOpenRequests": 0,
+      "marks": {
+        "homeUsablePaintMs": 414.4000000357628,
+        "switchIdentityPaintMs": 12.100000023841858,
+        "switchUsablePaintMs": 62.19999998807907,
+        "quickEntryFeedbackPaintMs": 39.69999998807907
+      },
+      "cls": 0,
+      "layoutShiftSupported": true,
+      "longTasks": [
+        60
+      ]
+    },
+    {
+      "scenario": "empty",
+      "run": 1,
+      "startupRequests": [
+        "POST /api/app/session",
+        "GET /api/app/v2/context",
+        "GET /api/app/v2/ledgers",
+        "GET /api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/bootstrap",
+        "GET /api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories"
+      ],
+      "requestWaterfall": [
+        {
+          "method": "POST",
+          "path": "/api/app/session",
+          "startMs": 0,
+          "durationMs": 32.568084
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/context",
+          "startMs": 32.728000000000065,
+          "durationMs": 33.44579199999998
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/ledgers",
+          "startMs": 66.66904199999999,
+          "durationMs": 33.4096669999999
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/bootstrap",
+          "startMs": 123.267875,
+          "durationMs": 33.148041999999805
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories",
+          "startMs": 159.65183399999978,
+          "durationMs": 31.568791000000147
+        }
+      ],
+      "initialRows": 0,
+      "bootstrapBytes": 611,
+      "quickEntryOpenRequests": 0,
+      "marks": {
+        "homeUsablePaintMs": 240.0999999642372,
+        "switchIdentityPaintMs": 24.69999998807907,
+        "switchUsablePaintMs": 59.5,
+        "quickEntryFeedbackPaintMs": 10.800000011920929
+      },
+      "cls": 0,
+      "layoutShiftSupported": true,
+      "longTasks": []
+    },
+    {
+      "scenario": "empty",
+      "run": 2,
+      "startupRequests": [
+        "POST /api/app/session",
+        "GET /api/app/v2/context",
+        "GET /api/app/v2/ledgers",
+        "GET /api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/bootstrap",
+        "GET /api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories"
+      ],
+      "requestWaterfall": [
+        {
+          "method": "POST",
+          "path": "/api/app/session",
+          "startMs": 0,
+          "durationMs": 33.358042000000296
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/context",
+          "startMs": 33.647500000000036,
+          "durationMs": 32.61216700000023
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/ledgers",
+          "startMs": 66.65133300000025,
+          "durationMs": 33.945334
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/bootstrap",
+          "startMs": 124.34645799999998,
+          "durationMs": 31.56254200000012
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories",
+          "startMs": 159.29700000000003,
+          "durationMs": 32.192833000000064
+        }
+      ],
+      "initialRows": 0,
+      "bootstrapBytes": 611,
+      "quickEntryOpenRequests": 0,
+      "marks": {
+        "homeUsablePaintMs": 244.89999997615814,
+        "switchIdentityPaintMs": 30.69999998807907,
+        "switchUsablePaintMs": 63,
+        "quickEntryFeedbackPaintMs": 10.800000011920929
+      },
+      "cls": 0,
+      "layoutShiftSupported": true,
+      "longTasks": []
+    },
+    {
+      "scenario": "empty",
+      "run": 3,
+      "startupRequests": [
+        "POST /api/app/session",
+        "GET /api/app/v2/context",
+        "GET /api/app/v2/ledgers",
+        "GET /api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/bootstrap",
+        "GET /api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories"
+      ],
+      "requestWaterfall": [
+        {
+          "method": "POST",
+          "path": "/api/app/session",
+          "startMs": 0,
+          "durationMs": 34.4183750000002
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/context",
+          "startMs": 34.72550000000001,
+          "durationMs": 31.813292000000274
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/ledgers",
+          "startMs": 67.10954200000015,
+          "durationMs": 32.88129100000015
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/bootstrap",
+          "startMs": 124.49120799999992,
+          "durationMs": 33.57529199999999
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories",
+          "startMs": 161.57133300000032,
+          "durationMs": 31.20491699999957
+        }
+      ],
+      "initialRows": 0,
+      "bootstrapBytes": 611,
+      "quickEntryOpenRequests": 0,
+      "marks": {
+        "homeUsablePaintMs": 246.69999998807907,
+        "switchIdentityPaintMs": 32.80000001192093,
+        "switchUsablePaintMs": 66.10000002384186,
+        "quickEntryFeedbackPaintMs": 13.600000023841858
+      },
+      "cls": 0,
+      "layoutShiftSupported": true,
+      "longTasks": []
+    },
+    {
+      "scenario": "empty",
+      "run": 4,
+      "startupRequests": [
+        "POST /api/app/session",
+        "GET /api/app/v2/context",
+        "GET /api/app/v2/ledgers",
+        "GET /api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/bootstrap",
+        "GET /api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories"
+      ],
+      "requestWaterfall": [
+        {
+          "method": "POST",
+          "path": "/api/app/session",
+          "startMs": 0,
+          "durationMs": 33.0493749999996
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/context",
+          "startMs": 33.28337499999998,
+          "durationMs": 33.907374999999774
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/ledgers",
+          "startMs": 67.57683300000008,
+          "durationMs": 33.34508300000016
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/bootstrap",
+          "startMs": 124.19916599999942,
+          "durationMs": 33.9350000000004
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories",
+          "startMs": 162.05595799999992,
+          "durationMs": 32.48620800000026
+        }
+      ],
+      "initialRows": 0,
+      "bootstrapBytes": 611,
+      "quickEntryOpenRequests": 0,
+      "marks": {
+        "homeUsablePaintMs": 245.70000004768372,
+        "switchIdentityPaintMs": 24.5,
+        "switchUsablePaintMs": 57.89999997615814,
+        "quickEntryFeedbackPaintMs": 17.69999998807907
+      },
+      "cls": 0,
+      "layoutShiftSupported": true,
+      "longTasks": []
+    },
+    {
+      "scenario": "empty",
+      "run": 5,
+      "startupRequests": [
+        "POST /api/app/session",
+        "GET /api/app/v2/context",
+        "GET /api/app/v2/ledgers",
+        "GET /api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/bootstrap",
+        "GET /api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories"
+      ],
+      "requestWaterfall": [
+        {
+          "method": "POST",
+          "path": "/api/app/session",
+          "startMs": 0,
+          "durationMs": 33.90116699999999
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/context",
+          "startMs": 34.042083000000275,
+          "durationMs": 33.40633399999933
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/ledgers",
+          "startMs": 68.07150000000001,
+          "durationMs": 33.05933300000015
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/bootstrap",
+          "startMs": 123.8955420000002,
+          "durationMs": 32.86708300000009
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories",
+          "startMs": 160.05845800000043,
+          "durationMs": 31.893958999999995
+        }
+      ],
+      "initialRows": 0,
+      "bootstrapBytes": 611,
+      "quickEntryOpenRequests": 0,
+      "marks": {
+        "homeUsablePaintMs": 238.5,
+        "switchIdentityPaintMs": 19.19999998807907,
+        "switchUsablePaintMs": 67.60000002384186,
+        "quickEntryFeedbackPaintMs": 17.100000023841858
+      },
+      "cls": 0,
+      "layoutShiftSupported": true,
+      "longTasks": []
+    },
+    {
+      "scenario": "empty",
+      "run": 6,
+      "startupRequests": [
+        "POST /api/app/session",
+        "GET /api/app/v2/context",
+        "GET /api/app/v2/ledgers",
+        "GET /api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/bootstrap",
+        "GET /api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories"
+      ],
+      "requestWaterfall": [
+        {
+          "method": "POST",
+          "path": "/api/app/session",
+          "startMs": 0,
+          "durationMs": 32.48058299999957
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/context",
+          "startMs": 32.64341599999989,
+          "durationMs": 33.518041999999696
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/ledgers",
+          "startMs": 66.6967909999994,
+          "durationMs": 33.419709000000694
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/bootstrap",
+          "startMs": 122.83229099999971,
+          "durationMs": 33.50725000000057
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories",
+          "startMs": 164.74974999999995,
+          "durationMs": 32.47295800000029
+        }
+      ],
+      "initialRows": 0,
+      "bootstrapBytes": 611,
+      "quickEntryOpenRequests": 0,
+      "marks": {
+        "homeUsablePaintMs": 231,
+        "switchIdentityPaintMs": 25.80000001192093,
+        "switchUsablePaintMs": 59.200000047683716,
+        "quickEntryFeedbackPaintMs": 9.699999988079071
+      },
+      "cls": 0,
+      "layoutShiftSupported": true,
+      "longTasks": []
+    },
+    {
+      "scenario": "empty",
+      "run": 7,
+      "startupRequests": [
+        "POST /api/app/session",
+        "GET /api/app/v2/context",
+        "GET /api/app/v2/ledgers",
+        "GET /api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/bootstrap",
+        "GET /api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories"
+      ],
+      "requestWaterfall": [
+        {
+          "method": "POST",
+          "path": "/api/app/session",
+          "startMs": 0,
+          "durationMs": 33.44941600000038
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/context",
+          "startMs": 33.74695799999972,
+          "durationMs": 33.34725000000071
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/ledgers",
+          "startMs": 67.54991599999994,
+          "durationMs": 32.24116700000013
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/bootstrap",
+          "startMs": 122.90666599999986,
+          "durationMs": 32.8417500000005
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories",
+          "startMs": 159.1128749999998,
+          "durationMs": 32.04520800000046
+        }
+      ],
+      "initialRows": 0,
+      "bootstrapBytes": 611,
+      "quickEntryOpenRequests": 0,
+      "marks": {
+        "homeUsablePaintMs": 233.69999998807907,
+        "switchIdentityPaintMs": 25.399999976158142,
+        "switchUsablePaintMs": 60.09999996423721,
+        "quickEntryFeedbackPaintMs": 24.5
+      },
+      "cls": 0,
+      "layoutShiftSupported": true,
+      "longTasks": []
+    },
+    {
+      "scenario": "empty",
+      "run": 8,
+      "startupRequests": [
+        "POST /api/app/session",
+        "GET /api/app/v2/context",
+        "GET /api/app/v2/ledgers",
+        "GET /api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/bootstrap",
+        "GET /api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories"
+      ],
+      "requestWaterfall": [
+        {
+          "method": "POST",
+          "path": "/api/app/session",
+          "startMs": 0,
+          "durationMs": 32.211874999999964
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/context",
+          "startMs": 32.396999999999935,
+          "durationMs": 32.68591599999945
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/ledgers",
+          "startMs": 65.51329100000021,
+          "durationMs": 34.15795899999921
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/bootstrap",
+          "startMs": 123.72395799999958,
+          "durationMs": 33.03304200000002
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories",
+          "startMs": 159.9512909999994,
+          "durationMs": 30.670084000000315
+        }
+      ],
+      "initialRows": 0,
+      "bootstrapBytes": 611,
+      "quickEntryOpenRequests": 0,
+      "marks": {
+        "homeUsablePaintMs": 243.30000001192093,
+        "switchIdentityPaintMs": 19.5,
+        "switchUsablePaintMs": 69.39999997615814,
+        "quickEntryFeedbackPaintMs": 14.400000035762787
+      },
+      "cls": 0,
+      "layoutShiftSupported": true,
+      "longTasks": []
+    },
+    {
+      "scenario": "empty",
+      "run": 9,
+      "startupRequests": [
+        "POST /api/app/session",
+        "GET /api/app/v2/context",
+        "GET /api/app/v2/ledgers",
+        "GET /api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/bootstrap",
+        "GET /api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories"
+      ],
+      "requestWaterfall": [
+        {
+          "method": "POST",
+          "path": "/api/app/session",
+          "startMs": 0,
+          "durationMs": 33.22716599999967
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/context",
+          "startMs": 33.48008300000038,
+          "durationMs": 33.44874999999956
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/ledgers",
+          "startMs": 67.38487499999974,
+          "durationMs": 34.87904100000014
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/bootstrap",
+          "startMs": 121.93187500000022,
+          "durationMs": 32.572040999999444
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories",
+          "startMs": 157.3513750000002,
+          "durationMs": 32.94679099999939
+        }
+      ],
+      "initialRows": 0,
+      "bootstrapBytes": 611,
+      "quickEntryOpenRequests": 0,
+      "marks": {
+        "homeUsablePaintMs": 238.30000001192093,
+        "switchIdentityPaintMs": 32.89999997615814,
+        "switchUsablePaintMs": 68.30000001192093,
+        "quickEntryFeedbackPaintMs": 14.5
+      },
+      "cls": 0,
+      "layoutShiftSupported": true,
+      "longTasks": []
+    },
+    {
+      "scenario": "empty",
+      "run": 10,
+      "startupRequests": [
+        "POST /api/app/session",
+        "GET /api/app/v2/context",
+        "GET /api/app/v2/ledgers",
+        "GET /api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/bootstrap",
+        "GET /api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories"
+      ],
+      "requestWaterfall": [
+        {
+          "method": "POST",
+          "path": "/api/app/session",
+          "startMs": 0,
+          "durationMs": 32.45666600000004
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/context",
+          "startMs": 32.73029099999985,
+          "durationMs": 33.46266699999978
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/ledgers",
+          "startMs": 66.71187499999905,
+          "durationMs": 32.814125000000786
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/bootstrap",
+          "startMs": 123.40537499999846,
+          "durationMs": 32.76837500000147
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories",
+          "startMs": 159.563666,
+          "durationMs": 32.01091699999961
+        }
+      ],
+      "initialRows": 0,
+      "bootstrapBytes": 611,
+      "quickEntryOpenRequests": 0,
+      "marks": {
+        "homeUsablePaintMs": 238.19999998807907,
+        "switchIdentityPaintMs": 31.899999976158142,
+        "switchUsablePaintMs": 64.80000001192093,
+        "quickEntryFeedbackPaintMs": 13.799999952316284
+      },
+      "cls": 0,
+      "layoutShiftSupported": true,
+      "longTasks": []
+    },
+    {
+      "scenario": "empty",
+      "run": 11,
+      "startupRequests": [
+        "POST /api/app/session",
+        "GET /api/app/v2/context",
+        "GET /api/app/v2/ledgers",
+        "GET /api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/bootstrap",
+        "GET /api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories"
+      ],
+      "requestWaterfall": [
+        {
+          "method": "POST",
+          "path": "/api/app/session",
+          "startMs": 0,
+          "durationMs": 33.38116699999955
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/context",
+          "startMs": 33.691084000000046,
+          "durationMs": 32.55712499999936
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/ledgers",
+          "startMs": 66.72691699999996,
+          "durationMs": 31.580332999999882
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/bootstrap",
+          "startMs": 124.79712499999914,
+          "durationMs": 32.36250000000109
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories",
+          "startMs": 160.79162499999984,
+          "durationMs": 31.785499999999956
+        }
+      ],
+      "initialRows": 0,
+      "bootstrapBytes": 611,
+      "quickEntryOpenRequests": 0,
+      "marks": {
+        "homeUsablePaintMs": 235.69999998807907,
+        "switchIdentityPaintMs": 30.80000001192093,
+        "switchUsablePaintMs": 70.10000002384186,
+        "quickEntryFeedbackPaintMs": 22.600000023841858
+      },
+      "cls": 0,
+      "layoutShiftSupported": true,
+      "longTasks": []
+    },
+    {
+      "scenario": "empty",
+      "run": 12,
+      "startupRequests": [
+        "POST /api/app/session",
+        "GET /api/app/v2/context",
+        "GET /api/app/v2/ledgers",
+        "GET /api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/bootstrap",
+        "GET /api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories"
+      ],
+      "requestWaterfall": [
+        {
+          "method": "POST",
+          "path": "/api/app/session",
+          "startMs": 0,
+          "durationMs": 32.83012499999859
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/context",
+          "startMs": 32.85337499999878,
+          "durationMs": 32.10237500000039
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/ledgers",
+          "startMs": 65.49283299999843,
+          "durationMs": 33.002667000000656
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/bootstrap",
+          "startMs": 122.44024999999965,
+          "durationMs": 32.91716699999961
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories",
+          "startMs": 164.0277499999993,
+          "durationMs": 34.0167079999992
+        }
+      ],
+      "initialRows": 0,
+      "bootstrapBytes": 611,
+      "quickEntryOpenRequests": 0,
+      "marks": {
+        "homeUsablePaintMs": 227.69999998807907,
+        "switchIdentityPaintMs": 20.899999976158142,
+        "switchUsablePaintMs": 54,
+        "quickEntryFeedbackPaintMs": 33.59999996423721
+      },
+      "cls": 0,
+      "layoutShiftSupported": true,
+      "longTasks": []
+    },
+    {
+      "scenario": "empty",
+      "run": 13,
+      "startupRequests": [
+        "POST /api/app/session",
+        "GET /api/app/v2/context",
+        "GET /api/app/v2/ledgers",
+        "GET /api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/bootstrap",
+        "GET /api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories"
+      ],
+      "requestWaterfall": [
+        {
+          "method": "POST",
+          "path": "/api/app/session",
+          "startMs": 0,
+          "durationMs": 33.57454200000029
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/context",
+          "startMs": 33.84754199999952,
+          "durationMs": 33.183750000000146
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/ledgers",
+          "startMs": 67.5068339999998,
+          "durationMs": 32.791290999999546
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/bootstrap",
+          "startMs": 124.11324999999852,
+          "durationMs": 33.30554200000006
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories",
+          "startMs": 160.92270899999858,
+          "durationMs": 31.81879100000151
+        }
+      ],
+      "initialRows": 0,
+      "bootstrapBytes": 611,
+      "quickEntryOpenRequests": 0,
+      "marks": {
+        "homeUsablePaintMs": 241,
+        "switchIdentityPaintMs": 23.100000023841858,
+        "switchUsablePaintMs": 56.10000002384186,
+        "quickEntryFeedbackPaintMs": 37.69999998807907
+      },
+      "cls": 0,
+      "layoutShiftSupported": true,
+      "longTasks": []
+    },
+    {
+      "scenario": "empty",
+      "run": 14,
+      "startupRequests": [
+        "POST /api/app/session",
+        "GET /api/app/v2/context",
+        "GET /api/app/v2/ledgers",
+        "GET /api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/bootstrap",
+        "GET /api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories"
+      ],
+      "requestWaterfall": [
+        {
+          "method": "POST",
+          "path": "/api/app/session",
+          "startMs": 0,
+          "durationMs": 32.88441700000112
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/context",
+          "startMs": 33.250042000001486,
+          "durationMs": 31.896624999999403
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/ledgers",
+          "startMs": 65.60600000000159,
+          "durationMs": 32.85566699999981
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/bootstrap",
+          "startMs": 122.45108300000174,
+          "durationMs": 31.81579199999942
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories",
+          "startMs": 158.09187500000007,
+          "durationMs": 32.658542000001034
+        }
+      ],
+      "initialRows": 0,
+      "bootstrapBytes": 611,
+      "quickEntryOpenRequests": 0,
+      "marks": {
+        "homeUsablePaintMs": 238.9000000357628,
+        "switchIdentityPaintMs": 17,
+        "switchUsablePaintMs": 68.5,
+        "quickEntryFeedbackPaintMs": 17.399999976158142
+      },
+      "cls": 0,
+      "layoutShiftSupported": true,
+      "longTasks": []
+    },
+    {
+      "scenario": "empty",
+      "run": 15,
+      "startupRequests": [
+        "POST /api/app/session",
+        "GET /api/app/v2/context",
+        "GET /api/app/v2/ledgers",
+        "GET /api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/bootstrap",
+        "GET /api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories"
+      ],
+      "requestWaterfall": [
+        {
+          "method": "POST",
+          "path": "/api/app/session",
+          "startMs": 0,
+          "durationMs": 32.52112500000112
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/context",
+          "startMs": 32.78820799999994,
+          "durationMs": 31.50579199999993
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/ledgers",
+          "startMs": 64.73275000000103,
+          "durationMs": 31.147249999999985
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/bootstrap",
+          "startMs": 118.3246250000011,
+          "durationMs": 31.662666000000172
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories",
+          "startMs": 153.338541000001,
+          "durationMs": 34.89875000000029
+        }
+      ],
+      "initialRows": 0,
+      "bootstrapBytes": 611,
+      "quickEntryOpenRequests": 0,
+      "marks": {
+        "homeUsablePaintMs": 230,
+        "switchIdentityPaintMs": 16.80000001192093,
+        "switchUsablePaintMs": 68.69999998807907,
+        "quickEntryFeedbackPaintMs": 14.700000047683716
+      },
+      "cls": 0,
+      "layoutShiftSupported": true,
+      "longTasks": []
+    },
+    {
+      "scenario": "empty",
+      "run": 16,
+      "startupRequests": [
+        "POST /api/app/session",
+        "GET /api/app/v2/context",
+        "GET /api/app/v2/ledgers",
+        "GET /api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/bootstrap",
+        "GET /api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories"
+      ],
+      "requestWaterfall": [
+        {
+          "method": "POST",
+          "path": "/api/app/session",
+          "startMs": 0,
+          "durationMs": 32.84470799999872
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/context",
+          "startMs": 33.02308300000004,
+          "durationMs": 33.3112919999985
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/ledgers",
+          "startMs": 66.73266700000022,
+          "durationMs": 32.33170799999971
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/bootstrap",
+          "startMs": 117.19774999999936,
+          "durationMs": 33.67370800000026
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories",
+          "startMs": 153.6165000000001,
+          "durationMs": 34.8609579999993
+        }
+      ],
+      "initialRows": 0,
+      "bootstrapBytes": 611,
+      "quickEntryOpenRequests": 0,
+      "marks": {
+        "homeUsablePaintMs": 237.9000000357628,
+        "switchIdentityPaintMs": 31.399999976158142,
+        "switchUsablePaintMs": 100.19999998807907,
+        "quickEntryFeedbackPaintMs": 18
+      },
+      "cls": 0,
+      "layoutShiftSupported": true,
+      "longTasks": []
+    },
+    {
+      "scenario": "empty",
+      "run": 17,
+      "startupRequests": [
+        "POST /api/app/session",
+        "GET /api/app/v2/context",
+        "GET /api/app/v2/ledgers",
+        "GET /api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/bootstrap",
+        "GET /api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories"
+      ],
+      "requestWaterfall": [
+        {
+          "method": "POST",
+          "path": "/api/app/session",
+          "startMs": 0,
+          "durationMs": 33.27929100000074
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/context",
+          "startMs": 33.43870799999968,
+          "durationMs": 31.81262500000048
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/ledgers",
+          "startMs": 65.73049999999967,
+          "durationMs": 33.39899999999943
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/bootstrap",
+          "startMs": 117.6668750000008,
+          "durationMs": 33.51499999999942
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories",
+          "startMs": 153.94774999999936,
+          "durationMs": 33.75287500000013
+        }
+      ],
+      "initialRows": 0,
+      "bootstrapBytes": 611,
+      "quickEntryOpenRequests": 0,
+      "marks": {
+        "homeUsablePaintMs": 238.80000001192093,
+        "switchIdentityPaintMs": 19.200000047683716,
+        "switchUsablePaintMs": 69.90000003576279,
+        "quickEntryFeedbackPaintMs": 18.80000001192093
+      },
+      "cls": 0,
+      "layoutShiftSupported": true,
+      "longTasks": []
+    },
+    {
+      "scenario": "empty",
+      "run": 18,
+      "startupRequests": [
+        "POST /api/app/session",
+        "GET /api/app/v2/context",
+        "GET /api/app/v2/ledgers",
+        "GET /api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/bootstrap",
+        "GET /api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories"
+      ],
+      "requestWaterfall": [
+        {
+          "method": "POST",
+          "path": "/api/app/session",
+          "startMs": 0,
+          "durationMs": 33.339875000001484
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/context",
+          "startMs": 33.53912500000115,
+          "durationMs": 33.26966700000048
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/ledgers",
+          "startMs": 67.32225000000108,
+          "durationMs": 32.438083999999435
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/bootstrap",
+          "startMs": 123.59091700000135,
+          "durationMs": 33.41437500000029
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories",
+          "startMs": 160.49637500000063,
+          "durationMs": 30.928625000000466
+        }
+      ],
+      "initialRows": 0,
+      "bootstrapBytes": 611,
+      "quickEntryOpenRequests": 0,
+      "marks": {
+        "homeUsablePaintMs": 242,
+        "switchIdentityPaintMs": 20.600000023841858,
+        "switchUsablePaintMs": 68.90000003576279,
+        "quickEntryFeedbackPaintMs": 18.100000023841858
+      },
+      "cls": 0,
+      "layoutShiftSupported": true,
+      "longTasks": []
+    },
+    {
+      "scenario": "empty",
+      "run": 19,
+      "startupRequests": [
+        "POST /api/app/session",
+        "GET /api/app/v2/context",
+        "GET /api/app/v2/ledgers",
+        "GET /api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/bootstrap",
+        "GET /api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories"
+      ],
+      "requestWaterfall": [
+        {
+          "method": "POST",
+          "path": "/api/app/session",
+          "startMs": 0,
+          "durationMs": 31.63312500000029
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/context",
+          "startMs": 31.977625000001353,
+          "durationMs": 33.5216249999994
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/ledgers",
+          "startMs": 65.97262500000033,
+          "durationMs": 30.82745799999975
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/bootstrap",
+          "startMs": 118.93354200000067,
+          "durationMs": 32.222625000000335
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories",
+          "startMs": 154.52095800000097,
+          "durationMs": 32.96504199999981
+        }
+      ],
+      "initialRows": 0,
+      "bootstrapBytes": 611,
+      "quickEntryOpenRequests": 0,
+      "marks": {
+        "homeUsablePaintMs": 226.9000000357628,
+        "switchIdentityPaintMs": 19.5,
+        "switchUsablePaintMs": 69.5,
+        "quickEntryFeedbackPaintMs": 18.299999952316284
+      },
+      "cls": 0,
+      "layoutShiftSupported": true,
+      "longTasks": []
+    },
+    {
+      "scenario": "50-rows",
+      "run": 0,
+      "startupRequests": [
+        "POST /api/app/session",
+        "GET /api/app/v2/context",
+        "GET /api/app/v2/ledgers",
+        "GET /api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/bootstrap",
+        "GET /api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories"
+      ],
+      "requestWaterfall": [
+        {
+          "method": "POST",
+          "path": "/api/app/session",
+          "startMs": 0,
+          "durationMs": 33.97808299999997
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/context",
+          "startMs": 34.14599999999882,
+          "durationMs": 33.44350000000122
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/ledgers",
+          "startMs": 68.00212499999907,
+          "durationMs": 33.98262500000055
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/bootstrap",
+          "startMs": 125.72508299999936,
+          "durationMs": 34.073458000000755
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories",
+          "startMs": 169.95558299999902,
+          "durationMs": 31.922458000000915
+        }
+      ],
+      "initialRows": 20,
+      "bootstrapBytes": 28430,
+      "quickEntryOpenRequests": 0,
+      "marks": {
+        "homeUsablePaintMs": 243.80000001192093,
+        "switchIdentityPaintMs": 27.80000001192093,
+        "switchUsablePaintMs": 61.19999998807907,
+        "quickEntryFeedbackPaintMs": 10.900000035762787
+      },
+      "cls": 0,
+      "layoutShiftSupported": true,
+      "longTasks": []
+    },
+    {
+      "scenario": "50-rows",
+      "run": 1,
+      "startupRequests": [
+        "POST /api/app/session",
+        "GET /api/app/v2/context",
+        "GET /api/app/v2/ledgers",
+        "GET /api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/bootstrap",
+        "GET /api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories"
+      ],
+      "requestWaterfall": [
+        {
+          "method": "POST",
+          "path": "/api/app/session",
+          "startMs": 0,
+          "durationMs": 33.28358300000036
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/context",
+          "startMs": 33.66658300000017,
+          "durationMs": 32.898832999999286
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/ledgers",
+          "startMs": 66.97679100000096,
+          "durationMs": 33.29895899999974
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/bootstrap",
+          "startMs": 124.21687500000007,
+          "durationMs": 34.15729099999953
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories",
+          "startMs": 172.83229100000062,
+          "durationMs": 33.37512499999866
+        }
+      ],
+      "initialRows": 20,
+      "bootstrapBytes": 28430,
+      "quickEntryOpenRequests": 0,
+      "marks": {
+        "homeUsablePaintMs": 229.9000000357628,
+        "switchIdentityPaintMs": 17,
+        "switchUsablePaintMs": 66.89999997615814,
+        "quickEntryFeedbackPaintMs": 16.80000001192093
+      },
+      "cls": 0,
+      "layoutShiftSupported": true,
+      "longTasks": []
+    },
+    {
+      "scenario": "50-rows",
+      "run": 2,
+      "startupRequests": [
+        "POST /api/app/session",
+        "GET /api/app/v2/context",
+        "GET /api/app/v2/ledgers",
+        "GET /api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/bootstrap",
+        "GET /api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories"
+      ],
+      "requestWaterfall": [
+        {
+          "method": "POST",
+          "path": "/api/app/session",
+          "startMs": 0,
+          "durationMs": 31.572374999999738
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/context",
+          "startMs": 31.849958999999217,
+          "durationMs": 31.972625000000335
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/ledgers",
+          "startMs": 64.23616699999911,
+          "durationMs": 33.55187500000102
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/bootstrap",
+          "startMs": 121.33612499999981,
+          "durationMs": 34.779499999998734
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories",
+          "startMs": 170.99554199999875,
+          "durationMs": 32.62354200000118
+        }
+      ],
+      "initialRows": 20,
+      "bootstrapBytes": 28430,
+      "quickEntryOpenRequests": 0,
+      "marks": {
+        "homeUsablePaintMs": 238,
+        "switchIdentityPaintMs": 26.30000001192093,
+        "switchUsablePaintMs": 60.69999998807907,
+        "quickEntryFeedbackPaintMs": 10.5
+      },
+      "cls": 0,
+      "layoutShiftSupported": true,
+      "longTasks": []
+    },
+    {
+      "scenario": "50-rows",
+      "run": 3,
+      "startupRequests": [
+        "POST /api/app/session",
+        "GET /api/app/v2/context",
+        "GET /api/app/v2/ledgers",
+        "GET /api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/bootstrap",
+        "GET /api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories"
+      ],
+      "requestWaterfall": [
+        {
+          "method": "POST",
+          "path": "/api/app/session",
+          "startMs": 0,
+          "durationMs": 31.146584000000075
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/context",
+          "startMs": 31.479874999999083,
+          "durationMs": 33.14787500000057
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/ledgers",
+          "startMs": 65.05195900000035,
+          "durationMs": 34.026582999998936
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/bootstrap",
+          "startMs": 122.93241699999999,
+          "durationMs": 34.569917000000714
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories",
+          "startMs": 172.17495899999994,
+          "durationMs": 32.847249999998894
+        }
+      ],
+      "initialRows": 20,
+      "bootstrapBytes": 28430,
+      "quickEntryOpenRequests": 0,
+      "marks": {
+        "homeUsablePaintMs": 232.60000002384186,
+        "switchIdentityPaintMs": 20.399999976158142,
+        "switchUsablePaintMs": 69.39999997615814,
+        "quickEntryFeedbackPaintMs": 14.699999988079071
+      },
+      "cls": 0,
+      "layoutShiftSupported": true,
+      "longTasks": []
+    },
+    {
+      "scenario": "50-rows",
+      "run": 4,
+      "startupRequests": [
+        "POST /api/app/session",
+        "GET /api/app/v2/context",
+        "GET /api/app/v2/ledgers",
+        "GET /api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/bootstrap",
+        "GET /api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories"
+      ],
+      "requestWaterfall": [
+        {
+          "method": "POST",
+          "path": "/api/app/session",
+          "startMs": 0,
+          "durationMs": 33.601041999998415
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/context",
+          "startMs": 33.90508299999783,
+          "durationMs": 33.28233399999954
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/ledgers",
+          "startMs": 67.58562499999971,
+          "durationMs": 33.147916999998415
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/bootstrap",
+          "startMs": 124.04733299999862,
+          "durationMs": 32.64358400000128
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories",
+          "startMs": 170.9293749999997,
+          "durationMs": 32.13395799999853
+        }
+      ],
+      "initialRows": 20,
+      "bootstrapBytes": 28430,
+      "quickEntryOpenRequests": 0,
+      "marks": {
+        "homeUsablePaintMs": 231,
+        "switchIdentityPaintMs": 27.400000035762787,
+        "switchUsablePaintMs": 60.80000001192093,
+        "quickEntryFeedbackPaintMs": 11.199999988079071
+      },
+      "cls": 0,
+      "layoutShiftSupported": true,
+      "longTasks": []
+    },
+    {
+      "scenario": "50-rows",
+      "run": 5,
+      "startupRequests": [
+        "POST /api/app/session",
+        "GET /api/app/v2/context",
+        "GET /api/app/v2/ledgers",
+        "GET /api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/bootstrap",
+        "GET /api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories"
+      ],
+      "requestWaterfall": [
+        {
+          "method": "POST",
+          "path": "/api/app/session",
+          "startMs": 0,
+          "durationMs": 31.27874999999767
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/context",
+          "startMs": 31.455957999998645,
+          "durationMs": 33.2143329999999
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/ledgers",
+          "startMs": 65.1336659999979,
+          "durationMs": 34.09491700000217
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/bootstrap",
+          "startMs": 118.63145799999984,
+          "durationMs": 34.53095799999937
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories",
+          "startMs": 158.8367079999989,
+          "durationMs": 31.441374999998516
+        }
+      ],
+      "initialRows": 20,
+      "bootstrapBytes": 28430,
+      "quickEntryOpenRequests": 0,
+      "marks": {
+        "homeUsablePaintMs": 229.19999998807907,
+        "switchIdentityPaintMs": 33.09999996423721,
+        "switchUsablePaintMs": 65,
+        "quickEntryFeedbackPaintMs": 13.199999988079071
+      },
+      "cls": 0,
+      "layoutShiftSupported": true,
+      "longTasks": []
+    },
+    {
+      "scenario": "50-rows",
+      "run": 6,
+      "startupRequests": [
+        "POST /api/app/session",
+        "GET /api/app/v2/context",
+        "GET /api/app/v2/ledgers",
+        "GET /api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/bootstrap",
+        "GET /api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories"
+      ],
+      "requestWaterfall": [
+        {
+          "method": "POST",
+          "path": "/api/app/session",
+          "startMs": 0,
+          "durationMs": 31.276207999999315
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/context",
+          "startMs": 31.595666999997775,
+          "durationMs": 32.309541000002355
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/ledgers",
+          "startMs": 64.32158300000083,
+          "durationMs": 33.13366699999824
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/bootstrap",
+          "startMs": 117.39300000000003,
+          "durationMs": 33.68904199999815
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories",
+          "startMs": 157.58766699999978,
+          "durationMs": 31.892707999999402
+        }
+      ],
+      "initialRows": 20,
+      "bootstrapBytes": 28430,
+      "quickEntryOpenRequests": 0,
+      "marks": {
+        "homeUsablePaintMs": 231.10000002384186,
+        "switchIdentityPaintMs": 21.80000001192093,
+        "switchUsablePaintMs": 71.80000001192093,
+        "quickEntryFeedbackPaintMs": 21.600000023841858
+      },
+      "cls": 0,
+      "layoutShiftSupported": true,
+      "longTasks": []
+    },
+    {
+      "scenario": "50-rows",
+      "run": 7,
+      "startupRequests": [
+        "POST /api/app/session",
+        "GET /api/app/v2/context",
+        "GET /api/app/v2/ledgers",
+        "GET /api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/bootstrap",
+        "GET /api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories"
+      ],
+      "requestWaterfall": [
+        {
+          "method": "POST",
+          "path": "/api/app/session",
+          "startMs": 0,
+          "durationMs": 33.35358400000041
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/context",
+          "startMs": 33.69879200000287,
+          "durationMs": 33.17412499999773
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/ledgers",
+          "startMs": 67.31770900000265,
+          "durationMs": 33.98699999999735
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/bootstrap",
+          "startMs": 125.50087500000154,
+          "durationMs": 33.87408399999913
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories",
+          "startMs": 174.03716700000223,
+          "durationMs": 31.999707999999373
+        }
+      ],
+      "initialRows": 20,
+      "bootstrapBytes": 28430,
+      "quickEntryOpenRequests": 0,
+      "marks": {
+        "homeUsablePaintMs": 227.19999998807907,
+        "switchIdentityPaintMs": 26.099999964237213,
+        "switchUsablePaintMs": 60.89999997615814,
+        "quickEntryFeedbackPaintMs": 10.899999976158142
+      },
+      "cls": 0,
+      "layoutShiftSupported": true,
+      "longTasks": []
+    },
+    {
+      "scenario": "50-rows",
+      "run": 8,
+      "startupRequests": [
+        "POST /api/app/session",
+        "GET /api/app/v2/context",
+        "GET /api/app/v2/ledgers",
+        "GET /api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/bootstrap",
+        "GET /api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories"
+      ],
+      "requestWaterfall": [
+        {
+          "method": "POST",
+          "path": "/api/app/session",
+          "startMs": 0,
+          "durationMs": 31.71429100000023
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/context",
+          "startMs": 31.94237499999872,
+          "durationMs": 33.19525000000067
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/ledgers",
+          "startMs": 65.6336659999979,
+          "durationMs": 34.116541999999754
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/bootstrap",
+          "startMs": 123.5119999999988,
+          "durationMs": 34.58837499999936
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories",
+          "startMs": 165.1969579999968,
+          "durationMs": 31.748250000000553
+        }
+      ],
+      "initialRows": 20,
+      "bootstrapBytes": 28430,
+      "quickEntryOpenRequests": 0,
+      "marks": {
+        "homeUsablePaintMs": 247.60000002384186,
+        "switchIdentityPaintMs": 28.400000035762787,
+        "switchUsablePaintMs": 61.40000003576279,
+        "quickEntryFeedbackPaintMs": 10.300000011920929
+      },
+      "cls": 0,
+      "layoutShiftSupported": true,
+      "longTasks": []
+    },
+    {
+      "scenario": "50-rows",
+      "run": 9,
+      "startupRequests": [
+        "POST /api/app/session",
+        "GET /api/app/v2/context",
+        "GET /api/app/v2/ledgers",
+        "GET /api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/bootstrap",
+        "GET /api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories"
+      ],
+      "requestWaterfall": [
+        {
+          "method": "POST",
+          "path": "/api/app/session",
+          "startMs": 0,
+          "durationMs": 32.63691699999981
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/context",
+          "startMs": 32.92195899999933,
+          "durationMs": 33.21404099999927
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/ledgers",
+          "startMs": 66.57270900000003,
+          "durationMs": 32.234040999999706
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/bootstrap",
+          "startMs": 122.45041700000002,
+          "durationMs": 32.50183299999844
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories",
+          "startMs": 169.39237499999945,
+          "durationMs": 32.65437500000189
+        }
+      ],
+      "initialRows": 20,
+      "bootstrapBytes": 28430,
+      "quickEntryOpenRequests": 0,
+      "marks": {
+        "homeUsablePaintMs": 230.4000000357628,
+        "switchIdentityPaintMs": 24.5,
+        "switchUsablePaintMs": 58.09999996423721,
+        "quickEntryFeedbackPaintMs": 24.80000001192093
+      },
+      "cls": 0,
+      "layoutShiftSupported": true,
+      "longTasks": []
+    },
+    {
+      "scenario": "50-rows",
+      "run": 10,
+      "startupRequests": [
+        "POST /api/app/session",
+        "GET /api/app/v2/context",
+        "GET /api/app/v2/ledgers",
+        "GET /api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/bootstrap",
+        "GET /api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories"
+      ],
+      "requestWaterfall": [
+        {
+          "method": "POST",
+          "path": "/api/app/session",
+          "startMs": 0,
+          "durationMs": 32.98374999999942
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/context",
+          "startMs": 33.31341700000121,
+          "durationMs": 31.5534579999985
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/ledgers",
+          "startMs": 65.32616699999926,
+          "durationMs": 33.46387500000128
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/bootstrap",
+          "startMs": 122.6919999999991,
+          "durationMs": 34.83937499999956
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories",
+          "startMs": 164.62154200000077,
+          "durationMs": 31.20958299999984
+        }
+      ],
+      "initialRows": 20,
+      "bootstrapBytes": 28430,
+      "quickEntryOpenRequests": 0,
+      "marks": {
+        "homeUsablePaintMs": 244.10000002384186,
+        "switchIdentityPaintMs": 26.399999976158142,
+        "switchUsablePaintMs": 59.299999952316284,
+        "quickEntryFeedbackPaintMs": 10.899999976158142
+      },
+      "cls": 0,
+      "layoutShiftSupported": true,
+      "longTasks": []
+    },
+    {
+      "scenario": "50-rows",
+      "run": 11,
+      "startupRequests": [
+        "POST /api/app/session",
+        "GET /api/app/v2/context",
+        "GET /api/app/v2/ledgers",
+        "GET /api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/bootstrap",
+        "GET /api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories"
+      ],
+      "requestWaterfall": [
+        {
+          "method": "POST",
+          "path": "/api/app/session",
+          "startMs": 0,
+          "durationMs": 32.36712499999703
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/context",
+          "startMs": 32.68487499999901,
+          "durationMs": 33.19625000000087
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/ledgers",
+          "startMs": 66.33424999999988,
+          "durationMs": 34.22891699999673
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/bootstrap",
+          "startMs": 124.57687499999884,
+          "durationMs": 33.74145900000076
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories",
+          "startMs": 165.5194589999992,
+          "durationMs": 31.523457999999664
+        }
+      ],
+      "initialRows": 20,
+      "bootstrapBytes": 28430,
+      "quickEntryOpenRequests": 0,
+      "marks": {
+        "homeUsablePaintMs": 245.5,
+        "switchIdentityPaintMs": 29,
+        "switchUsablePaintMs": 62,
+        "quickEntryFeedbackPaintMs": 11.899999976158142
+      },
+      "cls": 0,
+      "layoutShiftSupported": true,
+      "longTasks": []
+    },
+    {
+      "scenario": "50-rows",
+      "run": 12,
+      "startupRequests": [
+        "POST /api/app/session",
+        "GET /api/app/v2/context",
+        "GET /api/app/v2/ledgers",
+        "GET /api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/bootstrap",
+        "GET /api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories"
+      ],
+      "requestWaterfall": [
+        {
+          "method": "POST",
+          "path": "/api/app/session",
+          "startMs": 0,
+          "durationMs": 31.430833000002167
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/context",
+          "startMs": 31.802167000001646,
+          "durationMs": 32.41904099999738
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/ledgers",
+          "startMs": 64.70175000000017,
+          "durationMs": 31.897541999998793
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/bootstrap",
+          "startMs": 120.45579200000066,
+          "durationMs": 34.05595800000083
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories",
+          "startMs": 168.83091699999932,
+          "durationMs": 32.61170800000036
+        }
+      ],
+      "initialRows": 20,
+      "bootstrapBytes": 28430,
+      "quickEntryOpenRequests": 0,
+      "marks": {
+        "homeUsablePaintMs": 226,
+        "switchIdentityPaintMs": 24.600000023841858,
+        "switchUsablePaintMs": 57.89999997615814,
+        "quickEntryFeedbackPaintMs": 20.69999998807907
+      },
+      "cls": 0,
+      "layoutShiftSupported": true,
+      "longTasks": []
+    },
+    {
+      "scenario": "50-rows",
+      "run": 13,
+      "startupRequests": [
+        "POST /api/app/session",
+        "GET /api/app/v2/context",
+        "GET /api/app/v2/ledgers",
+        "GET /api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/bootstrap",
+        "GET /api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories"
+      ],
+      "requestWaterfall": [
+        {
+          "method": "POST",
+          "path": "/api/app/session",
+          "startMs": 0,
+          "durationMs": 31.727415999997902
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/context",
+          "startMs": 32.00445799999943,
+          "durationMs": 32.62720799999806
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/ledgers",
+          "startMs": 65.11654099999942,
+          "durationMs": 33.548124999997526
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/bootstrap",
+          "startMs": 117.83704099999886,
+          "durationMs": 34.51179200000115
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories",
+          "startMs": 164.4562079999996,
+          "durationMs": 33.3939169999976
+        }
+      ],
+      "initialRows": 20,
+      "bootstrapBytes": 28430,
+      "quickEntryOpenRequests": 0,
+      "marks": {
+        "homeUsablePaintMs": 225.10000002384186,
+        "switchIdentityPaintMs": 30.5,
+        "switchUsablePaintMs": 63.89999997615814,
+        "quickEntryFeedbackPaintMs": 11.900000035762787
+      },
+      "cls": 0,
+      "layoutShiftSupported": true,
+      "longTasks": []
+    },
+    {
+      "scenario": "50-rows",
+      "run": 14,
+      "startupRequests": [
+        "POST /api/app/session",
+        "GET /api/app/v2/context",
+        "GET /api/app/v2/ledgers",
+        "GET /api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/bootstrap",
+        "GET /api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories"
+      ],
+      "requestWaterfall": [
+        {
+          "method": "POST",
+          "path": "/api/app/session",
+          "startMs": 0,
+          "durationMs": 32.76058300000295
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/context",
+          "startMs": 32.98104200000307,
+          "durationMs": 33.47612499999741
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/ledgers",
+          "startMs": 66.98133300000336,
+          "durationMs": 33.79633399999875
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/bootstrap",
+          "startMs": 119.77375000000029,
+          "durationMs": 34.43820799999958
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories",
+          "startMs": 168.42783300000156,
+          "durationMs": 32.732499999998254
+        }
+      ],
+      "initialRows": 20,
+      "bootstrapBytes": 28430,
+      "quickEntryOpenRequests": 0,
+      "marks": {
+        "homeUsablePaintMs": 231.5,
+        "switchIdentityPaintMs": 12.5,
+        "switchUsablePaintMs": 62.60000002384186,
+        "quickEntryFeedbackPaintMs": 11.100000023841858
+      },
+      "cls": 0,
+      "layoutShiftSupported": true,
+      "longTasks": []
+    },
+    {
+      "scenario": "50-rows",
+      "run": 15,
+      "startupRequests": [
+        "POST /api/app/session",
+        "GET /api/app/v2/context",
+        "GET /api/app/v2/ledgers",
+        "GET /api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/bootstrap",
+        "GET /api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories"
+      ],
+      "requestWaterfall": [
+        {
+          "method": "POST",
+          "path": "/api/app/session",
+          "startMs": 0,
+          "durationMs": 32.005457999999635
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/context",
+          "startMs": 32.32775000000038,
+          "durationMs": 33.44545800000196
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/ledgers",
+          "startMs": 66.203125,
+          "durationMs": 33.980625000000146
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/bootstrap",
+          "startMs": 120.27850000000035,
+          "durationMs": 34.83320800000001
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories",
+          "startMs": 169.00783299999966,
+          "durationMs": 32.94250000000102
+        }
+      ],
+      "initialRows": 20,
+      "bootstrapBytes": 28430,
+      "quickEntryOpenRequests": 0,
+      "marks": {
+        "homeUsablePaintMs": 229.69999998807907,
+        "switchIdentityPaintMs": 25,
+        "switchUsablePaintMs": 57.80000001192093,
+        "quickEntryFeedbackPaintMs": 11.199999988079071
+      },
+      "cls": 0,
+      "layoutShiftSupported": true,
+      "longTasks": []
+    },
+    {
+      "scenario": "50-rows",
+      "run": 16,
+      "startupRequests": [
+        "POST /api/app/session",
+        "GET /api/app/v2/context",
+        "GET /api/app/v2/ledgers",
+        "GET /api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/bootstrap",
+        "GET /api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories"
+      ],
+      "requestWaterfall": [
+        {
+          "method": "POST",
+          "path": "/api/app/session",
+          "startMs": 0,
+          "durationMs": 31.39220799999748
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/context",
+          "startMs": 31.664499999998952,
+          "durationMs": 33.18537500000093
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/ledgers",
+          "startMs": 65.25754099999904,
+          "durationMs": 33.46025000000009
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/bootstrap",
+          "startMs": 122.59300000000076,
+          "durationMs": 34.538040999999794
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories",
+          "startMs": 171.3772910000007,
+          "durationMs": 33.51062499999898
+        }
+      ],
+      "initialRows": 20,
+      "bootstrapBytes": 28430,
+      "quickEntryOpenRequests": 0,
+      "marks": {
+        "homeUsablePaintMs": 226.80000001192093,
+        "switchIdentityPaintMs": 23,
+        "switchUsablePaintMs": 54.80000001192093,
+        "quickEntryFeedbackPaintMs": 38.19999998807907
+      },
+      "cls": 0,
+      "layoutShiftSupported": true,
+      "longTasks": []
+    },
+    {
+      "scenario": "50-rows",
+      "run": 17,
+      "startupRequests": [
+        "POST /api/app/session",
+        "GET /api/app/v2/context",
+        "GET /api/app/v2/ledgers",
+        "GET /api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/bootstrap",
+        "GET /api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories"
+      ],
+      "requestWaterfall": [
+        {
+          "method": "POST",
+          "path": "/api/app/session",
+          "startMs": 0,
+          "durationMs": 31.393667000000278
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/context",
+          "startMs": 31.629124999999476,
+          "durationMs": 32.536958000000595
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/ledgers",
+          "startMs": 64.61408300000039,
+          "durationMs": 33.03995899999791
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/bootstrap",
+          "startMs": 121.45041700000002,
+          "durationMs": 34.58474999999817
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories",
+          "startMs": 171.14908300000025,
+          "durationMs": 32.29412499999671
+        }
+      ],
+      "initialRows": 20,
+      "bootstrapBytes": 28430,
+      "quickEntryOpenRequests": 0,
+      "marks": {
+        "homeUsablePaintMs": 225.5,
+        "switchIdentityPaintMs": 25.30000001192093,
+        "switchUsablePaintMs": 58.69999998807907,
+        "quickEntryFeedbackPaintMs": 37.19999998807907
+      },
+      "cls": 0,
+      "layoutShiftSupported": true,
+      "longTasks": []
+    },
+    {
+      "scenario": "50-rows",
+      "run": 18,
+      "startupRequests": [
+        "POST /api/app/session",
+        "GET /api/app/v2/context",
+        "GET /api/app/v2/ledgers",
+        "GET /api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/bootstrap",
+        "GET /api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories"
+      ],
+      "requestWaterfall": [
+        {
+          "method": "POST",
+          "path": "/api/app/session",
+          "startMs": 0,
+          "durationMs": 33.64812499999971
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/context",
+          "startMs": 33.95191700000214,
+          "durationMs": 31.407540999996854
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/ledgers",
+          "startMs": 65.82600000000093,
+          "durationMs": 32.49766699999964
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/bootstrap",
+          "startMs": 121.21466700000019,
+          "durationMs": 33.97454099999959
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories",
+          "startMs": 161.76729200000045,
+          "durationMs": 31.775041000000783
+        }
+      ],
+      "initialRows": 20,
+      "bootstrapBytes": 28430,
+      "quickEntryOpenRequests": 0,
+      "marks": {
+        "homeUsablePaintMs": 245.89999997615814,
+        "switchIdentityPaintMs": 28.400000035762787,
+        "switchUsablePaintMs": 61.40000003576279,
+        "quickEntryFeedbackPaintMs": 11.300000011920929
+      },
+      "cls": 0,
+      "layoutShiftSupported": true,
+      "longTasks": []
+    },
+    {
+      "scenario": "50-rows",
+      "run": 19,
+      "startupRequests": [
+        "POST /api/app/session",
+        "GET /api/app/v2/context",
+        "GET /api/app/v2/ledgers",
+        "GET /api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/bootstrap",
+        "GET /api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories"
+      ],
+      "requestWaterfall": [
+        {
+          "method": "POST",
+          "path": "/api/app/session",
+          "startMs": 0,
+          "durationMs": 33.93383399999948
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/context",
+          "startMs": 34.14037499999904,
+          "durationMs": 33.5145420000008
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/ledgers",
+          "startMs": 68.20249999999942,
+          "durationMs": 33.77391699999862
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/bootstrap",
+          "startMs": 123.54979199999798,
+          "durationMs": 34.98687499999869
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories",
+          "startMs": 172.64458399999785,
+          "durationMs": 32.187041000001045
+        }
+      ],
+      "initialRows": 20,
+      "bootstrapBytes": 28430,
+      "quickEntryOpenRequests": 0,
+      "marks": {
+        "homeUsablePaintMs": 234,
+        "switchIdentityPaintMs": 26.30000001192093,
+        "switchUsablePaintMs": 59.30000001192093,
+        "quickEntryFeedbackPaintMs": 11
+      },
+      "cls": 0,
+      "layoutShiftSupported": true,
+      "longTasks": []
+    },
+    {
+      "scenario": "mixed-200-rows",
+      "run": 0,
+      "startupRequests": [
+        "POST /api/app/session",
+        "GET /api/app/v2/context",
+        "GET /api/app/v2/ledgers",
+        "GET /api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/bootstrap",
+        "GET /api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories"
+      ],
+      "requestWaterfall": [
+        {
+          "method": "POST",
+          "path": "/api/app/session",
+          "startMs": 0,
+          "durationMs": 33.38249999999971
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/context",
+          "startMs": 33.66041700000278,
+          "durationMs": 32.367332999998325
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/ledgers",
+          "startMs": 66.5056250000016,
+          "durationMs": 32.172207999999955
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/bootstrap",
+          "startMs": 122.23579199999949,
+          "durationMs": 36.59179100000256
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories",
+          "startMs": 177.3491670000003,
+          "durationMs": 32.88524999999936
+        }
+      ],
+      "initialRows": 20,
+      "bootstrapBytes": 111852,
+      "quickEntryOpenRequests": 0,
+      "marks": {
+        "homeUsablePaintMs": 230,
+        "switchIdentityPaintMs": 30.400000035762787,
+        "switchUsablePaintMs": 61.80000001192093,
+        "quickEntryFeedbackPaintMs": 13.5
+      },
+      "cls": 0,
+      "layoutShiftSupported": true,
+      "longTasks": []
+    },
+    {
+      "scenario": "mixed-200-rows",
+      "run": 1,
+      "startupRequests": [
+        "POST /api/app/session",
+        "GET /api/app/v2/context",
+        "GET /api/app/v2/ledgers",
+        "GET /api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/bootstrap",
+        "GET /api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories"
+      ],
+      "requestWaterfall": [
+        {
+          "method": "POST",
+          "path": "/api/app/session",
+          "startMs": 0,
+          "durationMs": 33.709249999999884
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/context",
+          "startMs": 33.93158299999777,
+          "durationMs": 33.45208300000013
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/ledgers",
+          "startMs": 67.74454100000003,
+          "durationMs": 33.22049999999945
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/bootstrap",
+          "startMs": 120.11666599999808,
+          "durationMs": 35.78420900000128
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories",
+          "startMs": 162.2254580000008,
+          "durationMs": 30.72679199999766
+        }
+      ],
+      "initialRows": 20,
+      "bootstrapBytes": 111852,
+      "quickEntryOpenRequests": 0,
+      "marks": {
+        "homeUsablePaintMs": 234.60000002384186,
+        "switchIdentityPaintMs": 27.19999998807907,
+        "switchUsablePaintMs": 60.69999998807907,
+        "quickEntryFeedbackPaintMs": 9.699999988079071
+      },
+      "cls": 0,
+      "layoutShiftSupported": true,
+      "longTasks": []
+    },
+    {
+      "scenario": "mixed-200-rows",
+      "run": 2,
+      "startupRequests": [
+        "POST /api/app/session",
+        "GET /api/app/v2/context",
+        "GET /api/app/v2/ledgers",
+        "GET /api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/bootstrap",
+        "GET /api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories"
+      ],
+      "requestWaterfall": [
+        {
+          "method": "POST",
+          "path": "/api/app/session",
+          "startMs": 0,
+          "durationMs": 33.23800000000119
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/context",
+          "startMs": 33.6205000000009,
+          "durationMs": 32.21662500000093
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/ledgers",
+          "startMs": 66.31450000000041,
+          "durationMs": 32.558499999999185
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/bootstrap",
+          "startMs": 122.56329199999891,
+          "durationMs": 37.860375000000204
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories",
+          "startMs": 175.3089170000021,
+          "durationMs": 31.49304199999824
+        }
+      ],
+      "initialRows": 20,
+      "bootstrapBytes": 111852,
+      "quickEntryOpenRequests": 0,
+      "marks": {
+        "homeUsablePaintMs": 231.0999999642372,
+        "switchIdentityPaintMs": 13.800000011920929,
+        "switchUsablePaintMs": 63.80000001192093,
+        "quickEntryFeedbackPaintMs": 11.199999988079071
+      },
+      "cls": 0,
+      "layoutShiftSupported": true,
+      "longTasks": []
+    },
+    {
+      "scenario": "mixed-200-rows",
+      "run": 3,
+      "startupRequests": [
+        "POST /api/app/session",
+        "GET /api/app/v2/context",
+        "GET /api/app/v2/ledgers",
+        "GET /api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/bootstrap",
+        "GET /api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories"
+      ],
+      "requestWaterfall": [
+        {
+          "method": "POST",
+          "path": "/api/app/session",
+          "startMs": 0,
+          "durationMs": 32.30758400000195
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/context",
+          "startMs": 32.62812499999927,
+          "durationMs": 33.13900000000285
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/ledgers",
+          "startMs": 66.19570899999962,
+          "durationMs": 33.691750000001775
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/bootstrap",
+          "startMs": 125.57237499999974,
+          "durationMs": 37.82341699999961
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories",
+          "startMs": 170.45054200000232,
+          "durationMs": 33.31254199999967
+        }
+      ],
+      "initialRows": 20,
+      "bootstrapBytes": 111852,
+      "quickEntryOpenRequests": 0,
+      "marks": {
+        "homeUsablePaintMs": 248.79999995231628,
+        "switchIdentityPaintMs": 33.30000001192093,
+        "switchUsablePaintMs": 66.60000002384186,
+        "quickEntryFeedbackPaintMs": 16.69999998807907
+      },
+      "cls": 0,
+      "layoutShiftSupported": true,
+      "longTasks": []
+    },
+    {
+      "scenario": "mixed-200-rows",
+      "run": 4,
+      "startupRequests": [
+        "POST /api/app/session",
+        "GET /api/app/v2/context",
+        "GET /api/app/v2/ledgers",
+        "GET /api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/bootstrap",
+        "GET /api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories"
+      ],
+      "requestWaterfall": [
+        {
+          "method": "POST",
+          "path": "/api/app/session",
+          "startMs": 0,
+          "durationMs": 32.11091700000179
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/context",
+          "startMs": 32.4598330000008,
+          "durationMs": 32.40620900000067
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/ledgers",
+          "startMs": 65.33370800000193,
+          "durationMs": 35.170208999999886
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/bootstrap",
+          "startMs": 123.43325000000186,
+          "durationMs": 37.705457999996725
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories",
+          "startMs": 175.72262499999852,
+          "durationMs": 31.071583000000828
+        }
+      ],
+      "initialRows": 20,
+      "bootstrapBytes": 111852,
+      "quickEntryOpenRequests": 0,
+      "marks": {
+        "homeUsablePaintMs": 236.79999995231628,
+        "switchIdentityPaintMs": 27.30000001192093,
+        "switchUsablePaintMs": 60.59999996423721,
+        "quickEntryFeedbackPaintMs": 11.400000035762787
+      },
+      "cls": 0,
+      "layoutShiftSupported": true,
+      "longTasks": []
+    },
+    {
+      "scenario": "mixed-200-rows",
+      "run": 5,
+      "startupRequests": [
+        "POST /api/app/session",
+        "GET /api/app/v2/context",
+        "GET /api/app/v2/ledgers",
+        "GET /api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/bootstrap",
+        "GET /api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories"
+      ],
+      "requestWaterfall": [
+        {
+          "method": "POST",
+          "path": "/api/app/session",
+          "startMs": 0,
+          "durationMs": 32.95812500000102
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/context",
+          "startMs": 33.097459000000526,
+          "durationMs": 32.90416600000026
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/ledgers",
+          "startMs": 66.51133400000253,
+          "durationMs": 35.47508299999754
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/bootstrap",
+          "startMs": 123.31995900000038,
+          "durationMs": 37.536040999999386
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories",
+          "startMs": 167.59658400000262,
+          "durationMs": 32.91649999999936
+        }
+      ],
+      "initialRows": 20,
+      "bootstrapBytes": 111852,
+      "quickEntryOpenRequests": 0,
+      "marks": {
+        "homeUsablePaintMs": 243.5,
+        "switchIdentityPaintMs": 27.600000023841858,
+        "switchUsablePaintMs": 62.60000002384186,
+        "quickEntryFeedbackPaintMs": 10.899999976158142
+      },
+      "cls": 0,
+      "layoutShiftSupported": true,
+      "longTasks": []
+    },
+    {
+      "scenario": "mixed-200-rows",
+      "run": 6,
+      "startupRequests": [
+        "POST /api/app/session",
+        "GET /api/app/v2/context",
+        "GET /api/app/v2/ledgers",
+        "GET /api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/bootstrap",
+        "GET /api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories"
+      ],
+      "requestWaterfall": [
+        {
+          "method": "POST",
+          "path": "/api/app/session",
+          "startMs": 0,
+          "durationMs": 34.04462499999863
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/context",
+          "startMs": 34.32208299999911,
+          "durationMs": 33.22516700000051
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/ledgers",
+          "startMs": 68.0460000000021,
+          "durationMs": 34.764124999997875
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/bootstrap",
+          "startMs": 125.82824999999866,
+          "durationMs": 38.03725000000122
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories",
+          "startMs": 178.41137499999968,
+          "durationMs": 32.855665999999474
+        }
+      ],
+      "initialRows": 20,
+      "bootstrapBytes": 111852,
+      "quickEntryOpenRequests": 0,
+      "marks": {
+        "homeUsablePaintMs": 233.80000001192093,
+        "switchIdentityPaintMs": 30,
+        "switchUsablePaintMs": 62.39999997615814,
+        "quickEntryFeedbackPaintMs": 12.599999964237213
+      },
+      "cls": 0,
+      "layoutShiftSupported": true,
+      "longTasks": []
+    },
+    {
+      "scenario": "mixed-200-rows",
+      "run": 7,
+      "startupRequests": [
+        "POST /api/app/session",
+        "GET /api/app/v2/context",
+        "GET /api/app/v2/ledgers",
+        "GET /api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/bootstrap",
+        "GET /api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories"
+      ],
+      "requestWaterfall": [
+        {
+          "method": "POST",
+          "path": "/api/app/session",
+          "startMs": 0,
+          "durationMs": 32.354082999998354
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/context",
+          "startMs": 32.52916699999696,
+          "durationMs": 33.056375000000116
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/ledgers",
+          "startMs": 66.02399999999761,
+          "durationMs": 35.1304999999993
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/bootstrap",
+          "startMs": 124.74250000000029,
+          "durationMs": 36.37108299999818
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories",
+          "startMs": 175.8976249999978,
+          "durationMs": 32.05720800000199
+        }
+      ],
+      "initialRows": 20,
+      "bootstrapBytes": 111852,
+      "quickEntryOpenRequests": 0,
+      "marks": {
+        "homeUsablePaintMs": 234.4000000357628,
+        "switchIdentityPaintMs": 26.200000047683716,
+        "switchUsablePaintMs": 61,
+        "quickEntryFeedbackPaintMs": 11.100000023841858
+      },
+      "cls": 0,
+      "layoutShiftSupported": true,
+      "longTasks": []
+    },
+    {
+      "scenario": "mixed-200-rows",
+      "run": 8,
+      "startupRequests": [
+        "POST /api/app/session",
+        "GET /api/app/v2/context",
+        "GET /api/app/v2/ledgers",
+        "GET /api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/bootstrap",
+        "GET /api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories"
+      ],
+      "requestWaterfall": [
+        {
+          "method": "POST",
+          "path": "/api/app/session",
+          "startMs": 0,
+          "durationMs": 33.25408299999981
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/context",
+          "startMs": 33.550374999998894,
+          "durationMs": 33.1450410000034
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/ledgers",
+          "startMs": 67.07774999999674,
+          "durationMs": 35.05866600000445
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/bootstrap",
+          "startMs": 126.01079100000061,
+          "durationMs": 38.47662499999569
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories",
+          "startMs": 171.783875000001,
+          "durationMs": 32.5734999999986
+        }
+      ],
+      "initialRows": 20,
+      "bootstrapBytes": 111852,
+      "quickEntryOpenRequests": 0,
+      "marks": {
+        "homeUsablePaintMs": 244.0999999642372,
+        "switchIdentityPaintMs": 29.100000023841858,
+        "switchUsablePaintMs": 62.5,
+        "quickEntryFeedbackPaintMs": 11.899999976158142
+      },
+      "cls": 0,
+      "layoutShiftSupported": true,
+      "longTasks": []
+    },
+    {
+      "scenario": "mixed-200-rows",
+      "run": 9,
+      "startupRequests": [
+        "POST /api/app/session",
+        "GET /api/app/v2/context",
+        "GET /api/app/v2/ledgers",
+        "GET /api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/bootstrap",
+        "GET /api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories"
+      ],
+      "requestWaterfall": [
+        {
+          "method": "POST",
+          "path": "/api/app/session",
+          "startMs": 0,
+          "durationMs": 33.481416000002355
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/context",
+          "startMs": 33.76550000000134,
+          "durationMs": 33.21245799999451
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/ledgers",
+          "startMs": 67.29845799999748,
+          "durationMs": 33.0734999999986
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/bootstrap",
+          "startMs": 123.76641599999857,
+          "durationMs": 37.66958400000294
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories",
+          "startMs": 176.5666659999988,
+          "durationMs": 32.852334000002884
+        }
+      ],
+      "initialRows": 20,
+      "bootstrapBytes": 111852,
+      "quickEntryOpenRequests": 0,
+      "marks": {
+        "homeUsablePaintMs": 232,
+        "switchIdentityPaintMs": 13.100000023841858,
+        "switchUsablePaintMs": 63.10000002384186,
+        "quickEntryFeedbackPaintMs": 13.600000023841858
+      },
+      "cls": 0,
+      "layoutShiftSupported": true,
+      "longTasks": []
+    },
+    {
+      "scenario": "mixed-200-rows",
+      "run": 10,
+      "startupRequests": [
+        "POST /api/app/session",
+        "GET /api/app/v2/context",
+        "GET /api/app/v2/ledgers",
+        "GET /api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/bootstrap",
+        "GET /api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories"
+      ],
+      "requestWaterfall": [
+        {
+          "method": "POST",
+          "path": "/api/app/session",
+          "startMs": 0,
+          "durationMs": 31.098874999996042
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/context",
+          "startMs": 31.30420800000138,
+          "durationMs": 33.1614999999947
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/ledgers",
+          "startMs": 64.97645799999736,
+          "durationMs": 34.450000000004366
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/bootstrap",
+          "startMs": 120.45704200000182,
+          "durationMs": 35.84037499999977
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories",
+          "startMs": 170.31862499999988,
+          "durationMs": 33.783957999999984
+        }
+      ],
+      "initialRows": 20,
+      "bootstrapBytes": 111852,
+      "quickEntryOpenRequests": 0,
+      "marks": {
+        "homeUsablePaintMs": 238.19999998807907,
+        "switchIdentityPaintMs": 23,
+        "switchUsablePaintMs": 56.30000001192093,
+        "quickEntryFeedbackPaintMs": 36.19999998807907
+      },
+      "cls": 0,
+      "layoutShiftSupported": true,
+      "longTasks": []
+    },
+    {
+      "scenario": "mixed-200-rows",
+      "run": 11,
+      "startupRequests": [
+        "POST /api/app/session",
+        "GET /api/app/v2/context",
+        "GET /api/app/v2/ledgers",
+        "GET /api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/bootstrap",
+        "GET /api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories"
+      ],
+      "requestWaterfall": [
+        {
+          "method": "POST",
+          "path": "/api/app/session",
+          "startMs": 0,
+          "durationMs": 33.47691599999962
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/context",
+          "startMs": 33.79741600000125,
+          "durationMs": 31.630208999995375
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/ledgers",
+          "startMs": 65.91633300000103,
+          "durationMs": 32.74291699999594
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/bootstrap",
+          "startMs": 122.77379099999962,
+          "durationMs": 35.72149999999965
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories",
+          "startMs": 165.64074999999866,
+          "durationMs": 30.926500000001397
+        }
+      ],
+      "initialRows": 20,
+      "bootstrapBytes": 111852,
+      "quickEntryOpenRequests": 0,
+      "marks": {
+        "homeUsablePaintMs": 241.60000002384186,
+        "switchIdentityPaintMs": 29,
+        "switchUsablePaintMs": 60.80000001192093,
+        "quickEntryFeedbackPaintMs": 11.900000035762787
+      },
+      "cls": 0,
+      "layoutShiftSupported": true,
+      "longTasks": []
+    },
+    {
+      "scenario": "mixed-200-rows",
+      "run": 12,
+      "startupRequests": [
+        "POST /api/app/session",
+        "GET /api/app/v2/context",
+        "GET /api/app/v2/ledgers",
+        "GET /api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/bootstrap",
+        "GET /api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories"
+      ],
+      "requestWaterfall": [
+        {
+          "method": "POST",
+          "path": "/api/app/session",
+          "startMs": 0,
+          "durationMs": 33.45787500000006
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/context",
+          "startMs": 33.72491699999955,
+          "durationMs": 31.651499999999942
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/ledgers",
+          "startMs": 65.8128330000036,
+          "durationMs": 34.829916999995476
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/bootstrap",
+          "startMs": 124.23695800000132,
+          "durationMs": 37.221959000002244
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories",
+          "startMs": 176.1293749999968,
+          "durationMs": 32.579583000006096
+        }
+      ],
+      "initialRows": 20,
+      "bootstrapBytes": 111852,
+      "quickEntryOpenRequests": 0,
+      "marks": {
+        "homeUsablePaintMs": 232.4000000357628,
+        "switchIdentityPaintMs": 28,
+        "switchUsablePaintMs": 59.19999998807907,
+        "quickEntryFeedbackPaintMs": 11.399999976158142
+      },
+      "cls": 0,
+      "layoutShiftSupported": true,
+      "longTasks": []
+    },
+    {
+      "scenario": "mixed-200-rows",
+      "run": 13,
+      "startupRequests": [
+        "POST /api/app/session",
+        "GET /api/app/v2/context",
+        "GET /api/app/v2/ledgers",
+        "GET /api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/bootstrap",
+        "GET /api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories"
+      ],
+      "requestWaterfall": [
+        {
+          "method": "POST",
+          "path": "/api/app/session",
+          "startMs": 0,
+          "durationMs": 32.89916700000322
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/context",
+          "startMs": 33.22875000000204,
+          "durationMs": 32.308499999999185
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/ledgers",
+          "startMs": 66.08404200000223,
+          "durationMs": 33.51837499999965
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/bootstrap",
+          "startMs": 123.05862500000512,
+          "durationMs": 36.10429199999635
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories",
+          "startMs": 173.92195899999933,
+          "durationMs": 33.20850000000064
+        }
+      ],
+      "initialRows": 20,
+      "bootstrapBytes": 111852,
+      "quickEntryOpenRequests": 0,
+      "marks": {
+        "homeUsablePaintMs": 231.5,
+        "switchIdentityPaintMs": 28.69999998807907,
+        "switchUsablePaintMs": 62,
+        "quickEntryFeedbackPaintMs": 11.100000023841858
+      },
+      "cls": 0,
+      "layoutShiftSupported": true,
+      "longTasks": []
+    },
+    {
+      "scenario": "mixed-200-rows",
+      "run": 14,
+      "startupRequests": [
+        "POST /api/app/session",
+        "GET /api/app/v2/context",
+        "GET /api/app/v2/ledgers",
+        "GET /api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/bootstrap",
+        "GET /api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories"
+      ],
+      "requestWaterfall": [
+        {
+          "method": "POST",
+          "path": "/api/app/session",
+          "startMs": 0,
+          "durationMs": 33.60004099999787
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/context",
+          "startMs": 33.89875000000029,
+          "durationMs": 33.10187500000029
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/ledgers",
+          "startMs": 67.42704099999537,
+          "durationMs": 34.54962499999965
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/bootstrap",
+          "startMs": 126.13158299999486,
+          "durationMs": 37.717375000000175
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories",
+          "startMs": 171.16220800000156,
+          "durationMs": 33.22624999999971
+        }
+      ],
+      "initialRows": 20,
+      "bootstrapBytes": 111852,
+      "quickEntryOpenRequests": 0,
+      "marks": {
+        "homeUsablePaintMs": 248.10000002384186,
+        "switchIdentityPaintMs": 28.5,
+        "switchUsablePaintMs": 60.89999997615814,
+        "quickEntryFeedbackPaintMs": 11.300000011920929
+      },
+      "cls": 0,
+      "layoutShiftSupported": true,
+      "longTasks": []
+    },
+    {
+      "scenario": "mixed-200-rows",
+      "run": 15,
+      "startupRequests": [
+        "POST /api/app/session",
+        "GET /api/app/v2/context",
+        "GET /api/app/v2/ledgers",
+        "GET /api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/bootstrap",
+        "GET /api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories"
+      ],
+      "requestWaterfall": [
+        {
+          "method": "POST",
+          "path": "/api/app/session",
+          "startMs": 0,
+          "durationMs": 34.24991600000067
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/context",
+          "startMs": 34.58879100000195,
+          "durationMs": 32.60054200000013
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/ledgers",
+          "startMs": 67.66779099999985,
+          "durationMs": 33.66145900000265
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/bootstrap",
+          "startMs": 124.85833300000377,
+          "durationMs": 37.033416999998735
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories",
+          "startMs": 168.99524999999994,
+          "durationMs": 31.097583000002487
+        }
+      ],
+      "initialRows": 20,
+      "bootstrapBytes": 111852,
+      "quickEntryOpenRequests": 0,
+      "marks": {
+        "homeUsablePaintMs": 248.39999997615814,
+        "switchIdentityPaintMs": 28.299999952316284,
+        "switchUsablePaintMs": 60.59999996423721,
+        "quickEntryFeedbackPaintMs": 11.199999988079071
+      },
+      "cls": 0,
+      "layoutShiftSupported": true,
+      "longTasks": []
+    },
+    {
+      "scenario": "mixed-200-rows",
+      "run": 16,
+      "startupRequests": [
+        "POST /api/app/session",
+        "GET /api/app/v2/context",
+        "GET /api/app/v2/ledgers",
+        "GET /api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/bootstrap",
+        "GET /api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories"
+      ],
+      "requestWaterfall": [
+        {
+          "method": "POST",
+          "path": "/api/app/session",
+          "startMs": 0,
+          "durationMs": 33.52979100000084
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/context",
+          "startMs": 33.878708000003826,
+          "durationMs": 31.35320800000045
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/ledgers",
+          "startMs": 65.68470800000068,
+          "durationMs": 32.4107920000024
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/bootstrap",
+          "startMs": 120.70341600000393,
+          "durationMs": 35.71070899999904
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories",
+          "startMs": 163.49104100000113,
+          "durationMs": 31.65479200000118
+        }
+      ],
+      "initialRows": 20,
+      "bootstrapBytes": 111852,
+      "quickEntryOpenRequests": 0,
+      "marks": {
+        "homeUsablePaintMs": 249.20000004768372,
+        "switchIdentityPaintMs": 29.5,
+        "switchUsablePaintMs": 62.89999997615814,
+        "quickEntryFeedbackPaintMs": 9.900000035762787
+      },
+      "cls": 0,
+      "layoutShiftSupported": true,
+      "longTasks": []
+    },
+    {
+      "scenario": "mixed-200-rows",
+      "run": 17,
+      "startupRequests": [
+        "POST /api/app/session",
+        "GET /api/app/v2/context",
+        "GET /api/app/v2/ledgers",
+        "GET /api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/bootstrap",
+        "GET /api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories"
+      ],
+      "requestWaterfall": [
+        {
+          "method": "POST",
+          "path": "/api/app/session",
+          "startMs": 0,
+          "durationMs": 31.354167000004963
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/context",
+          "startMs": 31.68470900000102,
+          "durationMs": 31.11570799999754
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/ledgers",
+          "startMs": 63.22908399999869,
+          "durationMs": 34.75812500000029
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/bootstrap",
+          "startMs": 121.06208400000469,
+          "durationMs": 36.761790999997174
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories",
+          "startMs": 173.44600000000355,
+          "durationMs": 33.443749999998545
+        }
+      ],
+      "initialRows": 20,
+      "bootstrapBytes": 111852,
+      "quickEntryOpenRequests": 0,
+      "marks": {
+        "homeUsablePaintMs": 235,
+        "switchIdentityPaintMs": 28.600000023841858,
+        "switchUsablePaintMs": 62,
+        "quickEntryFeedbackPaintMs": 11.399999976158142
+      },
+      "cls": 0,
+      "layoutShiftSupported": true,
+      "longTasks": []
+    },
+    {
+      "scenario": "mixed-200-rows",
+      "run": 18,
+      "startupRequests": [
+        "POST /api/app/session",
+        "GET /api/app/v2/context",
+        "GET /api/app/v2/ledgers",
+        "GET /api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/bootstrap",
+        "GET /api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories"
+      ],
+      "requestWaterfall": [
+        {
+          "method": "POST",
+          "path": "/api/app/session",
+          "startMs": 0,
+          "durationMs": 32.91133300000365
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/context",
+          "startMs": 33.19908299999952,
+          "durationMs": 31.989667000001646
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/ledgers",
+          "startMs": 65.63637500000186,
+          "durationMs": 33.28120800000033
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/bootstrap",
+          "startMs": 117.39145799999824,
+          "durationMs": 37.40600000000268
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories",
+          "startMs": 168.71054200000071,
+          "durationMs": 33.75504099999671
+        }
+      ],
+      "initialRows": 20,
+      "bootstrapBytes": 111852,
+      "quickEntryOpenRequests": 0,
+      "marks": {
+        "homeUsablePaintMs": 233.60000002384186,
+        "switchIdentityPaintMs": 24.600000023841858,
+        "switchUsablePaintMs": 59.30000001192093,
+        "quickEntryFeedbackPaintMs": 11.399999976158142
+      },
+      "cls": 0,
+      "layoutShiftSupported": true,
+      "longTasks": []
+    },
+    {
+      "scenario": "mixed-200-rows",
+      "run": 19,
+      "startupRequests": [
+        "POST /api/app/session",
+        "GET /api/app/v2/context",
+        "GET /api/app/v2/ledgers",
+        "GET /api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/bootstrap",
+        "GET /api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories"
+      ],
+      "requestWaterfall": [
+        {
+          "method": "POST",
+          "path": "/api/app/session",
+          "startMs": 0,
+          "durationMs": 33.25162499999715
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/context",
+          "startMs": 33.637416999998095,
+          "durationMs": 32.36604200000147
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/ledgers",
+          "startMs": 66.35312500000146,
+          "durationMs": 35.33629199999996
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/bootstrap",
+          "startMs": 125.20583400000032,
+          "durationMs": 36.33391599999595
+        },
+        {
+          "method": "GET",
+          "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories",
+          "startMs": 176.32325000000128,
+          "durationMs": 32.31624999999622
+        }
+      ],
+      "initialRows": 20,
+      "bootstrapBytes": 111852,
+      "quickEntryOpenRequests": 0,
+      "marks": {
+        "homeUsablePaintMs": 229.4000000357628,
+        "switchIdentityPaintMs": 27.900000035762787,
+        "switchUsablePaintMs": 60.5,
+        "quickEntryFeedbackPaintMs": 11.199999988079071
+      },
+      "cls": 0,
+      "layoutShiftSupported": true,
+      "longTasks": []
+    }
+  ]
+}

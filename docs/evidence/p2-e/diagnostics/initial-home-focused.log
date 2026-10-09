@@ -1,0 +1,274 @@
+
+[WebServer] (node:84052) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `pnpm --trace-warnings ...` to show where the warning was created)
+
+[WebServer] (node:84058) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+[WebServer] (node:84065) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+[WebServer] (node:84069) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 27 tests using 1 worker
+
+
+(node:84166) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+[1/27] [chromium-iphone] › tests/p2-e-home.spec.ts:39:5 › Home has one location heading, direct header Search/More and the frozen semantic hierarchy
+[2/27] [chromium-iphone] › tests/p2-e-home.spec.ts:60:134 › canonical 2480 displays 你目前多付 without debt framing
+  1) [chromium-iphone] › tests/p2-e-home.spec.ts:60:134 › canonical 2480 displays 你目前多付 without debt framing
+
+    Error: expect(locator).toHaveAccessibleName(expected) failed
+
+    Locator:  getByTestId('ledger-balance').locator('p').first()
+    Expected: "你目前多付 NT$2,480"
+    Received: ""
+    Timeout:  5000ms
+
+    Call log:
+      - Expect "toHaveAccessibleName" with timeout 5000ms
+      - waiting for getByTestId('ledger-balance').locator('p').first()
+        14 × locator resolved to <p aria-label="你目前多付 NT$2,480" class="text-[1.75rem] leading-9 font-semibold tabular-nums [overflow-wrap:anywhere]">NT$2,480</p>
+           - unexpected value ""
+
+
+      62 |   await expect(balance(page).getByRole("heading")).toHaveText(label);
+      63 |   if (value === "0") { await expect(balance(page)).toContainText("下次誰方便，就由誰付款"); await expect(balance(page)).not.toContainText("NT$0"); await expect(balance(page)).not.toContainText("下次建議"); }
+    > 64 |   else { await expect(balance(page)).toContainText("NT$2,480"); await expect(balance(page)).toContainText(`下次建議由 ${payer === OWNER ? "你" : "另一半"} 付款`); await expect(balance(page).locator("p").first()).toHaveAccessibleName(`${label} NT$2,480`); }
+         |                                                                                                                                                                                                          ^
+      65 |   await expect(balance(page)).not.toContainText("你欠"); await firstFold(page); await capture(page, info, `balance-${value}`);
+      66 | });
+      67 |
+        at /Users/nc8/.codex/worktrees/p2-e-ledger-home/New project/tests/p2-e-home.spec.ts:64:202
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    output/playwright/results/p2-e-home-canonical-2480-displays-你目前多付-without-debt-framing-chromium-iphone/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: output/playwright/results/p2-e-home-canonical-2480-displays-你目前多付-without-debt-framing-chromium-iphone/error-context.md
+
+    attachment #3: trace (application/zip) ─────────────────────────────────────────────────────────
+    output/playwright/results/p2-e-home-canonical-2480-displays-你目前多付-without-debt-framing-chromium-iphone/trace.zip
+    Usage:
+
+        pnpm exec playwright show-trace output/playwright/results/p2-e-home-canonical-2480-displays-你目前多付-without-debt-framing-chromium-iphone/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+
+(node:84352) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+[3/27] [chromium-iphone] › tests/p2-e-home.spec.ts:60:134 › canonical -2480 displays 另一半目前多付 without debt framing
+  2) [chromium-iphone] › tests/p2-e-home.spec.ts:60:134 › canonical -2480 displays 另一半目前多付 without debt framing
+
+    Error: expect(locator).toHaveAccessibleName(expected) failed
+
+    Locator:  getByTestId('ledger-balance').locator('p').first()
+    Expected: "另一半目前多付 NT$2,480"
+    Received: ""
+    Timeout:  5000ms
+
+    Call log:
+      - Expect "toHaveAccessibleName" with timeout 5000ms
+      - waiting for getByTestId('ledger-balance').locator('p').first()
+        14 × locator resolved to <p aria-label="另一半目前多付 NT$2,480" class="text-[1.75rem] leading-9 font-semibold tabular-nums [overflow-wrap:anywhere]">NT$2,480</p>
+           - unexpected value ""
+
+
+      62 |   await expect(balance(page).getByRole("heading")).toHaveText(label);
+      63 |   if (value === "0") { await expect(balance(page)).toContainText("下次誰方便，就由誰付款"); await expect(balance(page)).not.toContainText("NT$0"); await expect(balance(page)).not.toContainText("下次建議"); }
+    > 64 |   else { await expect(balance(page)).toContainText("NT$2,480"); await expect(balance(page)).toContainText(`下次建議由 ${payer === OWNER ? "你" : "另一半"} 付款`); await expect(balance(page).locator("p").first()).toHaveAccessibleName(`${label} NT$2,480`); }
+         |                                                                                                                                                                                                          ^
+      65 |   await expect(balance(page)).not.toContainText("你欠"); await firstFold(page); await capture(page, info, `balance-${value}`);
+      66 | });
+      67 |
+        at /Users/nc8/.codex/worktrees/p2-e-ledger-home/New project/tests/p2-e-home.spec.ts:64:202
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    output/playwright/results/p2-e-home-canonical--2480--da27c-一半目前多付-without-debt-framing-chromium-iphone/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: output/playwright/results/p2-e-home-canonical--2480--da27c-一半目前多付-without-debt-framing-chromium-iphone/error-context.md
+
+    attachment #3: trace (application/zip) ─────────────────────────────────────────────────────────
+    output/playwright/results/p2-e-home-canonical--2480--da27c-一半目前多付-without-debt-framing-chromium-iphone/trace.zip
+    Usage:
+
+        pnpm exec playwright show-trace output/playwright/results/p2-e-home-canonical--2480--da27c-一半目前多付-without-debt-framing-chromium-iphone/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+
+(node:84442) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+[4/27] [chromium-iphone] › tests/p2-e-home.spec.ts:60:134 › canonical 0 displays 目前很平衡 without debt framing
+[5/27] [chromium-iphone] › tests/p2-e-home.spec.ts:68:5 › next payer follows the supplied canonical recommendation, including one differing from the balance sign
+[6/27] [chromium-iphone] › tests/p2-e-home.spec.ts:71:51 › no payer fabrication when canonical next payer is null
+[7/27] [chromium-iphone] › tests/p2-e-home.spec.ts:71:51 › no payer fabrication when canonical next payer is missing-member
+[8/27] [chromium-iphone] › tests/p2-e-home.spec.ts:75:63 › BigInt complete absolute balance 900719925474099312345 has no exponent, clipping or overflow
+[9/27] [chromium-iphone] › tests/p2-e-home.spec.ts:75:63 › BigInt complete absolute balance -900719925474099312345 has no exponent, clipping or overflow
+[10/27] [chromium-iphone] › tests/p2-e-home.spec.ts:81:5 › zero-record Ledger is balanced, has an empty timeline and one valid Quick Entry
+  3) [chromium-iphone] › tests/p2-e-home.spec.ts:81:5 › zero-record Ledger is balanced, has an empty timeline and one valid Quick Entry
+
+    Error: expect(locator).toHaveCount(expected) failed
+
+    Locator:  getByRole('alert')
+    Expected: 0
+    Received: 1
+    Timeout:  5000ms
+
+    Call log:
+      - Expect "toHaveCount" with timeout 5000ms
+      - waiting for getByRole('alert')
+        14 × locator resolved to 1 element
+           - unexpected value "1"
+
+
+      81 | test("zero-record Ledger is balanced, has an empty timeline and one valid Quick Entry", async ({ page }, info) => {
+      82 |   await start(page, { count: 0 }); await expect(balance(page)).toContainText("目前很平衡");
+    > 83 |   await expect(timeline(page)).toContainText("從一起花的第一筆開始"); await expect(page.getByRole("alert")).toHaveCount(0);
+         |                                                                                                   ^
+      84 |   await expect(page.getByRole("button", { name: "記一筆", exact: true })).toHaveCount(1);
+      85 |   await capture(page, info, "zero-records");
+      86 |   await page.getByTestId("quick-entry-trigger").click(); await expect(dialog(page)).toHaveAccessibleName("記一筆");
+        at /Users/nc8/.codex/worktrees/p2-e-ledger-home/New project/tests/p2-e-home.spec.ts:83:99
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    output/playwright/results/p2-e-home-zero-record-Ledg-dffcb-e-and-one-valid-Quick-Entry-chromium-iphone/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: output/playwright/results/p2-e-home-zero-record-Ledg-dffcb-e-and-one-valid-Quick-Entry-chromium-iphone/error-context.md
+
+    attachment #3: trace (application/zip) ─────────────────────────────────────────────────────────
+    output/playwright/results/p2-e-home-zero-record-Ledg-dffcb-e-and-one-valid-Quick-Entry-chromium-iphone/trace.zip
+    Usage:
+
+        pnpm exec playwright show-trace output/playwright/results/p2-e-home-zero-record-Ledg-dffcb-e-and-one-valid-Quick-Entry-chromium-iphone/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+
+(node:84615) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+[11/27] [chromium-iphone] › tests/p2-e-home.spec.ts:89:5 › no-Ledger state has only the existing create flow, with no financial Home shell
+[12/27] [chromium-iphone] › tests/p2-e-home.spec.ts:100:5 › first bootstrap loading keeps accepted identity and quiet skeletons without fake zero/empty
+[13/27] [chromium-iphone] › tests/p2-e-home.spec.ts:110:5 › initial read failure is unavailable, scoped and retryable, not an empty or valid submit state
+  4) [chromium-iphone] › tests/p2-e-home.spec.ts:110:5 › initial read failure is unavailable, scoped and retryable, not an empty or valid submit state
+
+    Error: expect(locator).toContainText(expected) failed
+
+    Locator: getByRole('alert')
+    Expected substring: "暫時讀不到這本帳本"
+    Error: strict mode violation: getByRole('alert') resolved to 2 elements:
+        1) <div role="alert" class="space-y-2">…</div> aka getByText('暫時讀不到這本帳本。重新讀取')
+        2) <div role="alert" aria-live="assertive" id="__next-route-announcer__"></div> aka locator('[id="__next-route-announcer__"]')
+
+    Call log:
+      - Expect "toContainText" with timeout 5000ms
+      - waiting for getByRole('alert')
+
+
+      111 |   const fixture = await homeBrowser(page); fixture.state.failReads.set(A, 500); await fixture.goto();
+      112 |   await expect(page.getByRole("heading", { level: 1 })).toHaveText("共同生活");
+    > 113 |   await expect(page.getByRole("alert")).toContainText("暫時讀不到這本帳本"); await expect(balance(page)).toContainText("暫時無法讀取近況");
+          |                                         ^
+      114 |   await expect(balance(page)).not.toContainText("NT$"); await expect(timeline(page)).toHaveCount(0); await expect(page.getByTestId("quick-entry-trigger")).toHaveCount(0);
+      115 |   await capture(page, info, "initial-read-failure"); fixture.state.failReads.delete(A); await page.getByRole("button", { name: "重新讀取" }).click(); await fixture.ready();
+      116 | });
+        at /Users/nc8/.codex/worktrees/p2-e-ledger-home/New project/tests/p2-e-home.spec.ts:113:41
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    output/playwright/results/p2-e-home-initial-read-fai-ae192-empty-or-valid-submit-state-chromium-iphone/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: output/playwright/results/p2-e-home-initial-read-fai-ae192-empty-or-valid-submit-state-chromium-iphone/error-context.md
+
+    attachment #3: trace (application/zip) ─────────────────────────────────────────────────────────
+    output/playwright/results/p2-e-home-initial-read-fai-ae192-empty-or-valid-submit-state-chromium-iphone/trace.zip
+    Usage:
+
+        pnpm exec playwright show-trace output/playwright/results/p2-e-home-initial-read-fai-ae192-empty-or-valid-submit-state-chromium-iphone/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+
+(node:84625) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+[14/27] [chromium-iphone] › tests/p2-e-home.spec.ts:118:5 › known refresh failure keeps balance, payer and timeline, adds stale copy and contextual retry
+[15/27] [chromium-iphone] › tests/p2-e-home.spec.ts:127:5 › read 401 remains a distinct authentication failure
+  5) [chromium-iphone] › tests/p2-e-home.spec.ts:127:5 › read 401 remains a distinct authentication failure
+
+    Error: expect(locator).toContainText(expected) failed
+
+    Locator: getByRole('alert')
+    Expected substring: "登入已失效"
+    Error: strict mode violation: getByRole('alert') resolved to 3 elements:
+        1) <div role="alert">…</div> aka getByText('登入已失效。重新登入')
+        2) <p role="alert" class="mt-3 rounded-xl border p-3 text-sm">目前無法驗證這本帳本的存取權限。已保留操作結果；請重新登入後確認。</p> aka getByText('目前無法驗證這本帳本的存取權限。已保留操作結果；請重新登入後確認。')
+        3) <div role="alert" aria-live="assertive" id="__next-route-announcer__"></div> aka locator('[id="__next-route-announcer__"]')
+
+    Call log:
+      - Expect "toContainText" with timeout 5000ms
+      - waiting for getByRole('alert')
+        - locator resolved to <div role="alert" aria-live="assertive" id="__next-route-announcer__"></div>
+        - unexpected value ""
+
+
+      127 | test("read 401 remains a distinct authentication failure", async ({ page }) => {
+      128 |   const fixture = await start(page); fixture.state.failReads.set(A, 401); await homeAction(page, "重新整理");
+    > 129 |   await expect(page.getByRole("alert")).toContainText("登入已失效"); await expect(page.getByRole("button", { name: "重新登入" })).toBeVisible();
+          |                                         ^
+      130 |   await expect(balance(page)).toHaveCount(0); await expect(page.getByText("暫時讀不到這本帳本。", { exact: true })).toHaveCount(0);
+      131 | });
+      132 |
+        at /Users/nc8/.codex/worktrees/p2-e-ledger-home/New project/tests/p2-e-home.spec.ts:129:41
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    output/playwright/results/p2-e-home-read-401-remains-a-distinct-authentication-failure-chromium-iphone/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: output/playwright/results/p2-e-home-read-401-remains-a-distinct-authentication-failure-chromium-iphone/error-context.md
+
+    attachment #3: trace (application/zip) ─────────────────────────────────────────────────────────
+    output/playwright/results/p2-e-home-read-401-remains-a-distinct-authentication-failure-chromium-iphone/trace.zip
+    Usage:
+
+        pnpm exec playwright show-trace output/playwright/results/p2-e-home-read-401-remains-a-distinct-authentication-failure-chromium-iphone/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+
+(node:84708) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+[16/27] [chromium-iphone] › tests/p2-e-home.spec.ts:133:5 › More reuses one bounded host, makes no request/history change and restores focus
+[17/27] [chromium-iphone] › tests/p2-e-home.spec.ts:144:5 › More Refresh performs only existing scoped reads and returns focus
+[18/27] [chromium-iphone] › tests/p2-e-home.spec.ts:152:48 › 收支概況 is reachable with existing scoped Back
+[19/27] [chromium-iphone] › tests/p2-e-home.spec.ts:152:48 › 帳本設定 is reachable with existing scoped Back
+[20/27] [chromium-iphone] › tests/p2-e-home.spec.ts:152:48 › 搜尋 is reachable with existing scoped Back
+[21/27] [chromium-iphone] › tests/p2-e-home.spec.ts:158:5 › timeline stays 20+20 without an append request; Detail returns focus and scroll to its original row
+[22/27] [chromium-iphone] › tests/p2-e-home.spec.ts:166:5 › A to B shows B identity/skeleton with neither A balance nor A rows
+[23/27] [chromium-iphone] › tests/p2-e-home.spec.ts:174:40 › 40-character Ledger name and huge balance wrap at 100% without obscuring header controls
+[24/27] [chromium-iphone] › tests/p2-e-home.spec.ts:174:40 › 40-character Ledger name and huge balance wrap at 200% without obscuring header controls
+[25/27] [chromium-iphone] › tests/p2-e-home.spec.ts:184:5 › header keyboard order is identity, Search, More, followed by the quiet statistics target
+[26/27] [chromium-iphone] › tests/p2-e-home.spec.ts:189:5 › Quick Entry create preserves one contextual success, canonical row/balance targeting and fresh draft
+[27/27] [chromium-iphone] › tests/p2-e-home.spec.ts:196:5 › reduced motion retains the complete Home and More focus behavior
+  5 failed
+    [chromium-iphone] › tests/p2-e-home.spec.ts:60:134 › canonical 2480 displays 你目前多付 without debt framing
+    [chromium-iphone] › tests/p2-e-home.spec.ts:60:134 › canonical -2480 displays 另一半目前多付 without debt framing
+    [chromium-iphone] › tests/p2-e-home.spec.ts:81:5 › zero-record Ledger is balanced, has an empty timeline and one valid Quick Entry
+    [chromium-iphone] › tests/p2-e-home.spec.ts:110:5 › initial read failure is unavailable, scoped and retryable, not an empty or valid submit state
+    [chromium-iphone] › tests/p2-e-home.spec.ts:127:5 › read 401 remains a distinct authentication failure
+  22 passed (46.3s)

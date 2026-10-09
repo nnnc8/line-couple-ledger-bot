@@ -1,0 +1,590 @@
+{
+  "baseline": "1d52fd6371440833118dae0ac072256e00fd2764",
+  "productSha": "0d08bc2e9fe49ca172e7f6bbee7d7735b3a5d918",
+  "review": "Human-visible model inspection of all four uncropped viewport contact sheets; direct inspection of 200% and supplemental scrolled amount captures. Production build with mocked LIFF and APIs.",
+  "states": [
+    {
+      "engineViewport": "chromium-390",
+      "state": "balanced",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "horizontalOverflow": false,
+      "headerTargetMinimum": 44,
+      "fullPageCapture": true
+    },
+    {
+      "engineViewport": "chromium-390",
+      "state": "home-more",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "horizontalOverflow": false,
+      "headerTargetMinimum": 44,
+      "fullPageCapture": true
+    },
+    {
+      "engineViewport": "chromium-390",
+      "state": "initial-loading",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "horizontalOverflow": false,
+      "headerTargetMinimum": 44,
+      "fullPageCapture": true
+    },
+    {
+      "engineViewport": "chromium-390",
+      "state": "initial-read-failure",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "horizontalOverflow": false,
+      "headerTargetMinimum": 44,
+      "fullPageCapture": true
+    },
+    {
+      "engineViewport": "chromium-390",
+      "state": "large-balance",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "horizontalOverflow": false,
+      "headerTargetMinimum": 44,
+      "fullPageCapture": true
+    },
+    {
+      "engineViewport": "chromium-390",
+      "state": "long-name",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "horizontalOverflow": false,
+      "headerTargetMinimum": 44,
+      "fullPageCapture": true
+    },
+    {
+      "engineViewport": "chromium-390",
+      "state": "no-ledger",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "horizontalOverflow": false,
+      "headerTargetMinimum": null,
+      "fullPageCapture": true
+    },
+    {
+      "engineViewport": "chromium-390",
+      "state": "partner-positive",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "horizontalOverflow": false,
+      "headerTargetMinimum": 44,
+      "fullPageCapture": true
+    },
+    {
+      "engineViewport": "chromium-390",
+      "state": "self-positive",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "horizontalOverflow": false,
+      "headerTargetMinimum": 44,
+      "fullPageCapture": true
+    },
+    {
+      "engineViewport": "chromium-390",
+      "state": "stale-known-data",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "horizontalOverflow": false,
+      "headerTargetMinimum": 44,
+      "fullPageCapture": true
+    },
+    {
+      "engineViewport": "chromium-390",
+      "state": "text-200-scrolled",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "horizontalOverflow": false,
+      "headerTargetMinimum": 88,
+      "fullPageCapture": true
+    },
+    {
+      "engineViewport": "chromium-390",
+      "state": "text-200",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "horizontalOverflow": false,
+      "headerTargetMinimum": 88,
+      "fullPageCapture": true
+    },
+    {
+      "engineViewport": "chromium-390",
+      "state": "zero-records",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "horizontalOverflow": false,
+      "headerTargetMinimum": 44,
+      "fullPageCapture": true
+    },
+    {
+      "engineViewport": "chromium-393",
+      "state": "balanced",
+      "viewport": {
+        "width": 393,
+        "height": 852
+      },
+      "horizontalOverflow": false,
+      "headerTargetMinimum": 44,
+      "fullPageCapture": true
+    },
+    {
+      "engineViewport": "chromium-393",
+      "state": "home-more",
+      "viewport": {
+        "width": 393,
+        "height": 852
+      },
+      "horizontalOverflow": false,
+      "headerTargetMinimum": 44,
+      "fullPageCapture": true
+    },
+    {
+      "engineViewport": "chromium-393",
+      "state": "initial-loading",
+      "viewport": {
+        "width": 393,
+        "height": 852
+      },
+      "horizontalOverflow": false,
+      "headerTargetMinimum": 44,
+      "fullPageCapture": true
+    },
+    {
+      "engineViewport": "chromium-393",
+      "state": "initial-read-failure",
+      "viewport": {
+        "width": 393,
+        "height": 852
+      },
+      "horizontalOverflow": false,
+      "headerTargetMinimum": 44,
+      "fullPageCapture": true
+    },
+    {
+      "engineViewport": "chromium-393",
+      "state": "large-balance",
+      "viewport": {
+        "width": 393,
+        "height": 852
+      },
+      "horizontalOverflow": false,
+      "headerTargetMinimum": 44,
+      "fullPageCapture": true
+    },
+    {
+      "engineViewport": "chromium-393",
+      "state": "long-name",
+      "viewport": {
+        "width": 393,
+        "height": 852
+      },
+      "horizontalOverflow": false,
+      "headerTargetMinimum": 44,
+      "fullPageCapture": true
+    },
+    {
+      "engineViewport": "chromium-393",
+      "state": "no-ledger",
+      "viewport": {
+        "width": 393,
+        "height": 852
+      },
+      "horizontalOverflow": false,
+      "headerTargetMinimum": null,
+      "fullPageCapture": true
+    },
+    {
+      "engineViewport": "chromium-393",
+      "state": "partner-positive",
+      "viewport": {
+        "width": 393,
+        "height": 852
+      },
+      "horizontalOverflow": false,
+      "headerTargetMinimum": 44,
+      "fullPageCapture": true
+    },
+    {
+      "engineViewport": "chromium-393",
+      "state": "self-positive",
+      "viewport": {
+        "width": 393,
+        "height": 852
+      },
+      "horizontalOverflow": false,
+      "headerTargetMinimum": 44,
+      "fullPageCapture": true
+    },
+    {
+      "engineViewport": "chromium-393",
+      "state": "stale-known-data",
+      "viewport": {
+        "width": 393,
+        "height": 852
+      },
+      "horizontalOverflow": false,
+      "headerTargetMinimum": 44,
+      "fullPageCapture": true
+    },
+    {
+      "engineViewport": "chromium-393",
+      "state": "text-200-scrolled",
+      "viewport": {
+        "width": 393,
+        "height": 852
+      },
+      "horizontalOverflow": false,
+      "headerTargetMinimum": 88,
+      "fullPageCapture": true
+    },
+    {
+      "engineViewport": "chromium-393",
+      "state": "text-200",
+      "viewport": {
+        "width": 393,
+        "height": 852
+      },
+      "horizontalOverflow": false,
+      "headerTargetMinimum": 88,
+      "fullPageCapture": true
+    },
+    {
+      "engineViewport": "chromium-393",
+      "state": "zero-records",
+      "viewport": {
+        "width": 393,
+        "height": 852
+      },
+      "horizontalOverflow": false,
+      "headerTargetMinimum": 44,
+      "fullPageCapture": true
+    },
+    {
+      "engineViewport": "webkit-390",
+      "state": "balanced",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "horizontalOverflow": false,
+      "headerTargetMinimum": 44,
+      "fullPageCapture": true
+    },
+    {
+      "engineViewport": "webkit-390",
+      "state": "home-more",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "horizontalOverflow": false,
+      "headerTargetMinimum": 44,
+      "fullPageCapture": true
+    },
+    {
+      "engineViewport": "webkit-390",
+      "state": "initial-loading",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "horizontalOverflow": false,
+      "headerTargetMinimum": 44,
+      "fullPageCapture": true
+    },
+    {
+      "engineViewport": "webkit-390",
+      "state": "initial-read-failure",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "horizontalOverflow": false,
+      "headerTargetMinimum": 44,
+      "fullPageCapture": true
+    },
+    {
+      "engineViewport": "webkit-390",
+      "state": "large-balance",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "horizontalOverflow": false,
+      "headerTargetMinimum": 44,
+      "fullPageCapture": true
+    },
+    {
+      "engineViewport": "webkit-390",
+      "state": "long-name",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "horizontalOverflow": false,
+      "headerTargetMinimum": 44,
+      "fullPageCapture": true
+    },
+    {
+      "engineViewport": "webkit-390",
+      "state": "no-ledger",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "horizontalOverflow": false,
+      "headerTargetMinimum": null,
+      "fullPageCapture": true
+    },
+    {
+      "engineViewport": "webkit-390",
+      "state": "partner-positive",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "horizontalOverflow": false,
+      "headerTargetMinimum": 44,
+      "fullPageCapture": true
+    },
+    {
+      "engineViewport": "webkit-390",
+      "state": "self-positive",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "horizontalOverflow": false,
+      "headerTargetMinimum": 44,
+      "fullPageCapture": true
+    },
+    {
+      "engineViewport": "webkit-390",
+      "state": "stale-known-data",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "horizontalOverflow": false,
+      "headerTargetMinimum": 44,
+      "fullPageCapture": true
+    },
+    {
+      "engineViewport": "webkit-390",
+      "state": "text-200-scrolled",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "horizontalOverflow": false,
+      "headerTargetMinimum": 88,
+      "fullPageCapture": true
+    },
+    {
+      "engineViewport": "webkit-390",
+      "state": "text-200",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "horizontalOverflow": false,
+      "headerTargetMinimum": 88,
+      "fullPageCapture": true
+    },
+    {
+      "engineViewport": "webkit-390",
+      "state": "zero-records",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "horizontalOverflow": false,
+      "headerTargetMinimum": 44,
+      "fullPageCapture": true
+    },
+    {
+      "engineViewport": "webkit-393",
+      "state": "balanced",
+      "viewport": {
+        "width": 393,
+        "height": 852
+      },
+      "horizontalOverflow": false,
+      "headerTargetMinimum": 44,
+      "fullPageCapture": true
+    },
+    {
+      "engineViewport": "webkit-393",
+      "state": "home-more",
+      "viewport": {
+        "width": 393,
+        "height": 852
+      },
+      "horizontalOverflow": false,
+      "headerTargetMinimum": 44,
+      "fullPageCapture": true
+    },
+    {
+      "engineViewport": "webkit-393",
+      "state": "initial-loading",
+      "viewport": {
+        "width": 393,
+        "height": 852
+      },
+      "horizontalOverflow": false,
+      "headerTargetMinimum": 44,
+      "fullPageCapture": true
+    },
+    {
+      "engineViewport": "webkit-393",
+      "state": "initial-read-failure",
+      "viewport": {
+        "width": 393,
+        "height": 852
+      },
+      "horizontalOverflow": false,
+      "headerTargetMinimum": 44,
+      "fullPageCapture": true
+    },
+    {
+      "engineViewport": "webkit-393",
+      "state": "large-balance",
+      "viewport": {
+        "width": 393,
+        "height": 852
+      },
+      "horizontalOverflow": false,
+      "headerTargetMinimum": 44,
+      "fullPageCapture": true
+    },
+    {
+      "engineViewport": "webkit-393",
+      "state": "long-name",
+      "viewport": {
+        "width": 393,
+        "height": 852
+      },
+      "horizontalOverflow": false,
+      "headerTargetMinimum": 44,
+      "fullPageCapture": true
+    },
+    {
+      "engineViewport": "webkit-393",
+      "state": "no-ledger",
+      "viewport": {
+        "width": 393,
+        "height": 852
+      },
+      "horizontalOverflow": false,
+      "headerTargetMinimum": null,
+      "fullPageCapture": true
+    },
+    {
+      "engineViewport": "webkit-393",
+      "state": "partner-positive",
+      "viewport": {
+        "width": 393,
+        "height": 852
+      },
+      "horizontalOverflow": false,
+      "headerTargetMinimum": 44,
+      "fullPageCapture": true
+    },
+    {
+      "engineViewport": "webkit-393",
+      "state": "self-positive",
+      "viewport": {
+        "width": 393,
+        "height": 852
+      },
+      "horizontalOverflow": false,
+      "headerTargetMinimum": 44,
+      "fullPageCapture": true
+    },
+    {
+      "engineViewport": "webkit-393",
+      "state": "stale-known-data",
+      "viewport": {
+        "width": 393,
+        "height": 852
+      },
+      "horizontalOverflow": false,
+      "headerTargetMinimum": 44,
+      "fullPageCapture": true
+    },
+    {
+      "engineViewport": "webkit-393",
+      "state": "text-200-scrolled",
+      "viewport": {
+        "width": 393,
+        "height": 852
+      },
+      "horizontalOverflow": false,
+      "headerTargetMinimum": 88,
+      "fullPageCapture": true
+    },
+    {
+      "engineViewport": "webkit-393",
+      "state": "text-200",
+      "viewport": {
+        "width": 393,
+        "height": 852
+      },
+      "horizontalOverflow": false,
+      "headerTargetMinimum": 88,
+      "fullPageCapture": true
+    },
+    {
+      "engineViewport": "webkit-393",
+      "state": "zero-records",
+      "viewport": {
+        "width": 393,
+        "height": 852
+      },
+      "horizontalOverflow": false,
+      "headerTargetMinimum": 44,
+      "fullPageCapture": true
+    }
+  ],
+  "findingsResolved": [
+    "Removed browser programmatic static Home heading outline while retaining control focus rings",
+    "More close text uses foreground for contrast",
+    "At 200% long name takes full header width and actions reflow to second row, preserving keyboard order"
+  ],
+  "limits": [
+    "Large text may require vertical scrolling; no fixed-pixel first-fold guarantee",
+    "No physical VoiceOver, LINE chrome/keyboard, IME or native lifecycle proof",
+    "The complete amount remains in DOM, full-page and supplemental scrolled captures without truncation"
+  ],
+  "g5": "NOT COMPLETE / NOT PASS"
+}

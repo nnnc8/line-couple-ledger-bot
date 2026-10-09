@@ -1,0 +1,148 @@
+{
+  "stage": "after",
+  "state": "balanced",
+  "baseURL": "http://localhost:3119",
+  "dom": {
+    "viewport": {
+      "width": 393,
+      "height": 852
+    },
+    "scrollWidth": 393,
+    "textSize": "16px",
+    "header": {
+      "tag": "H1",
+      "text": "共同生活",
+      "top": 16,
+      "bottom": 60,
+      "left": 20,
+      "right": 273,
+      "width": 253,
+      "height": 44,
+      "fontSize": "22px",
+      "lineHeight": "28px",
+      "weight": "700",
+      "color": "rgb(15, 23, 42)",
+      "background": "rgba(0, 0, 0, 0)",
+      "backgroundImage": "none"
+    },
+    "balance": {
+      "tag": "SECTION",
+      "text": "目前很平衡下次誰方便，就由誰付款",
+      "top": 88,
+      "bottom": 192,
+      "left": 20,
+      "right": 373,
+      "width": 353,
+      "height": 104,
+      "fontSize": "16px",
+      "lineHeight": "24px",
+      "weight": "400",
+      "color": "rgb(15, 23, 42)",
+      "background": "rgba(0, 0, 0, 0)",
+      "backgroundImage": "none"
+    },
+    "nextPayer": null,
+    "cta": {
+      "tag": "BUTTON",
+      "text": "記一筆",
+      "top": 788,
+      "bottom": 840,
+      "left": 20,
+      "right": 373,
+      "width": 353,
+      "height": 52,
+      "fontSize": "16px",
+      "lineHeight": "24px",
+      "weight": "600",
+      "color": "rgb(255, 255, 255)",
+      "background": "rgb(20, 42, 71)",
+      "backgroundImage": "none"
+    },
+    "headerActions": [
+      {
+        "tag": "BUTTON",
+        "text": "共同生活",
+        "top": 16,
+        "bottom": 60,
+        "left": 20,
+        "right": 128.96875,
+        "width": 108.96875,
+        "height": 44,
+        "fontSize": "22px",
+        "lineHeight": "28px",
+        "weight": "700",
+        "color": "rgb(15, 23, 42)",
+        "background": "rgba(0, 0, 0, 0)",
+        "backgroundImage": "none"
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "top": 16,
+        "bottom": 60,
+        "left": 281,
+        "right": 325,
+        "width": 44,
+        "height": 44,
+        "fontSize": "16px",
+        "lineHeight": "24px",
+        "weight": "600",
+        "color": "rgb(15, 23, 42)",
+        "background": "rgba(0, 0, 0, 0)",
+        "backgroundImage": "none"
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "top": 16,
+        "bottom": 60,
+        "left": 329,
+        "right": 373,
+        "width": 44,
+        "height": 44,
+        "fontSize": "16px",
+        "lineHeight": "24px",
+        "weight": "600",
+        "color": "rgb(15, 23, 42)",
+        "background": "rgba(0, 0, 0, 0)",
+        "backgroundImage": "none"
+      }
+    ],
+    "initialDomRows": 20,
+    "fullyVisibleRows": 6,
+    "activeElement": "",
+    "dialogs": 0
+  },
+  "requests": [
+    {
+      "method": "POST",
+      "path": "/api/app/session",
+      "at": 21924.919917,
+      "finishedAt": 21931.458209
+    },
+    {
+      "method": "GET",
+      "path": "/api/app/v2/context",
+      "at": 21931.658917,
+      "finishedAt": 21932.6795
+    },
+    {
+      "method": "GET",
+      "path": "/api/app/v2/ledgers",
+      "at": 21933.088334,
+      "finishedAt": 21934.397334
+    },
+    {
+      "method": "GET",
+      "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/bootstrap",
+      "at": 21954.883084,
+      "finishedAt": 21958.441042
+    },
+    {
+      "method": "GET",
+      "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories",
+      "at": 21976.557917,
+      "finishedAt": 21977.683042
+    }
+  ]
+}

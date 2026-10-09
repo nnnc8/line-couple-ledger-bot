@@ -12,8 +12,8 @@ export function row(ledgerId: string, id: string, description: string): V2Ledger
 }
 type Hold = { release: () => void; promise: Promise<void> };
 export function deferred(): Hold { let release!: () => void; const promise = new Promise<void>(resolve => { release = resolve; }); return { release, promise }; }
-export async function navigationBrowser(page: Page, { holdLiffInit = false } = {}) {
-  await page.clock.setFixedTime(new Date("2026-09-25T04:00:00Z"));
+export async function navigationBrowser(page: Page, { holdLiffInit = false, useRealClock = false } = {}) {
+  if (!useRealClock) await page.clock.setFixedTime(new Date("2026-09-25T04:00:00Z"));
   const state = {
     names: { ...names }, createFailure: false, createHold: null as Hold | null,
     rows: [row(A, TA, "A 專屬晚餐"), row(B, TB, "B 專屬車票")], ledgerIds: [A, B, C], defaultId: A, version: 1,

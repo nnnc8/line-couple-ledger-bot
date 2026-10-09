@@ -1,0 +1,97 @@
+{
+  "baseline": "1d52fd6371440833118dae0ac072256e00fd2764",
+  "implementationSha": "0d08bc2e9fe49ca172e7f6bbee7d7735b3a5d918",
+  "runtimeDependenciesUnchanged": true,
+  "protectedFiles": [
+    {
+      "file": "src/hooks/use-v2-ledgers.ts",
+      "unchanged": true,
+      "sha256": "ac4bbdc89a72f45fca03759d51b79cb203b15c9fd8e1fccc2202e569b8089c83"
+    },
+    {
+      "file": "src/hooks/use-v2-entry-session.ts",
+      "unchanged": true,
+      "sha256": "0f7d1eef336097b86802c5dcf2f6a45d72a232ecd1db30daf906c8add7333195"
+    },
+    {
+      "file": "src/lib/v2-ledger.ts",
+      "unchanged": true,
+      "sha256": "93e8b7c870a4f4fc88b7cb483ab76d8a2a69c125133edad22d8ecfcce98cdc78"
+    },
+    {
+      "file": "src/lib/v2-ledger-service.ts",
+      "unchanged": true,
+      "sha256": "1b9c518a6bbb962d795daf55108e67c7954cd4c9147019298dd30a9a4fb1c618"
+    },
+    {
+      "file": "src/lib/v2-transaction-draft.ts",
+      "unchanged": true,
+      "sha256": "71d176b76c3e92a3740b57831d7eacd867445d7e2c85f0dbc48a0223ab7c1394"
+    },
+    {
+      "file": "src/lib/v2-entry-operation.ts",
+      "unchanged": true,
+      "sha256": "9b39ec4a5bdf0e4f7bc0da3026774959a0b75c9474c3b7f363e9339f14cce373"
+    },
+    {
+      "file": "src/lib/v2-direct-command.ts",
+      "unchanged": true,
+      "sha256": "5081620516151c2d50379de333c8d8fb3bdd658435fd3092006169ea66929ba1"
+    },
+    {
+      "file": "src/lib/v2-navigation.ts",
+      "unchanged": true,
+      "sha256": "d421239b46873cd8ba5a258e894c4a34591e86bfd1890e04f11435fe3aed26df"
+    },
+    {
+      "file": "src/lib/v2-timeline.ts",
+      "unchanged": true,
+      "sha256": "bf7e6ad62b51f5f22d8a4d54e736dc029f285d1171d2a45703699dc413e9a765"
+    },
+    {
+      "file": "src/components/ledger/ledger-timeline.tsx",
+      "unchanged": true,
+      "sha256": "c541a4eaab67310f0d30862013f8e378780d6f0913b74c89d96cba83bf26ec99"
+    },
+    {
+      "file": "src/components/ledger/quick-entry.tsx",
+      "unchanged": true,
+      "sha256": "a96a3d31150fccc59688f7ff0c69ec380253ffb0e1fcb0b45e1ffe91f0349d8b"
+    },
+    {
+      "file": "src/components/ledger/ledger-surface-host.tsx",
+      "unchanged": true,
+      "sha256": "ce7b07b0c8321e2ac6e506f0c6ba912771db780e96af944c32ad5b9fe3c9840c"
+    },
+    {
+      "file": "src/components/ui/card.tsx",
+      "unchanged": true,
+      "sha256": "99bb84a049bd051d945e51b528b3bc0ab44f6405a04aa9de3e8cb3e3fb7e1eef"
+    },
+    {
+      "file": "src/app/api/app/[...path]/route.ts",
+      "unchanged": true,
+      "sha256": "49a752abd33141a3d009579d308092031d438d7e7304dd2a530b25ecbfb50338"
+    },
+    {
+      "file": "pnpm-lock.yaml",
+      "unchanged": true,
+      "sha256": "3dca2b21f1ed5628e726af46e68446a3dfb1e711c8aa4ac122ed04ce23163ac6"
+    }
+  ],
+  "homeSource": {
+    "gradientRemoved": true,
+    "permanentRefreshRemoved": true,
+    "equalNavStripRemoved": true,
+    "unsafeBalanceNumberRemoved": true,
+    "summaryPresentationOnly": true
+  },
+  "productTree": "e3a232652b67693cb42c089d7c49716ea72b2fac",
+  "devDependenciesUnchanged": true,
+  "noDbMigration": true,
+  "noAccountingChange": true,
+  "noFinancialWriterChange": true,
+  "noStateOwnershipChange": true,
+  "noV31": true,
+  "statisticsDefectNotAddressed": true
+}

@@ -1,0 +1,116 @@
+{
+  "stage": "before",
+  "state": "zero-records",
+  "baseURL": "http://localhost:3118",
+  "dom": {
+    "viewport": {
+      "width": 393,
+      "height": 852
+    },
+    "scrollWidth": 393,
+    "textSize": "16px",
+    "header": {
+      "tag": "H1",
+      "text": "共同生活",
+      "top": 16,
+      "bottom": 60,
+      "left": 16,
+      "right": 377,
+      "width": 361,
+      "height": 44,
+      "fontSize": "20px",
+      "lineHeight": "28px",
+      "weight": "700",
+      "color": "rgb(15, 23, 42)",
+      "background": "rgba(0, 0, 0, 0)",
+      "backgroundImage": "none"
+    },
+    "balance": {
+      "tag": "DIV",
+      "text": "共同生活目前很平衡",
+      "top": 152,
+      "bottom": 246,
+      "left": 16,
+      "right": 377,
+      "width": 361,
+      "height": 94,
+      "fontSize": "16px",
+      "lineHeight": "24px",
+      "weight": "400",
+      "color": "rgb(255, 255, 255)",
+      "background": "rgba(0, 0, 0, 0)",
+      "backgroundImage": "linear-gradient(140deg, rgb(23, 59, 99), rgb(12, 34, 64))"
+    },
+    "nextPayer": null,
+    "cta": {
+      "tag": "BUTTON",
+      "text": "記一筆",
+      "top": 788,
+      "bottom": 840,
+      "left": 16,
+      "right": 377,
+      "width": 361,
+      "height": 52,
+      "fontSize": "16px",
+      "lineHeight": "24px",
+      "weight": "600",
+      "color": "rgb(255, 255, 255)",
+      "background": "rgb(20, 42, 71)",
+      "backgroundImage": "none"
+    },
+    "headerActions": [
+      {
+        "tag": "BUTTON",
+        "text": "共同生活",
+        "top": 16,
+        "bottom": 60,
+        "left": 16,
+        "right": 118.40625,
+        "width": 102.40625,
+        "height": 44,
+        "fontSize": "20px",
+        "lineHeight": "28px",
+        "weight": "700",
+        "color": "rgb(15, 23, 42)",
+        "background": "rgba(0, 0, 0, 0)",
+        "backgroundImage": "none"
+      }
+    ],
+    "initialDomRows": 0,
+    "fullyVisibleRows": 0,
+    "activeElement": "",
+    "dialogs": 0
+  },
+  "requests": [
+    {
+      "method": "POST",
+      "path": "/api/app/session",
+      "at": 20318.115625,
+      "finishedAt": 20329.979666
+    },
+    {
+      "method": "GET",
+      "path": "/api/app/v2/context",
+      "at": 20334.260041,
+      "finishedAt": 20339.634083
+    },
+    {
+      "method": "GET",
+      "path": "/api/app/v2/ledgers",
+      "at": 20339.661125,
+      "finishedAt": 20352.775708
+    },
+    {
+      "method": "GET",
+      "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/bootstrap",
+      "at": 20371.784333,
+      "finishedAt": 20381.084083
+    },
+    {
+      "method": "GET",
+      "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/categories",
+      "at": 20394.941875,
+      "finishedAt": 20397.901458
+    }
+  ]
+}

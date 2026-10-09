@@ -1,0 +1,127 @@
+{
+  "stage": "after",
+  "state": "initial-read-failure",
+  "baseURL": "http://localhost:3119",
+  "dom": {
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "scrollWidth": 390,
+    "textSize": "16px",
+    "header": {
+      "tag": "H1",
+      "text": "共同生活",
+      "top": 16,
+      "bottom": 60,
+      "left": 20,
+      "right": 270,
+      "width": 250,
+      "height": 44,
+      "fontSize": "22px",
+      "lineHeight": "28px",
+      "weight": "700",
+      "color": "rgb(15, 23, 42)",
+      "background": "rgba(0, 0, 0, 0)",
+      "backgroundImage": "none"
+    },
+    "balance": {
+      "tag": "SECTION",
+      "text": "暫時無法讀取近況",
+      "top": 88,
+      "bottom": 192,
+      "left": 20,
+      "right": 370,
+      "width": 350,
+      "height": 104,
+      "fontSize": "16px",
+      "lineHeight": "24px",
+      "weight": "400",
+      "color": "rgb(15, 23, 42)",
+      "background": "rgba(0, 0, 0, 0)",
+      "backgroundImage": "none"
+    },
+    "nextPayer": null,
+    "cta": null,
+    "headerActions": [
+      {
+        "tag": "BUTTON",
+        "text": "共同生活",
+        "top": 16,
+        "bottom": 60,
+        "left": 20,
+        "right": 130.25,
+        "width": 110.25,
+        "height": 44,
+        "fontSize": "22px",
+        "lineHeight": "28px",
+        "weight": "700",
+        "color": "rgb(15, 23, 42)",
+        "background": "rgba(0, 0, 0, 0)",
+        "backgroundImage": "none"
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "top": 16,
+        "bottom": 60,
+        "left": 278,
+        "right": 322,
+        "width": 44,
+        "height": 44,
+        "fontSize": "16px",
+        "lineHeight": "24px",
+        "weight": "600",
+        "color": "rgb(15, 23, 42)",
+        "background": "rgba(0, 0, 0, 0)",
+        "backgroundImage": "none"
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "top": 16,
+        "bottom": 60,
+        "left": 326,
+        "right": 370,
+        "width": 44,
+        "height": 44,
+        "fontSize": "16px",
+        "lineHeight": "24px",
+        "weight": "600",
+        "color": "rgb(15, 23, 42)",
+        "background": "rgba(0, 0, 0, 0)",
+        "backgroundImage": "none"
+      }
+    ],
+    "initialDomRows": 0,
+    "fullyVisibleRows": 0,
+    "activeElement": "",
+    "dialogs": 0
+  },
+  "requests": [
+    {
+      "method": "POST",
+      "path": "/api/app/session",
+      "at": 3976.817875,
+      "finishedAt": 3983.383834
+    },
+    {
+      "method": "GET",
+      "path": "/api/app/v2/context",
+      "at": 3983.561375,
+      "finishedAt": 3987.700709
+    },
+    {
+      "method": "GET",
+      "path": "/api/app/v2/ledgers",
+      "at": 3987.887334,
+      "finishedAt": 3989.469042
+    },
+    {
+      "method": "GET",
+      "path": "/api/app/v2/ledgers/00000000-0000-4000-8000-000000000010/bootstrap",
+      "at": 4011.427459,
+      "finishedAt": 4013.194375
+    }
+  ]
+}
